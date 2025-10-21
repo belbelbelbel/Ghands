@@ -10,11 +10,16 @@ export default function SplashScreen() {
   const { isOnboardingComplete, isLoading } = useOnboarding();
 
 
-  useEffect(() => {
-    NavigationBar.setPositionAsync('absolute');
-    NavigationBar.setBackgroundColorAsync('transparent');
-    NavigationBar.setBehaviorAsync('overlay-swipe');
-  }, []);
+useEffect(() => {
+  const setupNavBar = async () => {
+    await NavigationBar.setBackgroundColorAsync('black');
+    await NavigationBar.setButtonStyleAsync('light');
+    await NavigationBar.setBehaviorAsync('overlay-swipe'); // keeps gesture nav working
+    await NavigationBar.setVisibilityAsync('visible');
+  };
+
+  setupNavBar();
+}, []);
 
   useEffect(() => {
     // Start pulse animation using basic Animated API
@@ -140,6 +145,7 @@ styles.container
         </View>
       </TouchableOpacity>
       <StatusBar barStyle={'default'} />
+
     </View>
   );
 }

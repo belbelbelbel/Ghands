@@ -20,9 +20,10 @@ export const AccountTypeCard: React.FC<AccountTypeCardProps> = ({
 }) => {
   return (
     <TouchableOpacity
+    
       onPress={onPress}
       activeOpacity={0.7}
-      className="bg-white border-2 border-[#ADF802] rounded-2xl p-6 mx-4 my-2 relative"
+      className=" border-2 border-[#a4f40eff] rounded-2xl p-6 mx-4 my-2 relative"
       style={{
         shadowColor: '#000',
         shadowOffset: {
@@ -32,6 +33,8 @@ export const AccountTypeCard: React.FC<AccountTypeCardProps> = ({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
+        backgroundColor: '#f5f9eeff'
+        
       }}
     >
       {/* Right Arrow */}
@@ -45,10 +48,14 @@ export const AccountTypeCard: React.FC<AccountTypeCardProps> = ({
             {icon}
           </View>
           <View className='flex flex-col items-start '>
-            <Text className="text-lg font-bold text-black text-center mb-1">
+            <Text className="text-lg font-bold text-black text-center mb-1" style={{
+                 fontFamily: 'Poppins-Medium',
+            }}>
               {title}
             </Text>
-            <Text className="text-sm text-gray-600 text-center mb-4">
+            <Text className="text-sm text-gray-600 text-center mb-4 " style={{
+               fontFamily: 'Poppins-Regular',
+            }}>
               {subtitle}
             </Text>
           </View>

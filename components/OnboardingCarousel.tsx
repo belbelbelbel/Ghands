@@ -117,8 +117,8 @@ export default function OnboardingCarousel({
                   width: index === currentIndex ? 32 : 8,
                   height: 8,
                   borderRadius: 4,
-                  backgroundColor: index === currentIndex 
-                    ? '#ADF802' 
+                  backgroundColor: index === currentIndex
+                    ? '#D8FF2E'
                     : 'rgba(216, 255, 46, 0.25)',
                   marginHorizontal: 3,
                 },
@@ -157,7 +157,7 @@ export default function OnboardingCarousel({
                     fontSize: 16,
                     fontWeight: '600',
                     color: 'rgba(255, 255, 255, 0.7)',
-                    fontFamily: 'System',
+                    fontFamily: 'Outfit-SemiBold',
                   }}
                 >
                   Skip
@@ -174,10 +174,10 @@ export default function OnboardingCarousel({
                 paddingVertical: 18,
                 paddingHorizontal: isLastSlide ? 40 : 28,
                 borderRadius: 32,
-                backgroundColor: '#ADF802',
+                backgroundColor: '#D8FF2E',
                 flexDirection: 'row',
                 alignItems: 'center',
-                shadowColor: '#ADF802',
+                shadowColor: '#D8FF2E',
                 shadowOffset: { width: 0, height: 6 },
                 shadowOpacity: 0.25,
                 shadowRadius: 12,
@@ -194,7 +194,7 @@ export default function OnboardingCarousel({
                   fontSize: 17,
                   fontWeight: '700',
                   color: '#0b0b07',
-                  fontFamily: 'System',
+                  fontFamily: 'Outfit-Bold',
                   marginRight: isLastSlide ? 0 : 6,
                 }}
               >

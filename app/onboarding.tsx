@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
-import { Platform, StatusBar, View } from 'react-native';
-import { setBackgroundColorAsync } from 'expo-system-ui';
+import React from 'react';
+import { StatusBar, View } from 'react-native';
 import OnboardingCarousel from '../components/OnboardingCarousel';
 import useOnboarding from '../hooks/useOnboarding';
 import { DESIGN_TOKENS, ONBOARDING_SLIDES } from '../lib/assets';
@@ -18,26 +17,6 @@ export default function OnboardingScreen() {
   } = useOnboarding();
 
   // Fix Android navigation bar and force immersive mode
-  useEffect(() => {
-    const setupAndroidUI = async () => {
-      if (Platform.OS === 'android') {
-        try {
-          // Set system background to black to match app
-          await setBackgroundColorAsync(DESIGN_TOKENS.colors.background);
-          
-          // Force immersive mode immediately
-          StatusBar.setHidden(false, 'none');
-          StatusBar.setBackgroundColor('transparent', true);
-          StatusBar.setTranslucent(true);
-          
-        } catch (error) {
-          console.log('System UI setup error:', error);
-        }
-      }
-    };
-
-    setupAndroidUI();
-  }, []);
 
   const handleNext = async () => {
     if (currentSlideIndex === ONBOARDING_SLIDES.length - 1) {
@@ -65,7 +44,7 @@ export default function OnboardingScreen() {
       backgroundColor: DESIGN_TOKENS.colors.background,
     }}>
       <StatusBar
-        barStyle="light-content"
+        barStyle="default"
         backgroundColor="transparent"
         translucent={true}
         hidden={false}

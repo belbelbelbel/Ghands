@@ -9,7 +9,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Fixed values - no responsiveness
 const TITLE_FONT_SIZE = 28;
-const DESCRIPTION_FONT_SIZE = 15.5;
+const DESCRIPTION_FONT_SIZE = 17.5;
 const HORIZONTAL_PADDING = 28;
 const TEXT_PADDING = 10;
 
@@ -179,7 +179,7 @@ export default function OnboardingSlide({ slide, isActive }: OnboardingSlideProp
               fontWeight: '800',
               color: '#FFFFFF',
               textAlign: 'center',
-              fontFamily: 'System',
+              fontFamily: 'Outfit-ExtraBold',
               lineHeight: TITLE_FONT_SIZE + 8,
               letterSpacing: -0.5,
             }}
@@ -206,7 +206,7 @@ export default function OnboardingSlide({ slide, isActive }: OnboardingSlideProp
               fontWeight: '500',
               color: '#FFFFFF',
               textAlign: 'center',
-              fontFamily: 'System',
+              fontFamily: 'Outfit-Medium',
               lineHeight: DESCRIPTION_FONT_SIZE + 8,
               letterSpacing: 0.3,
               zIndex: 1

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Lock, Mail, Phone } from 'lucide-react-native';
+import { Lock, Mail } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -7,31 +7,30 @@ import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import { SocialButton } from '../components/SocialButton';
 
-export default function SignupScreen() {
+export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [fax, setFax] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-
-  const handleSignup = () => {
-
-    console.log('Sign up pressed');
-  };
 
   const handleLogin = () => {
-    // Navigate to login screen
-    router.push('/LoginScreen');
+    // Handle login logic
+    console.log('Login pressed');
+    // router.push('/LoginScreen')
   };
 
-  const handleGoogleSignup = () => {
-    // Handle Google signup
-    console.log('Google signup');
+  const handleSignup = () => {
+    // Navigate to signup screen
+    router.push('/SignupScreen');
   };
 
-  const handleFacebookSignup = () => {
-    // Handle Facebook signup
-    console.log('Facebook signup');
+  const handleGoogleLogin = () => {
+    // Handle Google login
+    console.log('Google login');
+  };
+
+  const handleFacebookLogin = () => {
+    // Handle Facebook login
+    console.log('Facebook login');
   };
 
   return (
@@ -40,7 +39,7 @@ export default function SignupScreen() {
         {/* Title */}
         <Text className="text-3xl font-bold text-black mb-8" style={{
              fontFamily: 'Poppins-ExtraBold',
-        }}>Sign Up</Text>
+        }}>Login</Text>
 
         {/* Company Email Input */}
         <InputField
@@ -50,16 +49,6 @@ export default function SignupScreen() {
           value={email}
           onChangeText={setEmail}
           iconPosition="left"
-        />
-
-        {/* Company Fax Input */}
-        <InputField
-          placeholder="+234 Company fax"
-          icon={<Phone size={20} color={'black'}/>}
-          keyboardType="phone-pad"
-          value={fax}
-          onChangeText={setFax}
-          iconPosition="right"
         />
 
         {/* Password Input */}
@@ -72,28 +61,26 @@ export default function SignupScreen() {
           iconPosition="right"
         />
 
-        {/* Confirm Password Input */}
-        <InputField
-          placeholder="Confirm password"
-          icon={<Lock size={20} color={'black'}/>}
-          secureTextEntry={true}
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          iconPosition="right"
-        />
-
-
-        {/* Sign Up Button */}
-        <View className="mt-4">
-          <AuthButton title="Sign Up" onPress={handleSignup} />
+        {/* Forgot Password Link */}
+        <View className="items-end mb-4">
+          <TouchableOpacity onPress={() => router.push('/ResetPassword')} activeOpacity={0.7}>
+            <Text className="text-black font-bold text-base" style={{ fontFamily: 'Poppins-Bold' }}>
+              Forgot password?
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Login Link */}
+        {/* Login Button */}
+        <View className="mt-4">
+          <AuthButton title="Login" onPress={handleLogin} />
+        </View>
+
+        {/* Signup Link */}
         <View className="items-center mb-8">
-          <TouchableOpacity onPress={handleLogin} activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleSignup} activeOpacity={0.7}>
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
-              Already have an account?{' '}
-              <Text className="text-black font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Login</Text>
+              Don't have an account?{' '}
+              <Text className="text-black font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Sign Up</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -128,7 +115,7 @@ export default function SignupScreen() {
               />
             </Svg>
           }
-          onPress={handleGoogleSignup}
+          onPress={handleGoogleLogin}
         />
 
         <SocialButton
@@ -141,10 +128,9 @@ export default function SignupScreen() {
               />
             </Svg>
           }
-          onPress={handleFacebookSignup}
+          onPress={handleFacebookLogin}
         />
       </ScrollView>
-    
     </SafeAreaView>
   );
 }

@@ -8,6 +8,7 @@ interface InputFieldProps {
   keyboardType?: KeyboardTypeOptions;
   value: string;
   onChangeText: (text: string) => void;
+  iconPosition?: 'left' | 'right';
 }
 
 export const InputField: React.FC<InputFieldProps> = ({
@@ -17,9 +18,15 @@ export const InputField: React.FC<InputFieldProps> = ({
   keyboardType = 'default',
   value,
   onChangeText,
+  iconPosition = 'left',
 }) => {
   return (
-    <View className="bg-gray-100 rounded-xl mb-4 px-4 py-4 flex-row items-center">
+    <View className="bg-gray-100 border-[0pc] rounded-xl mb-4 px-4 py-3 flex-row items-center">
+      {iconPosition === 'left' && (
+        <View className="w-12 h-12 mr-4 bg-[#ADF802]  border-[0.5px] border-black rounded-xl items-center justify-center">
+          {icon}
+        </View>
+      )}
       <TextInput
         placeholder={placeholder}
         secureTextEntry={secureTextEntry}
@@ -27,11 +34,16 @@ export const InputField: React.FC<InputFieldProps> = ({
         value={value}
         onChangeText={onChangeText}
         className="flex-1 text-black text-base"
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor="#666666"
+        style={{
+          fontFamily: 'Poppins-Medium',
+        }}
       />
-      <View className="w-8 h-8 bg-[#ADF802] rounded-full items-center justify-center ml-2">
-        {icon}
-      </View>
+      {iconPosition === 'right' && (
+        <View className="w-12 h-12 ml-4 bg-[#ADF802] border-[0.5px] border-black rounded-xl items-center justify-center">
+          {icon}
+        </View>
+      )}
     </View>
   );
 };

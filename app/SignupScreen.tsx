@@ -14,9 +14,33 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
+    // Basic validation
+    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
+      alert('Please fill in all required fields');
+      return;
+    }
 
-    console.log('Sign up pressed');
+    if (password !== confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+
+    try {
+      // Simulate API call for signup
+      console.log('Signing up user:', { email, fax, password });
+      
+      // After successful signup, navigate to location permission
+      router.push('/LocationPermissionScreen');
+    } catch (error) {
+      console.error('Signup error:', error);
+      alert('Signup failed. Please try again.');
+    }
   };
 
   const handleLogin = () => {

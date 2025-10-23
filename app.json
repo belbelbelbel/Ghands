@@ -10,7 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bendee.GHands"
+      "bundleIdentifier": "com.bendee.GHands",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to camera to take profile photos.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select profile photos."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,21 +23,26 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
       "navigationBar": {
-        "visible": false,
-        "backgroundColor": "#0b0b07",
+        "visible": true,
+        "backgroundColor": "#000000",
         "barStyle": "light-content"
       },
       "statusBar": {
-        "backgroundColor": "transparent",
+        "backgroundColor": "#000000",
         "barStyle": "light-content",
-        "translucent": true,
+        "translucent": false,
         "hidden": false
       },
       "softwareKeyboardLayoutMode": "pan",
-      "package": "com.bendee.GHands"
+      "package": "com.bendee.GHands",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro"

@@ -1,31 +1,79 @@
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { AuthButton } from '../components/AuthButton';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function OtpScreen() {
   const router = useRouter();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [resendTimer, setResendTimer] = useState(30);
+  const [canResend, setCanResend] = useState(false);
+  
+  const inputRefs = useRef<TextInput[]>([]);
+
+  useEffect(() => {
+    // Start resend timer
+    const timer = setInterval(() => {
+      setResendTimer((prev) => {
+        if (prev <= 1) {
+          setCanResend(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const handleOtpChange = (value: string, index: number) => {
-    if (value.length <= 1) {
+    // Only allow numeric input
+    const numericValue = value.replace(/[^0-9]/g, '');
+    
+    if (numericValue.length <= 1) {
       const newOtp = [...otp];
-      newOtp[index] = value;
+      newOtp[index] = numericValue;
       setOtp(newOtp);
       
-      // Auto-focus next input
-      if (value && index < 5) {
-        // Focus next input (this would need refs in a real implementation)
+      // Auto-focus next input if value is entered
+      if (numericValue && index < 5) {
+        inputRefs.current[index + 1]?.focus();
       }
     }
   };
 
-  const handleVerifyCode = () => {
+  const handleKeyPress = (key: string, index: number) => {
+    // Handle backspace - move to previous input
+    if (key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleVerifyCode = async () => {
     const code = otp.join('');
-    if (code.length === 6) {
-      // Navigate to password confirmation screen
-      router.push('/PasswordConfirmation');
+    
+    if (code.length !== 6) {
+      Alert.alert('Invalid Code', 'Please enter the complete 6-digit verification code.');
+      return;
+    }
+
+    setIsVerifying(true);
+    
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // For demo purposes, accept any 6-digit code
+      if (code.length === 6) {
+        router.push('/PasswordConfirmation');
+      } else {
+        Alert.alert('Invalid Code', 'The verification code you entered is incorrect. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to verify code. Please try again.');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -34,9 +82,18 @@ export default function OtpScreen() {
   };
 
   const handleResendCode = () => {
-    // Handle resend code logic
-    console.log('Resend code');
+    if (!canResend) return;
+    
+    setCanResend(false);
+    setResendTimer(30);
+    setOtp(['', '', '', '', '', '']);
+    inputRefs.current[0]?.focus();
+    
+    // Simulate resend API call
+    Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
   };
+
+  const isCodeComplete = otp.join('').length === 6;
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -61,19 +118,30 @@ export default function OtpScreen() {
         </Text>
 
         {/* OTP Input */}
-        <View className="flex-row justify-between mb-8">
+        <View className="flex-row justify-between mb-8 px-4">
           {otp.map((digit, index) => (
-            <View key={index} className="w-12 h-14 bg-gray-100 rounded-xl border-[0.5px] border-gray-300 items-center justify-center">
+            <View 
+              key={index} 
+              className={`w-12 h-14 rounded-xl border-[0.5px] items-center justify-center ${
+                digit ? 'bg-[#ADF802] border-[#ADF802]' : 'bg-gray-100 border-gray-300'
+              }`}
+            >
               <TextInput
+                ref={(ref) => {
+                  if (ref) inputRefs.current[index] = ref;
+                }}
                 value={digit}
                 onChangeText={(value) => handleOtpChange(value, index)}
+                onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
                 keyboardType="numeric"
                 maxLength={1}
-                className="text-xl font-bold text-black text-center"
+                className="text-xl font-bold text-black text-center w-full"
                 style={{
                   fontFamily: 'Poppins-Bold',
                 }}
                 placeholderTextColor="#9CA3AF"
+                selectTextOnFocus
+                autoFocus={index === 0}
               />
             </View>
           ))}
@@ -81,15 +149,45 @@ export default function OtpScreen() {
 
         {/* Verify Button */}
         <View className="mt-4">
-          <AuthButton title="Verify Code" onPress={handleVerifyCode} />
+          <TouchableOpacity
+            onPress={handleVerifyCode}
+            disabled={!isCodeComplete || isVerifying}
+            className={`rounded-xl py-4 px-6 ${
+              isCodeComplete && !isVerifying 
+                ? 'bg-black' 
+                : 'bg-gray-300'
+            }`}
+            activeOpacity={0.8}
+          >
+            <Text 
+              className={`text-center text-lg font-semibold ${
+                isCodeComplete && !isVerifying ? 'text-white' : 'text-gray-500'
+              }`}
+              style={{ fontFamily: 'Poppins-SemiBold' }}
+            >
+              {isVerifying ? 'Verifying...' : 'Verify Code'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Resend Code */}
         <View className="items-center mt-8">
-          <TouchableOpacity onPress={handleResendCode} activeOpacity={0.7}>
+          <TouchableOpacity 
+            onPress={handleResendCode} 
+            activeOpacity={canResend ? 0.7 : 1}
+            disabled={!canResend}
+          >
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
               Didn't receive a code?{' '}
-              <Text className="text-black font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Resend</Text>
+              {canResend ? (
+                <Text className="text-black font-bold" style={{ fontFamily: 'Poppins-Bold' }}>
+                  Resend
+                </Text>
+              ) : (
+                <Text className="text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
+                  Resend in {resendTimer}s
+                </Text>
+              )}
             </Text>
           </TouchableOpacity>
         </View>

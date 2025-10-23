@@ -7,8 +7,8 @@ import { AccountTypeCard } from '../components/AccountTypeCard';
 
 export default function SelectAccountTypeScreen() {
   const router = useRouter();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const backgroundFade = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const backgroundFade = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.sequence([

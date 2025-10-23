@@ -12,10 +12,23 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = () => {
-    // Handle login logic
-    console.log('Login pressed');
-    // router.push('/LoginScreen')
+  const handleLogin = async () => {
+    // Basic validation
+    if (!email.trim() || !password.trim()) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      // Simulate API call for login
+      console.log('Logging in user:', { email, password });
+      
+      // After successful login, navigate to location permission
+      router.push('/LocationPermissionScreen');
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Login failed. Please check your credentials and try again.');
+    }
   };
 
   const handleSignup = () => {

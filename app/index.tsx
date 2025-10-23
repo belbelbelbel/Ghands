@@ -1,4 +1,3 @@
-import * as NavigationBar from 'expo-navigation-bar';
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Animated, Image, Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -10,16 +9,7 @@ export default function SplashScreen() {
   const { isOnboardingComplete, isLoading } = useOnboarding();
 
 
-useEffect(() => {
-  const setupNavBar = async () => {
-    await NavigationBar.setBackgroundColorAsync('black');
-    await NavigationBar.setButtonStyleAsync('light');
-    await NavigationBar.setBehaviorAsync('overlay-swipe'); // keeps gesture nav working
-    await NavigationBar.setVisibilityAsync('visible');
-  };
 
-  setupNavBar();
-}, []);
 
   useEffect(() => {
     // Start pulse animation using basic Animated API

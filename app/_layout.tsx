@@ -2,6 +2,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from "expo-router";
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { StatusBar } from 'react-native';
 import '../global.css';
 
 // Keep the splash screen visible while we fetch resources
@@ -33,16 +34,29 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-      <Stack.Screen name="SelectAccountTypeScreen" options={{ headerShown: false }} />
-      <Stack.Screen name="SignupScreen" options={{ headerShown: false }} />
-      <Stack.Screen name="LoginScreen" options={{ headerShown: false }} />
-      <Stack.Screen name="ResetPassword" options={{ headerShown: false }} />
-      <Stack.Screen name="OtpScreen" options={{ headerShown: false }} />
-      <Stack.Screen name="PasswordConfirmation" options={{ headerShown: false }} />
-      <Stack.Screen name="main" options={{ headerShown: false }} />
-    </Stack>
+    <>
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="black" 
+        translucent={false}
+        hidden={false}
+      />
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="SelectAccountTypeScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="SignupScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="LoginScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ResetPassword" options={{ headerShown: false }} />
+        <Stack.Screen name="OtpScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="PasswordConfirmation" options={{ headerShown: false }} />
+        <Stack.Screen name="LocationPermissionScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="LocationSearchScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ProfileSetupScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ServicesGridScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="main" options={{ headerShown: false }} />
+      </Stack>
+    </>
   );
 }

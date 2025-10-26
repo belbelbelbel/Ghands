@@ -151,7 +151,7 @@ export default function ProfileSetupScreen() {
         {/* Header */}
         <View 
           className="flex-row items-center justify-between px-4 py-4"
-          // style={{ minHeight: screenHeight > 475 ? 20 : 30 }}
+          style={{ minHeight: screenHeight * 0.02 }}
         >
           <TouchableOpacity onPress={handleBack}>
             <ArrowLeft size={24} color="black" />
@@ -203,7 +203,7 @@ export default function ProfileSetupScreen() {
                   resizeMode="cover"
                 />
               ) : (
-                <Camera size={32} color="#ADF802" />
+                <Camera size={32} color="#6A9B00" />
               )}
               <View className="absolute -bottom-1 -right-1 w-8 h-8 bg-black rounded-full items-center justify-center">
                 <Plus size={16} color="white" />
@@ -235,7 +235,7 @@ export default function ProfileSetupScreen() {
             style={{ minHeight: screenHeight * 0.06 }}
           >
             <View 
-              className="bg-[#ADF802] border-[0.5px] border-black rounded-xl items-center justify-center mr-4"
+              className="bg-[#6A9B00] border-[0.5px] border-black rounded-xl items-center justify-center mr-4"
               style={{ 
                 width: screenWidth * 0.12, 
                 height: screenWidth * 0.08,
@@ -243,11 +243,10 @@ export default function ProfileSetupScreen() {
                 minHeight: 48
               }}
             >
-              <User size={20} color="black" />
+              <User size={20} color="white" />
             </View>
             <View 
-              className="flex-1 bg-gray-100 rounded-xl px-4  flex  justify-center"
-              style={{  height: screenHeight * 0.06 }}
+              className="flex-1 bg-gray-100 rounded-xl px-4 py-3"
             >
               <TextInput
                 placeholder="Full name"
@@ -269,7 +268,7 @@ export default function ProfileSetupScreen() {
             style={{ minHeight: screenHeight * 0.06 }}
           >
             <View 
-              className="bg-[#ADF802] border-[0.5px] border-black rounded-xl items-center justify-center mr-4"
+              className="bg-[#6A9B00] border-[0.5px] border-black rounded-xl items-center justify-center mr-4"
               style={{ 
                 width: screenWidth * 0.12, 
                 height: screenWidth * 0.12,
@@ -277,11 +276,11 @@ export default function ProfileSetupScreen() {
                 minHeight: 48
               }}
             >
-              <MapPin size={20} color="black" />
+              <MapPin size={20} color="white" />
             </View>
             <TouchableOpacity
               onPress={handleAddHomeAddress}
-              className="flex-1 bg-[#000000] rounded-xl flex items-center justify-center"
+              className="flex-1 bg-[#000000] rounded-xl py-3 px-4"
               activeOpacity={0.8}
               style={{ minHeight: 48 }}
             >
@@ -299,8 +298,8 @@ export default function ProfileSetupScreen() {
 
           {/* Location Input */}
           <View 
-            className="bg-gray-100 rounded-xl px-4  mb-6 flex  justify-center"
-            style={{ minHeight: screenHeight * 0.06, height: screenHeight * 0.06 }}
+            className="bg-gray-100 rounded-xl px-4 py-3 mb-6"
+            style={{ minHeight: screenHeight * 0.06 }}
           >
             <TextInput
               placeholder="Location..."
@@ -339,14 +338,14 @@ export default function ProfileSetupScreen() {
               >
                 <Text 
                 style={{ 
-                  fontFamily: 'Poppins-SemiBold',
+                  fontFamily: 'Poppins-Medium',
                   fontSize: screenWidth < 375 ? 16 : 20
                 }}
                   className={`${
                     selectedGender === 'male' ? 'text-white' : 'text-gray-400'
                   }`}
                 >
-                  Male 🧔🏽‍♂️
+                  Male 
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -361,14 +360,14 @@ export default function ProfileSetupScreen() {
               >
                 <Text 
                 style={{ 
-                  fontFamily: 'Poppins-SemiBold',
+                  fontFamily: 'Poppins-Medium',
                   fontSize: screenWidth < 375 ? 16 : 20
                 }}
                   className={`${
                     selectedGender === 'female' ? 'text-white' : 'text-gray-400'
                   }`}
                 >
-                  Female {''} 👩🏼‍🦰
+                  Female 
                 </Text>
               </TouchableOpacity>
             </View>
@@ -403,14 +402,14 @@ export default function ProfileSetupScreen() {
             onPress={handleSave}
             disabled={!isFormValid}
             className={`rounded-xl py-4 px-6 ${
-              isFormValid ? 'bg-[#ADF802]' : 'bg-gray-300'
+              isFormValid ? 'bg-[#6A9B00]' : 'bg-gray-300'
             }`}
             activeOpacity={0.8}
             style={{ minHeight: 52 }}
           >
             <Text 
               className={`text-center text-lg font-semibold ${
-                isFormValid ? 'text-black' : 'text-gray-500'
+                isFormValid ? 'text-white' : 'text-gray-500'
               }`}
               style={{ 
                 fontFamily: 'Poppins-SemiBold',

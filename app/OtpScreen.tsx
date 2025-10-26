@@ -123,7 +123,7 @@ export default function OtpScreen() {
             <View 
               key={index} 
               className={`w-12 h-14 rounded-xl border-[0.5px] items-center justify-center ${
-                digit ? 'bg-[#ADF802] border-[#ADF802]' : 'bg-gray-100 border-gray-300'
+                digit ? 'bg-[#6A9B00] border-[#6A9B00]' : 'bg-gray-100 border-gray-300'
               }`}
             >
               <TextInput
@@ -135,7 +135,7 @@ export default function OtpScreen() {
                 onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
                 keyboardType="numeric"
                 maxLength={1}
-                className="text-xl font-bold text-black text-center w-full"
+                className="text-xl font-bold text-white text-center w-full"
                 style={{
                   fontFamily: 'Poppins-Bold',
                 }}

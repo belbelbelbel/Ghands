@@ -1,43 +1,48 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { BarChart3, Home, Rocket, User } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
 import { Animated, StatusBar } from 'react-native';
 
-const AnimatedIcon = ({ Icon, color, focused }: { Icon: any, color: string, focused: boolean }) => {
-  const scaleAnim = useRef(new Animated.Value(focused ? 1.1 : 1)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+type IconName = keyof typeof MaterialIcons.glyphMap;
+
+const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName, color: string, focused: boolean }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(focused ? 1 : 0.7)).current;
+  const translateYAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.spring(scaleAnim, {
-        toValue: focused ? 1.2 : 1,
-        tension: 300,
-        friction: 10,
+        toValue: focused ? 1.15 : 1,
+        tension: 400,
+        friction: 8,
         useNativeDriver: true,
       }),
-      Animated.timing(rotateAnim, {
-        toValue: focused ? 1 : 0,
-        duration: 300,
+      Animated.timing(opacityAnim, {
+        toValue: focused ? 1 : 0.6,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateYAnim, {
+        toValue: focused ? -2 : 0,
+        tension: 400,
+        friction: 8,
         useNativeDriver: true,
       }),
     ]).start();
   }, [focused]);
-
-  const rotate = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
 
   return (
     <Animated.View
       style={{
         transform: [
           { scale: scaleAnim },
-          { rotate: rotate }
+          { translateY: translateYAnim }
         ],
+        opacity: opacityAnim,
       }}
     >
-      <Icon size={24} color={color} />
+      <MaterialIcons name={iconName} size={24} color={color} />
     </Animated.View>
   );
 };
@@ -46,10 +51,9 @@ export default function TabLayout() {
   return (
     <>
       <StatusBar 
-        barStyle="light-content" 
-        backgroundColor="black" 
+        barStyle="dark-content" 
+        backgroundColor="white" 
         translucent={false}
-        hidden={false}
       />
       <Tabs
         screenOptions={{
@@ -75,10 +79,9 @@ export default function TabLayout() {
           elevation: 3,
         },
         tabBarHideOnKeyboard: true,
-        tabBarAnimationEnabled: true,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: '#ADF802',
-        tabBarInactiveTintColor: '#999999',
+        tabBarActiveTintColor: '#6A9B00',
+        tabBarInactiveTintColor: '#000000',
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
@@ -94,7 +97,16 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedIcon Icon={Home} color={color} focused={focused} />
+            <AnimatedIcon iconName="home" color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="categories"
+        options={{
+          title: 'Categories',
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedIcon iconName="apps" color={color} focused={focused} />
           ),
         }}
       />
@@ -103,16 +115,16 @@ export default function TabLayout() {
         options={{
           title: 'Discover',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedIcon Icon={Rocket} color={color} focused={focused} />
+            <AnimatedIcon iconName="explore" color={color} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
-        name="analytics"
+        name="chat"
         options={{
-          title: 'Analytics',
+          title: 'Chat',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedIcon Icon={BarChart3} color={color} focused={focused} />
+            <AnimatedIcon iconName="chat" color={color} focused={focused} />
           ),
         }}
       />
@@ -121,7 +133,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedIcon Icon={User} color={color} focused={focused} />
+            <AnimatedIcon iconName="person" color={color} focused={focused} />
           ),
         }}
       />

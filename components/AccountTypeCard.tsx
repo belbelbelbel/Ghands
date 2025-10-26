@@ -23,7 +23,7 @@ export const AccountTypeCard: React.FC<AccountTypeCardProps> = ({
     
       onPress={onPress}
       activeOpacity={0.7}
-      className=" border-2 border-[#a4f40eff] rounded-2xl p-6 mx-4 my-2 relative"
+      className=" border-2 border-[#6A9B00] rounded-2xl p-6 mx-4 my-2 relative"
       style={{
         shadowColor: '#000',
         shadowOffset: {
@@ -44,7 +44,7 @@ export const AccountTypeCard: React.FC<AccountTypeCardProps> = ({
 
       <View className='flex items-start '>
         <View className='flex flex-row gap-4 items-center mb-4'>
-          <View className="w-16 h-16 bg-[#ADF802] rounded-2xl items-center justify-center mb-4 mx-auto">
+          <View className="w-16 h-16 bg-[#6A9B00] rounded-2xl items-center justify-center mb-4 mx-auto">
             {icon}
           </View>
           <View className='flex flex-col items-start '>

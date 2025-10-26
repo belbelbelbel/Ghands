@@ -61,8 +61,8 @@ export default function LocationSearchScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar 
-        barStyle="light-content" 
-        backgroundColor="black" 
+        barStyle="dark-content" 
+        backgroundColor="white" 
         translucent={false}
         hidden={false}
       />

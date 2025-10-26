@@ -7,6 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "ghands",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#6A9B00",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -18,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#6A9B00",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -56,7 +57,7 @@
           "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ADF802",
+          "backgroundColor": "#6A9B00",
           "dark": {
             "backgroundColor": "#000000"
           }

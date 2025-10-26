@@ -32,7 +32,7 @@ export default function ProfileScreen() {
         }}
         className="flex-1 justify-center items-center px-4"
       >
-        <View className="w-20 h-20 bg-[#ADF802] rounded-full items-center justify-center mb-6">
+        <View className="w-20 h-20 bg-[#6A9B00] rounded-full items-center justify-center mb-6">
           <User size={40} color="black" />
         </View>
         

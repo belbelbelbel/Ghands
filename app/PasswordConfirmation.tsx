@@ -53,7 +53,7 @@ export default function PasswordConfirmationScreen() {
             placeholder="New password"
             icon={
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                {showPassword ? <EyeOff size={20} color={'black'} /> : <Eye size={20} color={'black'} />}
+                {showPassword ? <EyeOff size={20} color={'white'} /> : <Eye size={20} color={'white'} />}
               </TouchableOpacity>
             }
             secureTextEntry={!showPassword}
@@ -69,7 +69,7 @@ export default function PasswordConfirmationScreen() {
             placeholder="Confirm new password"
             icon={
               <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                {showConfirmPassword ? <EyeOff size={20} color={'black'} /> : <Eye size={20} color={'black'} />}
+                {showConfirmPassword ? <EyeOff size={20} color={'white'} /> : <Eye size={20} color={'white'} />}
               </TouchableOpacity>
             }
             secureTextEntry={!showConfirmPassword}

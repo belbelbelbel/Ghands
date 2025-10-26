@@ -299,7 +299,7 @@ export default function ServicesGridScreen() {
         <View className="px-4 pb-4">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="bg-[#ADF802] rounded-xl py-4 px-6 items-center"
+            className="bg-[#6A9B00] rounded-xl py-4 px-6 items-center"
             activeOpacity={0.8}
           >
             <Text 

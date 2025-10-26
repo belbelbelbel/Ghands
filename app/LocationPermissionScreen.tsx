@@ -49,7 +49,7 @@ export default function LocationPermissionScreen() {
           }}
           className="mb-8"
         >
-          <View className="w-32 h-32 bg-[#ADF802] rounded-full items-center justify-center relative">
+          <View className="w-32 h-32 bg-[#6A9B00] rounded-full items-center justify-center relative">
             <MapPin size={48} color="black" />
             <View className="absolute -top-1 -right-1 w-8 h-8 bg-black rounded-full items-center justify-center">
               <Plus size={16} color="white" />

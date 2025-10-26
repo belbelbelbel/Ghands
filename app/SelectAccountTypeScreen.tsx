@@ -46,8 +46,8 @@ export default function SelectAccountTypeScreen() {
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           {/* Header Icon */}
           <Animated.View style={{ opacity: fadeAnim }} className="items-center mt-16 mb-8">
-            <View className="w-40 h-40 bg-[#ADF802] rounded-full items-center justify-center">
-              <Users size={60} color="black" />
+            <View className="w-40 h-40 bg-[#6A9B00] rounded-full items-center justify-center">
+              <Users size={60} color="white" />
             </View>
           </Animated.View>
           <Animated.View style={{ opacity: fadeAnim, flex: 0, justifyContent: 'center' }}>
@@ -66,7 +66,7 @@ export default function SelectAccountTypeScreen() {
             Choose Your Account Type
           </Animated.Text>
             <AccountTypeCard
-              icon={<User size={32} color="black" />}
+              icon={<User size={32} color="white" />}
               title="Individual Client"
               subtitle="Personal service requests"
               tags={["Established", "Licensed", "Certified"]}
@@ -74,7 +74,7 @@ export default function SelectAccountTypeScreen() {
             />
 
             <AccountTypeCard
-              icon={<Building size={32} color="black" />}
+              icon={<Building size={32} color="white" />}
               title="Corporate Client"
               subtitle="Business service solutions"
               tags={["Established", "Licensed", "Certified"]}

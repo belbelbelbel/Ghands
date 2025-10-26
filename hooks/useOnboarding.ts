@@ -62,7 +62,6 @@ export default function useOnboarding(): UseOnboardingReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
-  // Check onboarding status on mount
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       try {
@@ -76,7 +75,6 @@ export default function useOnboarding(): UseOnboardingReturn {
         setIsLoading(false);
       }
     };
-
     checkOnboardingStatus();
   }, []);
 

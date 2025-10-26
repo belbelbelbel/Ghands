@@ -69,7 +69,7 @@ export default function SignupScreen() {
         {/* Company Email Input */}
         <InputField
           placeholder="Company email"
-          icon={<Mail size={20} color={'black'}/>}
+          icon={<Mail size={20} color={'white'}/>}
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
@@ -79,7 +79,7 @@ export default function SignupScreen() {
         {/* Company Fax Input */}
         <InputField
           placeholder="+234 Company fax"
-          icon={<Phone size={20} color={'black'}/>}
+          icon={<Phone size={20} color={'white'}/>}
           keyboardType="phone-pad"
           value={fax}
           onChangeText={setFax}
@@ -89,7 +89,7 @@ export default function SignupScreen() {
         {/* Password Input */}
         <InputField
           placeholder="Password"
-          icon={<Lock size={20} color={'black'}/>}
+          icon={<Lock size={20} color={'white'}/>}
           secureTextEntry={true}
           value={password}
           onChangeText={setPassword}
@@ -99,7 +99,7 @@ export default function SignupScreen() {
         {/* Confirm Password Input */}
         <InputField
           placeholder="Confirm password"
-          icon={<Lock size={20} color={'black'}/>}
+          icon={<Lock size={20} color={'white'}/>}
           secureTextEntry={true}
           value={confirmPassword}
           onChangeText={setConfirmPassword}

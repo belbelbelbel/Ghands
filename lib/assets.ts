@@ -34,7 +34,7 @@ export const ONBOARDING_SLIDES: SlideData[] = [
 export const DESIGN_TOKENS = {
   colors: {
     background: '#0b0b07',
-    accent: '#ADF802',
+    accent: '#6A9B00',
     softWarm: '#F5F0E8',
     white: '#FFFFFF',
     text: '#FFFFFF',

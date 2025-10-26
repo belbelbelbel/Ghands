@@ -45,7 +45,7 @@ export default function ResetPasswordScreen() {
         {/* Email Input */}
         <InputField
           placeholder="Company email"
-          icon={<Mail size={20} color={'black'}/>}
+          icon={<Mail size={20} color={'white'}/>}
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}

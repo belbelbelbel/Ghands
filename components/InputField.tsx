@@ -23,7 +23,7 @@ export const InputField: React.FC<InputFieldProps> = ({
   return (
     <View className="bg-gray-100 border-[0pc] rounded-xl mb-4 px-4 py-3 flex-row items-center">
       {iconPosition === 'left' && (
-        <View className="w-12 h-12 mr-4 bg-[#ADF802]  border-[0.5px] border-black rounded-xl items-center justify-center">
+        <View className="w-12 h-12 mr-4 bg-[#6A9B00]    border-blackx rounded-xl items-center justify-center">
           {icon}
         </View>
       )}
@@ -40,7 +40,7 @@ export const InputField: React.FC<InputFieldProps> = ({
         }}
       />
       {iconPosition === 'right' && (
-        <View className="w-12 h-12 ml-4 bg-[#ADF802] border-[0.5px] border-black rounded-xl items-center justify-center">
+        <View className="w-12 h-12 ml-4 bg-[#6A9B00] r border-blsack rounded-xl items-center justify-center">
           {icon}
         </View>
       )}

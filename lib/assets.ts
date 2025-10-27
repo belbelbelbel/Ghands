@@ -1,10 +1,9 @@
-// Simple asset management - using premium folder images
 export interface SlideData {
   id: string;
   title: string;
   description: string;
   icon: 'location' | 'tracking' | 'booking';
-  image: any; // Direct require() path
+  image: any; 
 }
 
 export const ONBOARDING_SLIDES: SlideData[] = [

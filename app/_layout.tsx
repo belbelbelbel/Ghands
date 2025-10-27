@@ -54,6 +54,11 @@ export default function RootLayout() {
         <Stack.Screen name="ProfileSetupScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ServicesGridScreen" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="AccountInformationScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="AddressBookScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="EditProfileScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="PaymentHistoryScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="NotificationsScreen" options={{ headerShown: false }} />
         <Stack.Screen name="main" options={{ headerShown: false }} />
       </Stack>
     </>

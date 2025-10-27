@@ -1,7 +1,6 @@
 import React from 'react';
 import { Image } from 'react-native';
 
-// Service provider image components
 const PlumberIcon = () => (
   <Image 
     source={require('../assets/images/plumbericon2.png')} 
@@ -29,7 +28,7 @@ const CarpenterIcon = () => (
 const CleaningIcon = () => (
   <Image 
     source={require('../assets/images/cleanericon2.png')} 
-    style={{ width: 40, height: 4 }}
+    style={{ width: 40, height: 40}}
     resizeMode="contain"
   />
 );

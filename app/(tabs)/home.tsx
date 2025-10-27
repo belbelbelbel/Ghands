@@ -166,12 +166,16 @@ const HomeScreen = React.memo(() => {
   }, []);
 
   const handleViewAllCategories = useCallback(() => {
-    router.push('/(tabs)/categories');
+    router.push('/(tabs)/categories' as any);
   }, [router]);
 
   const handleSearchQueryChange = useCallback((text: string) => {
     setSearchQuery(text);
   }, []);
+
+  const handleNotificationPress = useCallback(() => {
+    router.push('../NotificationsScreen' as any);
+  }, [router]);
 
   const animatedStyles = useMemo(() => ({
     opacity: fadeAnim,
@@ -214,7 +218,10 @@ const HomeScreen = React.memo(() => {
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity className="relative p-2">
+              <TouchableOpacity 
+                className="relative p-2"
+                onPress={handleNotificationPress}
+              >
                 <Bell size={22} color="#666" />
                 <View className="absolute top-1 right-1 w-2 h-2 bg-red-600 rounded-full" />
               </TouchableOpacity>

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +14,7 @@ interface CategoryData {
 }
 
 export default function CategoryPage() {
+  const routes  = useRouter()
   const categoryArrays: CategoryData[] = [
     {
       id: 'plumber',
@@ -72,42 +74,48 @@ export default function CategoryPage() {
     }
   ];
 
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
         <View style={{ flex: 1, paddingHorizontal: 10, paddingTop: 20 }}>
-          <Text style={{
-            fontSize: 24,
-            fontWeight: 'bold',
-            color: '#000000',
-            textAlign: 'center',
-            marginBottom: 24
-          }}>All Categories</Text>
-          <ScrollView 
+          <View className=' flex flex-row px-3 items-center mb-6 gap-20'>
+            <View>
+              <Ionicons name="arrow-back" size={25} onPress={() => routes.back()}/>
+            </View>
+            <Text style={{
+              fontSize: 24,
+              fontWeight: 'bold',
+              color: '#000000',
+              textAlign: 'center',
+              // marginBottom: 24
+            }}>All Categories</Text>
+          </View>
+          <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 40 }}
           >
-            <View style={{ 
+            <View style={{
               flexDirection: 'column',
               alignItems: 'center'
             }}>
               {categoryArrays.map((category) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   key={category.id}
                   style={{
                     width: '100%',
                     backgroundColor: '#ffffff',
                     borderRadius: 16,
-                    padding: 16,
+                    padding: 12,
                     marginBottom: 16,
-                    shadowColor: '#000',
-                    shadowOffset: {
-                      width: 0,
-                      height: 2,
-                    },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    elevation: 3,
+                    // shadowColor: '#000',
+                    // shadowOffset: {
+                    //   width: 0,
+                    //   height: 2,
+                    // },
+                    // shadowOpacity: 0.1,
+                    // shadowRadius: 3,
+                    // elevation: 3,
                     borderWidth: 1,
                     borderColor: '#e5e5e5',
                     flexDirection: 'row',
@@ -116,7 +124,7 @@ export default function CategoryPage() {
                   activeOpacity={0.8}
                 >
                   <View style={{
-                    backgroundColor: '#eaeaedff',
+                    backgroundColor: '#F3F4F6',
                     borderRadius: 12,
                     padding: 16,
                     marginRight: 16,
@@ -142,27 +150,28 @@ export default function CategoryPage() {
                       width: '80%',
                       color: '#666666',
                       lineHeight: 16,
-                      marginBottom: 8
+                      marginBottom: 4
                     }}>
                       {category.description}
                     </Text>
                     <View style={{
-                      backgroundColor: '#e3f2fd',
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
+                      // backgroundColor: '#f5f6f6ff',
+                      backgroundColor: 'transparent',
+                      // paddingHorizontal: 10,
+                      // paddingVertical: 4,
                       borderRadius: 12,
                       alignSelf: 'flex-start'
                     }}>
                       <Text style={{
                         fontSize: 11,
                         fontWeight: '500',
-                        color: '#1976d2'
+                        // color: '#1976d2'
                       }}>
                         {category.providerNum}
                       </Text>
                     </View>
-                    <TouchableOpacity className='absolute right-0'>
-                      <Ionicons name='arrow-forward' className='' size={20} />
+                    <TouchableOpacity className='absolute right-2'>
+                      <Ionicons name='chevron-forward' className='' color={''} size={20} />
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>

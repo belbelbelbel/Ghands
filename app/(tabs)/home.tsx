@@ -3,6 +3,7 @@ import { Bell, MapPin, Search, Star } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, SafeAreaView, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+import LiveSupportScreen from '@/components/LiveSupportScreen';
 import { Ionicons } from '@expo/vector-icons';
 import { ServiceCategory, homeScreenCategories } from '../../data/serviceCategories';
 
@@ -32,7 +33,7 @@ const nearbyProviders = [
   }
 ];
 
-// Provider Card Component
+
 const ProviderCard = React.memo(({ provider }: { provider: any }) => {
   return (
     <View className='flex flex-row items-center justify-between border border-gray-200 rounded-2xl p-4 mb-4'>
@@ -88,13 +89,14 @@ const ProviderCard = React.memo(({ provider }: { provider: any }) => {
             <Text className='text-white text-[12px] font-semibold mr-1' style={{ fontFamily: 'Poppins-SemiBold' }}>
               View on map
             </Text>
-            <Ionicons name='arrow-forward' size={16} color="white" />
+            <Ionicons name='arrow-forward' size={16} color="white"/>
           </TouchableOpacity>
         </View>
       </View>
     </View>
   );
 });
+
 
 const CategoryItem = React.memo(({
   category,
@@ -132,16 +134,13 @@ const CategoryItem = React.memo(({
 
 CategoryItem.displayName = 'CategoryItem';
 
-// Main HomeScreen component with performance optimizations
 const HomeScreen = React.memo(() => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Memoize animation values to prevent recreation
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  // Memoize animation configuration
   const animationConfig = useMemo(() => ({
     fadeConfig: {
       toValue: 1,
@@ -162,7 +161,6 @@ const HomeScreen = React.memo(() => {
     ]).start();
   }, [fadeAnim, slideAnim, animationConfig]);
 
-  // Memoized event handlers
   const handleCategoryPress = useCallback((category: ServiceCategory) => {
     console.log('Category selected:', category.title);
   }, []);
@@ -175,7 +173,6 @@ const HomeScreen = React.memo(() => {
     setSearchQuery(text);
   }, []);
 
-  // Memoized animated styles
   const animatedStyles = useMemo(() => ({
     opacity: fadeAnim,
     transform: [{ translateY: slideAnim }]
@@ -187,7 +184,7 @@ const HomeScreen = React.memo(() => {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <ScrollView>
+      <ScrollView showsVerticalScrollIndicator={false}>
         <StatusBar
           barStyle="dark-content"
           backgroundColor="white"
@@ -197,7 +194,6 @@ const HomeScreen = React.memo(() => {
         <Animated.View
           style={[animatedStyles, { flex: 1, }]}
         >
-          {/* Header */}
           <View className="px-4 pt-4 pb-2">
             <View className="flex-row items-center justify-between mb-4">
               <View className='flex flex-row items-center gap-2'>
@@ -319,8 +315,7 @@ const HomeScreen = React.memo(() => {
                <ProviderCard key={provider.id} provider={provider} />
              ))}
            </View>
-
-          {/* Bottom Spacer for Tab Navigation */}
+           <LiveSupportScreen />
           <View style={bottomSpacerStyle} />
         </Animated.View>
       </ScrollView>

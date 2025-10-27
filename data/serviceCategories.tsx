@@ -29,7 +29,7 @@ const CarpenterIcon = () => (
 const CleaningIcon = () => (
   <Image 
     source={require('../assets/images/cleanericon2.png')} 
-    style={{ width: 48, height: 48 }}
+    style={{ width: 40, height: 4 }}
     resizeMode="contain"
   />
 );

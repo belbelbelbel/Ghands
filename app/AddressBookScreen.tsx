@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Check, MoreVertical } from 'lucide-react-native';
 import React from 'react';
-import { SafeAreaView, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const addresses = [
   {
@@ -35,12 +35,6 @@ export default function AddressBookScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="white"
-        translucent={false}
-      />
-
       {/* Header */}
       <View className='flex-row items-center px-4 py-4 bg-white border-b border-gray-100'>
         <TouchableOpacity onPress={() => router.back()}>

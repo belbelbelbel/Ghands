@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import '../global.css';
+import { QueryProvider } from '../providers/QueryProvider';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -34,7 +35,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <QueryProvider>
       <StatusBar 
         barStyle="dark-content" 
         backgroundColor="white" 
@@ -48,6 +49,7 @@ export default function RootLayout() {
         <Stack.Screen name="LoginScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ResetPassword" options={{ headerShown: false }} />
         <Stack.Screen name="OtpScreen" options={{ headerShown: false }} />
+        {/* <Stack.Screen name='categories' options={{headerShown: false}}/> */}
         <Stack.Screen name="PasswordConfirmation" options={{ headerShown: false }} />
         <Stack.Screen name="LocationPermissionScreen" options={{ headerShown: false }} />
         <Stack.Screen name="LocationSearchScreen" options={{ headerShown: false }} />
@@ -61,6 +63,6 @@ export default function RootLayout() {
         <Stack.Screen name="NotificationsScreen" options={{ headerShown: false }} />
         <Stack.Screen name="main" options={{ headerShown: false }} />
       </Stack>
-    </>
+    </QueryProvider>
   );
 }

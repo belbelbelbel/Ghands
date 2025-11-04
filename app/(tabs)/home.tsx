@@ -1,14 +1,15 @@
 import { useRouter } from 'expo-router';
 import { Bell, MapPin, Search, Star } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, SafeAreaView, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Image, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import LiveSupportScreen from '@/components/LiveSupportScreen';
 import { Ionicons } from '@expo/vector-icons';
 import { ServiceCategory, homeScreenCategories } from '../../data/serviceCategories';
+import { Provider } from '../../types';
 
 // Nearby providers data
-const nearbyProviders = [
+const nearbyProviders: Provider[] = [
   {
     id: '1',
     name: "Mike's Plumbing",
@@ -34,7 +35,7 @@ const nearbyProviders = [
 ];
 
 
-const ProviderCard = React.memo(({ provider }: { provider: any }) => {
+const ProviderCard = React.memo(({ provider }: { provider: Provider }) => {
   return (
     <View className='flex flex-row items-center justify-between border border-gray-200 rounded-2xl p-4 mb-4'>
       <View className='w-20 h-20 bg-gray-200 mr-4 rounded-full items-center justify-center'>
@@ -189,12 +190,6 @@ const HomeScreen = React.memo(() => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <ScrollView showsVerticalScrollIndicator={false}>
-        <StatusBar
-          barStyle="dark-content"
-          backgroundColor="white"
-          translucent={false}
-          hidden={false}
-        />
         <Animated.View
           style={[animatedStyles, { flex: 1, }]}
         >
@@ -203,7 +198,7 @@ const HomeScreen = React.memo(() => {
               <View className='flex flex-row items-center gap-2'>
                  <MapPin size={20} color="#6A9B00" />
                 <Text
-                  className="text-xl font-bold text-black"
+                  className="text-sm font-bold text-black"
                   style={{ fontFamily: 'Poppins-ExtraBold' }}
                 >
                  Lagos, 100001

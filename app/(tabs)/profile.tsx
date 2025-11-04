@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Bell, BookOpen, Camera, ChevronRight, FileText, HelpCircle, LogOut, MapPin, Trash2, User } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
-import { Animated, SafeAreaView, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -38,11 +38,6 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="white"
-        translucent={false}
-      />
       <Animated.View style={[animatedStyles, { flex: 1 }]}>
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mx-3">
           {/* Profile Banner */}

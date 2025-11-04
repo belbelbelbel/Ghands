@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
-import { Animated, StatusBar } from 'react-native';
+import { Animated } from 'react-native';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -49,13 +49,7 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName, color:
 
 export default function TabLayout() {
   return (
-    <>
-      <StatusBar 
-        barStyle="dark-content" 
-        backgroundColor="white" 
-        translucent={false}
-      />
-      <Tabs
+    <Tabs
         screenOptions={{
           headerShown: false,
         tabBarStyle: {
@@ -138,6 +132,5 @@ export default function TabLayout() {
         }}
       />
       </Tabs>
-    </>
   );
 }

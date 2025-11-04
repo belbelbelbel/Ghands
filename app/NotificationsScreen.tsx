@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { SafeAreaView, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const notificationsData = [
   {
@@ -81,11 +81,6 @@ const NotificationsScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="white"
-        translucent={false}
-      />
       <View className='flex-row items-center justify-between px-4 py-3 border-b border-gray-100'>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name='arrow-back' size={24} color="#000" />
@@ -125,7 +120,6 @@ const NotificationsScreen = () => {
         </View>
       </View>
 
-      {/* Recent Section Header - Fixed */}
       <View className='flex-row items-center justify-between px-4 py-4'>
         <Text
           className='text-lg font-bold text-black'

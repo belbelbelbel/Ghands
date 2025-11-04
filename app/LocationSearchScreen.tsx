@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search, Send } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, SafeAreaView, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -60,12 +60,6 @@ export default function LocationSearchScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <StatusBar 
-        barStyle="dark-content" 
-        backgroundColor="white" 
-        translucent={false}
-        hidden={false}
-      />
       <Animated.View 
         style={{ 
           opacity: fadeAnim,

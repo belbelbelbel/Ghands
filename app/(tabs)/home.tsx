@@ -1,103 +1,16 @@
 import { useRouter } from 'expo-router';
-import { Bell, MapPin, Search, Star } from 'lucide-react-native';
+import { Bell, MapPin, Search } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import LiveSupportScreen from '@/components/LiveSupportScreen';
+import JobActivityCard from '@/components/home/JobActivityCard';
+import PromoCodeCard from '@/components/home/PromoCodeCard';
+import RecommendedCard from '@/components/home/RecommendedCard';
+import TodoCard from '@/components/home/TodoCard';
+import { jobActivities, promoCodes, recommendedServices, todoItems } from '@/components/home/data';
 import { Ionicons } from '@expo/vector-icons';
 import { ServiceCategory, homeScreenCategories } from '../../data/serviceCategories';
-import { Provider } from '../../types';
-
-// Nearby providers data
-const nearbyProviders: Provider[] = [
-  {
-    id: '1',
-    name: "Mike's Plumbing",
-    profession: "Licensed Plumber",
-    rating: 4.9,
-    reviews: 127,
-    distance: "1.2 miles",
-    phone: "(123) 456-7890",
-    icon: require('../../assets/images/plumbericon.png'),
-    tags: ["Emergency", "Licensed", "24/7"]
-  },
-  {
-    id: '2',
-    name: "AutoFix Garage",
-    profession: "Certified Mechanic",
-    rating: 4.8,
-    reviews: 89,
-    distance: "0.8 miles",
-    phone: "(234) 567-8901",
-    icon: require('../../assets/images/mechanicicon.png'),
-    tags: ["Certified", "Fast Service", "Warranty"]
-  }
-];
-
-
-const ProviderCard = React.memo(({ provider }: { provider: Provider }) => {
-  return (
-    <View className='flex flex-row items-center justify-between border border-gray-200 rounded-2xl p-4 mb-4'>
-      <View className='w-20 h-20 bg-gray-200 mr-4 rounded-full items-center justify-center'>
-        <Image 
-          source={provider.icon} 
-          style={{ width: 48, height: 48 }}
-          resizeMode="contain"
-        />
-      </View>
-      <View className='flex-1'>
-        <View className='flex-row items-center justify-between'>
-          <Text className='text-lg font-bold text-black' style={{ fontFamily: 'Poppins-Bold' }}>
-            {provider.name}
-          </Text>
-          <View className='flex-row items-center'>
-            <Star size={14} color="#FFD700" fill="#FFD700" />
-            <Text className='text-sm font-semibold text-black ml-1' style={{ fontFamily: 'Poppins-SemiBold' }}>
-              {provider.rating}
-            </Text>
-          </View>
-        </View>
-        <View className='flex-row items-center justify-between mb-2 mt-1'>
-          <Text className='text-gray-500 text-sm' style={{ fontFamily: 'Poppins-Medium' }}>
-            {provider.profession}
-          </Text>
-          <Text className='text-gray-500 text-sm' style={{ fontFamily: 'Poppins-Medium' }}>
-            {provider.reviews} reviews
-          </Text>
-        </View>
-        <View className='flex-row items-center justify-between mb-2 mt-2'>
-          <View className='flex-row items-center gap-1'>
-            <Ionicons name='location-outline' size={14} color="#6A9B00" />
-            <Text className='text-gray-500 text-sm' style={{ fontFamily: 'Poppins-Medium' }}>
-              {provider.distance}
-            </Text>
-          </View>
-          <View className='flex-row items-center gap-1'>
-            <Ionicons name='call-outline' size={14} color="#6A9B00" />
-            <Text className='text-gray-500 text-sm' style={{ fontFamily: 'Poppins-Medium' }}>
-              {provider.phone}
-            </Text>
-          </View>
-        </View>
-        {/* Action Buttons */}
-        <View className='flex-row items-center justify-between mt-3'>
-          <TouchableOpacity className='flex-1 mr-2'>
-            <Text className='text-[#6A9B00] text-center font-semibold' style={{ fontFamily: 'Poppins-SemiBold' }}>
-              View profile
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity className='flex-1 bg-[#6A9B00] rounded-xl py-2 px-4 flex-row items-center justify-center'>
-            <Text className='text-white text-[12px] font-semibold mr-1' style={{ fontFamily: 'Poppins-SemiBold' }}>
-              View on map
-            </Text>
-            <Ionicons name='arrow-forward' size={16} color="white"/>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-});
-
 
 const CategoryItem = React.memo(({
   category,
@@ -193,15 +106,15 @@ const HomeScreen = React.memo(() => {
         <Animated.View
           style={[animatedStyles, { flex: 1, }]}
         >
-          <View className="px-4 pt-4 pb-2">
+          <View className="px-4 pt-0 pb-0">
             <View className="flex-row items-center justify-between mb-4">
               <View className='flex flex-row items-center gap-2'>
-                 <MapPin size={20} color="#6A9B00" />
+                <MapPin size={20} color="#6A9B00" />
                 <Text
                   className="text-sm font-bold text-black"
                   style={{ fontFamily: 'Poppins-ExtraBold' }}
                 >
-                 Lagos, 100001
+                  Lagos, 100001
                 </Text>
                 <View className="flex-row items-center mt-1 hidden">
                   <MapPin size={14} color="#6A9B00" />
@@ -213,7 +126,7 @@ const HomeScreen = React.memo(() => {
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="relative p-2"
                 onPress={handleNotificationPress}
               >
@@ -240,8 +153,6 @@ const HomeScreen = React.memo(() => {
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* Categories Section */}
           <View className="px-4 pt-4 mb-3">
             <View className="flex-row items-center justify-between mb-4">
               <Text
@@ -274,8 +185,6 @@ const HomeScreen = React.memo(() => {
               ))}
             </View>
           </View>
-
-          {/* Promotional Banner */}
           <View className="px-0 mb-3">
             <View className="bg-gradient-to-r from-[#6A9B00] to-[#5A8A00] rounded-2xl p-6 ">
               <View className="flex-row items-center">
@@ -292,7 +201,7 @@ const HomeScreen = React.memo(() => {
                   >
                     Find trusted professionals for all your needs
                   </Text>
-                  <TouchableOpacity className="bg-black rounded-xl py-3 px-6 self-start">
+                  <TouchableOpacity className="bg-black rounded-xl py-3 px-6 self-start" onPress={() => router.push('/categories')}>
                     <Text
                       className="text-white font-semibold"
                       style={{ fontFamily: 'Poppins-SemiBold' }}
@@ -307,8 +216,7 @@ const HomeScreen = React.memo(() => {
               </View>
             </View>
           </View>
-           {/* Nearby Providers Section */}
-           <View className='px-4 mb-6'>
+          {/* <View className='px-4 mb-6'>
              <Text className="text-xl font-bold text-black mb-4" style={{ fontFamily: 'Poppins-Bold' }}>
                Nearby Providers
              </Text>
@@ -316,8 +224,75 @@ const HomeScreen = React.memo(() => {
              {nearbyProviders.map((provider) => (
                <ProviderCard key={provider.id} provider={provider} />
              ))}
-           </View>
-           <LiveSupportScreen />
+           </View> */}
+          <View className='px-4 mb-6'>
+            <Text style={{
+              fontFamily: 'Poppins-Bold'
+            }} className='text-xl font-bold mb-2'>To do</Text>
+            <View className='flex mt-2 flex-row'>
+              {todoItems.map((item) => (
+                <TodoCard key={item.id} {...item} />
+              ))}
+            </View>
+          </View>
+          <View className="px-4 mb-6">
+            <View className="flex-row items-center justify-between mb-3">
+              <Text
+                className="text-xl font-bold text-black"
+                style={{ fontFamily: 'Poppins-Bold' }}
+              >
+                Job Activity
+              </Text>
+              <TouchableOpacity className="flex-row items-center">
+                <Text
+                  className="text-sm text-[#6A9B00]"
+                  style={{ fontFamily: 'Poppins-SemiBold' }}
+                >
+                  View all
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#6A9B00" />
+              </TouchableOpacity>
+            </View>
+            {jobActivities.map((activity) => (
+              <JobActivityCard key={activity.id} activity={activity} />
+            ))}
+          </View>
+
+          <View className="px-4 mb-8">
+            <Text
+              className="text-xl font-bold text-black mb-4"
+              style={{ fontFamily: 'Poppins-Bold' }}
+            >
+              Recommended for you
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {recommendedServices.map((service) => (
+                <RecommendedCard
+                  key={service.id}
+                  {...service}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          <View className="px-4 mb-10">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text
+                className="text-xl font-bold text-black"
+                style={{ fontFamily: 'Poppins-Bold' }}
+              >
+                Promo Codes
+              </Text>
+              <View className="w-10 h-10 rounded-full bg-[#EEF1FF] items-center justify-center">
+                <Ionicons name="pricetag-outline" size={18} color="#2563EB" />
+              </View>
+            </View>
+            {promoCodes.map((promo) => (
+              <PromoCodeCard key={promo.id} promo={promo} />
+            ))}
+          </View>
+
+          <LiveSupportScreen />
           <View style={bottomSpacerStyle} />
         </Animated.View>
       </ScrollView>

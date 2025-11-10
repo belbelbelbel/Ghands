@@ -1,9 +1,7 @@
 import { UpdateProfilePayload, UserProfile } from '../types';
 
-// Base API URL - Update this to your actual backend URL
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.ghands.com';
 
-// Generic API client
 class ApiClient {
   private baseUrl: string;
 
@@ -79,16 +77,10 @@ export const apiClient = new ApiClient(API_BASE_URL);
 
 // Profile API service
 export const profileService = {
-  /**
-   * Get user profile
-   */
   getProfile: async (userId: string): Promise<UserProfile> => {
     return apiClient.get<UserProfile>(`/users/${userId}/profile`);
   },
 
-  /**
-   * Update user profile
-   */
   updateProfile: async (
     userId: string,
     payload: UpdateProfilePayload
@@ -96,15 +88,10 @@ export const profileService = {
     return apiClient.put<UserProfile>(`/users/${userId}/profile`, payload);
   },
 
-  /**
-   * Upload profile image
-   */
   uploadProfileImage: async (
     userId: string,
     imageUri: string
   ): Promise<{ imageUrl: string }> => {
-    // For now, return a mock response
-    // In production, you'd use FormData to upload the image
     return Promise.resolve({ imageUrl: imageUri });
   },
 };

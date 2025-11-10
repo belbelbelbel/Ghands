@@ -8,7 +8,7 @@ export interface Provider {
   reviews: number;
   distance: string;
   phone: string;
-  icon: any; // ImageSourcePropType from react-native
+  icon: any; 
   tags: string[];
 }
 
@@ -25,6 +25,11 @@ export interface UpdateProfilePayload {
   email: string;
   phone: string;
   profileImageUri?: string;
+}
+
+export interface TodoList {
+  name: string,
+  icons: any,
 }
 
 export { ServiceCategory };

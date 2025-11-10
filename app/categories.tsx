@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { serviceCategories } from '../../data/serviceCategories';
+import { serviceCategories } from '../data/serviceCategories';
 
 interface CategoryData {
   id: string;
@@ -14,7 +14,8 @@ interface CategoryData {
 }
 
 export default function CategoryPage() {
-  const routes  = useRouter()
+  const routes = useRouter()
+  const [isToggle, setIsToggle] = useState('')
   const categoryArrays: CategoryData[] = [
     {
       id: 'plumber',
@@ -73,7 +74,13 @@ export default function CategoryPage() {
       IconComponent: serviceCategories[7].icon
     }
   ];
+  const handleToggle = (id: string) => {
+    setIsToggle((prev) => (prev === id ? "" : id));
+    console.log("toggle", id);
+  };
 
+
+  // const Toggle = categoryArrays.find((items) => items.id === id )
 
   return (
     <SafeAreaProvider>
@@ -81,15 +88,15 @@ export default function CategoryPage() {
         <View style={{ flex: 1, paddingHorizontal: 10, paddingTop: 20 }}>
           <View className=' flex flex-row px-3 items-center mb-6 gap-20'>
             <View>
-              <Ionicons name="arrow-back" size={25} onPress={() => routes.back()}/>
+              <Ionicons name="arrow-back" size={20} onPress={() => routes.back()} />
             </View>
             <Text style={{
-              fontSize: 24,
+              fontSize: 18,
               fontWeight: 'bold',
               color: '#000000',
               textAlign: 'center',
               // marginBottom: 24
-            }}>All Categories</Text>
+            }}>Request Service</Text>
           </View>
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -100,7 +107,8 @@ export default function CategoryPage() {
               alignItems: 'center'
             }}>
               {categoryArrays.map((category) => (
-                <TouchableOpacity
+                <TouchableOpacity 
+                 onPress={() => handleToggle(category.id)}
                   key={category.id}
                   style={{
                     width: '100%',
@@ -170,8 +178,11 @@ export default function CategoryPage() {
                         {category.providerNum}
                       </Text>
                     </View>
-                    <TouchableOpacity className='absolute right-2'>
-                      <Ionicons name='chevron-forward' className='' color={''} size={20} />
+                    <TouchableOpacity className='absolute right-2'  onPress={() => handleToggle(category.id)}
+                      >
+                      <View className={`h-6 w-6 border-2 border-gray-500 rounded-full ${isToggle === category.id ? "bg-gray-800" : "bg-transparent"
+                        }`} >
+                      </View>
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>

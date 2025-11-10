@@ -95,7 +95,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="categories"
         options={{
           title: 'Categories',
@@ -103,7 +103,7 @@ export default function TabLayout() {
             <AnimatedIcon iconName="apps" color={color} focused={focused} />
           ),
         }}
-      />
+      /> */}
       <Tabs.Screen
         name="discover"
         options={{
@@ -113,7 +113,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="chat"
         options={{
           title: 'Chat',
@@ -121,7 +121,7 @@ export default function TabLayout() {
             <AnimatedIcon iconName="chat" color={color} focused={focused} />
           ),
         }}
-      />
+      /> */}
       <Tabs.Screen
         name="profile"
         options={{

@@ -4,9 +4,6 @@ import { UpdateProfilePayload } from '../types';
 
 const PROFILE_QUERY_KEY = 'profile';
 
-/**
- * Hook to fetch user profile
- */
 export function useProfile(userId: string) {
   return useQuery({
     queryKey: [PROFILE_QUERY_KEY, userId],
@@ -15,9 +12,6 @@ export function useProfile(userId: string) {
   });
 }
 
-/**
- * Hook to update user profile
- */
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
@@ -30,7 +24,6 @@ export function useUpdateProfile() {
       payload: UpdateProfilePayload;
     }) => profileService.updateProfile(userId, payload),
     onSuccess: (data, variables) => {
-      // Invalidate and refetch profile data
       queryClient.invalidateQueries({
         queryKey: [PROFILE_QUERY_KEY, variables.userId],
       });
@@ -38,12 +31,10 @@ export function useUpdateProfile() {
   });
 }
 
-/**
- * Hook to upload profile image
- */
+
+
 export function useUploadProfileImage() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({
       userId,
@@ -53,7 +44,6 @@ export function useUploadProfileImage() {
       imageUri: string;
     }) => profileService.uploadProfileImage(userId, imageUri),
     onSuccess: (_, variables) => {
-      // Invalidate profile queries to refetch with new image
       queryClient.invalidateQueries({
         queryKey: [PROFILE_QUERY_KEY, variables.userId],
       });

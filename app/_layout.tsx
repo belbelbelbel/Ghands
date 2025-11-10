@@ -49,7 +49,8 @@ export default function RootLayout() {
         <Stack.Screen name="LoginScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ResetPassword" options={{ headerShown: false }} />
         <Stack.Screen name="OtpScreen" options={{ headerShown: false }} />
-        {/* <Stack.Screen name='categories' options={{headerShown: false}}/> */}
+        <Stack.Screen name='categories' options={{headerShown: false}}/>
+        {/* <Stack.Screen name='chat' options={{headerShown: false}}/> */}
         <Stack.Screen name="PasswordConfirmation" options={{ headerShown: false }} />
         <Stack.Screen name="LocationPermissionScreen" options={{ headerShown: false }} />
         <Stack.Screen name="LocationSearchScreen" options={{ headerShown: false }} />

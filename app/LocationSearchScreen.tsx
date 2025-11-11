@@ -3,13 +3,15 @@ import { ArrowLeft, Search, Send } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+import { useUserLocation } from '@/hooks/useUserLocation';
+
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function LocationSearchScreen() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('Lagos, 100001');
-  const [locationInput, setLocationInput] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('1, veekee james ave. b close, cowardice seminar');
+  const { location, setLocation } = useUserLocation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('');
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -29,6 +31,13 @@ export default function LocationSearchScreen() {
     ]).start();
   }, []);
 
+  useEffect(() => {
+    if (location) {
+      setSearchQuery(location);
+      setSelectedLocation(location);
+    }
+  }, [location]);
+
   const handleBack = () => {
     router.back();
   };
@@ -36,20 +45,26 @@ export default function LocationSearchScreen() {
   const handleUseCurrentLocation = () => {
     // Request current location
     console.log('Using current location');
-    setSearchQuery('Current Location');
+    const currentLocation = 'Current Location';
+    setSearchQuery(currentLocation);
+    setSelectedLocation(currentLocation);
   };
 
   const handleSearch = () => {
     console.log('Searching for:', searchQuery);
   };
 
-  const handleLocationSelect = (location: string) => {
-    setSelectedLocation(location);
+  const handleLocationSelect = (value: string) => {
+    setSelectedLocation(value);
+    setSearchQuery(value);
   };
 
-  const handleConfirm = () => {
-    console.log('Location confirmed:', selectedLocation);
-    router.push('/ProfileSetupScreen');
+  const handleConfirm = async () => {
+    if (!selectedLocation.trim()) {
+      return;
+    }
+    await setLocation(selectedLocation.trim());
+    router.back();
   };
 
   const searchResults = [
@@ -68,7 +83,7 @@ export default function LocationSearchScreen() {
         className="flex-1"
       >
         {/* Header */}
-        <View className="flex-row items-center px-4 py-3" style={{ minHeight: screenHeight * 0.08 }}>
+        <View className="flex-row items-center px-4 py-3" style={{ minHeight: screenHeight * 0.02 }}>
           <TouchableOpacity onPress={handleBack} className="mr-4">
             <ArrowLeft size={24} color="black" />
           </TouchableOpacity>
@@ -86,7 +101,7 @@ export default function LocationSearchScreen() {
                 <TextInput
                   value={searchQuery}
                   onChangeText={setSearchQuery}
-                  placeholder="Lagos, 100001"
+                  placeholder="Enter your location"
                   className="text-black text-base"
                   placeholderTextColor="#666666"
                   style={{ fontFamily: 'Poppins-Medium', fontSize: screenWidth < 375 ? 14 : 16 }}
@@ -95,7 +110,7 @@ export default function LocationSearchScreen() {
             </View>
             <TouchableOpacity
               onPress={handleSearch}
-              className="bg-black rounded-xl items-center justify-center"
+              className="bg-[#6A9B00] rounded-xl items-center justify-center"
               style={{ width: screenWidth * 0.15, height: screenWidth * 0.12, minWidth: 48, minHeight: 48 }}
             >
               <Search size={20} color="white" />
@@ -175,7 +190,7 @@ export default function LocationSearchScreen() {
         <View className="px-4 pb-4" style={{ minHeight: screenHeight * 0.08 }}>
           <TouchableOpacity
             onPress={handleConfirm}
-            className="bg-black rounded-xl py-4 px-6"
+            className="bg-[#6A9B00] rounded-xl py-4 px-6"
             activeOpacity={0.8}
             style={{ minHeight: 52 }}
           >

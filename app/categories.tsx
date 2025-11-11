@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Search } from 'lucide-react-native';
+import React, { useMemo, useState } from 'react';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { serviceCategories } from '../data/serviceCategories';
 
@@ -79,6 +80,7 @@ export default function CategoryPage() {
     console.log("toggle", id);
   };
 
+    const searchBarStyle = useMemo(() => ({ height: 50 }), []);
 
   // const Toggle = categoryArrays.find((items) => items.id === id )
 
@@ -98,17 +100,43 @@ export default function CategoryPage() {
               // marginBottom: 24
             }}>Request Service</Text>
           </View>
+          <View className='pb-6 px-0'>
+
+            <View
+              className="bg-gray-100 rounded-xl px-6 py-0 flex-row items-center"
+              style={searchBarStyle}
+            >
+              
+              {/* <Text className="text-[#ADF802] text-lg font-semibold mr-3">⚙</Text>  */}
+              <TextInput
+                placeholder="Search for services"
+                // value={searchQuery}
+                // onChangeText={handleSearchQueryChange}
+                className="flex-1 text-black text-base"
+                placeholderTextColor="#666"
+                style={{ fontFamily: 'Poppins-Medium' }}
+              />
+              <TouchableOpacity className="w-10 h-10 bg-[#6A9B00] rounded-lg items-center justify-center ml-2">
+                <Search size={18} color="white" />
+              </TouchableOpacity>
+            </View>
+          </View>
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 40 }}
           >
+              <Text className='text-xl pb-2' style={{
+                fontFamily: 'Poppins-Bold'
+              }}>All Categoties</Text>
             <View style={{
               flexDirection: 'column',
-              alignItems: 'center'
+              alignItems: 'center',
+              position:"relative"
             }}>
+            
               {categoryArrays.map((category) => (
-                <TouchableOpacity 
-                 onPress={() => handleToggle(category.id)}
+                <TouchableOpacity
+                  onPress={() => handleToggle(category.id)}
                   key={category.id}
                   style={{
                     width: '100%',
@@ -178,8 +206,8 @@ export default function CategoryPage() {
                         {category.providerNum}
                       </Text>
                     </View>
-                    <TouchableOpacity className='absolute right-2'  onPress={() => handleToggle(category.id)}
-                      >
+                    <TouchableOpacity className='absolute right-2' onPress={() => handleToggle(category.id)}
+                    >
                       <View className={`h-6 w-6 border-2 border-gray-500 rounded-full ${isToggle === category.id ? "bg-gray-800" : "bg-transparent"
                         }`} >
                       </View>
@@ -187,6 +215,20 @@ export default function CategoryPage() {
                   </View>
                 </TouchableOpacity>
               ))}
+              <TouchableOpacity
+                className='bg-black flex items-center justify-center w-[90%] h-14 rounded-xl'
+                onPress={() => routes.push('../JobDetailsScreen' as any)}
+                activeOpacity={0.85}
+              >
+               <View className='flex flex-row items-center gap-3'>
+                 <Text className='text-[#D7FF6B]' style={{
+                  fontFamily: 'Poppins-Bold'
+                }}>Add Details</Text>
+                <Text>
+                  <Ionicons name='arrow-forward' size={18} color={'#D7FF6B'}/>
+                </Text>
+               </View>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </View>

@@ -72,10 +72,8 @@ class ApiClient {
   }
 }
 
-// Create API client instance
 export const apiClient = new ApiClient(API_BASE_URL);
 
-// Profile API service
 export const profileService = {
   getProfile: async (userId: string): Promise<UserProfile> => {
     return apiClient.get<UserProfile>(`/users/${userId}/profile`);

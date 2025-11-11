@@ -1,15 +1,15 @@
-import { useRouter } from 'expo-router';
-import { Bell, MapPin, Search } from 'lucide-react-native';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-
 import LiveSupportScreen from '@/components/LiveSupportScreen';
 import JobActivityCard from '@/components/home/JobActivityCard';
 import PromoCodeCard from '@/components/home/PromoCodeCard';
 import RecommendedCard from '@/components/home/RecommendedCard';
 import TodoCard from '@/components/home/TodoCard';
 import { jobActivities, promoCodes, recommendedServices, todoItems } from '@/components/home/data';
+import { useUserLocation } from '@/hooks/useUserLocation';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ServiceCategory, homeScreenCategories } from '../../data/serviceCategories';
 
 const CategoryItem = React.memo(({
@@ -51,6 +51,7 @@ CategoryItem.displayName = 'CategoryItem';
 const HomeScreen = React.memo(() => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const { location } = useUserLocation();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -80,7 +81,7 @@ const HomeScreen = React.memo(() => {
   }, []);
 
   const handleViewAllCategories = useCallback(() => {
-    router.push('/(tabs)/categories' as any);
+    router.push('/categories' as any);
   }, [router]);
 
   const handleSearchQueryChange = useCallback((text: string) => {
@@ -89,6 +90,10 @@ const HomeScreen = React.memo(() => {
 
   const handleNotificationPress = useCallback(() => {
     router.push('../NotificationsScreen' as any);
+  }, [router]);
+
+  const handleLocationPress = useCallback(() => {
+    router.push('../LocationSearchScreen' as any);
   }, [router]);
 
   const animatedStyles = useMemo(() => ({
@@ -100,6 +105,19 @@ const HomeScreen = React.memo(() => {
 
   const bottomSpacerStyle = useMemo(() => ({ height: 90 }), []);
 
+  const displayLocation = useMemo(() => {
+    if (!location || !location.trim()) {
+      return 'Enter your location';
+    }
+    const trimmed = location.trim();
+    console.log("trimmed location",trimmed)
+    return trimmed.length > 32 ? `${trimmed.slice(0, 32)}...` : trimmed;
+  }, [location]);
+
+  const locationTextColor = location ? '#4B5563' : '#9CA3AF';
+  const locationIconBackground = location ? '#D7FF6B' : '#F3F4F6';
+  const locationIconColor = location ? '#111827' : '#6B7280';
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -108,30 +126,32 @@ const HomeScreen = React.memo(() => {
         >
           <View className="px-4 pt-0 pb-0">
             <View className="flex-row items-center justify-between mb-4">
-              <View className='flex flex-row items-center gap-2'>
-                <MapPin size={20} color="#6A9B00" />
-                <Text
-                  className="text-sm font-bold text-black"
-                  style={{ fontFamily: 'Poppins-ExtraBold' }}
-                >
-                  Lagos, 100001
-                </Text>
-                <View className="flex-row items-center mt-1 hidden">
-                  <MapPin size={14} color="#6A9B00" />
-                  <Text
-                    className="text-xs text-gray-600 ml-1"
-                    style={{ fontFamily: 'Poppins-Medium' }}
-                  >
-                    Lagos, 100001
-                  </Text>
-                </View>
-              </View>
               <TouchableOpacity
-                className="relative p-2"
+                onPress={handleLocationPress}
+                className="flex-row items-center flex-1"
+                activeOpacity={0.8}
+              >
+                <View
+                  className="w-8 h-8 rounded-full items-center justify-center mr-2"
+                  style={{ backgroundColor: locationIconBackground }}
+                >
+                  <MapPin size={16} color={locationIconColor} />
+                </View>
+                <Text
+                  className="text-sm flex-1"
+                  numberOfLines={1}
+                  style={{ fontFamily: 'Poppins-SemiBold', color: locationTextColor }}
+                >
+                  {displayLocation}
+                </Text>
+                <ChevronDown size={16} color={location ? '#4B5563' : '#9CA3AF'} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="relative p-2 ml-4"
                 onPress={handleNotificationPress}
               >
-                <Bell size={22} color="#666" />
-                <View className="absolute top-1 right-1 w-2 h-2 bg-red-600 rounded-full" />
+                <Bell size={22} color="#111827" />
+                <View className="absolute top-1 right-1 w-2 h-2 bg-[#D7FF6B] rounded-full" />
               </TouchableOpacity>
             </View>
 
@@ -201,7 +221,7 @@ const HomeScreen = React.memo(() => {
                   >
                     Find trusted professionals for all your needs
                   </Text>
-                  <TouchableOpacity className="bg-black rounded-xl py-3 px-6 self-start" onPress={() => router.push('/categories')}>
+                  <TouchableOpacity className="bg-black rounded-xl py-3 px-6 self-start" onPress={() => router.push('categories' as any)}>
                     <Text
                       className="text-white font-semibold"
                       style={{ fontFamily: 'Poppins-SemiBold' }}

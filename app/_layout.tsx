@@ -62,6 +62,8 @@ export default function RootLayout() {
         <Stack.Screen name="EditProfileScreen" options={{ headerShown: false }} />
         <Stack.Screen name="PaymentHistoryScreen" options={{ headerShown: false }} />
         <Stack.Screen name="NotificationsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="JobDetailsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="DateTimeScreen" options={{ headerShown: false }} />
         <Stack.Screen name="main" options={{ headerShown: false }} />
       </Stack>
     </QueryProvider>

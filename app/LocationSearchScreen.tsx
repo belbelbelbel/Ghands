@@ -186,7 +186,6 @@ export default function LocationSearchScreen() {
           </View>
         </ScrollView>
 
-        {/* Filter Button */}
         <View className="px-4 pb-4" style={{ minHeight: screenHeight * 0.08 }}>
           <TouchableOpacity
             onPress={handleConfirm}

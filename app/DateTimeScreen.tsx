@@ -56,9 +56,8 @@ export default function DateTimeScreen() {
       return;
     }
     console.log('Selected date and time:', { date: selectedDate, time: selectedTime });
-    // Navigate to next screen (e.g., budget, confirmation, etc.)
-    // router.push('/BudgetScreen');
-  }, [selectedDate, selectedTime]);
+    router.push('../AddPhotosScreen' as any);
+  }, [selectedDate, selectedTime, router]);
 
   const handleCancel = useCallback(() => {
     router.back();

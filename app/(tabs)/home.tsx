@@ -248,12 +248,12 @@ const HomeScreen = React.memo(() => {
           <View className='px-4 mb-6'>
             <Text style={{
               fontFamily: 'Poppins-Bold'
-            }} className='text-xl font-bold mb-2'>To do</Text>
-            <View className='flex mt-2 flex-row'>
+            }} className='text-xl font-bold mb-2'>Todo</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className='flex mt-2  flex-row '>
               {todoItems.map((item) => (
                 <TodoCard key={item.id} {...item} />
               ))}
-            </View>
+            </ScrollView>
           </View>
           <View className="px-4 mb-6">
             <View className="flex-row items-center justify-between mb-3">

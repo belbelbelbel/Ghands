@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Search } from 'lucide-react-native';
+import { ArrowLeft, Search } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { serviceCategories } from '../data/serviceCategories';
 
@@ -79,19 +79,27 @@ export default function CategoryPage() {
     setIsToggle((prev) => (prev === id ? "" : id));
     console.log("toggle", id);
   };
-
-    const searchBarStyle = useMemo(() => ({ height: 50 }), []);
-
-  // const Toggle = categoryArrays.find((items) => items.id === id )
+  const searchBarStyle = useMemo(() => ({ height: 50 }), []);
+  const handleNextJobsScreen = () => {
+    if (isToggle !== "") {
+      routes.push('/JobDetailsScreen' as any)
+    }
+    else {
+      Alert.alert('Please choose a category')
+    }
+  }
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
         <View style={{ flex: 1, paddingHorizontal: 10, paddingTop: 20 }}>
           <View className=' flex flex-row px-3 items-center mb-6 gap-20'>
-            <View>
-              <Ionicons name="arrow-back" size={20} onPress={() => routes.back()} />
-            </View>
+            <TouchableOpacity
+              onPress={() => routes.back()}
+              className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
+            >
+              <ArrowLeft size={20} color="#111827" />
+            </TouchableOpacity>
             <Text style={{
               fontSize: 18,
               fontWeight: 'bold',
@@ -106,7 +114,7 @@ export default function CategoryPage() {
               className="bg-gray-100 rounded-xl px-6 py-0 flex-row items-center"
               style={searchBarStyle}
             >
-              
+
               {/* <Text className="text-[#ADF802] text-lg font-semibold mr-3">⚙</Text>  */}
               <TextInput
                 placeholder="Search for services"
@@ -125,15 +133,15 @@ export default function CategoryPage() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 40 }}
           >
-              <Text className='text-xl pb-2' style={{
-                fontFamily: 'Poppins-Bold'
-              }}>All Categoties</Text>
+            <Text className='text-xl pb-2' style={{
+              fontFamily: 'Poppins-Bold'
+            }}>All Categoties</Text>
             <View style={{
               flexDirection: 'column',
               alignItems: 'center',
-              position:"relative"
+              position: "relative"
             }}>
-            
+
               {categoryArrays.map((category) => (
                 <TouchableOpacity
                   onPress={() => handleToggle(category.id)}
@@ -215,22 +223,24 @@ export default function CategoryPage() {
                   </View>
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity
-                className='bg-black flex items-center justify-center w-[90%] h-14 rounded-xl'
-                onPress={() => routes.push('../JobDetailsScreen' as any)}
-                activeOpacity={0.85}
-              >
-               <View className='flex flex-row items-center gap-3'>
-                 <Text className='text-[#D7FF6B]' style={{
-                  fontFamily: 'Poppins-Bold'
-                }}>Add Details</Text>
-                <Text>
-                  <Ionicons name='arrow-forward' size={18} color={'#D7FF6B'}/>
-                </Text>
-               </View>
-              </TouchableOpacity>
+
             </View>
           </ScrollView>
+          <TouchableOpacity
+            disabled={!isToggle}
+            className={`bg-black flex items-center justify-center mx-auto w-[90%] h-14 rounded-xl ${!isToggle ? 'bg-gray-400' : 'bg-black'}`}
+            onPress={handleNextJobsScreen}
+            activeOpacity={!isToggle ? 0.5 : 0.85}
+          >
+            <View className='flex flex-row items-center gap-3'>
+              <Text className='text-[#D7FF6B]' style={{
+                fontFamily: 'Poppins-Bold'
+              }}>Add Details</Text>
+              <Text>
+                <Ionicons name='arrow-forward' size={18} color={'#D7FF6B'} />
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </SafeAreaProvider>

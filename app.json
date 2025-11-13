@@ -12,6 +12,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bendee.GHands",
+      "config": {
+        "googleMapsApiKey": "AIzaSyAJNN3NAbytlRW498oZHDcsc-lA1fPKDp0"
+      },
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to camera to take profile photos.",
         "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select profile photos."
@@ -27,13 +30,15 @@
         "visible": true,
         "backgroundColor": "#000000",
         "barStyle": "light-content"
-        
       },
       "statusBar": {
         "backgroundColor": "#000000",
         "barStyle": "light-content",
         "translucent": false,
         "hidden": false
+      },
+      "googleMaps": {
+        "apiKey": "AIzaSyAJNN3NAbytlRW498oZHDcsc-lA1fPKDp0"
       },
       "softwareKeyboardLayoutMode": "pan",
       "package": "com.bendee.GHands",
@@ -49,7 +54,7 @@
     "plugins": [
       "expo-router",
       "expo-font",
-  [
+      [
         "expo-navigation-bar",
         {
           "position": "relative",

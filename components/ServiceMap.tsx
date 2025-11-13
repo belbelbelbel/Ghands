@@ -1,0 +1,304 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Image, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+
+import mapStyle from '@/lib/mapStyle';
+
+export type ProviderCategory = 'Plumber' | 'Electrician' | 'Car Wash' | 'Mechanic' | string;
+
+export type ServiceProvider = {
+  id: string;
+  name: string;
+  category: ProviderCategory;
+  rating: number;
+  reviews: number;
+  distance: string;
+  availability: 'Available' | 'Busy' | 'Offline';
+  image: any;
+  coords: {
+    latitude: number;
+    longitude: number;
+  };
+};
+
+const CATEGORY_CHIPS: ProviderCategory[] = ['All', 'Plumber', 'Electrician', 'Car Wash'];
+
+const categoryIcons: Record<string, any> = {
+  Plumber: require('../assets/images/plumbericon.png'),
+  Electrician: require('../assets/images/electricianicon.png'),
+  'Car Wash': require('../assets/images/cleanericon2.png'),
+  Mechanic: require('../assets/images/mechanicicon.png'),
+};
+
+const MAX_SELECTION = 3;
+
+function getIcon(category: ProviderCategory) {
+  return categoryIcons[category] ?? require('../assets/images/plumbericon2.png');
+}
+
+export type ServiceMapProps = {
+  providers: ServiceProvider[];
+  selectedCategory: ProviderCategory;
+  onCategoryChange: (category: ProviderCategory) => void;
+  selectedProviders: ServiceProvider[];
+  onProviderSelect: (provider: ServiceProvider) => void;
+  showList: boolean;
+  onToggleList: () => void;
+  userLocation?: { latitude: number; longitude: number } | null;
+  categories?: ProviderCategory[];
+};
+
+const ServiceMap: React.FC<ServiceMapProps> = ({
+  providers,
+  selectedCategory,
+  onCategoryChange,
+  selectedProviders,
+  onProviderSelect,
+  showList,
+  onToggleList,
+  userLocation,
+  categories = CATEGORY_CHIPS,
+}) => {
+  const [activeProvider, setActiveProvider] = useState<ServiceProvider | null>(null);
+  const bottomCardAnim = useRef(new Animated.Value(0)).current;
+
+  const filteredProviders = useMemo(() => {
+    if (selectedCategory === 'All') return providers;
+    return providers.filter((provider) => provider.category === selectedCategory);
+  }, [providers, selectedCategory]);
+
+  useEffect(() => {
+    Animated.timing(bottomCardAnim, {
+      toValue: activeProvider ? 1 : 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [activeProvider, bottomCardAnim]);
+
+  const initialRegion: Region | undefined = useMemo(() => {
+    const focus = userLocation ?? providers[0]?.coords;
+    if (!focus) return undefined;
+    return {
+      latitude: focus.latitude,
+      longitude: focus.longitude,
+      latitudeDelta: 0.04,
+      longitudeDelta: 0.04,
+    };
+  }, [providers, userLocation]);
+
+  const handleSelectProvider = (provider: ServiceProvider) => {
+    const isAlreadySelected = selectedProviders.some((p) => p.id === provider.id);
+    if (!isAlreadySelected && selectedProviders.length >= MAX_SELECTION) {
+      onProviderSelect(provider); // parent should handle limit feedback
+      return;
+    }
+    onProviderSelect(provider);
+  };
+
+  const activeSelected = activeProvider
+    ? selectedProviders.some((p) => p.id === activeProvider.id)
+    : false;
+
+  return (
+    <View className="flex-1">
+      {initialRegion && (
+        <MapView
+          style={{ flex: 1 }}
+          provider={PROVIDER_GOOGLE}
+          showsUserLocation
+          showsMyLocationButton
+          customMapStyle={mapStyle as any}
+          initialRegion={initialRegion}
+          onPress={() => setActiveProvider(null)}
+        >
+          {filteredProviders.map((provider) => (
+            <Marker
+              key={provider.id}
+              coordinate={provider.coords}
+              onPress={() => setActiveProvider(provider)}
+            >
+              <View
+                className="items-center justify-center bg-white rounded-full shadow-lg"
+                style={{ width: 56, height: 56 }}
+              >
+                <Image
+                  source={getIcon(provider.category)}
+                  style={{ width: 45, height: 45, resizeMode: 'contain' }}
+                />
+              </View>
+            </Marker>
+          ))}
+        </MapView>
+      )}
+
+      <View className="absolute top-4 left-0 right-0 px-4">
+        <View className="flex-row items-center justify-between">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingRight: 16 }}
+          >
+            {categories.map((category) => {
+              const isActive = selectedCategory === category;
+              return (
+                <TouchableOpacity
+                  key={category}
+                  onPress={() => {
+                    onCategoryChange(category);
+                    setActiveProvider(null);
+                  }}
+                  activeOpacity={0.85}
+                  className={`mr-3 rounded-full px-4 py-2 border ${
+                    isActive ? 'bg-[#FF8A34] border-[#FF8A34]' : 'bg-white border-gray-200'
+                  }`}
+                >
+                  <Text
+                    className={`text-sm ${isActive ? 'text-white' : 'text-gray-700'}`}
+                    style={{ fontFamily: 'Poppins-SemiBold' }}
+                  >
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <TouchableOpacity
+            onPress={() => onToggleList?.()}
+            activeOpacity={0.85}
+            className="rounded-full bg-white px-4 py-2 shadow-sm border border-gray-200"
+          >
+            <Text className="text-sm text-gray-700" style={{ fontFamily: 'Poppins-SemiBold' }}>
+              {showList ? 'Hide list' : 'View list'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {showList && (
+        <View className="absolute inset-x-0 bottom-0 pb-6">
+          <View className="mx-4 rounded-3xl bg-white p-4 shadow-[0px_12px_32px_rgba(15,23,42,0.12)] border border-gray-100">
+            <View className="w-12 h-1.5 bg-gray-200 self-center rounded-full mb-4" />
+            <ScrollView style={{ maxHeight: Platform.select({ ios: 280, android: 260 }) }}>
+              {filteredProviders.map((provider) => {
+                const isSelected = selectedProviders.some((p) => p.id === provider.id);
+                return (
+                  <TouchableOpacity
+                    key={`list-${provider.id}`}
+                    onPress={() => {
+                      setActiveProvider(provider);
+                    }}
+                    activeOpacity={0.9}
+                    className="mb-3 last:mb-0"
+                  >
+                    <View className="flex-row items-center bg-white border border-gray-100 rounded-2xl px-3 py-3 shadow-[0px_8px_20px_rgba(15,23,42,0.08)]">
+                      <Image
+                        source={provider.image}
+                        style={{ width: 54, height: 54, borderRadius: 27, marginRight: 12 }}
+                      />
+                      <View className="flex-1">
+                        <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                          {provider.name}
+                        </Text>
+                        <Text className="text-xs text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
+                          {provider.category} • {provider.distance}
+                        </Text>
+                        <View className="flex-row items-center mt-1">
+                          <Text className="text-xs text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
+                            ⭐ {provider.rating.toFixed(1)} ({provider.reviews} reviews)
+                          </Text>
+                          <View className="ml-2 rounded-full bg-[#DCFCE7] px-2 py-0.5">
+                            <Text className="text-xs text-[#166534]" style={{ fontFamily: 'Poppins-Medium' }}>
+                              {provider.availability}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => handleSelectProvider(provider)}
+                        className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
+                          isSelected ? 'bg-[#6A9B00] border-[#6A9B00]' : 'border-gray-400'
+                        }`}
+                      >
+                        {isSelected && <View className="w-2.5 h-2.5 rounded-full bg-white" />}
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {activeProvider && (
+        <Animated.View
+          style={{
+            position: 'absolute',
+            left: 16,
+            right: 16,
+            bottom: showList ? 280 : 32,
+            opacity: bottomCardAnim,
+            transform: [
+              {
+                translateY: bottomCardAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [40, 0],
+                }),
+              },
+            ],
+          }}
+        >
+          <View className="bg-white border border-gray-100 rounded-3xl p-4 shadow-[0px_12px_32px_rgba(15,23,42,0.15)]">
+            <View className="flex-row items-center">
+              <Image
+                source={activeProvider.image}
+                style={{ width: 60, height: 60, borderRadius: 30, marginRight: 14 }}
+              />
+              <View className="flex-1">
+                <Text className="text-lg text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                  {activeProvider.name}
+                </Text>
+                <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
+                  {activeProvider.category} • {activeProvider.distance}
+                </Text>
+                <View className="flex-row items-center mt-1">
+                  <Text className="text-xs text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
+                    ⭐ {activeProvider.rating.toFixed(1)} ({activeProvider.reviews} reviews)
+                  </Text>
+                  <View className="ml-2 rounded-full bg-[#DCFCE7] px-2 py-0.5">
+                    <Text className="text-xs text-[#166534]" style={{ fontFamily: 'Poppins-Medium' }}>
+                      {activeProvider.availability}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setActiveProvider(null)}
+                className="ml-2 w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
+              >
+                <Text className="text-gray-500" style={{ fontFamily: 'Poppins-Bold' }}>
+                  ×
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              onPress={() => handleSelectProvider(activeProvider)}
+              activeOpacity={0.85}
+              className={`mt-4 rounded-xl px-4 py-3 flex-row items-center justify-center ${
+                activeSelected ? 'bg-[#6A9B00]' : 'bg-black'
+              }`}
+            >
+              <Text className="text-sm text-white" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                {activeSelected ? 'Selected' : 'Select provider'} ({selectedProviders.length}/{MAX_SELECTION})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+    </View>
+  );
+};
+
+export default ServiceMap;

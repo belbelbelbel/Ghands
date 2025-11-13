@@ -125,7 +125,7 @@ const HomeScreen = React.memo(() => {
           style={[animatedStyles, { flex: 1, }]}
         >
           <View className="px-4 pt-0 pb-0">
-            <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center justify-between mb-1">
               <TouchableOpacity
                 onPress={handleLocationPress}
                 className="flex-row items-center flex-1"

@@ -1,10 +1,10 @@
+import { serviceCategories } from '@/data/serviceCategories';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { serviceCategories } from '../data/serviceCategories';
 
 interface CategoryData {
   id: string;
@@ -225,22 +225,23 @@ export default function CategoryPage() {
               ))}
 
             </View>
+        
           </ScrollView>
-          <TouchableOpacity
-            disabled={!isToggle}
-            className={`bg-black flex items-center justify-center mx-auto w-[90%] h-14 rounded-xl ${!isToggle ? 'bg-gray-400' : 'bg-black'}`}
-            onPress={handleNextJobsScreen}
-            activeOpacity={!isToggle ? 0.5 : 0.85}
-          >
-            <View className='flex flex-row items-center gap-3'>
-              <Text className='text-[#D7FF6B]' style={{
-                fontFamily: 'Poppins-Bold'
-              }}>Add Details</Text>
-              <Text>
-                <Ionicons name='arrow-forward' size={18} color={'#D7FF6B'} />
-              </Text>
-            </View>
-          </TouchableOpacity>
+    <TouchableOpacity
+              disabled={!isToggle}
+              className={`bg-black mt-10 mb-16 flex items-center justify-center mx-auto w-[90%] h-14 rounded-xl ${!isToggle ? 'bg-gray-400' : 'bg-black'}`}
+              onPress={handleNextJobsScreen}
+              activeOpacity={!isToggle ? 0.5 : 0.85}
+            >
+              <View className='flex flex-row items-center gap-3'>
+                <Text className='text-[#D7FF6B]' style={{
+                  fontFamily: 'Poppins-Bold'
+                }}>Add Details</Text>
+                <Text>
+                  <Ionicons name='arrow-forward' size={18} color={'#D7FF6B'} />
+                </Text>
+              </View>
+            </TouchableOpacity>
         </View>
       </SafeAreaView>
     </SafeAreaProvider>

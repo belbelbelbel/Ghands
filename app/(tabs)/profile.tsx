@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
 import { Bell, BookOpen, Camera, ChevronRight, FileText, HelpCircle, LogOut, MapPin, Trash2, User } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
-import { Animated, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -127,10 +128,7 @@ const ProfileScreen = () => {
               );
             })}
           </View>
-
-          {/* Action Buttons */}
           <View className="px-4 mb-6">
-            {/* Sign Out */}
             <TouchableOpacity className="bg-red-50 rounded-2xl px-4 py-4 mb-3 flex-row items-center justify-center border border-red-200">
               <LogOut size={20} color="#EF4444" />
               <Text 
@@ -140,8 +138,6 @@ const ProfileScreen = () => {
                 Sign Out
               </Text>
             </TouchableOpacity>
-
-            {/* Delete Account */}
             <TouchableOpacity className="bg-white rounded-2xl px-4 py-4 mb-3 flex-row items-center justify-center border border-gray-200">
               <Trash2 size={20} color="#666" />
               <Text 
@@ -152,8 +148,6 @@ const ProfileScreen = () => {
               </Text>
             </TouchableOpacity>
           </View>
-
-          {/* Bottom Spacer for Tab Navigation */}
           <View style={{ height: 100 }} />
         </ScrollView>
       </Animated.View>

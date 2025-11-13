@@ -50,8 +50,8 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName, color:
 export default function TabLayout() {
   return (
     <Tabs
-        screenOptions={{
-          headerShown: false,
+      screenOptions={{
+        headerShown: false,
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopWidth: 0,
@@ -95,15 +95,24 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* <Tabs.Screen
-        name="categories"
+      <Tabs.Screen
+        name="jobs"
         options={{
-          title: 'Categories',
+          title: 'Jobs',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedIcon iconName="apps" color={color} focused={focused} />
           ),
         }}
-      /> */}
+      />
+      <Tabs.Screen
+        name="categories"
+        options={{
+          title: 'Chat',
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedIcon iconName="add-circle" color={color}  focused={focused} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="discover"
         options={{
@@ -113,15 +122,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* <Tabs.Screen
-        name="chat"
-        options={{
-          title: 'Chat',
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedIcon iconName="chat" color={color} focused={focused} />
-          ),
-        }}
-      /> */}
+
       <Tabs.Screen
         name="profile"
         options={{
@@ -131,6 +132,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      </Tabs>
+    </Tabs>
   );
 }

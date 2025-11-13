@@ -89,7 +89,7 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
   const handleSelectProvider = (provider: ServiceProvider) => {
     const isAlreadySelected = selectedProviders.some((p) => p.id === provider.id);
     if (!isAlreadySelected && selectedProviders.length >= MAX_SELECTION) {
-      onProviderSelect(provider); // parent should handle limit feedback
+      onProviderSelect(provider);
       return;
     }
     onProviderSelect(provider);
@@ -166,7 +166,7 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
           <TouchableOpacity
             onPress={() => onToggleList?.()}
             activeOpacity={0.85}
-            className="rounded-full bg-white px-4 py-2 shadow-sm border border-gray-200"
+            className="rounded-full absolute right-0 top-10 bg-green-500 px-4 py-2 shadow-sm border border-gray-200"
           >
             <Text className="text-sm text-gray-700" style={{ fontFamily: 'Poppins-SemiBold' }}>
               {showList ? 'Hide list' : 'View list'}
@@ -176,10 +176,10 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
       </View>
 
       {showList && (
-        <View className="absolute inset-x-0 bottom-0 pb-6">
-          <View className="mx-4 rounded-3xl bg-white p-4 shadow-[0px_12px_32px_rgba(15,23,42,0.12)] border border-gray-100">
+        <View className="absolute inset-x-0 bottom-2 pb-6">
+          <View className="mx-2 rounded-3xl bg-white p-4 shadow-[0px_12px_32px_rgba(15,23,42,0.12)] border border-gray-100">
             <View className="w-12 h-1.5 bg-gray-200 self-center rounded-full mb-4" />
-            <ScrollView style={{ maxHeight: Platform.select({ ios: 280, android: 260 }) }}>
+            <ScrollView style={{ maxHeight: Platform.select({ ios: 380, android: 350 }) }}>
               {filteredProviders.map((provider) => {
                 const isSelected = selectedProviders.some((p) => p.id === provider.id);
                 return (
@@ -302,3 +302,4 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
 };
 
 export default ServiceMap;
+

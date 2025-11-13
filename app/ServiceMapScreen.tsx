@@ -1,10 +1,8 @@
+import ServiceMap, { ProviderCategory, ServiceProvider } from '@/components/ServiceMap';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, SafeAreaView, Text, View } from 'react-native';
-
-import ServiceMap, { ProviderCategory, ServiceProvider } from '@/components/ServiceMap';
-
+import { Alert, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
 const MAX_SELECTION = 3;
 
 const SAMPLE_PROVIDERS: ServiceProvider[] = [
@@ -64,6 +62,7 @@ const SAMPLE_PROVIDERS: ServiceProvider[] = [
     coords: { latitude: 6.593, longitude: 3.3674 },
   },
 ];
+
 
 const ServiceMapScreen = () => {
   const router = useRouter();
@@ -127,11 +126,11 @@ const ServiceMapScreen = () => {
         />
       </View>
       {selectedProviders.length > 0 && (
-        <View className="bg-white border-t border-gray-100 px-4 py-3 shadow-[0px_-8px_24px_rgba(15,23,42,0.08)]">
-          <Text className="text-sm text-gray-600 mb-1" style={{ fontFamily: 'Poppins-Medium' }}>
+        <View className="bg-white border-t border-gray-100 px-4 py-4 shadow-[0px_-8px_24px_rgba(15,23,42,0.08)]">
+          <Text className="text-sm text-gray-600 mb-2" style={{ fontFamily: 'Poppins-Medium' }}>
             Selected providers ({selectedProviders.length}/{MAX_SELECTION})
           </Text>
-          <View className="flex-row flex-wrap">
+          <View className="flex-row flex-wrap mb-3">
             {selectedProviders.map((provider) => (
               <View
                 key={`selected-${provider.id}`}
@@ -143,6 +142,15 @@ const ServiceMapScreen = () => {
               </View>
             ))}
           </View>
+          <TouchableOpacity
+            onPress={() => router.push('../BookingConfirmationScreen' as any)}
+            activeOpacity={0.85}
+            className="bg-[#6A9B00] rounded-xl py-4 items-center justify-center"
+          >
+            <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
+              Confirm Booking
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </SafeAreaView>

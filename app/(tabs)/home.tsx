@@ -173,8 +173,8 @@ const HomeScreen = React.memo(() => {
               </TouchableOpacity>
             </View>
           </View>
-          <View className="px-4 pt-4 mb-3">
-            <View className="flex-row items-center justify-between mb-4">
+          <View className="px-4 pt-6 mb-0">
+            <View className="flex-row pb-2 items-center justify-between mb-0vieew detaiuls">
               <Text
                 className="text-xl font-bold text-black"
                 style={{ fontFamily: 'Poppins-Bold' }}
@@ -189,14 +189,22 @@ const HomeScreen = React.memo(() => {
                   className="text-[#00000] text-sm font-semibold"
                   style={{ fontFamily: 'Poppins-SemiBold' }}
                 >
-                  View all →
+                      <TouchableOpacity className="flex-row items-center">
+                <Text
+                  className="text-sm text-[#6A9B00]"
+                  style={{ fontFamily: 'Poppins-SemiBold' }}
+                >
+                  View all
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#6A9B00" />
+              </TouchableOpacity>
                 </Text>
               </TouchableOpacity>
             </View>
 
 
             <View className="flex-row flex-wrap justify-between">
-              {homeScreenCategories.map((category) => (
+              {homeScreenCategories.slice(0,4).map((category) => (
                 <CategoryItem
                   key={category.id}
                   category={category}
@@ -205,7 +213,7 @@ const HomeScreen = React.memo(() => {
               ))}
             </View>
           </View>
-          <View className="px-0 mb-3">
+          <View className="px-0 mb-0">
             <View className="bg-gradient-to-r from-[#6A9B00] to-[#5A8A00] rounded-2xl p-6 ">
               <View className="flex-row items-center">
                 <View className="flex-1">
@@ -249,7 +257,7 @@ const HomeScreen = React.memo(() => {
             <Text style={{
               fontFamily: 'Poppins-Bold'
             }} className='text-xl font-bold mb-2'>Todo</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className='flex mt-2  flex-row '>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className='flex mt-0  flex-row '>
               {todoItems.map((item) => (
                 <TodoCard key={item.id} {...item} />
               ))}

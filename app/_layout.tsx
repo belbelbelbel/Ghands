@@ -67,6 +67,8 @@ export default function RootLayout() {
         <Stack.Screen name="AddPhotosScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ServiceMapScreen" options={{ headerShown: false }} />
         <Stack.Screen name="BookingConfirmationScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="CompletedJobDetail" options={{ headerShown: false }} />
+        <Stack.Screen name="OngoingJobDetails" options={{ headerShown: false }} />
         <Stack.Screen name="main" options={{ headerShown: false }} />
       </Stack>
     </QueryProvider>

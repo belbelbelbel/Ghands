@@ -41,7 +41,6 @@ export default function LocationPermissionScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="flex-1 justify-center items-center px-8">
-        {/* Location Icon */}
         <Animated.View 
           style={{ 
             opacity: fadeAnim,
@@ -56,8 +55,6 @@ export default function LocationPermissionScreen() {
             </View>
           </View>
         </Animated.View>
-
-        {/* Title */}
         <Animated.Text
           style={{
             opacity: fadeAnim,
@@ -71,8 +68,6 @@ export default function LocationPermissionScreen() {
         >
           Your location?
         </Animated.Text>
-
-        {/* Description */}
         <Animated.Text
           style={{
             opacity: fadeAnim,
@@ -87,8 +82,6 @@ export default function LocationPermissionScreen() {
         >
           We need your location to find nearby services and improve your experience.
         </Animated.Text>
-
-        {/* Allow Location Access Button */}
         <Animated.View 
           style={{ opacity: fadeAnim }}
           className="w-full mb-4"
@@ -106,8 +99,6 @@ export default function LocationPermissionScreen() {
             </Text>
           </TouchableOpacity>
         </Animated.View>
-
-        {/* Enter location manually Button */}
         <Animated.View 
           style={{ opacity: fadeAnim }}
           className="w-full mb-6"

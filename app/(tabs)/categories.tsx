@@ -1,10 +1,11 @@
-import { serviceCategories } from '@/data/serviceCategories';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Search } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import { default as React, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { serviceCategories } from '../../data/serviceCategories';
+
 
 interface CategoryData {
   id: string;
@@ -15,8 +16,11 @@ interface CategoryData {
 }
 
 export default function CategoryPage() {
-  const routes = useRouter()
-  const [isToggle, setIsToggle] = useState('')
+  const routes = useRouter();
+  const params = useLocalSearchParams<{ selectedCategoryId?: string }>();
+  const [isToggle, setIsToggle] = useState('');
+  const scrollViewRef = useRef<ScrollView>(null);
+  const categoryRefs = useRef<{ [key: string]: number }>({});
   const categoryArrays: CategoryData[] = [
     {
       id: 'plumber',
@@ -79,6 +83,26 @@ export default function CategoryPage() {
     setIsToggle((prev) => (prev === id ? "" : id));
     console.log("toggle", id);
   };
+
+  useEffect(() => {
+    if (params.selectedCategoryId) {
+      setIsToggle(params.selectedCategoryId);
+      const scrollTimer = setTimeout(() => {
+        const categoryIndex = categoryArrays.findIndex(
+          (cat) => cat.id === params.selectedCategoryId
+        );
+        if (categoryIndex !== -1 && scrollViewRef.current) {
+          const scrollPosition = categoryIndex * 110;
+          scrollViewRef.current.scrollTo({
+            y: scrollPosition,
+            animated: true,
+          });
+        }
+      }, 300);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [params.selectedCategoryId]);
+
   const searchBarStyle = useMemo(() => ({ height: 50 }), []);
   const handleNextJobsScreen = () => {
     if (isToggle !== "") {
@@ -130,6 +154,7 @@ export default function CategoryPage() {
             </View>
           </View>
           <ScrollView
+            ref={scrollViewRef}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 40 }}
           >
@@ -141,27 +166,21 @@ export default function CategoryPage() {
               alignItems: 'center',
               position: "relative"
             }}>
-
-              {categoryArrays.map((category) => (
+              {categoryArrays.map((category, index) => (
                 <TouchableOpacity
                   onPress={() => handleToggle(category.id)}
                   key={category.id}
+                  onLayout={(event) => {
+                    categoryRefs.current[category.id] = event.nativeEvent.layout.y;
+                  }}
                   style={{
                     width: '100%',
-                    backgroundColor: '#ffffff',
+                    backgroundColor: isToggle === category.id ? '#F0FDF4' : '#ffffff',
                     borderRadius: 16,
                     padding: 12,
                     marginBottom: 16,
-                    // shadowColor: '#000',
-                    // shadowOffset: {
-                    //   width: 0,
-                    //   height: 2,
-                    // },
-                    // shadowOpacity: 0.1,
-                    // shadowRadius: 3,
-                    // elevation: 3,
-                    borderWidth: 1,
-                    borderColor: '#e5e5e5',
+                    borderWidth: isToggle === category.id ? 2 : 1,
+                    borderColor: isToggle === category.id ? '#6A9B00' : '#e5e5e5',
                     flexDirection: 'row',
                     alignItems: 'center'
                   }}
@@ -225,23 +244,23 @@ export default function CategoryPage() {
               ))}
 
             </View>
-        
+
           </ScrollView>
-    <TouchableOpacity
-              disabled={!isToggle}
-              className={`bg-black mt-10 mb-16 flex items-center justify-center mx-auto w-[90%] h-14 rounded-xl ${!isToggle ? 'bg-gray-400' : 'bg-black'}`}
-              onPress={handleNextJobsScreen}
-              activeOpacity={!isToggle ? 0.5 : 0.85}
-            >
-              <View className='flex flex-row items-center gap-3'>
-                <Text className='text-[#D7FF6B]' style={{
-                  fontFamily: 'Poppins-Bold'
-                }}>Add Details</Text>
-                <Text>
-                  <Ionicons name='arrow-forward' size={18} color={'#D7FF6B'} />
-                </Text>
-              </View>
-            </TouchableOpacity>
+          <TouchableOpacity
+            disabled={!isToggle}
+            className={`bg-black mt-10 mb-16 flex items-center justify-center mx-auto w-[90%] h-14 rounded-xl ${!isToggle ? 'bg-gray-400' : 'bg-black'}`}
+            onPress={handleNextJobsScreen}
+            activeOpacity={!isToggle ? 0.5 : 0.85}
+          >
+            <View className='flex flex-row items-center gap-3'>
+              <Text className='text-[#D7FF6B]' style={{
+                fontFamily: 'Poppins-Bold'
+              }}>Add Details</Text>
+              <Text>
+                <Ionicons name='arrow-forward' size={18} color={'#D7FF6B'} />
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </SafeAreaProvider>

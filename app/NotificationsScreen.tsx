@@ -81,7 +81,7 @@ const NotificationsScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <View className='flex-row items-center justify-between px-4 py-3 border-b border-gray-100'>
+      <View className='flex-row items-center justify-between px-4 py-3 border-b border-gray-100' style={{ paddingTop: 20 }}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name='arrow-back' size={24} color="#000" />
         </TouchableOpacity>

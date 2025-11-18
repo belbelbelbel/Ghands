@@ -200,7 +200,7 @@ export default function LocationSearchScreen() {
                 fontSize: screenWidth < 375 ? 16 : 18
               }}
             >
-              Filter
+              Save location
             </Text>
           </TouchableOpacity>
         </View>

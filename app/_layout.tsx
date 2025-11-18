@@ -67,8 +67,15 @@ export default function RootLayout() {
         <Stack.Screen name="AddPhotosScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ServiceMapScreen" options={{ headerShown: false }} />
         <Stack.Screen name="BookingConfirmationScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="CancelRequestScreen" options={{ headerShown: false }} />
         <Stack.Screen name="CompletedJobDetail" options={{ headerShown: false }} />
         <Stack.Screen name="OngoingJobDetails" options={{ headerShown: false }} />
+        <Stack.Screen name="ChatScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ProviderDetailScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="HelpSupportScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="SupportScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="LiveChatScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="UserGuideScreen" options={{ headerShown: false }} />
         <Stack.Screen name="main" options={{ headerShown: false }} />
       </Stack>
     </QueryProvider>

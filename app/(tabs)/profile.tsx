@@ -34,12 +34,14 @@ const ProfileScreen = () => {
       router.push('../AccountInformationScreen' as any);
     } else if (id === '2') {
       router.push('../PaymentHistoryScreen' as any);
+    } else if (id === '4') {
+      router.push('../HelpSupportScreen' as any);
     }
   };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <Animated.View style={[animatedStyles, { flex: 1 }]}>
+      <Animated.View style={[animatedStyles, { flex: 1, paddingTop: 20 }]}>
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mx-3">
           {/* Profile Banner */}
           <View className="bg-[#8BC34A] rounded-3xl px-6 py-8 pt-12 mb-6">

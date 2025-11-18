@@ -82,7 +82,7 @@ export default function JobDetailsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <Animated.View style={[animatedStyles, { flex: 1 }]}>
-        <View className="px-4 pt-4 pb-2">
+        <View className="px-4 pb-2" style={{ paddingTop: 20 }}>
           <View className="flex-row items-center mb-4">
             <TouchableOpacity
               onPress={handleBack}

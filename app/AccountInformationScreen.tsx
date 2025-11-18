@@ -40,7 +40,7 @@ export default function AccountInformationScreen() {
     if (id === '1') {
       router.push('/EditProfileScreen' as any);
     } else if (id === '2') {
-      router.push('/PaymentHistoryScreen' as any);
+      router.push('/AddressBookScreen' as any);
     } else if (id === '3') {
       // Handle verification status navigation
       console.log('Verification Status pressed');
@@ -50,18 +50,17 @@ export default function AccountInformationScreen() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       {/* Header */}
-      <View className='flex-row items-center px-4 py-4 bg-white border-b border-gray-100'>
-        <TouchableOpacity onPress={() => router.back()}>
-          <View className='w-8 h-8 items-center justify-center'>
-            <Text className='text-black text-2xl'>←</Text>
-          </View>
+      <View className='flex-row items-center px-4 py-3 bg-white border-b border-gray-100' style={{ paddingTop: 20 }}>
+        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
+          <Text className='text-black text-2xl'>←</Text>
         </TouchableOpacity>
         <Text 
-          className='text-xl font-bold text-black flex-1 text-center mr-8' 
+          className='text-xl font-bold text-black flex-1 text-center' 
           style={{ fontFamily: 'Poppins-Bold' }}
         >
           Account Information
         </Text>
+        <View style={{ width: 24 }} />
       </View>
 
       {/* Content */}

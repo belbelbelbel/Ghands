@@ -1,263 +1,258 @@
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useMemo, useState } from 'react';
+import { Modal, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-export default function JobScreen() {
-    const TabStatus = ['Ongoing', 'Completed', 'Cancelled']
-    const [activeBar, setActivebar] = useState('Ongoing')
-    const routes = useRouter()
+type JobStatus = 'Ongoing' | 'Completed' | 'Cancelled';
 
-    const handleActiveBar = (id: string) => {
-        setActivebar(id)
+type JobItem = {
+  id: number;
+  title: string;
+  subtitle: string;
+  status: string;
+  name: string;
+  time: string;
+  location: string;
+};
+
+const ONGOING_JOBS: JobItem[] = [
+  {
+    id: 1,
+    title: 'Plumbing Repair',
+    subtitle: 'Kitchen pipe leak repair',
+    status: 'In Progress',
+    name: 'Mike Johnson',
+    time: 'Dec 12, 2024 • 2:00 PM',
+    location: '123 Main St, Downtown',
+  },
+  {
+    id: 2,
+    title: 'Bathroom Install',
+    subtitle: 'New fixtures installation',
+    status: 'In Progress',
+    name: 'Andrew Miller',
+    time: 'Dec 14, 2024 • 11:30 AM',
+    location: '45 Market Rd, Victoria Island',
+  },
+];
+
+const COMPLETED_JOBS: JobItem[] = [
+  {
+    id: 1,
+    title: 'Electrical Inspection',
+    subtitle: 'Fuse box assessment',
+    status: 'Completed',
+    name: 'Claire Roberts',
+    time: 'Nov 22, 2024 • 4:00 PM',
+    location: '16 Palm Way, Ikoyi',
+  },
+  {
+    id: 2,
+    title: 'AC Servicing',
+    subtitle: 'Full apartment servicing',
+    status: 'Completed',
+    name: 'Kola Adeyemi',
+    time: 'Nov 18, 2024 • 9:00 AM',
+    location: '88 Bourdillon Rd, Ikoyi',
+  },
+];
+
+const CANCELLED_JOBS: JobItem[] = [
+  {
+    id: 1,
+    title: 'Carpentry Job',
+    subtitle: 'Wardrobe repairs',
+    status: 'Cancelled',
+    name: 'Angela Cooper',
+    time: 'Nov 10, 2024 • 1:00 PM',
+    location: '23 Unity Close, Lekki',
+  },
+];
+
+export default function JobsScreen() {
+  const [activeTab, setActiveTab] = useState<JobStatus>('Ongoing');
+  const [pendingCancelJob, setPendingCancelJob] = useState<JobItem | null>(null);
+  const router = useRouter();
+
+  const jobs = useMemo(() => {
+    switch (activeTab) {
+      case 'Completed':
+        return COMPLETED_JOBS;
+      case 'Cancelled':
+        return CANCELLED_JOBS;
+      default:
+        return ONGOING_JOBS;
     }
+  }, [activeTab]);
 
-    const OngoingJobDetailsArrays = [
-        {
-            id: 1,
-            title: "Plumbing Repair",
-            subtitle: "Kitchen pipe leak repair",
-            status: 'In Progress',
-            name: 'Mike Johnson',
-            time: "Oct 20, 2024 - 2:00 PM",
-            location: "123 Main St, Downtown"
-        },
-        {
-            id: 2,
-            title: "Plumbing Repair",
-            subtitle: "Kitchen pipe leak repair",
-            status: 'In Progress',
-            name: 'Mike Johnson',
-            time: "Oct 20, 2024 - 2:00 PM",
-            location: "123 Main St, Downtown"
-        },
+  const handlePrimaryAction = (status: JobStatus) => {
+    if (status === 'Ongoing') {
+      router.push('/OngoingJobDetails');
+    } else if (status === 'Completed') {
+      router.push('/CompletedJobDetail');
+    } else {
+      router.push('/JobDetailsScreen');
+    }
+  };
 
-    ]
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      <View className="flex-1 px-4" style={{ paddingTop: 20 }}>
+        <Text className="text-2xl text-black mb-6 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
+          Jobs
+        </Text>
 
-    const CompletedJobDetailsArrays = [
-        {
-            id: 1,
-            title: "Plumbing Repair",
-            subtitle: "Kitchen pipe leak repair",
-            status: 'Completed',
-            name: 'Mike Johnson',
-            time: "Oct 20, 2024 - 2:00 PM",
-            location: "123 Main St, Downtown"
-        },
-        {
-            id: 2,
-            title: "Plumbing Repair",
-            subtitle: "Kitchen pipe leak repair",
-            status: 'Complete',
-            name: 'Mike Johnson',
-            time: "Oct 20, 2024 - 2:00 PM",
-            location: "123 Main St, Downtown"
-        },
-        {
-            id: 3,
-            title: "Plumbing Repair",
-            subtitle: "Kitchen pipe leak repair",
-            status: 'Complete',
-            name: 'Mike Johnson',
-            time: "Oct 20, 2024 - 2:00 PM",
-            location: "123 Main St, Downtown"
-        },
-    ]
+        <View className="flex flex-row justify-around mb-4">
+          {(['Ongoing', 'Completed', 'Cancelled'] as JobStatus[]).map((status) => {
+            const isActive = activeTab === status;
+            return (
+              <TouchableOpacity key={status} onPress={() => setActiveTab(status)} activeOpacity={0.8}>
+                <Text
+                  className={`text-base ${isActive ? 'text-black' : 'text-gray-500'}`}
+                  style={{ fontFamily: 'Poppins-Medium' }}
+                >
+                  {status}
+                </Text>
+                <View
+                  className={`mt-2 h-0.5 rounded-full ${isActive ? 'bg-[#6A9B00]' : 'bg-transparent'}`}
+                  style={{ width: 68 }}
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-    const CancelledJobDdetails = [
-        {
-
-            id: 1,
-            title: "Plumbing Repair",
-            subtitle: "Kitchen pipe leak repair",
-            status: 'Cancelled',
-            name: 'Mike Johnson',
-            time: "Oct 20, 2024 - 2:00 PM",
-            location: "123 Main St, Downtown"
-        },
-        {
-            id: 2,
-            title: "Plumbing Repair",
-            subtitle: "Kitchen pipe leak repair",
-            status: 'Cancelled',
-            name: 'Mike Johnson',
-            time: "Oct 20, 2024 - 2:00 PM",
-            location: "123 Main St, Downtown"
-        },
-    ]
-
-
-    return (
-        <SafeAreaProvider >
-            <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
-                <View style={{ flex: 1, paddingHorizontal: 10, paddingTop: 20 }}>
-                    <View className="justify-center items-center  pb-10">
-                        <Text style={{
-                            fontFamily: 'Poppins-Bold',
-                            fontSize: 22
-                        }}>Jobs</Text>
-                    </View>
-                    <View className="flex flex-row justify-around">
-                        {
-                            TabStatus.map((status) => (
-                                <View className="" key={status}>
-                                    <Text className="" onPress={() => handleActiveBar(status)} style={{
-                                        fontFamily: 'Poppins-Medium'
-                                    }}>{status}</Text>
-                                    {
-                                        activeBar === status ? (
-                                            <View className="bg-[#6A9B00] h-0.5 w-20 mt-2  rounded-full" />
-                                        ) : (
-                                            <View className="bg-transparent h-0.5 w-20 mt-2  rounded-full" />
-                                        )
-                                    }
-                                </View>
-                            ))
-                        }
-                    </View>
-                    <ScrollView showsVerticalScrollIndicator={false}>
-                        <View>
-                            <View className="mt-5 ">
-                                {
-                                    activeBar === "Ongoing" && OngoingJobDetailsArrays.map((items) => (
-                                        <View key={items.id} className="flex border border-gray-200 mb-7 px-7 py-6 rounded-xl">
-                                            <View className="flex flex-row w-[90%] justify-between">
-                                                <Text style={{
-                                                    fontFamily: 'Poppins-Bold'
-                                                }} className=" text-xl mb-2">{items.title}</Text>
-                                                <View className="py-0 justify-center items-center flex px-4 bg-yellow-100 rounded-xl">
-                                                    <Text className="text-sm">{items.status}</Text>
-                                                </View>
-                                            </View>
-                                            <Text className=" text-gray-700 text-sm" style={{
-                                                fontFamily: 'Poppins-Regular'
-                                            }}>{items.subtitle}</Text>
-                                            <View className="flex items-center flex-row gap-3 mt-2">
-                                                <View><Ionicons name="person" size={16} /></View>
-                                                <Text className="text-sm text-gray-600" style={{
-                                                    fontFamily: 'Poppins-Regular'
-                                                }}>{items.name}</Text>
-                                            </View>
-                                            <View className="flex items-center flex-row gap-3 mt-2">
-                                                <View><Ionicons name="calendar" size={16} /></View>
-                                                <Text className="text-sm  text-gray-600" style={{
-                                                    fontFamily: 'Poppins-Regular'
-                                                }}>{items.time}</Text>
-                                            </View>
-                                            <View className="flex items-center flex-row gap-3 mt-2">
-                                                <View><Ionicons name="location" size={16} color={'gray'} /></View>
-                                                <Text className="text-sm text-gray-600" style={{
-                                                    fontFamily: 'Poppins-Regular'
-                                                }}>{items.location}</Text>
-                                            </View>
-                                            <View className="flex flex-row pt-4 justify-between">
-                                                <TouchableOpacity className="bg-red-100 border border-red-600 py-2 px-7 rounded-md">
-                                                    <Text className="text-[#FF2C2C]" style={{
-                                                        fontFamily: 'Poppins-Medium'
-                                                    }}>Cancel Request</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity className="bg-gray-100 py-2 px-7  rounded-md" onPress={() => routes.push('/OngoingJobDetails')}>
-                                                    <Text className="text-black" style={{
-                                                        fontFamily: 'Poppins-Medium'
-                                                    }}>Check Updates</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        </View>
-                                    ))
-                                }
-
-                                {
-                                    activeBar === "Completed" && CompletedJobDetailsArrays.map((items) => (
-                                        // <ScrollView>
-                                        <View key={items.id} className="flex border border-gray-200 mb-7 px-7 py-6 rounded-xl">
-                                            <View className="flex flex-row w-[90%] justify-between">
-                                                <Text style={{
-                                                    fontFamily: 'Poppins-Bold'
-                                                }} className=" text-xl mb-2">{items.title}</Text>
-                                                <View className="py-0 justify-center items-center flex px-4 bg-gray-100 rounded-xl">
-                                                    <Text className="text-sm">{items.status}</Text>
-                                                </View>
-                                            </View>
-                                            <Text className=" text-gray-700 text-sm" style={{
-                                                fontFamily: 'Poppins-Regular'
-                                            }}>{items.subtitle}</Text>
-                                            <View className="flex items-center flex-row gap-3 mt-2">
-                                                <View><Ionicons name="person" size={16} /></View>
-                                                <Text className="text-sm text-gray-600" style={{
-                                                    fontFamily: 'Poppins-Regular'
-                                                }}>{items.name}</Text>
-                                            </View>
-                                            <View className="flex items-center flex-row gap-3 mt-2">
-                                                <View><Ionicons name="calendar" size={16} /></View>
-                                                <Text className="text-sm  text-gray-600" style={{
-                                                    fontFamily: 'Poppins-Regular'
-                                                }}>{items.time}</Text>
-                                            </View>
-                                            <View className="flex items-center flex-row gap-3 mt-2">
-                                                <View><Ionicons name="location" size={16} color={'gray'} /></View>
-                                                <Text className="text-sm text-gray-600" style={{
-                                                    fontFamily: 'Poppins-Regular'
-                                                }}>{items.location}</Text>
-                                            </View>
-                                            <View className="flex flex-row pt-4 justify-center items-center">
-                                                <TouchableOpacity className="bg-[#6A9B00] py-2 px-7 w-full rounded-md" onPress={() => routes.push('/CompletedJobDetail')}>
-                                                    <Text className="text-white text-center" style={{
-                                                        fontFamily: 'Poppins-Medium'
-                                                    }} >View Details</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        </View>
-
-                                    ))
-                                }
-                                {
-                                    activeBar === 'Cancelled' && CancelledJobDdetails.map((items) => (
-                                        <View key={items.id} className="flex border border-gray-200 mb-7 px-7 py-6 rounded-xl">
-                                            <View className="flex flex-row w-[90%] justify-between">
-                                                <Text style={{
-                                                    fontFamily: 'Poppins-Bold'
-                                                }} className=" text-xl mb-2">{items.title}</Text>
-                                                <View className="py-0 justify-center items-center flex px-4 bg-gray-100 rounded-xl">
-                                                    <Text className="text-sm -red-400">{items.status}</Text>
-                                                </View>
-                                            </View>
-                                            <Text className=" text-gray-700 text-sm" style={{
-                                                fontFamily: 'Poppins-Regular'
-                                            }}>{items.subtitle}</Text>
-                                            <View className="flex items-center flex-row gap-3 mt-2">
-                                                <View><Ionicons name="person" size={16} /></View>
-                                                <Text className="text-sm text-gray-600" style={{
-                                                    fontFamily: 'Poppins-Regular'
-                                                }}>{items.name}</Text>
-                                            </View>
-                                            <View className="flex items-center flex-row gap-3 mt-2">
-                                                <View><Ionicons name="calendar" size={16} /></View>
-                                                <Text className="text-sm  text-gray-600" style={{
-                                                    fontFamily: 'Poppins-Regular'
-                                                }}>{items.time}</Text>
-                                            </View>
-                                            <View className="flex items-center flex-row gap-3 mt-2">
-                                                <View><Ionicons name="location" size={16} color={'gray'} /></View>
-                                                <Text className="text-sm text-gray-600" style={{
-                                                    fontFamily: 'Poppins-Regular'
-                                                }}>{items.location}</Text>
-                                            </View>
-                                            <View className="flex flex-row pt-4 justify-center items-center">
-                                                <TouchableOpacity className="bg-[#6A9B00] py-2 px-7 w-full rounded-md">
-                                                    <Text className="text-white text-center" style={{
-                                                        fontFamily: 'Poppins-Medium'
-                                                    }}>View Details</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        </View>
-                                    ))
-                                }
-                            </View>
-                        </View>
-                    </ScrollView>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+          {jobs.map((job) => (
+            <View
+              key={`${activeTab}-${job.id}`}
+              className="border border-gray-200 mb-6 px-5 py-5 rounded-2xl shadow-[0px_6px_18px_rgba(15,23,42,0.04)]"
+            >
+              <View className="flex-row justify-between mb-3">
+                <View className="flex-1 pr-3">
+                  <Text className="text-lg text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
+                    {job.title}
+                  </Text>
+                  <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
+                    {job.subtitle}
+                  </Text>
                 </View>
-            </SafeAreaView>
-        </SafeAreaProvider>
-    )
+                <View
+                  className={`self-start px-3 py-1 rounded-xl ${
+                    activeTab === 'Ongoing'
+                      ? 'bg-yellow-100'
+                      : activeTab === 'Completed'
+                        ? 'bg-green-100'
+                        : 'bg-gray-100'
+                  }`}
+                >
+                  <Text className="text-xs" style={{ fontFamily: 'Poppins-Medium' }}>
+                    {job.status}
+                  </Text>
+                </View>
+              </View>
+
+              <View className="flex-row items-center gap-3 mt-2">
+                <Ionicons name="person-outline" size={16} color="#4B5563" />
+                <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
+                  {job.name}
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-3 mt-2">
+                <Ionicons name="calendar-outline" size={16} color="#4B5563" />
+                <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
+                  {job.time}
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-3 mt-2">
+                <Ionicons name="location-outline" size={16} color="#4B5563" />
+                <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
+                  {job.location}
+                </Text>
+              </View>
+
+              <View
+                className={`flex flex-row pt-4 ${activeTab === 'Ongoing' ? 'justify-between' : 'justify-center'}`}
+              >
+                {activeTab === 'Ongoing' && (
+                  <TouchableOpacity
+                    className="bg-red-50 border border-red-500 py-2 px-5 rounded-lg"
+                    activeOpacity={0.85}
+                    onPress={() => setPendingCancelJob(job)}
+                  >
+                    <Text className="text-sm text-[#FF2C2C]" style={{ fontFamily: 'Poppins-Medium' }}>
+                      Cancel Request
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  className={`py-3 px-6 rounded-lg ${
+                    activeTab === 'Ongoing'
+                      ? 'bg-gray-100'
+                      : activeTab === 'Completed'
+                        ? 'bg-[#6A9B00] w-full'
+                        : 'bg-black w-full'
+                  }`}
+                  activeOpacity={0.85}
+                  onPress={() => handlePrimaryAction(activeTab)}
+                >
+                  <Text
+                    className={`text-sm  text-center ${
+                      activeTab === 'Ongoing' ? 'text-black' : 'text-white '
+                    }`}
+                    style={{ fontFamily: 'Poppins-Medium' }}
+                  >
+                    {activeTab === 'Ongoing'
+                      ? 'Check Updates'
+                      : activeTab === 'Completed'
+                        ? 'View Details'
+                        : 'Rebook Service'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
+      <Modal visible={!!pendingCancelJob} transparent animationType="fade" onRequestClose={() => setPendingCancelJob(null)}>
+        <View className="flex-1 bg-black/40 items-center justify-center px-6">
+          <View className="w-full max-w-sm rounded-2xl bg-white px-6 py-6 shadow-[0px_20px_45px_rgba(15,23,42,0.25)]">
+            <Text className="text-lg text-center text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
+              Cancel Request?
+            </Text>
+            <Text className="text-sm text-center text-gray-500 mb-5" style={{ fontFamily: 'Poppins-Regular' }}>
+              This action cannot be undone
+            </Text>
+            <View className="flex-row justify-between gap-3">
+              <TouchableOpacity
+                className="flex-1 bg-[#FF2C2C] py-3 rounded-xl items-center justify-center"
+                activeOpacity={0.85}
+                onPress={() => {
+                  const job = pendingCancelJob;
+                  setPendingCancelJob(null);
+                  if (job) {
+                    router.push('/CancelRequestScreen');
+                  }
+                }}
+              >
+                <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 bg-gray-100 py-3 rounded-xl items-center justify-center"
+                activeOpacity={0.85}
+                onPress={() => setPendingCancelJob(null)}
+              >
+                <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                  Go back
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
 }

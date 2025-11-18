@@ -1,11 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
-import { Animated } from 'react-native';
+import { Animated, TouchableOpacity, View } from 'react-native';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
-const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName, color: string, focused: boolean }) => {
+const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color: string; focused: boolean }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(focused ? 1 : 0.7)).current;
   const translateYAnim = useRef(new Animated.Value(0)).current;
@@ -47,6 +48,41 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName, color:
   );
 };
 
+const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={{
+        top: -14,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <View
+        style={{
+          width: 58,
+          height: 58,
+          borderRadius: 31,
+          backgroundColor: '#6A9B00',
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+          elevation: 6,
+          borderWidth: 3,
+          borderColor: '#FFFFFF',
+        }}
+      >
+        {children}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+
 export default function TabLayout() {
   return (
     <Tabs
@@ -55,41 +91,28 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopWidth: 0,
-          height: 80,
-          paddingBottom: 5,
-          paddingTop: 10,
-          borderRadius: 0,
+          height: 55,
+          paddingBottom: 6,
+          paddingTop: 6,
           marginHorizontal: 0,
           marginBottom: 0,
           position: 'absolute',
           bottom: 0,
-          shadowColor: '#000',
-          shadowOffset: {
-            width: 0,
-            height: 2,
-          },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 3,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 6,
+          elevation: 6,
         },
         tabBarHideOnKeyboard: true,
-        tabBarShowLabel: true,
+        tabBarShowLabel: false,
         tabBarActiveTintColor: '#6A9B00',
-        tabBarInactiveTintColor: '#000000',
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: 2,
-        },
-        tabBarIconStyle: {
-          marginTop: 2,
-        },
+        tabBarInactiveTintColor: '#9CA3AF',
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Home',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedIcon iconName="home" color={color} focused={focused} />
           ),
@@ -98,35 +121,29 @@ export default function TabLayout() {
       <Tabs.Screen
         name="jobs"
         options={{
-          title: 'Jobs',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedIcon iconName="apps" color={color} focused={focused} />
+            <AnimatedIcon iconName="assignment" color={color} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="categories"
         options={{
-          title: 'Chat',
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedIcon iconName="add-circle" color={color}  focused={focused} />
-          ),
+          tabBarIcon: () => <MaterialIcons name="add" size={30} color="white" />,
+          tabBarButton: (props) => <CentralTabButton {...props} />,
         }}
       />
       <Tabs.Screen
         name="discover"
         options={{
-          title: 'Discover',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedIcon iconName="explore" color={color} focused={focused} />
           ),
         }}
       />
-
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedIcon iconName="person" color={color} focused={focused} />
           ),

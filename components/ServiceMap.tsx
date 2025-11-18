@@ -124,6 +124,10 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
                 <Image
                   source={getIcon(provider.category)}
                   style={{ width: 45, height: 45, resizeMode: 'contain' }}
+                  defaultSource={require('../assets/images/plumbericon2.png')}
+                  onError={(error) => {
+                    console.warn('Error loading marker image:', error);
+                  }}
                 />
               </View>
             </Marker>
@@ -195,6 +199,10 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
                       <Image
                         source={provider.image}
                         style={{ width: 54, height: 54, borderRadius: 27, marginRight: 12 }}
+                        defaultSource={require('../assets/images/plumbericon2.png')}
+                        onError={(error) => {
+                          console.warn('Error loading provider image:', error);
+                        }}
                       />
                       <View className="flex-1">
                         <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
@@ -255,6 +263,10 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
               <Image
                 source={activeProvider.image}
                 style={{ width: 60, height: 60, borderRadius: 30, marginRight: 14 }}
+                defaultSource={require('../assets/images/plumbericon2.png')}
+                onError={(error) => {
+                  console.warn('Error loading active provider image:', error);
+                }}
               />
               <View className="flex-1">
                 <Text className="text-lg text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>

@@ -6,7 +6,7 @@ import TodoCard from '@/components/home/TodoCard';
 import { jobActivities, promoCodes, recommendedServices, todoItems } from '@/components/home/data';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -51,10 +51,18 @@ CategoryItem.displayName = 'CategoryItem';
 const HomeScreen = React.memo(() => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const { location } = useUserLocation();
+  const { location, isLoading, refreshLocation } = useUserLocation();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Refresh location when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Reload location from storage when screen comes into focus
+      refreshLocation();
+    }, [refreshLocation])
+  );
 
   const animationConfig = useMemo(() => ({
     fadeConfig: {
@@ -77,8 +85,11 @@ const HomeScreen = React.memo(() => {
   }, [fadeAnim, slideAnim, animationConfig]);
 
   const handleCategoryPress = useCallback((category: ServiceCategory) => {
-    console.log('Category selected:', category.title);
-  }, []);
+    router.push({
+      pathname: '/(tabs)/categories',
+      params: { selectedCategoryId: category.id },
+    });
+  }, [router]);
 
   const handleViewAllCategories = useCallback(() => {
     router.push('/categories' as any);
@@ -106,13 +117,15 @@ const HomeScreen = React.memo(() => {
   const bottomSpacerStyle = useMemo(() => ({ height: 90 }), []);
 
   const displayLocation = useMemo(() => {
+    if (isLoading) {
+      return 'Loading...';
+    }
     if (!location || !location.trim()) {
       return 'Enter your location';
     }
     const trimmed = location.trim();
-    console.log("trimmed location",trimmed)
     return trimmed.length > 32 ? `${trimmed.slice(0, 32)}...` : trimmed;
-  }, [location]);
+  }, [location, isLoading]);
 
   const locationTextColor = location ? '#4B5563' : '#9CA3AF';
   const locationIconBackground = location ? '#D7FF6B' : '#F3F4F6';
@@ -122,9 +135,9 @@ const HomeScreen = React.memo(() => {
     <SafeAreaView className="flex-1 bg-white">
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View
-          style={[animatedStyles, { flex: 1, }]}
+          style={[animatedStyles, { flex: 1, paddingTop: 20 }]}
         >
-          <View className="px-4 pt-0 pb-0">
+          <View className="px-4 pb-0">
             <View className="flex-row items-center justify-between mb-1">
               <TouchableOpacity
                 onPress={handleLocationPress}

@@ -45,6 +45,7 @@ interface UseUserLocationReturn {
   isLoading: boolean;
   setLocation: (value: string) => Promise<void>;
   clearLocation: () => Promise<void>;
+  refreshLocation: () => Promise<void>;
 }
 
 export function useUserLocation(): UseUserLocationReturn {
@@ -84,11 +85,24 @@ export function useUserLocation(): UseUserLocationReturn {
     }
   }, []);
 
+  const refreshLocation = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const storedLocation = await storage.getItem(USER_LOCATION_STORAGE_KEY);
+      setLocationState(storedLocation);
+    } catch (error) {
+      console.error('Error refreshing location:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return {
     location,
     isLoading,
     setLocation,
     clearLocation,
+    refreshLocation,
   };
 }
 

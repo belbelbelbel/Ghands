@@ -3,19 +3,22 @@ import { Lock, Mail } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import Toast from '../components/Toast';
 import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import { SocialButton } from '../components/SocialButton';
+import { useToast } from '../hooks/useToast';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { toast, showError, hideToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
     // Basic validation
     if (!email.trim() || !password.trim()) {
-      alert('Please fill in all required fields');
+      showError('Please fill in all required fields');
       return;
     }
 
@@ -27,7 +30,7 @@ export default function LoginScreen() {
       router.push('/LocationPermissionScreen');
     } catch (error) {
       console.error('Login error:', error);
-      alert('Login failed. Please check your credentials and try again.');
+      showError('Login failed. Please check your credentials and try again.');
     }
   };
 
@@ -144,6 +147,12 @@ export default function LoginScreen() {
           onPress={handleFacebookLogin}
         />
       </ScrollView>
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onClose={hideToast}
+      />
     </SafeAreaView>
   );
 }

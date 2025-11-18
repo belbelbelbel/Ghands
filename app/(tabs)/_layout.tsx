@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
-import { Animated, TouchableOpacity, View } from 'react-native';
+import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -50,35 +50,49 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color:
 
 const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.85}
-      style={{
-        top: -14,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <View
+    <View style={{ alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.85}
         style={{
-          width: 58,
-          height: 58,
-          borderRadius: 31,
-          backgroundColor: '#6A9B00',
+          top: -14,
           justifyContent: 'center',
           alignItems: 'center',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          elevation: 6,
-          borderWidth: 3,
-          borderColor: '#FFFFFF',
         }}
       >
-        {children}
-      </View>
-    </TouchableOpacity>
+        <View
+          style={{
+            width: 58,
+            height: 58,
+            borderRadius: 31,
+            backgroundColor: '#6A9B00',
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 8,
+            elevation: 6,
+            borderWidth: 3,
+            borderColor: '#FFFFFF',
+          }}
+        >
+          {children}
+        </View>
+      </TouchableOpacity>
+      <Text
+        style={{
+          fontSize: 11,
+          fontFamily: 'Poppins-Medium',
+          color: '#6A9B00',
+          marginTop: -8,
+          position: 'absolute',
+          bottom: -20,
+        }}
+      >
+        Request
+      </Text>
+    </View>
   );
 };
 
@@ -91,8 +105,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopWidth: 0,
-          height: 55,
-          paddingBottom: 6,
+          height: Platform.OS === 'ios' ? 75 : 65,
+          paddingBottom: Platform.OS === 'ios' ? 8 : 6,
           paddingTop: 6,
           marginHorizontal: 0,
           marginBottom: 0,
@@ -105,14 +119,21 @@ export default function TabLayout() {
           elevation: 6,
         },
         tabBarHideOnKeyboard: true,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
         tabBarActiveTintColor: '#6A9B00',
         tabBarInactiveTintColor: '#9CA3AF',
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontFamily: 'Poppins-Medium',
+          marginTop: 2,
+        },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
+          title: 'Home',
+          tabBarLabel: 'Home',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedIcon iconName="home" color={color} focused={focused} />
           ),
@@ -121,6 +142,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="jobs"
         options={{
+          title: 'Jobs',
+          tabBarLabel: 'Jobs',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedIcon iconName="assignment" color={color} focused={focused} />
           ),
@@ -129,6 +152,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="categories"
         options={{
+          title: 'Request',
+          tabBarLabel: '',
+          tabBarShowLabel: false,
           tabBarIcon: () => <MaterialIcons name="add" size={30} color="white" />,
           tabBarButton: (props) => <CentralTabButton {...props} />,
         }}
@@ -136,6 +162,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="discover"
         options={{
+          title: 'Discover',
+          tabBarLabel: 'Discover',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedIcon iconName="explore" color={color} focused={focused} />
           ),
@@ -144,6 +172,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
+          title: 'Profile',
+          tabBarLabel: 'Profile',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedIcon iconName="person" color={color} focused={focused} />
           ),

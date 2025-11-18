@@ -1,8 +1,10 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
-import { ArrowLeft, Camera, Plus, X } from 'lucide-react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowLeft, ArrowRight, Camera, Plus, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Image, Modal, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, Image, Modal, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import Toast from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
 
 const { width: screenWidth } = Dimensions.get('window');
 const IMAGE_SIZE = (screenWidth - 48) / 3 - 8;
@@ -15,9 +17,12 @@ interface PhotoItem {
 
 export default function AddPhotosScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ selectedDateTime?: string; selectedDate?: string; selectedTime?: string }>();
+  const { toast, showError, showWarning, hideToast } = useToast();
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [isFindingProviders, setIsFindingProviders] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -73,44 +78,28 @@ export default function AddPhotosScreen() {
   const requestPermissions = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to upload images!');
+      showError('Camera roll permissions are required to upload images');
       return false;
     }
     return true;
-  }, []);
+  }, [showError]);
 
   const requestCameraPermissions = useCallback(async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Sorry, we need camera permissions to take photos!');
+      showError('Camera permissions are required to take photos');
       return false;
     }
     return true;
-  }, []);
+  }, [showError]);
 
   const handleUploadPhotos = useCallback(async () => {
     const hasPermission = await requestPermissions();
     if (!hasPermission) return;
 
-    Alert.alert(
-      'Select Images',
-      'Choose an option',
-      [
-        {
-          text: 'Camera',
-          onPress: handleOpenCamera,
-        },
-        {
-          text: 'Gallery',
-          onPress: handleOpenGallery,
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
-  }, []);
+    // For now, directly open gallery. In a full implementation, you'd show a bottom sheet
+    handleOpenGallery();
+  }, [requestPermissions, handleOpenGallery]);
 
   const handleOpenCamera = useCallback(async () => {
     const hasPermission = await requestCameraPermissions();
@@ -186,6 +175,16 @@ export default function AddPhotosScreen() {
     if (isFindingProviders) {
       return;
     }
+    if (selectedPhotos.size === 0) {
+      showError('Please select at least one photo to continue');
+      return;
+    }
+    // Show confirmation modal with date/time
+    setShowConfirmModal(true);
+  }, [isFindingProviders, selectedPhotos, showError]);
+
+  const handleConfirmAndProceed = useCallback(() => {
+    setShowConfirmModal(false);
     const selected = photos.filter((photo) => selectedPhotos.has(photo.id));
     console.log('Selected photos:', selected);
     setIsFindingProviders(true);
@@ -198,7 +197,11 @@ export default function AddPhotosScreen() {
       setIsFindingProviders(false);
       router.push('/ServiceMapScreen');
     }, 1800);
-  }, [isFindingProviders, photos, router, selectedPhotos]);
+  }, [photos, router, selectedPhotos]);
+
+  const handleChangePhotos = useCallback(() => {
+    setShowConfirmModal(false);
+  }, []);
 
   const handleCancel = useCallback(() => {
     router.back();
@@ -374,6 +377,97 @@ export default function AddPhotosScreen() {
         </View>
       </Animated.View>
 
+      {/* Confirmation Modal - Date/Time & Photos */}
+      <Modal
+        transparent
+        visible={showConfirmModal}
+        animationType="fade"
+        onRequestClose={handleChangePhotos}
+      >
+        <View className="flex-1 bg-black/50 items-center justify-center px-4">
+          <Animated.View
+            style={[animatedStyles]}
+            className="w-full max-w-sm rounded-3xl bg-white px-6 py-8 shadow-[0px_24px_48px_rgba(15,23,42,0.2)]"
+          >
+            <View className="items-center mb-6">
+              <View className="w-16 h-16 rounded-full bg-[#E3F4DF] items-center justify-center mb-4">
+                <Text className="text-3xl">📸</Text>
+              </View>
+              <Text className="text-lg text-black mb-3" style={{ fontFamily: 'Poppins-Bold' }}>
+                Confirm Details
+              </Text>
+              
+              {/* Date/Time Display */}
+              {params.selectedDateTime && (
+                <View className="w-full mb-4">
+                  <View className="bg-gray-50 rounded-xl px-4 py-3 mb-3">
+                    <Text className="text-xs text-gray-500 mb-1" style={{ fontFamily: 'Poppins-Medium' }}>
+                      Scheduled Date & Time
+                    </Text>
+                    <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                      {params.selectedDateTime}
+                    </Text>
+                  </View>
+                  
+                  {/* Photos Preview */}
+                  <View className="bg-gray-50 rounded-xl px-4 py-3">
+                    <Text className="text-xs text-gray-500 mb-2" style={{ fontFamily: 'Poppins-Medium' }}>
+                      Selected Photos
+                    </Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {photos
+                        .filter((photo) => selectedPhotos.has(photo.id))
+                        .slice(0, 3)
+                        .map((photo) => (
+                          <Image
+                            key={photo.id}
+                            source={{ uri: photo.uri }}
+                            className="w-16 h-16 rounded-lg"
+                            resizeMode="cover"
+                          />
+                        ))}
+                      {selectedPhotos.size > 3 && (
+                        <View className="w-16 h-16 rounded-lg bg-gray-200 items-center justify-center">
+                          <Text className="text-xs text-gray-600" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                            +{selectedPhotos.size - 3}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            <View className="gap-3">
+              <TouchableOpacity
+                onPress={handleConfirmAndProceed}
+                activeOpacity={0.85}
+                className="bg-black rounded-xl py-4 items-center justify-center"
+              >
+                <View className="flex-row items-center">
+                  <Text className="text-base text-white mr-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                    Next
+                  </Text>
+                  <ArrowRight size={18} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleChangePhotos}
+                activeOpacity={0.85}
+                className="bg-white border border-gray-200 rounded-xl py-4 items-center justify-center"
+              >
+                <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                  Change
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Finding Providers Modal */}
       <Modal transparent visible={isFindingProviders} animationType="fade">
         <View className="flex-1 bg-black/45 items-center justify-center px-6">
           <View className="w-full max-w-sm rounded-3xl bg-white px-6 py-8 items-center shadow-[0px_24px_48px_rgba(15,23,42,0.2)]">
@@ -402,6 +496,13 @@ export default function AddPhotosScreen() {
           </View>
         </View>
       </Modal>
+
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onClose={hideToast}
+      />
     </SafeAreaView>
   );
 }

@@ -1,8 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 const LiveSupportScreen = () => {
+  const router = useRouter();
+
+  const handleStartChat = () => {
+    router.push('/LiveChatScreen' as any);
+  };
+
   return (
     <View className='px-4 mb-6'>
       <View className='bg-[#EEFFD9] border border-[#D4FF8C] rounded-2xl p-5'>
@@ -21,7 +28,11 @@ const LiveSupportScreen = () => {
         >
           Get instant answers to your questions from our friendly support team.
         </Text>
-        <TouchableOpacity className='bg-[#6A9B00] rounded-xl py-3 px-6 items-center'>
+        <TouchableOpacity 
+          className='bg-[#6A9B00] rounded-xl py-3 px-6 items-center'
+          onPress={handleStartChat}
+          activeOpacity={0.85}
+        >
           <Text 
             className='text-white font-semibold' 
             style={{ fontFamily: 'Poppins-SemiBold' }}

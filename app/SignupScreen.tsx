@@ -3,12 +3,15 @@ import { Lock, Mail, Phone } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import Toast from '../components/Toast';
 import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import { SocialButton } from '../components/SocialButton';
+import { useToast } from '../hooks/useToast';
 
 export default function SignupScreen() {
   const router = useRouter();
+  const { toast, showError, hideToast } = useToast();
   const [email, setEmail] = useState('');
   const [fax, setFax] = useState('');
   const [password, setPassword] = useState('');
@@ -17,17 +20,17 @@ export default function SignupScreen() {
   const handleSignup = async () => {
     // Basic validation
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
-      alert('Please fill in all required fields');
+      showError('Please fill in all required fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      alert('Passwords do not match');
+      showError('Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      alert('Password must be at least 6 characters');
+      showError('Password must be at least 6 characters');
       return;
     }
 
@@ -39,7 +42,7 @@ export default function SignupScreen() {
       router.push('/LocationPermissionScreen');
     } catch (error) {
       console.error('Signup error:', error);
-      alert('Signup failed. Please try again.');
+      showError('Signup failed. Please try again.');
     }
   };
 
@@ -168,7 +171,12 @@ export default function SignupScreen() {
           onPress={handleFacebookSignup}
         />
       </ScrollView>
-    
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onClose={hideToast}
+      />
     </SafeAreaView>
   );
 }

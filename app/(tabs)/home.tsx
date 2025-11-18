@@ -107,6 +107,10 @@ const HomeScreen = React.memo(() => {
     router.push('../LocationSearchScreen' as any);
   }, [router]);
 
+  const handleViewAllJobs = useCallback(() => {
+    router.push('/(tabs)/jobs' as any);
+  }, [router]);
+
   const animatedStyles = useMemo(() => ({
     opacity: fadeAnim,
     transform: [{ translateY: slideAnim }]
@@ -135,9 +139,9 @@ const HomeScreen = React.memo(() => {
     <SafeAreaView className="flex-1 bg-white">
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View
-          style={[animatedStyles, { flex: 1, paddingTop: 20 }]}
+          style={[animatedStyles, { flex: 1, paddingTop: 17 }]}
         >
-          <View className="px-4 pb-0">
+          <View className="px-4 pt-0 pb-0">
             <View className="flex-row items-center justify-between mb-1">
               <TouchableOpacity
                 onPress={handleLocationPress}
@@ -196,13 +200,8 @@ const HomeScreen = React.memo(() => {
               </Text>
               <TouchableOpacity
                 onPress={handleViewAllCategories}
-                className="px-3 py-1"
+                className="px-3 py-1 flex-row items-center"
               >
-                <Text
-                  className="text-[#00000] text-sm font-semibold"
-                  style={{ fontFamily: 'Poppins-SemiBold' }}
-                >
-                      <TouchableOpacity className="flex-row items-center">
                 <Text
                   className="text-sm text-[#6A9B00]"
                   style={{ fontFamily: 'Poppins-SemiBold' }}
@@ -211,10 +210,7 @@ const HomeScreen = React.memo(() => {
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color="#6A9B00" />
               </TouchableOpacity>
-                </Text>
-              </TouchableOpacity>
             </View>
-
 
             <View className="flex-row flex-wrap justify-between">
               {homeScreenCategories.slice(0,4).map((category) => (
@@ -266,7 +262,7 @@ const HomeScreen = React.memo(() => {
                <ProviderCard key={provider.id} provider={provider} />
              ))}
            </View> */}
-          <View className='px-4 mb-6'>
+          <View className='px-4 mb-6 hidden'>
             <Text style={{
               fontFamily: 'Poppins-Bold'
             }} className='text-xl font-bold mb-2'>Todo</Text>
@@ -284,7 +280,11 @@ const HomeScreen = React.memo(() => {
               >
                 Job Activity
               </Text>
-              <TouchableOpacity className="flex-row items-center">
+              <TouchableOpacity 
+                className="flex-row items-center"
+                onPress={handleViewAllJobs}
+                activeOpacity={0.7}
+              >
                 <Text
                   className="text-sm text-[#6A9B00]"
                   style={{ fontFamily: 'Poppins-SemiBold' }}
@@ -294,8 +294,10 @@ const HomeScreen = React.memo(() => {
                 <Ionicons name="chevron-forward" size={16} color="#6A9B00" />
               </TouchableOpacity>
             </View>
-            {jobActivities.map((activity) => (
-              <JobActivityCard key={activity.id} activity={activity} />
+            {jobActivities.map((activity, index) => (
+              <View key={activity.id} style={{ marginBottom: index < jobActivities.length - 1 ? 16 : 0 }}>
+                <JobActivityCard activity={activity} />
+              </View>
             ))}
           </View>
 
@@ -317,7 +319,7 @@ const HomeScreen = React.memo(() => {
           </View>
 
           <View className="px-4 mb-10">
-            <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center justify-between mb-5">
               <Text
                 className="text-xl font-bold text-black"
                 style={{ fontFamily: 'Poppins-Bold' }}
@@ -328,8 +330,10 @@ const HomeScreen = React.memo(() => {
                 <Ionicons name="pricetag-outline" size={18} color="#2563EB" />
               </View>
             </View>
-            {promoCodes.map((promo) => (
-              <PromoCodeCard key={promo.id} promo={promo} />
+            {promoCodes.map((promo, index) => (
+              <View key={promo.id} style={{ marginBottom: index < promoCodes.length - 1 ? 16 : 0 }}>
+                <PromoCodeCard promo={promo} />
+              </View>
             ))}
           </View>
 

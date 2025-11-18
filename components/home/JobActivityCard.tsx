@@ -37,7 +37,7 @@ const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
   const theme = jobStatusTheme[activity.status];
 
   return (
-    <View className="bg-white rounded-2xl px-4 py-8 mb-3 border border-gray-100 shadow-[0px_6px_18px_rgba(16,24,40,0.04)]">
+    <View className="bg-white rounded-2xl px-4 py-6 border border-gray-100 shadow-[0px_6px_18px_rgba(16,24,40,0.04)]">
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
           <View className="w-10 h-10 rounded-full bg-[#F2F7EC] items-center justify-center mr-3">

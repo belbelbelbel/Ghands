@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Modal, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const MONTHS = [
   'January',
@@ -28,6 +28,7 @@ export default function DateTimeScreen() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -55,9 +56,28 @@ export default function DateTimeScreen() {
     if (!selectedDate || !selectedTime) {
       return;
     }
+    // Show confirmation modal
+    setShowConfirmModal(true);
+  }, [selectedDate, selectedTime]);
+
+  const handleConfirmAndProceed = useCallback(() => {
+    setShowConfirmModal(false);
     console.log('Selected date and time:', { date: selectedDate, time: selectedTime });
-    router.push('../AddPhotosScreen' as any);
-  }, [selectedDate, selectedTime, router]);
+    
+    // Pass formatted date/time as route params
+    router.push({
+      pathname: '../AddPhotosScreen' as any,
+      params: {
+        selectedDateTime: formattedDateTime,
+        selectedDate: selectedDate?.toISOString(),
+        selectedTime: selectedTime || '',
+      },
+    });
+  }, [selectedDate, selectedTime, formattedDateTime, router]);
+
+  const handleChangeDateTime = useCallback(() => {
+    setShowConfirmModal(false);
+  }, []);
 
   const handleCancel = useCallback(() => {
     router.back();
@@ -149,6 +169,49 @@ export default function DateTimeScreen() {
   );
 
   const canProceed = selectedDate !== null && selectedTime !== null;
+
+  const formattedDateTime = useMemo(() => {
+    if (!selectedDate || !selectedTime) return '';
+    
+    const month = MONTHS[selectedDate.getMonth()];
+    const day = selectedDate.getDate();
+    const year = selectedDate.getFullYear();
+    
+    // Format time (e.g., "09:00" -> "9am" or "01:00" -> "1pm")
+    const [hours, minutes] = selectedTime.split(':');
+    const hourNum = parseInt(hours, 10);
+    
+    // Determine if it's AM or PM based on the hour
+    // AM_HOURS: ['09:00', '10:00', '11:00', '12:00'] -> 9am, 10am, 11am, 12pm
+    // PM_HOURS: ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00'] -> 1pm-8pm
+    const isAM = AM_HOURS.includes(selectedTime);
+    const isPM = PM_HOURS.includes(selectedTime);
+    
+    let displayHour: number;
+    let period: string;
+    
+    if (isAM) {
+      // AM hours: 09:00=9am, 10:00=10am, 11:00=11am, 12:00=12pm
+      if (hourNum === 12) {
+        displayHour = 12;
+        period = 'pm';
+      } else {
+        displayHour = hourNum;
+        period = 'am';
+      }
+    } else if (isPM) {
+      // PM hours: 01:00=1pm, 02:00=2pm, etc.
+      displayHour = hourNum;
+      period = 'pm';
+    } else {
+      // Fallback for any other time format
+      const isAMHour = hourNum < 12;
+      displayHour = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
+      period = isAMHour ? 'am' : 'pm';
+    }
+    
+    return `${month} ${day}, ${year} ${displayHour}${period}`;
+  }, [selectedDate, selectedTime]);
 
   const animatedStyles = useMemo(
     () => ({
@@ -339,13 +402,16 @@ export default function DateTimeScreen() {
           <TouchableOpacity
             onPress={handleNext}
             disabled={!canProceed}
-            activeOpacity={canProceed ? 0.85 : 0.5}
+            activeOpacity={canProceed ? 0.85 : 1}
             className={`rounded-xl py-4 items-center justify-center flex-row ${
-              canProceed ? 'bg-black' : 'bg-gray-300'
+              canProceed ? 'bg-black' : 'bg-gray-200'
             }`}
+            style={{
+              opacity: canProceed ? 1 : 0.6,
+            }}
           >
             <Text
-              className={`text-base mr-2 ${canProceed ? 'text-white' : 'text-gray-500'}`}
+              className={`text-base mr-2 ${canProceed ? 'text-white' : 'text-gray-400'}`}
               style={{ fontFamily: 'Poppins-SemiBold' }}
             >
               Next
@@ -364,6 +430,58 @@ export default function DateTimeScreen() {
           </TouchableOpacity>
         </View>
       </Animated.View>
+
+      {/* Confirmation Modal */}
+      <Modal
+        transparent
+        visible={showConfirmModal}
+        animationType="fade"
+        onRequestClose={handleChangeDateTime}
+      >
+        <View className="flex-1 bg-black/50 items-center justify-center px-4">
+          <Animated.View
+            style={[animatedStyles]}
+            className="w-full max-w-sm rounded-3xl bg-white px-6 py-8 shadow-[0px_24px_48px_rgba(15,23,42,0.2)]"
+          >
+            <View className="items-center mb-6">
+              <View className="w-16 h-16 rounded-full bg-[#E3F4DF] items-center justify-center mb-4">
+                <Text className="text-3xl">📅</Text>
+              </View>
+              <Text className="text-lg text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
+                Confirm Date & Time
+              </Text>
+              <Text className="text-base text-gray-600 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
+                {formattedDateTime}
+              </Text>
+            </View>
+
+            <View className="gap-3">
+              <TouchableOpacity
+                onPress={handleConfirmAndProceed}
+                activeOpacity={0.85}
+                className="bg-black rounded-xl py-4 items-center justify-center"
+              >
+                <View className="flex-row items-center">
+                  <Text className="text-base text-white mr-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                    Next
+                  </Text>
+                  <ArrowRight size={18} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleChangeDateTime}
+                activeOpacity={0.85}
+                className="bg-white border border-gray-200 rounded-xl py-4 items-center justify-center"
+              >
+                <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                  Change
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

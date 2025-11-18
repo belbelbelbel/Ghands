@@ -21,7 +21,7 @@ export type ServiceProvider = {
   };
 };
 
-const CATEGORY_CHIPS: ProviderCategory[] = ['All', 'Plumber', 'Electrician', 'Car Wash'];
+const CATEGORY_CHIPS: ProviderCategory[] = ['All',];
 
 const categoryIcons: Record<string, any> = {
   Plumber: require('../assets/images/plumbericon.png'),

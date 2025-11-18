@@ -2,9 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Search } from 'lucide-react-native';
 import { default as React, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import Toast from '@/components/Toast';
 import { serviceCategories } from '../../data/serviceCategories';
+import { useToast } from '@/hooks/useToast';
 
 
 interface CategoryData {
@@ -18,6 +20,7 @@ interface CategoryData {
 export default function CategoryPage() {
   const routes = useRouter();
   const params = useLocalSearchParams<{ selectedCategoryId?: string }>();
+  const { toast, showError, hideToast } = useToast();
   const [isToggle, setIsToggle] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
   const categoryRefs = useRef<{ [key: string]: number }>({});
@@ -109,29 +112,42 @@ export default function CategoryPage() {
       routes.push('/JobDetailsScreen' as any)
     }
     else {
-      Alert.alert('Please choose a category')
+      showError('Please choose a category')
     }
   }
+
+  // Check if we're coming from navigation (has selectedCategoryId param) or from tab
+  const isFromNavigation = !!params.selectedCategoryId;
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
         <View style={{ flex: 1, paddingHorizontal: 10, paddingTop: 20 }}>
-          <View className=' flex flex-row px-3 items-center mb-6 gap-20'>
-            <TouchableOpacity
-              onPress={() => routes.back()}
-              className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
-            >
-              <ArrowLeft size={20} color="#111827" />
-            </TouchableOpacity>
-            <Text style={{
-              fontSize: 18,
-              fontWeight: 'bold',
-              color: '#000000',
-              textAlign: 'center',
-              // marginBottom: 24
-            }}>Request Service</Text>
-          </View>
+          {isFromNavigation ? (
+            <View className=' flex flex-row px-3 items-center mb-6 gap-20'>
+              <TouchableOpacity
+                onPress={() => routes.back()}
+                className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
+              >
+                <ArrowLeft size={20} color="#111827" />
+              </TouchableOpacity>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                color: '#000000',
+                textAlign: 'center',
+              }}>Request Service</Text>
+            </View>
+          ) : (
+            <View className='px-3 mb-6'>
+              <Text style={{
+                fontSize: 24,
+                fontWeight: 'bold',
+                color: '#000000',
+                fontFamily: 'Poppins-Bold',
+              }}>Request Service</Text>
+            </View>
+          )}
           <View className='pb-6 px-0'>
 
             <View
@@ -262,6 +278,12 @@ export default function CategoryPage() {
             </View>
           </TouchableOpacity>
         </View>
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          visible={toast.visible}
+          onClose={hideToast}
+        />
       </SafeAreaView>
     </SafeAreaProvider>
   )

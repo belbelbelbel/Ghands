@@ -14,7 +14,7 @@ type PromoCodeCardProps = {
 
 const PromoCodeCardComponent = ({ promo }: PromoCodeCardProps) => {
   return (
-    <View className="bg-[#F8FAFC] rounded-xl px-4 py-6 mb-3 border border-dashed border-[#E2E8F0]">
+    <View className="bg-[#F8FAFC] rounded-xl px-4 py-5 border border-dashed border-[#E2E8F0]">
       <View className="flex-row items-center justify-between">
         <View>
           <Text

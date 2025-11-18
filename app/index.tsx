@@ -36,9 +36,9 @@ export default function SplashScreen() {
       // Auto-navigate after 3 seconds
       const timer = setTimeout(() => {
         if (isOnboardingComplete) {
-          router.replace("/main");
+          router.replace("/(tabs)/home");
         } else {
-          router.replace('/(tabs)/home');
+          router.replace('/onboarding');
         }
       }, 3000);
 
@@ -48,7 +48,7 @@ export default function SplashScreen() {
 
   const handlePress = () => {
     if (isOnboardingComplete) {
-      router.replace("/main");
+      router.replace("/(tabs)/home");
     } else {
       router.replace("/onboarding");
     }

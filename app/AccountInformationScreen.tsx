@@ -43,7 +43,6 @@ export default function AccountInformationScreen() {
       router.push('/AddressBookScreen' as any);
     } else if (id === '3') {
       // Handle verification status navigation
-      console.log('Verification Status pressed');
     }
   };
 

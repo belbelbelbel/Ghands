@@ -186,7 +186,6 @@ export default function AddPhotosScreen() {
   const handleConfirmAndProceed = useCallback(() => {
     setShowConfirmModal(false);
     const selected = photos.filter((photo) => selectedPhotos.has(photo.id));
-    console.log('Selected photos:', selected);
     setIsFindingProviders(true);
 
     if (findingTimeoutRef.current) {

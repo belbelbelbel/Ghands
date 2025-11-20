@@ -34,7 +34,6 @@ export default function PaymentMethodsScreen() {
 
   const handleRemove = (id: string) => {
     // Handle remove payment method
-    console.log('Remove payment method:', id);
   };
 
   return (

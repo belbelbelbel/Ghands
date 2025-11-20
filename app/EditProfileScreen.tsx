@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Camera, Mail, Phone, User } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { ActivityIndicator, Alert, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { InputField } from '../components/InputField';
 import { useProfile, useUpdateProfile } from '../hooks/useProfile';
 import { ProfileFormData, profileFormSchema } from '../lib/validation';
@@ -14,6 +15,7 @@ const MOCK_USER_ID = 'user-123';
 export default function EditProfileScreen() {
   const router = useRouter();
   const [profileImageUri, setProfileImageUri] = useState<string | undefined>();
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // Fetch user profile
   const { data: profile, isLoading: isLoadingProfile } = useProfile(MOCK_USER_ID);
@@ -81,10 +83,104 @@ export default function EditProfileScreen() {
     }
   };
 
-  // Handle profile image picker (placeholder for now)
+  const requestPermissions = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to upload images!');
+      return false;
+    }
+    return true;
+  };
+
   const handleImagePicker = async () => {
-    // TODO: Implement image picker using expo-image-picker
-    Alert.alert('Image Picker', 'Image picker functionality will be implemented here');
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    Alert.alert(
+      'Select Image',
+      'Choose an option',
+      [
+        {
+          text: 'Camera',
+          onPress: openCamera,
+        },
+        {
+          text: 'Gallery',
+          onPress: openGallery,
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const openCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Sorry, we need camera permissions to take photos!');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      await handleImageUpload(result.assets[0].uri);
+    }
+  };
+
+  const openGallery = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      await handleImageUpload(result.assets[0].uri);
+    }
+  };
+
+  const handleImageUpload = async (imageUri: string) => {
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      const filename = imageUri.split('/').pop() || 'profile.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+      formData.append('image', {
+        uri: imageUri,
+        name: filename,
+        type,
+      } as any);
+
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://api.ghands.com'}/upload/profile`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setProfileImageUri(data.imageUrl || imageUri);
+      } else {
+        setProfileImageUri(imageUri);
+      }
+    } catch (error) {
+      setProfileImageUri(imageUri);
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   if (isLoadingProfile) {
@@ -121,10 +217,15 @@ export default function EditProfileScreen() {
           {/* Profile Picture */}
           <View className="items-center mb-8">
             <View className="relative">
-              <View className="w-32 h-32 bg-white rounded-full items-center justify-center border-2 border-black">
-                {profileImageUri ? (
-                  // TODO: Add Image component to display profile image
-                  <User size={60} color="#6A9B00" />
+              <View className="w-32 h-32 bg-white rounded-full items-center justify-center border-2 border-black overflow-hidden">
+                {isUploadingImage ? (
+                  <ActivityIndicator size="large" color="#6A9B00" />
+                ) : profileImageUri ? (
+                  <Image
+                    source={{ uri: profileImageUri }}
+                    style={{ width: 128, height: 128, borderRadius: 64 }}
+                    resizeMode="cover"
+                  />
                 ) : (
                   <User size={60} color="#6A9B00" />
                 )}

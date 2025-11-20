@@ -87,7 +87,6 @@ export default function SupportScreen() {
 
   const handleSubmitForm = () => {
     if (formData.name && formData.email && formData.message) {
-      console.log('Form submitted:', formData);
       // Handle form submission
       setFormData({ name: '', email: '', message: '' });
     }

@@ -47,7 +47,6 @@ export default function ChatScreen() {
   const handleSend = () => {
     if (message.trim()) {
       // Handle send message
-      console.log('Sending message:', message);
       setMessage('');
     }
   };
@@ -132,7 +131,6 @@ export default function ChatScreen() {
             className="bg-[#3B82F6] rounded-xl py-4 px-4 flex-row items-center justify-center"
             onPress={() => {
               // Navigate to quotation view
-              console.log('View quotation');
             }}
           >
             <Ionicons name="document-text-outline" size={20} color="white" style={{ marginRight: 8 }} />

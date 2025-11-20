@@ -1,6 +1,6 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import React from 'react';
 import { Text } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 interface ServiceProvider {
   id: string;
@@ -52,11 +52,8 @@ const mockProviders: ServiceProvider[] = [
 
 export default function DiscoverScreen() {
   return(
-        <SafeAreaProvider>
-          <SafeAreaView>
-            <Text>DiscoverScreen</Text>
-          </SafeAreaView>
-    
-        </SafeAreaProvider>
+    <SafeAreaWrapper>
+      <Text>DiscoverScreen</Text>
+    </SafeAreaWrapper>
   )
 }

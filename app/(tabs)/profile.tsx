@@ -1,8 +1,8 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import { Bell, BookOpen, Camera, ChevronRight, FileText, HelpCircle, LogOut, MapPin, Trash2, User } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
 import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -40,7 +40,7 @@ const ProfileScreen = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaWrapper backgroundColor="#F9FAFB">
       <Animated.View style={[animatedStyles, { flex: 1, paddingTop: 20 }]}>
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mx-3">
           {/* Profile Banner */}
@@ -153,7 +153,7 @@ const ProfileScreen = () => {
           <View style={{ height: 100 }} />
         </ScrollView>
       </Animated.View>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 };
 

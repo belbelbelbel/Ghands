@@ -599,7 +599,6 @@ export default function OngoingJobDetails() {
                     className="bg-black rounded-xl py-4 items-center justify-center mb-4"
                     onPress={() => {
                       // Handle accept quote
-                      console.log('Accepting quote:', QUOTATIONS[currentQuoteIndex].id);
                     }}
                   >
                     <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>

@@ -24,8 +24,6 @@ export default function LocationPermissionScreen() {
   }, []);
 
   const handleAllowLocation = () => {
-    // Request location permission
-    console.log('Requesting location permission');
     // Navigate to next screen after permission granted
     router.push('/LocationSearchScreen');
   };

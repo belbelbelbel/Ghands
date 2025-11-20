@@ -1,7 +1,8 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Modal, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 type JobStatus = 'Ongoing' | 'Completed' | 'Cancelled';
 
@@ -96,7 +97,7 @@ export default function JobsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <View className="flex-1 px-4" style={{ paddingTop: 20 }}>
         <Text className="text-2xl text-black mb-6 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
           Jobs
@@ -253,6 +254,6 @@ export default function JobsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

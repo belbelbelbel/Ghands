@@ -8,9 +8,9 @@ export default function PaymentHistoryScreen() {
 
   const handleNavigation = (id: string) => {
     if (id === '1') {
-      console.log('Billing History pressed');
+      // Handle billing history
     } else if (id === '2') {
-      console.log('Payment History pressed');
+      // Handle payment history
     }
   };
 

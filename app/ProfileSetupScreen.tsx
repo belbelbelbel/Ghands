@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Camera, MapPin, Plus, User } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Image, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, Image, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -14,11 +14,7 @@ export default function ProfileSetupScreen() {
   const [selectedGender, setSelectedGender] = useState<'male' | 'female' | null>(null);
   const [description, setDescription] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
-
-  // Debug log for profile image changes
-  useEffect(() => {
-    // console.log('Profile image changed:', profileImage);
-  }, [profileImage]);
+  const [isUploading, setIsUploading] = useState(false);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -84,12 +80,9 @@ export default function ProfileSetupScreen() {
       aspect: [1, 1],
       quality: 0.8,
     });
-
-    // console.log('Camera result:', result);
     
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      console.log('Setting profile image from camera:', result.assets[0].uri);
-      setProfileImage(result.assets[0].uri);
+      await handleImageUpload(result.assets[0].uri);
     }
   };
 
@@ -100,12 +93,44 @@ export default function ProfileSetupScreen() {
       aspect: [1, 1],
       quality: 0.8,
     });
-
-    // console.log('Gallery result:', result);
     
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      console.log('Setting profile image from gallery:', result.assets[0].uri);
-      setProfileImage(result.assets[0].uri);
+      await handleImageUpload(result.assets[0].uri);
+    }
+  };
+
+  const handleImageUpload = async (imageUri: string) => {
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      const filename = imageUri.split('/').pop() || 'profile.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+      formData.append('image', {
+        uri: imageUri,
+        name: filename,
+        type,
+      } as any);
+
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://api.ghands.com'}/upload/profile`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setProfileImage(data.imageUrl || imageUri);
+      } else {
+        setProfileImage(imageUri);
+      }
+    } catch (error) {
+      setProfileImage(imageUri);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -118,17 +143,6 @@ export default function ProfileSetupScreen() {
   };
 
   const handleSave = () => {
-    console.log('Profile saved:', {
-      fullName,
-      homeAddress,
-      location,
-      selectedGender,
-      description,
-      profileImage,
-    });
-    
-    // Here you would typically upload the image to your backend
-    // Navigate to main tab navigation
     router.replace('/(tabs)/home');
   };
 
@@ -183,7 +197,11 @@ export default function ProfileSetupScreen() {
                 maxHeight: 140
               }}
             >
-              {profileImage ? (
+              {isUploading ? (
+                <View className="items-center justify-center" style={{ width: screenWidth * 0.3, height: screenWidth * 0.3 }}>
+                  <ActivityIndicator size="large" color="#6A9B00" />
+                </View>
+              ) : profileImage ? (
                 <Image 
                   source={{ uri: profileImage }} 
                   style={{
@@ -209,19 +227,11 @@ export default function ProfileSetupScreen() {
                 Image selected ✓
               </Text>
             )}
-            {/* Debug info
-            <Text className="text-xs text-gray-400 mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
-              {profileImage ? `Image URI: ${profileImage.substring(0, 50)}...` : 'No image selected'}
-            </Text> */}
-            {/* Debug button - remove this later */}
-            {/* <TouchableOpacity 
-              onPress={() => setProfileImage('https://via.placeholder.com/128x128/ADF802/000000?text=Test')}
-              className="mt-2 px-4 py-2 bg-gray-200 rounded-lg"
-            >
-              <Text className="text-xs text-gray-600" style={{ fontFamily: 'Poppins-Medium' }}>
-                Test Image
+            {isUploading && (
+              <Text className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
+                Uploading...
               </Text>
-            </TouchableOpacity> */}
+            )}
           </View>
 
           {/* Full Name Input */}

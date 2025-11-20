@@ -1,11 +1,12 @@
+import { CategorySkeleton } from '@/components/LoadingSkeleton';
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
 import { useToast } from '@/hooks/useToast';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Search } from 'lucide-react-native';
-import { default as React, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowLeft, Search, X } from 'lucide-react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { serviceCategories } from '../../data/serviceCategories';
 
 interface CategoryData {
@@ -18,10 +19,14 @@ interface CategoryData {
 
 export default function CategoryPage() {
   const routes = useRouter();
-  const params = useLocalSearchParams<{ selectedCategoryId?: string }>();
+  const params = useLocalSearchParams<{ selectedCategoryId?: string, searchQuery?: string }>();
   const { toast, showError, hideToast } = useToast();
   const [isToggle, setIsToggle] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasNavigatedFromHome, setHasNavigatedFromHome] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const searchInputRef = useRef<TextInput>(null);
   const categoryRefs = useRef<{ [key: string]: number }>({});
   const categoryArrays: CategoryData[] = [
     {
@@ -83,8 +88,72 @@ export default function CategoryPage() {
   ];
   const handleToggle = (id: string) => {
     setIsToggle((prev) => (prev === id ? "" : id));
-    console.log("toggle", id);
   };
+
+  const handleSearchQueryChange = (text: string) => {
+    setSearchQuery(text);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setIsToggle('');
+  };
+
+  const filteredCategories = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return categoryArrays;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    return categoryArrays.filter(
+      (category) =>
+        category.name.toLowerCase().includes(query) ||
+        category.description.toLowerCase().includes(query)
+    );
+  }, [searchQuery, categoryArrays]);
+
+  // Track if we're coming from navigation vs tab
+  useFocusEffect(
+    React.useCallback(() => {
+      // When screen comes into focus, check if we have searchQuery param
+      // If not, we're coming from tab navigation, so clear the flag
+      if (!params.searchQuery && !params.selectedCategoryId) {
+        setHasNavigatedFromHome(false);
+        setSearchQuery('');
+      }
+    }, [params.searchQuery, params.selectedCategoryId])
+  );
+
+  useEffect(() => {
+    if (params.searchQuery) {
+      const searchQueryValue = params.searchQuery;
+      setSearchQuery(searchQueryValue);
+      setHasNavigatedFromHome(true);
+      const scrollTimer = setTimeout(() => {
+        searchInputRef.current?.focus();
+        const query = searchQueryValue.toLowerCase().trim();
+        const firstMatch = categoryArrays.find(
+          (category) =>
+            category.name.toLowerCase().includes(query) ||
+            category.description.toLowerCase().includes(query)
+        );
+        if (firstMatch && scrollViewRef.current) {
+          setIsToggle(firstMatch.id);
+          const categoryIndex = categoryArrays.findIndex(
+            (cat) => cat.id === firstMatch.id
+          );
+          if (categoryIndex !== -1) {
+            const scrollPosition = categoryIndex * 110;
+            scrollViewRef.current.scrollTo({
+              y: scrollPosition,
+              animated: true,
+            });
+          }
+        }
+      }, 400);
+
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [params.searchQuery]);
 
   useEffect(() => {
     if (params.selectedCategoryId) {
@@ -103,6 +172,7 @@ export default function CategoryPage() {
       }, 300);
       return () => clearTimeout(scrollTimer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.selectedCategoryId]);
 
   const searchBarStyle = useMemo(() => ({ height: 50 }), []);
@@ -115,13 +185,11 @@ export default function CategoryPage() {
     }
   }
 
-  // Check if we're coming from navigation (has selectedCategoryId param) or from tab
-  const isFromNavigation = !!params.selectedCategoryId;
+  const isFromNavigation = !!params.selectedCategoryId || hasNavigatedFromHome;
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
-        <View style={{ flex: 1, paddingHorizontal: 10, paddingTop: 20 }}>
+    <SafeAreaWrapper>
+      <View style={{ flex: 1, paddingHorizontal: 10, paddingTop: 20 }}>
           {isFromNavigation ? (
             <View className=' flex flex-row px-3 items-center mb-6 gap-20'>
               <TouchableOpacity
@@ -153,16 +221,24 @@ export default function CategoryPage() {
               className="bg-gray-100 rounded-xl px-6 py-0 flex-row items-center"
               style={searchBarStyle}
             >
-
-              {/* <Text className="text-[#ADF802] text-lg font-semibold mr-3">⚙</Text>  */}
               <TextInput
+                ref={searchInputRef}
                 placeholder="Search for services"
-                // value={searchQuery}
-                // onChangeText={handleSearchQueryChange}
+                value={searchQuery}
+                onChangeText={handleSearchQueryChange}
                 className="flex-1 text-black text-base"
                 placeholderTextColor="#666"
                 style={{ fontFamily: 'Poppins-Medium' }}
               />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  onPress={handleClearSearch}
+                  className="w-8 h-8 items-center justify-center mr-2"
+                  activeOpacity={0.7}
+                >
+                  <X size={18} color="#666" />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity className="w-10 h-10 bg-[#6A9B00] rounded-lg items-center justify-center ml-2">
                 <Search size={18} color="white" />
               </TouchableOpacity>
@@ -175,88 +251,108 @@ export default function CategoryPage() {
           >
             <Text className='text-xl pb-2' style={{
               fontFamily: 'Poppins-Bold'
-            }}>All Categoties</Text>
+            }}>All Categories</Text>
             <View style={{
               flexDirection: 'column',
               alignItems: 'center',
               position: "relative"
             }}>
-              {categoryArrays.map((category, index) => (
-                <TouchableOpacity
-                  onPress={() => handleToggle(category.id)}
-                  key={category.id}
-                  onLayout={(event) => {
-                    categoryRefs.current[category.id] = event.nativeEvent.layout.y;
-                  }}
-                  style={{
-                    width: '100%',
-                    backgroundColor: isToggle === category.id ? '#F0FDF4' : '#ffffff',
-                    borderRadius: 16,
-                    padding: 12,
-                    marginBottom: 16,
-                    borderWidth: isToggle === category.id ? 2 : 1,
-                    borderColor: isToggle === category.id ? '#6A9B00' : '#e5e5e5',
-                    flexDirection: 'row',
-                    alignItems: 'center'
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View style={{
-                    backgroundColor: '#F3F4F6',
-                    borderRadius: 12,
-                    padding: 16,
-                    marginRight: 16,
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <category.IconComponent />
+              {isLoading ? (
+                <>
+                  <CategorySkeleton />
+                  <CategorySkeleton />
+                  <CategorySkeleton />
+                  <CategorySkeleton />
+                </>
+              ) : filteredCategories.length === 0 ? (
+                <View className="py-12 items-center px-4">
+                  <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
+                    <Search size={32} color="#9CA3AF" />
                   </View>
-                  <View style={{
-                    flex: 1,
-                    justifyContent: 'center'
-                  }}>
-                    <Text style={{
-                      fontSize: 16,
-                      fontWeight: '600',
-                      color: '#1a1a1a',
-                      marginBottom: 6
-                    }}>
-                      {category.name}
-                    </Text>
-                    <Text style={{
-                      fontSize: 12,
-                      width: '80%',
-                      color: '#666666',
-                      lineHeight: 16,
-                      marginBottom: 4
-                    }}>
-                      {category.description}
-                    </Text>
+                  <Text className="text-gray-700 text-lg mb-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                    No results found
+                  </Text>
+                  <Text className="text-gray-500 text-sm text-center" style={{ fontFamily: 'Poppins-Regular' }}>
+                    We couldn't find any categories matching "{searchQuery}"
+                  </Text>
+                  <Text className="text-gray-400 text-xs text-center mt-2" style={{ fontFamily: 'Poppins-Regular' }}>
+                    Try searching with different keywords
+                  </Text>
+                </View>
+              ) : (
+                filteredCategories.map((category, index) => (
+                  <TouchableOpacity
+                    onPress={() => handleToggle(category.id)}
+                    key={category.id}
+                    onLayout={(event) => {
+                      categoryRefs.current[category.id] = event.nativeEvent.layout.y;
+                    }}
+                    style={{
+                      width: '100%',
+                      backgroundColor: isToggle === category.id ? '#F0FDF4' : '#ffffff',
+                      borderRadius: 16,
+                      padding: 12,
+                      marginBottom: 16,
+                      borderWidth: isToggle === category.id ? 2 : 1,
+                      borderColor: isToggle === category.id ? '#6A9B00' : '#e5e5e5',
+                      flexDirection: 'row',
+                      alignItems: 'center'
+                    }}
+                    activeOpacity={0.8}
+                  >
                     <View style={{
-                      // backgroundColor: '#f5f6f6ff',
-                      backgroundColor: 'transparent',
-                      // paddingHorizontal: 10,
-                      // paddingVertical: 4,
+                      backgroundColor: '#F3F4F6',
                       borderRadius: 12,
-                      alignSelf: 'flex-start'
+                      padding: 16,
+                      marginRight: 16,
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <category.IconComponent />
+                    </View>
+                    <View style={{
+                      flex: 1,
+                      justifyContent: 'center'
                     }}>
                       <Text style={{
-                        fontSize: 11,
-                        fontWeight: '500',
-                        // color: '#1976d2'
+                        fontSize: 16,
+                        fontWeight: '600',
+                        color: '#1a1a1a',
+                        marginBottom: 6
                       }}>
-                        {category.providerNum}
+                        {category.name}
                       </Text>
-                    </View>
-                    <TouchableOpacity className='absolute right-2' onPress={() => handleToggle(category.id)}
-                    >
-                      <View className={`h-6 w-6 border-2 border-gray-500 rounded-full ${isToggle === category.id ? "bg-gray-800" : "bg-transparent"
-                        }`} >
+                      <Text style={{
+                        fontSize: 12,
+                        width: '80%',
+                        color: '#666666',
+                        lineHeight: 16,
+                        marginBottom: 4
+                      }}>
+                        {category.description}
+                      </Text>
+                      <View style={{
+                        backgroundColor: 'transparent',
+                        borderRadius: 12,
+                        alignSelf: 'flex-start'
+                      }}>
+                        <Text style={{
+                          fontSize: 11,
+                          fontWeight: '500',
+                        }}>
+                          {category.providerNum}
+                        </Text>
                       </View>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                      <TouchableOpacity className='absolute right-2' onPress={() => handleToggle(category.id)}
+                      >
+                        <View className={`h-6 w-6 border-2 border-gray-500 rounded-full ${isToggle === category.id ? "bg-gray-800" : "bg-transparent"
+                          }`} >
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
 
             </View>
 
@@ -276,14 +372,13 @@ export default function CategoryPage() {
               </Text>
             </View>
           </TouchableOpacity>
-        </View>
         <Toast
           message={toast.message}
           type={toast.type}
           visible={toast.visible}
           onClose={hideToast}
         />
-      </SafeAreaView>
-    </SafeAreaProvider>
+      </View>
+    </SafeAreaWrapper>
   )
 }

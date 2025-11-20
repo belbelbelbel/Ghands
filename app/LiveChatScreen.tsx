@@ -45,7 +45,6 @@ export default function LiveChatScreen() {
   const handleSend = () => {
     if (message.trim()) {
       // Handle send message
-      console.log('Sending message:', message);
       setMessage('');
     }
   };

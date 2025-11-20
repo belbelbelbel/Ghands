@@ -1,7 +1,8 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import { Lock, Mail } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import Toast from '../components/Toast';
 import { AuthButton } from '../components/AuthButton';
@@ -23,13 +24,9 @@ export default function LoginScreen() {
     }
 
     try {
-      // Simulate API call for login
-      console.log('Logging in user:', { email, password });
-      
       // After successful login, navigate to location permission
       router.push('/LocationPermissionScreen');
     } catch (error) {
-      console.error('Login error:', error);
       showError('Login failed. Please check your credentials and try again.');
     }
   };
@@ -41,12 +38,10 @@ export default function LoginScreen() {
 
   const handleGoogleLogin = () => {
     // Handle Google login
-    console.log('Google login');
   };
 
   const handleFacebookLogin = () => {
     // Handle Facebook login
-    console.log('Facebook login');
   };
 
   return (

@@ -1,4 +1,6 @@
 import LiveSupportScreen from '@/components/LiveSupportScreen';
+import { CategorySkeleton, JobCardSkeleton } from '@/components/LoadingSkeleton';
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import JobActivityCard from '@/components/home/JobActivityCard';
 import PromoCodeCard from '@/components/home/PromoCodeCard';
 import RecommendedCard from '@/components/home/RecommendedCard';
@@ -9,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ServiceCategory, homeScreenCategories } from '../../data/serviceCategories';
 
 const CategoryItem = React.memo(({
@@ -51,6 +53,7 @@ CategoryItem.displayName = 'CategoryItem';
 const HomeScreen = React.memo(() => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const { location, isLoading, refreshLocation } = useUserLocation();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -99,6 +102,29 @@ const HomeScreen = React.memo(() => {
     setSearchQuery(text);
   }, []);
 
+  const handleSearch = useCallback(() => {
+    if (searchQuery.trim()) {
+      router.push({
+        pathname: '/(tabs)/categories',
+        params: { searchQuery: searchQuery.trim()},
+      });
+    }
+  }, [searchQuery, router]);
+
+  const filteredCategories = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return homeScreenCategories.slice(0, 4);
+    }
+    const query = searchQuery.toLowerCase().trim();
+    const filtered = homeScreenCategories.filter(
+      (category) =>
+        category.title.toLowerCase().includes(query) ||
+        category.id.toLowerCase().includes(query)
+    );
+    // If no results found, show all categories instead of empty
+    return filtered.length > 0 ? filtered.slice(0, 4) : homeScreenCategories.slice(0, 4);
+  }, [searchQuery]);
+
   const handleNotificationPress = useCallback(() => {
     router.push('../NotificationsScreen' as any);
   }, [router]);
@@ -136,7 +162,7 @@ const HomeScreen = React.memo(() => {
   const locationIconColor = location ? '#111827' : '#6B7280';
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View
           style={[animatedStyles, { flex: 1, paddingTop: 17 }]}
@@ -176,16 +202,30 @@ const HomeScreen = React.memo(() => {
               className="bg-gray-100 rounded-xl px-4 py-0 flex-row items-center"
               style={searchBarStyle}
             >
-              {/* <Text className="text-[#ADF802] text-lg font-semibold mr-3">⚙</Text>  */}
               <TextInput
                 placeholder="Search for services"
                 value={searchQuery}
                 onChangeText={handleSearchQueryChange}
+                onSubmitEditing={handleSearch}
+                returnKeyType="search"
                 className="flex-1 text-black text-base"
                 placeholderTextColor="#666"
                 style={{ fontFamily: 'Poppins-Medium' }}
               />
-              <TouchableOpacity className="w-10 h-10 bg-[#6A9B00] rounded-lg items-center justify-center ml-2">
+              {searchQuery.length > 0 && (
+                <TouchableOpacity 
+                  onPress={() => setSearchQuery('')}
+                  className="w-8 h-8 items-center justify-center mr-2"
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name='close-outline' size={20} color="#666" />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity 
+                className="w-10 h-10 bg-[#6A9B00] rounded-lg items-center justify-center ml-2"
+                onPress={handleSearch}
+                activeOpacity={0.8}
+              >
                 <Search size={18} color="white" />
               </TouchableOpacity>
             </View>
@@ -213,13 +253,30 @@ const HomeScreen = React.memo(() => {
             </View>
 
             <View className="flex-row flex-wrap justify-between">
-              {homeScreenCategories.slice(0,4).map((category) => (
-                <CategoryItem
-                  key={category.id}
-                  category={category}
-                  onPress={handleCategoryPress}
-                />
-              ))}
+              {isLoadingCategories ? (
+                <>
+                  <View style={{ width: '24%', marginBottom: 16 }}>
+                    <CategorySkeleton />
+                  </View>
+                  <View style={{ width: '24%', marginBottom: 16 }}>
+                    <CategorySkeleton />
+                  </View>
+                  <View style={{ width: '24%', marginBottom: 16 }}>
+                    <CategorySkeleton />
+                  </View>
+                  <View style={{ width: '24%', marginBottom: 16 }}>
+                    <CategorySkeleton />
+                  </View>
+                </>
+              ) : (
+                filteredCategories.map((category) => (
+                  <CategoryItem
+                    key={category.id}
+                    category={category}
+                    onPress={handleCategoryPress}
+                  />
+                ))
+              )}
             </View>
           </View>
           <View className="px-0 mb-0">
@@ -253,15 +310,6 @@ const HomeScreen = React.memo(() => {
               </View>
             </View>
           </View>
-          {/* <View className='px-4 mb-6'>
-             <Text className="text-xl font-bold text-black mb-4" style={{ fontFamily: 'Poppins-Bold' }}>
-               Nearby Providers
-             </Text>
-             
-             {nearbyProviders.map((provider) => (
-               <ProviderCard key={provider.id} provider={provider} />
-             ))}
-           </View> */}
           <View className='px-4 mb-6 hidden'>
             <Text style={{
               fontFamily: 'Poppins-Bold'
@@ -294,11 +342,18 @@ const HomeScreen = React.memo(() => {
                 <Ionicons name="chevron-forward" size={16} color="#6A9B00" />
               </TouchableOpacity>
             </View>
-            {jobActivities.map((activity, index) => (
-              <View key={activity.id} style={{ marginBottom: index < jobActivities.length - 1 ? 16 : 0 }}>
-                <JobActivityCard activity={activity} />
-              </View>
-            ))}
+            {isLoading ? (
+              <>
+                <JobCardSkeleton />
+                <JobCardSkeleton />
+              </>
+            ) : (
+              jobActivities.map((activity, index) => (
+                <View key={activity.id} style={{ marginBottom: index < jobActivities.length - 1 ? 16 : 0 }}>
+                  <JobActivityCard activity={activity} />
+                </View>
+              ))
+            )}
           </View>
 
           <View className="px-4 mb-8">
@@ -341,7 +396,7 @@ const HomeScreen = React.memo(() => {
           <View style={bottomSpacerStyle} />
         </Animated.View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 });
 

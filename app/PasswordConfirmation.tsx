@@ -14,8 +14,6 @@ export default function PasswordConfirmationScreen() {
 
   const handleResetPassword = () => {
     if (password && confirmPassword && password === confirmPassword) {
-      // Handle password reset logic
-      console.log('Password reset successfully');
       // Navigate back to login screen
       router.push('/LoginScreen');
     }

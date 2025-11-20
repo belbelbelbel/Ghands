@@ -35,13 +35,9 @@ export default function SignupScreen() {
     }
 
     try {
-      // Simulate API call for signup
-      console.log('Signing up user:', { email, fax, password });
-      
       // After successful signup, navigate to location permission
       router.push('/LocationPermissionScreen');
     } catch (error) {
-      console.error('Signup error:', error);
       showError('Signup failed. Please try again.');
     }
   };
@@ -53,12 +49,10 @@ export default function SignupScreen() {
 
   const handleGoogleSignup = () => {
     // Handle Google signup
-    console.log('Google signup');
   };
 
   const handleFacebookSignup = () => {
     // Handle Facebook signup
-    console.log('Facebook signup');
   };
 
   return (

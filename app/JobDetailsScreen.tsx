@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, Clock, MapPin } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import Toast from '@/components/Toast';
 import { useUserLocation } from '@/hooks/useUserLocation';
@@ -60,7 +60,6 @@ export default function JobDetailsScreen() {
     }
     
     setErrors({});
-    console.log('Job details:', { jobTitle, description, location });
     router.push('../DateTimeScreen' as any);
   }, [jobTitle, description, location, router, showError]);
 
@@ -111,7 +110,7 @@ export default function JobDetailsScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <Animated.View style={[animatedStyles, { flex: 1 }]}>
         <View className="px-4 pb-2" style={{ paddingTop: 20 }}>
           <View className="flex-row items-center mb-4">
@@ -269,7 +268,7 @@ export default function JobDetailsScreen() {
         visible={toast.visible}
         onClose={hideToast}
       />
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

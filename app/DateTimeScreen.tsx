@@ -62,7 +62,6 @@ export default function DateTimeScreen() {
 
   const handleConfirmAndProceed = useCallback(() => {
     setShowConfirmModal(false);
-    console.log('Selected date and time:', { date: selectedDate, time: selectedTime });
     
     // Pass formatted date/time as route params
     router.push({

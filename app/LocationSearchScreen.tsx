@@ -43,15 +43,13 @@ export default function LocationSearchScreen() {
   };
 
   const handleUseCurrentLocation = () => {
-    // Request current location
-    console.log('Using current location');
     const currentLocation = 'Current Location';
     setSearchQuery(currentLocation);
     setSelectedLocation(currentLocation);
   };
 
   const handleSearch = () => {
-    console.log('Searching for:', searchQuery);
+    // Handle search logic
   };
 
   const handleLocationSelect = (value: string) => {

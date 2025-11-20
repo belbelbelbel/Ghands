@@ -219,7 +219,6 @@ export default function ServicesGridScreen() {
   }, []);
 
   const handleServicePress = (service: ServiceItem) => {
-    console.log('Service selected:', service.title);
     // Navigate to service details or booking screen
     // router.push(`/service/${service.id}`);
   };

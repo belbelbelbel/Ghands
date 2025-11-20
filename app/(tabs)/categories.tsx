@@ -1,13 +1,12 @@
+import Toast from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Search } from 'lucide-react-native';
 import { default as React, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import Toast from '@/components/Toast';
 import { serviceCategories } from '../../data/serviceCategories';
-import { useToast } from '@/hooks/useToast';
-
 
 interface CategoryData {
   id: string;

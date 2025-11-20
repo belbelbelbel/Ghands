@@ -33,7 +33,7 @@ const ProfileScreen = () => {
     if (id === '1') {
       router.push('../AccountInformationScreen' as any);
     } else if (id === '2') {
-      router.push('../PaymentHistoryScreen' as any);
+      router.push('../PaymentMethodsScreen' as any);
     } else if (id === '4') {
       router.push('../HelpSupportScreen' as any);
     }

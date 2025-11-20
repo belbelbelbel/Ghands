@@ -64,7 +64,9 @@ const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
           style={{
             width: 58,
             height: 58,
+            paddingTop: 13,
             borderRadius: 31,
+            display: 'flex',
             backgroundColor: '#6A9B00',
             justifyContent: 'center',
             alignItems: 'center',
@@ -87,10 +89,10 @@ const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
           color: '#6A9B00',
           marginTop: -8,
           position: 'absolute',
-          bottom: -20,
+          bottom: 0,
         }}
       >
-        Request
+        {/* Request */}
       </Text>
     </View>
   );

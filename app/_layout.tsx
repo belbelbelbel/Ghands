@@ -76,6 +76,8 @@ export default function RootLayout() {
         <Stack.Screen name="SupportScreen" options={{ headerShown: false }} />
         <Stack.Screen name="LiveChatScreen" options={{ headerShown: false }} />
         <Stack.Screen name="UserGuideScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="PaymentMethodsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="AddCardDetailsScreen" options={{ headerShown: false }} />
         <Stack.Screen name="main" options={{ headerShown: false }} />
       </Stack>
     </QueryProvider>

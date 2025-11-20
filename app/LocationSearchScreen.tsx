@@ -1,7 +1,8 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search, Send } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { useUserLocation } from '@/hooks/useUserLocation';
 
@@ -72,7 +73,7 @@ export default function LocationSearchScreen() {
   ];
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <Animated.View 
         style={{ 
           opacity: fadeAnim,
@@ -203,6 +204,6 @@ export default function LocationSearchScreen() {
           </TouchableOpacity>
         </View>
       </Animated.View>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

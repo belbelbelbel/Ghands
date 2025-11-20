@@ -1,10 +1,10 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Demcatorline from "@/components/Demacator";
 import HeaderComponent from "@/components/HeaderComponent";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo } from "react";
 import { Animated, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 export default function Jobdetails() {
   const iconStack = [
@@ -159,8 +159,7 @@ export default function Jobdetails() {
 
   const routes = useRouter();
   return (
-    <SafeAreaProvider>
-      <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
           <View className="px-5" style={{ paddingTop: 20 }}>
             <View className="mb-6">
@@ -306,7 +305,6 @@ export default function Jobdetails() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </SafeAreaView>
-    </SafeAreaProvider>
+    </SafeAreaWrapper>
   );
 }

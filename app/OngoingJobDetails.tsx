@@ -1,10 +1,10 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Image,
-  SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -403,7 +403,7 @@ export default function OngoingJobDetails() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <View className="flex-1 px-4" style={{ paddingTop: 20 }}>
         <View className="flex-row items-center mb-6">
           <TouchableOpacity onPress={() => router.back()} className="mr-3" activeOpacity={0.85}>
@@ -670,6 +670,6 @@ export default function OngoingJobDetails() {
           )}
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

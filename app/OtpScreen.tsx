@@ -1,7 +1,8 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function OtpScreen() {
   const router = useRouter();
@@ -96,7 +97,7 @@ export default function OtpScreen() {
   const isCodeComplete = otp.join('').length === 6;
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
         {/* Back Button */}
         <TouchableOpacity onPress={handleBackToReset} className="mb-6" activeOpacity={0.7}>
@@ -192,6 +193,6 @@ export default function OtpScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

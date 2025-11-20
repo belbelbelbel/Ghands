@@ -2,9 +2,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, Camera, Plus, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Image, Modal, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Toast from '@/components/Toast';
 import { useToast } from '@/hooks/useToast';
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 
 const { width: screenWidth } = Dimensions.get('window');
 const IMAGE_SIZE = (screenWidth - 48) / 3 - 8;
@@ -223,7 +224,7 @@ export default function AddPhotosScreen() {
   const canProceed = selectedPhotos.size > 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <Animated.View style={[animatedStyles, { flex: 1 }]}>
         <View className="px-4 pt-4 pb-2">
           <View className="flex-row items-center mb-4">
@@ -502,7 +503,7 @@ export default function AddPhotosScreen() {
         visible={toast.visible}
         onClose={hideToast}
       />
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

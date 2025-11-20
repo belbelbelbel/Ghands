@@ -1,8 +1,8 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import { Building, User, Users } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
 import { Animated, ScrollView, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountTypeCard } from '../components/AccountTypeCard';
 
 export default function SelectAccountTypeScreen() {
@@ -42,7 +42,7 @@ export default function SelectAccountTypeScreen() {
 
   return (
     <Animated.View style={{ flex: 1, backgroundColor: interpolatedBackgroundColor,  }}>
-      <SafeAreaView className="flex-1">
+      <SafeAreaWrapper>
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           {/* Header Icon */}
           <Animated.View style={{ opacity: fadeAnim }} className="items-center mt-16 mb-8">
@@ -82,7 +82,7 @@ export default function SelectAccountTypeScreen() {
             />
           </Animated.View>
         </ScrollView>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     </Animated.View>
   );
 }

@@ -1,11 +1,10 @@
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import SafeAreaWrapper from './SafeAreaWrapper';
+import { View } from 'react-native';
 
 export default function HeaderRouter() {
     return (
-        <SafeAreaProvider>
-            <SafeAreaView>
-                
-            </SafeAreaView>
-        </SafeAreaProvider>
+        <SafeAreaWrapper>
+            <View />
+        </SafeAreaWrapper>
     )
 }

@@ -1,8 +1,9 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Camera, MapPin, Plus, User } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Dimensions, Image, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -149,7 +150,7 @@ export default function ProfileSetupScreen() {
   const isFormValid = fullName.trim()  && location.trim() && selectedGender && description.trim();
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <Animated.View 
         style={{ 
           opacity: fadeAnim,
@@ -426,6 +427,6 @@ export default function ProfileSetupScreen() {
           </TouchableOpacity>
         </View>
       </Animated.View>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

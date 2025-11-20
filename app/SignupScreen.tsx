@@ -1,7 +1,8 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import { Lock, Mail, Phone } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import Toast from '../components/Toast';
 import { AuthButton } from '../components/AuthButton';
@@ -56,7 +57,7 @@ export default function SignupScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
         {/* Title */}
         <Text className="text-3xl font-bold text-black mb-8" style={{
@@ -171,6 +172,6 @@ export default function SignupScreen() {
         visible={toast.visible}
         onClose={hideToast}
       />
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

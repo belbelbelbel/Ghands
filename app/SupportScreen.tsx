@@ -1,3 +1,4 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ChevronDown, Mail, Phone, Search } from 'lucide-react-native';
@@ -6,7 +7,6 @@ import {
     Animated,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView,
     ScrollView,
     Text,
     TextInput,
@@ -99,7 +99,7 @@ export default function SupportScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
@@ -292,7 +292,7 @@ export default function SupportScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

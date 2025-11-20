@@ -1,10 +1,10 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MapPin, Star } from 'lucide-react-native';
 import React from 'react';
 import {
   Image,
-  SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -100,7 +100,7 @@ export default function ProviderDetailScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         {/* Header */}
         <View className="flex-row items-center px-4 pb-2" style={{ paddingTop: 20 }}>
@@ -267,7 +267,7 @@ export default function ProviderDetailScreen() {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

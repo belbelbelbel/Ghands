@@ -1,7 +1,8 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import { ChevronRight, HelpCircle, MapPin, User } from 'lucide-react-native';
 import React from 'react';
-import { SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const accountCards = [
   {
@@ -47,7 +48,7 @@ export default function AccountInformationScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaWrapper backgroundColor="#F9FAFB">
       {/* Header */}
       <View className='flex-row items-center px-4 py-3 bg-white border-b border-gray-100' style={{ paddingTop: 20 }}>
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
@@ -112,6 +113,6 @@ export default function AccountInformationScreen() {
         {/* Bottom Spacer */}
         <View style={{ height: 100 }} />
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

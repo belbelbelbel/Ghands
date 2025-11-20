@@ -1,3 +1,4 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
@@ -5,7 +6,6 @@ import {
     FlatList,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView,
     Text,
     TextInput,
     TouchableOpacity,
@@ -95,7 +95,7 @@ export default function ChatScreen() {
 
   
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
@@ -164,7 +164,7 @@ export default function ChatScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

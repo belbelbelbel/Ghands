@@ -1,6 +1,7 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
-import { Animated, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, {
     Circle,
     Defs,
@@ -224,7 +225,7 @@ export default function ServicesGridScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <Animated.View 
         style={{ 
           opacity: fadeAnim,
@@ -310,6 +311,6 @@ export default function ServicesGridScreen() {
           </TouchableOpacity>
         </View>
       </Animated.View>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

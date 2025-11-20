@@ -1,3 +1,4 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { BookOpen, ChevronRight, MapPin, Search } from 'lucide-react-native';
@@ -5,7 +6,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
-  SafeAreaView,
   Text,
   TouchableOpacity,
   View,
@@ -661,7 +661,7 @@ export default function UserGuideScreen() {
   const currentStepData = GUIDE_STEPS[currentStep];
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
@@ -848,7 +848,7 @@ export default function UserGuideScreen() {
           </View>
         </Animated.View>
       </View>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

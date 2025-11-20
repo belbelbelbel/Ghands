@@ -45,7 +45,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
         {/* Title */}
         <Text className="text-3xl font-bold text-black mb-8" style={{
@@ -148,6 +148,6 @@ export default function LoginScreen() {
         visible={toast.visible}
         onClose={hideToast}
       />
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

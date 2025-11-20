@@ -1,8 +1,9 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import ServiceMap, { ProviderCategory, ServiceProvider } from '@/components/ServiceMap';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
 const MAX_SELECTION = 3;
 
 const SAMPLE_PROVIDERS: ServiceProvider[] = [
@@ -112,7 +113,7 @@ const ServiceMapScreen = () => {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <View className="flex-1">
         <ServiceMap
           providers={SAMPLE_PROVIDERS}
@@ -153,7 +154,7 @@ const ServiceMapScreen = () => {
           </TouchableOpacity>
         </View>
       )}
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 };
 

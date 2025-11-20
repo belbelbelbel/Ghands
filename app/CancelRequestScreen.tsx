@@ -1,5 +1,6 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 const REASONS = [
@@ -19,7 +20,7 @@ export default function CancelRequestScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <ScrollView className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 40 }}>
         <View className="flex-row items-center justify-between mb-4">
           <Text className="text-xl text-black" style={{ fontFamily: 'Poppins-Bold' }}>
@@ -87,6 +88,6 @@ export default function CancelRequestScreen() {
           Your feedback is anonymous
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

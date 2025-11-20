@@ -1,9 +1,9 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ChevronRight, Plus } from 'lucide-react-native';
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PAYMENT_METHODS = [
   {
@@ -37,7 +37,7 @@ export default function PaymentMethodsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <View style={{ paddingTop: 20, paddingHorizontal: 16, paddingBottom: 12 }}>
         <View className="flex-row items-center justify-between mb-4">
           <TouchableOpacity onPress={() => router.back()}>
@@ -128,7 +128,7 @@ export default function PaymentMethodsScreen() {
           <ChevronRight size={20} color="#9CA3AF" />
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

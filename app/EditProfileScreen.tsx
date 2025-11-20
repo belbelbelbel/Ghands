@@ -1,10 +1,11 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Camera, Mail, Phone, User } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { InputField } from '../components/InputField';
 import { useProfile, useUpdateProfile } from '../hooks/useProfile';
 import { ProfileFormData, profileFormSchema } from '../lib/validation';
@@ -185,19 +186,21 @@ export default function EditProfileScreen() {
 
   if (isLoadingProfile) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
-        <ActivityIndicator size="large" color="#6A9B00" />
-        <Text className="text-gray-500 mt-4" style={{ fontFamily: 'Poppins-Medium' }}>
-          Loading profile...
-        </Text>
-      </SafeAreaView>
+      <SafeAreaWrapper backgroundColor="#F9FAFB">
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#6A9B00" />
+          <Text className="text-gray-500 mt-4" style={{ fontFamily: 'Poppins-Medium' }}>
+            Loading profile...
+          </Text>
+        </View>
+      </SafeAreaWrapper>
     );
   }
 
   const isSaveDisabled = isSubmitting || !isValid || updateProfileMutation.isPending;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaWrapper backgroundColor="#F9FAFB">
       <View className='flex-row items-center px-4 py-4 bg-transparent border-b border-gray-100'>
         <TouchableOpacity onPress={() => router.back()}>
           <View className='w-8 h-8 items-center justify-center'>
@@ -312,6 +315,6 @@ export default function EditProfileScreen() {
         {/* Bottom Spacer */}
         <View style={{ height: 100 }} />
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

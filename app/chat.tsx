@@ -1,6 +1,6 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import React from 'react';
 import { Text } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 interface MetricCard {
   title: string;
@@ -12,12 +12,8 @@ interface MetricCard {
 
 export default function SimpleBarChart() {
   return (
-    <SafeAreaProvider>
-      <SafeAreaView>
-        <Text>Chat Page</Text>
-      </SafeAreaView>
-
-    </SafeAreaProvider>
-
+    <SafeAreaWrapper>
+      <Text>Chat Page</Text>
+    </SafeAreaWrapper>
   )
 }

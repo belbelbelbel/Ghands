@@ -1,7 +1,8 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const MONTHS = [
   'January',
@@ -221,7 +222,7 @@ export default function DateTimeScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <Animated.View style={[animatedStyles, { flex: 1 }]}>
         <View className="px-4 pt-4 pb-2">
           <View className="flex-row items-center mb-4">
@@ -481,7 +482,7 @@ export default function DateTimeScreen() {
           </Animated.View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

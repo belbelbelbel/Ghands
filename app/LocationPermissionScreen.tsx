@@ -1,7 +1,8 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import { MapPin, Plus } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
-import { Animated, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Text, TouchableOpacity, View } from 'react-native';
 
 export default function LocationPermissionScreen() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function LocationPermissionScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper>
       <View className="flex-1 justify-center items-center px-8">
         <Animated.View 
           style={{ 
@@ -127,6 +128,6 @@ export default function LocationPermissionScreen() {
           </TouchableOpacity>
         </Animated.View>
       </View>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }

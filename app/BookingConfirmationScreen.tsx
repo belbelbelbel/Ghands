@@ -1,7 +1,8 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import { ArrowRight, CheckCircle } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 type ProgressStepStatus = 'completed' | 'in-progress' | 'pending';
 
@@ -103,7 +104,7 @@ export default function BookingConfirmationScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaWrapper className="flex-1 bg-white">
       <Animated.View
         style={{
           flex: 1,
@@ -241,7 +242,7 @@ export default function BookingConfirmationScreen() {
           </TouchableOpacity>
         </View>
       </Animated.View>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 

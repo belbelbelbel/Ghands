@@ -1,12 +1,11 @@
 import { useFonts } from 'expo-font';
+import * as NavigationBar from 'expo-navigation-bar';
 import { Stack } from "expo-router";
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import '../global.css';
 import { QueryProvider } from '../providers/QueryProvider';
-
-// Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -29,6 +28,19 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
+
+  useEffect(() => {
+    const configureAndroidNav = async () => {
+      try {
+        await NavigationBar.setBackgroundColorAsync('#000000');
+        await NavigationBar.setButtonStyleAsync('light');
+      } catch (error) {
+        console.warn('Navigation bar config failed', error);
+      }
+    };
+
+    configureAndroidNav();
+  }, []);
 
   if (!fontsLoaded) {
     return null;

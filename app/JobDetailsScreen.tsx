@@ -3,9 +3,11 @@ import { ArrowLeft, ArrowRight, Clock, MapPin } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
-import { useUserLocation } from '@/hooks/useUserLocation';
 import { useToast } from '@/hooks/useToast';
+import { useUserLocation } from '@/hooks/useUserLocation';
 
 const MAX_DESCRIPTION_LENGTH = 500;
 
@@ -18,7 +20,7 @@ export default function JobDetailsScreen() {
   const [errors, setErrors] = useState<{ jobTitle?: string; description?: string }>({});
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -131,18 +133,18 @@ export default function JobDetailsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 24 }}
         >
-          <View className="mb-6 rounded-2xl bg-[#F7FBEB] px-4 py-4 border border-[#D7FF6B]/30">
+          <View className="mb-6 rounded-2xl bg-gray-100 px-4 py-4 border border-[#D7FF6B]/30">
             <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
-                <View className="w-8 h-8 rounded-full bg-[#D7FF6B] items-center justify-center mr-2">
-                  <MapPin size={16} color="#6A9B00" />
+                <View className="w-8 h-8 rounded-full bg-[#000] items-center justify-center mr-2">
+                  <MapPin size={16} color="#81b60eff" />
                 </View>
                 <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
                   Current Location
                 </Text>
               </View>
-              <TouchableOpacity onPress={handleChangeLocation} activeOpacity={0.7}>
-                <Text className="text-sm text-[#6A9B00]" style={{ fontFamily: 'Poppins-SemiBold' }}>
+              <TouchableOpacity onPress={handleChangeLocation} className='bg-black px-4 py-2  rounded-md' activeOpacity={0.7}>
+                <Text className="text-sm text-[#81b60eff]" style={{ fontFamily: 'Poppins-SemiBold' }}>
                   Change
                 </Text>
               </TouchableOpacity>

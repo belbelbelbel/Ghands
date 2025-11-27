@@ -57,7 +57,7 @@ const HomeScreen = React.memo(() => {
   const { location, isLoading, refreshLocation } = useUserLocation();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   // Refresh location when screen comes into focus
   useFocusEffect(
@@ -158,8 +158,8 @@ const HomeScreen = React.memo(() => {
   }, [location, isLoading]);
 
   const locationTextColor = location ? '#4B5563' : '#9CA3AF';
-  const locationIconBackground = location ? '#D7FF6B' : '#F3F4F6';
-  const locationIconColor = location ? '#111827' : '#6B7280';
+  const locationIconBackground = location ? '#111827' : '#F3F4F6';
+  const locationIconColor = location ? '#9bd917ff' : '#6B7280';
 
   return (
     <SafeAreaWrapper>
@@ -194,7 +194,7 @@ const HomeScreen = React.memo(() => {
                 onPress={handleNotificationPress}
               >
                 <Bell size={22} color="#111827" />
-                <View className="absolute top-1 right-1 w-2 h-2 bg-[#D7FF6B] rounded-full" />
+                <View className="absolute top-1 right-1 w-2 h-2 bg-[#9bd719ff] rounded-full" />
               </TouchableOpacity>
             </View>
 
@@ -222,11 +222,11 @@ const HomeScreen = React.memo(() => {
                 </TouchableOpacity>
               )}
               <TouchableOpacity 
-                className="w-10 h-10 bg-[#6A9B00] rounded-lg items-center justify-center ml-2"
+                className="w-10 h-10 bg-black rounded-lg items-center justify-center ml-2"
                 onPress={handleSearch}
                 activeOpacity={0.8}
               >
-                <Search size={18} color="white" />
+                <Search size={18} color="#9bd719ff" />
               </TouchableOpacity>
             </View>
           </View>
@@ -243,12 +243,12 @@ const HomeScreen = React.memo(() => {
                 className="px-3 py-1 flex-row items-center"
               >
                 <Text
-                  className="text-sm text-[#6A9B00]"
+                  className="text-sm text-black"
                   style={{ fontFamily: 'Poppins-SemiBold' }}
                 >
                   View all
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color="#6A9B00" />
+                <Ionicons name="chevron-forward" size={16} color="black" />
               </TouchableOpacity>
             </View>
 
@@ -334,12 +334,12 @@ const HomeScreen = React.memo(() => {
                 activeOpacity={0.7}
               >
                 <Text
-                  className="text-sm text-[#6A9B00]"
+                  className="text-sm text-black"
                   style={{ fontFamily: 'Poppins-SemiBold' }}
                 >
                   View all
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color="#6A9B00" />
+                <Ionicons name="chevron-forward" size={16} color="black" />
               </TouchableOpacity>
             </View>
             {isLoading ? (

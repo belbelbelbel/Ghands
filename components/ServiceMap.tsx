@@ -172,7 +172,7 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
             activeOpacity={0.85}
             className="rounded-full absolute right-0 top-10 bg-green-500 px-4 py-2 shadow-sm border border-gray-200"
           >
-            <Text className="text-sm text-gray-700" style={{ fontFamily: 'Poppins-SemiBold' }}>
+            <Text className="text-sm text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
               {showList ? 'Hide list' : 'View list'}
             </Text>
           </TouchableOpacity>

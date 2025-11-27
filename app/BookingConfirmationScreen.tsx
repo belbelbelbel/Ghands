@@ -55,7 +55,7 @@ export default function BookingConfirmationScreen() {
   const [animatedSteps, setAnimatedSteps] = useState<number[]>([]);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([

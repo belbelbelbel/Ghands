@@ -32,8 +32,50 @@ export default function DateTimeScreen() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
+    const formattedDateTime = useMemo(() => {
+    if (!selectedDate || !selectedTime) return '';
+    
+    const month = MONTHS[selectedDate.getMonth()];
+    const day = selectedDate.getDate();
+    const year = selectedDate.getFullYear();
+    
+    // Format time (e.g., "09:00" -> "9am" or "01:00" -> "1pm")
+    const [hours, minutes] = selectedTime.split(':');
+    const hourNum = parseInt(hours, 10);
+    
+    // Determine if it's AM or PM based on the hour
+    // AM_HOURS: ['09:00', '10:00', '11:00', '12:00'] -> 9am, 10am, 11am, 12pm
+    // PM_HOURS: ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00'] -> 1pm-8pm
+    const isAM = AM_HOURS.includes(selectedTime);
+    const isPM = PM_HOURS.includes(selectedTime);
+    
+    let displayHour: number;
+    let period: string;
+    
+    if (isAM) {
+      // AM hours: 09:00=9am, 10:00=10am, 11:00=11am, 12:00=12pm
+      if (hourNum === 12) {
+        displayHour = 12;
+        period = 'pm';
+      } else {
+        displayHour = hourNum;
+        period = 'am';
+      }
+    } else if (isPM) {
+      // PM hours: 01:00=1pm, 02:00=2pm, etc.
+      displayHour = hourNum;
+      period = 'pm';
+    } else {
+      // Fallback for any other time format
+      const isAMHour = hourNum < 12;
+      displayHour = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
+      period = isAMHour ? 'am' : 'pm';
+    }
+    
+    return `${month} ${day}, ${year} ${displayHour}${period}`;
+  }, [selectedDate, selectedTime]);
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -170,48 +212,7 @@ export default function DateTimeScreen() {
 
   const canProceed = selectedDate !== null && selectedTime !== null;
 
-  const formattedDateTime = useMemo(() => {
-    if (!selectedDate || !selectedTime) return '';
-    
-    const month = MONTHS[selectedDate.getMonth()];
-    const day = selectedDate.getDate();
-    const year = selectedDate.getFullYear();
-    
-    // Format time (e.g., "09:00" -> "9am" or "01:00" -> "1pm")
-    const [hours, minutes] = selectedTime.split(':');
-    const hourNum = parseInt(hours, 10);
-    
-    // Determine if it's AM or PM based on the hour
-    // AM_HOURS: ['09:00', '10:00', '11:00', '12:00'] -> 9am, 10am, 11am, 12pm
-    // PM_HOURS: ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00'] -> 1pm-8pm
-    const isAM = AM_HOURS.includes(selectedTime);
-    const isPM = PM_HOURS.includes(selectedTime);
-    
-    let displayHour: number;
-    let period: string;
-    
-    if (isAM) {
-      // AM hours: 09:00=9am, 10:00=10am, 11:00=11am, 12:00=12pm
-      if (hourNum === 12) {
-        displayHour = 12;
-        period = 'pm';
-      } else {
-        displayHour = hourNum;
-        period = 'am';
-      }
-    } else if (isPM) {
-      // PM hours: 01:00=1pm, 02:00=2pm, etc.
-      displayHour = hourNum;
-      period = 'pm';
-    } else {
-      // Fallback for any other time format
-      const isAMHour = hourNum < 12;
-      displayHour = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
-      period = isAMHour ? 'am' : 'pm';
-    }
-    
-    return `${month} ${day}, ${year} ${displayHour}${period}`;
-  }, [selectedDate, selectedTime]);
+
 
   const animatedStyles = useMemo(
     () => ({

@@ -402,6 +402,7 @@ export default function OngoingJobDetails() {
     );
   };
 
+  
   return (
     <SafeAreaWrapper>
       <View className="flex-1 px-4" style={{ paddingTop: 20 }}>

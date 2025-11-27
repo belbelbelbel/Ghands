@@ -239,8 +239,8 @@ export default function CategoryPage() {
                   <X size={18} color="#666" />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity className="w-10 h-10 bg-[#6A9B00] rounded-lg items-center justify-center ml-2">
-                <Search size={18} color="white" />
+              <TouchableOpacity className="w-10 h-10 bg-[#000] rounded-lg items-center justify-center ml-2">
+                <Search size={18} color="#9bd719ff" />
               </TouchableOpacity>
             </View>
           </View>
@@ -301,7 +301,7 @@ export default function CategoryPage() {
                     activeOpacity={0.8}
                   >
                     <View style={{
-                      backgroundColor: '#F3F4F6',
+                      backgroundColor: '#000',
                       borderRadius: 12,
                       padding: 16,
                       marginRight: 16,
@@ -345,7 +345,7 @@ export default function CategoryPage() {
                       </View>
                       <TouchableOpacity className='absolute right-2' onPress={() => handleToggle(category.id)}
                       >
-                        <View className={`h-6 w-6 border-2 border-gray-500 rounded-full ${isToggle === category.id ? "bg-gray-800" : "bg-transparent"
+                        <View className={`h-6 w-6 border-0 rounded-full ${isToggle === category.id ? "bg-black" : "bg-transparent"
                           }`} >
                         </View>
                       </TouchableOpacity>

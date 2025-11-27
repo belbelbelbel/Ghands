@@ -1,3 +1,4 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
@@ -94,9 +95,9 @@ const NotificationsScreen = () => {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Job Inspection Banner - Fixed at top */}
+
       <View className='px-4 pt-4'>
-        <View className='bg-[#8BC34A] rounded-2xl p-4'>
+        <View className='bg-black rounded-2xl p-4'>
           <Text
             className='text-white text-2xl font-bold mb-2'
             style={{ fontFamily: 'Poppins-Bold' }}
@@ -109,9 +110,9 @@ const NotificationsScreen = () => {
           >
             3 providers have submitted quotes for Kitchen Faucet Repair
           </Text>
-          <TouchableOpacity className='bg-white rounded-xl py-3 px-4 items-center'>
+          <TouchableOpacity className='bg-black shadow-md border border-white rounded-xl py-3 px-4 items-center'>
             <Text
-              className='text-[#6A9B00] font-semibold'
+              className='text-[#9bd719ff] font-semibold'
               style={{ fontFamily: 'Poppins-SemiBold' }}
             >
               View Quotes

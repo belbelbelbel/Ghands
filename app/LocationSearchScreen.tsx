@@ -15,7 +15,7 @@ export default function LocationSearchScreen() {
   const [selectedLocation, setSelectedLocation] = useState('');
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -109,10 +109,10 @@ export default function LocationSearchScreen() {
             </View>
             <TouchableOpacity
               onPress={handleSearch}
-              className="bg-[#6A9B00] rounded-xl items-center justify-center"
+              className="bg-black rounded-xl items-center justify-center"
               style={{ width: screenWidth * 0.15, height: screenWidth * 0.12, minWidth: 48, minHeight: 48 }}
             >
-              <Search size={20} color="white" />
+              <Search size={20} color="#9bd719ff" />
             </TouchableOpacity>
           </View>
 
@@ -188,12 +188,12 @@ export default function LocationSearchScreen() {
         <View className="px-4 pb-4" style={{ minHeight: screenHeight * 0.08 }}>
           <TouchableOpacity
             onPress={handleConfirm}
-            className="bg-[#6A9B00] rounded-xl py-4 px-6"
+            className="bg-black rounded-xl py-4 px-6"
             activeOpacity={0.8}
             style={{ minHeight: 52 }}
           >
             <Text 
-              className="text-white text-center text-lg font-semibold"
+              className="text-[#9bd719ff] text-center text-lg font-semibold"
               style={{ 
                 fontFamily: 'Poppins-SemiBold',
                 fontSize: screenWidth < 375 ? 16 : 18

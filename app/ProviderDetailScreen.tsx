@@ -105,7 +105,7 @@ export default function ProviderDetailScreen() {
         {/* Header */}
         <View className="flex-row items-center px-4 pb-2" style={{ paddingTop: 20 }}>
           <TouchableOpacity onPress={() => router.back()} className="mr-3" activeOpacity={0.85}>
-            <Ionicons name="arrow-back" size={24} color="#000000" />
+            <Ionicons name="arrow-back" size={22} color="#000000" />
           </TouchableOpacity>
         </View>
 

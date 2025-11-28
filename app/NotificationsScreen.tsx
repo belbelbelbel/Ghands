@@ -84,7 +84,7 @@ const NotificationsScreen = () => {
     <SafeAreaWrapper>
       <View className='flex-row items-center justify-between px-4 py-3 border-b border-gray-100' style={{ paddingTop: 20 }}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name='arrow-back' size={24} color="#000" />
+          <Ionicons name='arrow-back' size={22} color="#000" />
         </TouchableOpacity>
         <Text
           className='text-xl font-bold text-black'
@@ -97,7 +97,7 @@ const NotificationsScreen = () => {
 
 
       <View className='px-4 pt-4'>
-        <View className='bg-black rounded-2xl p-4'>
+        <View className='bg-[#6A9B00] rounded-2xl p-4'>
           <Text
             className='text-white text-2xl font-bold mb-2'
             style={{ fontFamily: 'Poppins-Bold' }}
@@ -110,9 +110,9 @@ const NotificationsScreen = () => {
           >
             3 providers have submitted quotes for Kitchen Faucet Repair
           </Text>
-          <TouchableOpacity className='bg-black shadow-md border border-white rounded-xl py-3 px-4 items-center'>
+          <TouchableOpacity className='bg-white  border border-white rounded-xl py-3 px-4 items-center'>
             <Text
-              className='text-[#9bd719ff] font-semibold'
+              className='text-black font-semibold'
               style={{ fontFamily: 'Poppins-SemiBold' }}
             >
               View Quotes

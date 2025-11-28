@@ -39,7 +39,7 @@ export default function AddressBookScreen() {
       {/* Header */}
       <View className='flex-row items-center px-4 py-3 bg-white border-b border-gray-100' style={{ paddingTop: 20 }}>
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
-          <Ionicons name="arrow-back" size={24} color="#000000" />
+          <Ionicons name="arrow-back" size={22} color="#000000" />
         </TouchableOpacity>
         <Text 
           className='text-xl font-bold text-black flex-1 text-center' 

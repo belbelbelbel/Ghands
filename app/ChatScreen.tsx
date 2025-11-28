@@ -3,13 +3,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 interface Message {
@@ -103,7 +103,7 @@ export default function ChatScreen() {
       >
         <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
           <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
-            <Ionicons name="arrow-back" size={24} color="#000000" />
+            <Ionicons name="arrow-back" size={22} color="#000000" />
           </TouchableOpacity>
           <Text className="text-lg text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
             {providerName}

@@ -6,7 +6,7 @@ export default function HeaderComponent({name,onPress}: {name:string,onPress: ()
     return(
         <View className='flex flex-row   gap-32 item-center '>
             <View>
-                <Ionicons name='arrow-back' size={20} onPress={onPress}/>
+                <Ionicons name='arrow-back' size={22} onPress={onPress}/>
             </View>
             <Text className='text-xl' style={{
                 fontFamily: 'Poppins-Bold'

@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, ArrowRight, Clock, MapPin } from 'lucide-react-native';
+import { ArrowRight, Clock, MapPin } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -120,7 +121,7 @@ export default function JobDetailsScreen() {
               onPress={handleBack}
               className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
             >
-              <ArrowLeft size={20} color="#111827" />
+              <Ionicons name="arrow-back" size={22} color="#111827" />
             </TouchableOpacity>
             <Text className="text-xl text-black" style={{ fontFamily: 'Poppins-Bold' }}>
               Job details

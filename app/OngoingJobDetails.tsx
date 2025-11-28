@@ -407,8 +407,8 @@ export default function OngoingJobDetails() {
     <SafeAreaWrapper>
       <View className="flex-1 px-4" style={{ paddingTop: 20 }}>
         <View className="flex-row items-center mb-6">
-          <TouchableOpacity onPress={() => router.back()} className="mr-3" activeOpacity={0.85}>
-            <Text className="text-lg">←</Text>
+          <TouchableOpacity onPress={() => router.back()} className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100" activeOpacity={0.85}>
+            <Ionicons name="arrow-back" size={22} color="#111827" />
           </TouchableOpacity>
           <Text className="text-xl text-black" style={{ fontFamily: 'Poppins-Bold' }}>
             {activeTab === 'Updates' ? 'Updates' : 'Quotations'}

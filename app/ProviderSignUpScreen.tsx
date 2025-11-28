@@ -1,69 +1,72 @@
-import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Lock, Mail } from 'lucide-react-native';
+import { Lock, Mail, Phone } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import Toast from '../components/Toast';
 import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
+import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import { SocialButton } from '../components/SocialButton';
-import { useAuthRole, UserRole } from '../hooks/useAuth';
+import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 
-export default function LoginScreen() {
+
+export default function ProviderSignUpScreen() {
   const router = useRouter();
-  const { setRole } = useAuthRole();
   const { toast, showError, hideToast } = useToast();
   const [email, setEmail] = useState('');
+  const [fax, setFax] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleLogin = async () => {
-    // Basic validation
-    if (!email.trim() || !password.trim()) {
+  const handleSignup = async () => {
+    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       showError('Please fill in all required fields');
       return;
     }
 
+    if (password !== confirmPassword) {
+      showError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      showError('Password must be at least 6 characters');
+      return;
+    }
+
     try {
-      const derivedRole: UserRole = email.toLowerCase().includes('provider')
-        ? 'provider'
-        : 'consumer';
-
-      await setRole(derivedRole);
-
-      if (derivedRole === 'provider') {
-        router.replace('/provider/home');
-      } else {
-        router.replace('/LocationPermissionScreen');
-      }
+      router.push('/ProviderOtpScreen');
     } catch (error) {
-      showError('Login failed. Please check your credentials and try again.');
+      showError('Signup failed. Please try again.');
     }
   };
 
-  const handleSignup = () => {
-    // Navigate to signup screen
-    router.push('/SignupScreen');
+  const handleLogin = () => {
+    router.push('/ProviderSignInScreen');
   };
 
-  const handleGoogleLogin = () => {
-    // Handle Google login
+  const handleGoogleSignup = () => {
+    // Handle Google signup
   };
 
-  const handleFacebookLogin = () => {
-    // Handle Facebook login
+  const handleFacebookSignup = () => {
+    // Handle Facebook signup
   };
 
   return (
     <SafeAreaWrapper>
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
-        {/* Title */}
+      <View style={{ paddingTop: 20, paddingHorizontal: 20 }}>
+        <TouchableOpacity onPress={() => router.back()} className="mb-6">
+          <Ionicons name="arrow-back" size={22} color="#000" />
+        </TouchableOpacity>
+      </View>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
         <Text className="text-3xl font-bold text-black mb-8" style={{
-             fontFamily: 'Poppins-ExtraBold',
-        }}>Login</Text>
+          fontFamily: 'Poppins-ExtraBold',
+        }}>Sign Up</Text>
 
-        {/* Company Email Input */}
         <InputField
           placeholder="Company email"
           icon={<Mail size={20} color={'white'}/>}
@@ -73,9 +76,26 @@ export default function LoginScreen() {
           iconPosition="left"
         />
 
-        {/* Password Input */}
+        <View className="bg-gray-100 border-[0pc] rounded-xl mb-4 px-4 py-3 flex-row items-center">
+          <View className="w-12 h-12 mr-4 bg-[#6A9B00] border-blackx rounded-xl items-center justify-center">
+            <Text className="text-white text-sm font-bold" style={{ fontFamily: 'Poppins-Bold' }}>+234</Text>
+          </View>
+          <TextInput
+            placeholder="Company fax"
+            keyboardType="phone-pad"
+            value={fax}
+            onChangeText={setFax}
+            className="flex-1 text-black text-base"
+            placeholderTextColor="#666666"
+            style={{ fontFamily: 'Poppins-Medium' }}
+          />
+          <View className="w-12 h-12 ml-4 bg-[#6A9B00] r border-blsack rounded-xl items-center justify-center">
+            <Phone size={20} color="white" />
+          </View>
+        </View>
+
         <InputField
-          placeholder="Password"
+          placeholder="Create password"
           icon={<Lock size={20} color={'white'}/>}
           secureTextEntry={true}
           value={password}
@@ -83,40 +103,36 @@ export default function LoginScreen() {
           iconPosition="right"
         />
 
-        {/* Forgot Password Link */}
-        <View className="items-end mb-4">
-          <TouchableOpacity onPress={() => router.push('/ResetPassword')} activeOpacity={0.7}>
-            <Text className="text-blue-500 font-bold text-base" style={{ fontFamily: 'Poppins-Bold' }}>
-              Forgot password?
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <InputField
+          placeholder="Create password"
+          icon={<Lock size={20} color={'white'}/>}
+          secureTextEntry={true}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          iconPosition="right"
+        />
 
-        {/* Login Button */}
         <View className="mt-4">
-          <AuthButton title="Login" onPress={handleLogin} />
+          <AuthButton title="Sign Up" onPress={handleSignup} />
         </View>
 
-        {/* Signup Link */}
         <View className="items-center mb-8">
-          <TouchableOpacity onPress={handleSignup} activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleLogin} activeOpacity={0.7}>
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
-              Don't have an account?{' '}
-              <Text className="text-blue-600 font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Sign Up</Text>
+              Already have an account?{' '}
+              <Text className="text-[#6A9B00] font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Login</Text>
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Divider */}
         <View className="flex-row items-center mb-8">
           <View className="flex-1 h-px bg-gray-300" />
           <Text className="mx-4 text-gray-500 text-base" style={{ fontFamily: 'Poppins-Medium' }}>or</Text>
           <View className="flex-1 h-px bg-gray-300" />
         </View>
 
-        {/* Social Buttons */}
         <SocialButton
-          title="Continue with Google"
+          title="Continue using Google"
           icon={
             <Svg width={20} height={20} viewBox="0 0 24 24">
               <Path
@@ -137,11 +153,11 @@ export default function LoginScreen() {
               />
             </Svg>
           }
-          onPress={handleGoogleLogin}
+          onPress={handleGoogleSignup}
         />
 
         <SocialButton
-          title="Continue with Facebook"
+          title="Continue using Facebook"
           icon={
             <Svg width={20} height={20} viewBox="0 0 24 24">
               <Path
@@ -150,7 +166,7 @@ export default function LoginScreen() {
               />
             </Svg>
           }
-          onPress={handleFacebookLogin}
+          onPress={handleFacebookSignup}
         />
       </ScrollView>
       <Toast
@@ -162,3 +178,4 @@ export default function LoginScreen() {
     </SafeAreaWrapper>
   );
 }
+

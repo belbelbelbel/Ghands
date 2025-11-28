@@ -4,7 +4,7 @@ import Toast from '@/components/Toast';
 import { useToast } from '@/hooks/useToast';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Search, X } from 'lucide-react-native';
+import { Search, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { serviceCategories } from '../../data/serviceCategories';
@@ -196,7 +196,7 @@ export default function CategoryPage() {
                 onPress={() => routes.back()}
                 className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
               >
-                <ArrowLeft size={20} color="#111827" />
+                <Ionicons name="arrow-back" size={22} color="#111827" />
               </TouchableOpacity>
               <Text style={{
                 fontSize: 18,
@@ -301,8 +301,10 @@ export default function CategoryPage() {
                     activeOpacity={0.8}
                   >
                     <View style={{
-                      backgroundColor: '#000',
+                      backgroundColor: 'transparent',
                       borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: isToggle === category.id ? '#6A9B00' : '#e5e5e5',
                       padding: 16,
                       marginRight: 16,
                       alignItems: 'center',
@@ -353,9 +355,7 @@ export default function CategoryPage() {
                   </TouchableOpacity>
                 ))
               )}
-
             </View>
-
           </ScrollView>
           <TouchableOpacity
             disabled={!isToggle}

@@ -1,9 +1,10 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
 import { useToast } from '@/hooks/useToast';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, ArrowRight, Camera, Plus, X } from 'lucide-react-native';
+import { ArrowRight, Camera, Plus, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -94,23 +95,12 @@ export default function AddPhotosScreen() {
     return true;
   }, [showError]);
 
-  const handleUploadPhotos = useCallback(async () => {
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) return;
-
-    // For now, directly open gallery. In a full implementation, you'd show a bottom sheet
-    handleOpenGallery();
-  }, [requestPermissions, handleOpenGallery]);
-
-  const handleOpenCamera = useCallback(async () => {
-    const hasPermission = await requestCameraPermissions();
-    if (!hasPermission) return;
-
-    const result = await ImagePicker.launchCameraAsync({
+  const handleOpenGallery = useCallback(async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
       quality: 0.8,
-      allowsMultipleSelection: false,
+      allowsMultipleSelection: true,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -128,12 +118,23 @@ export default function AddPhotosScreen() {
     }
   }, []);
 
-  const handleOpenGallery = useCallback(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
+  const handleUploadPhotos = useCallback(async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    // For now, directly open gallery. In a full implementation, you'd show a bottom sheet
+    handleOpenGallery();
+  }, [requestPermissions, handleOpenGallery]);
+
+  const handleOpenCamera = useCallback(async () => {
+    const hasPermission = await requestCameraPermissions();
+    if (!hasPermission) return;
+
+    const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
       quality: 0.8,
-      allowsMultipleSelection: true,
+      allowsMultipleSelection: false,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -232,7 +233,7 @@ export default function AddPhotosScreen() {
               onPress={handleBack}
               className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
             >
-              <ArrowLeft size={20} color="#111827" />
+              <Ionicons name="arrow-back" size={22} color="#111827" />
             </TouchableOpacity>
             <Text className="text-xl text-black" style={{ fontFamily: 'Poppins-Bold' }}>
               Add photos

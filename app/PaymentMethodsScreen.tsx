@@ -41,7 +41,7 @@ export default function PaymentMethodsScreen() {
       <View style={{ paddingTop: 20, paddingHorizontal: 16, paddingBottom: 12 }}>
         <View className="flex-row items-center justify-between mb-4">
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
+            <Ionicons name="arrow-back" size={22} color="#000" />
           </TouchableOpacity>
           <Text 
             className="text-xl font-bold text-black" 

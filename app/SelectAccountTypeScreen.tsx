@@ -4,9 +4,11 @@ import { Building, User, Users } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
 import { Animated, ScrollView, View } from 'react-native';
 import { AccountTypeCard } from '../components/AccountTypeCard';
+import { useAuthRole } from '../hooks/useAuth';
 
 export default function SelectAccountTypeScreen() {
   const router = useRouter();
+  const { setRole } = useAuthRole();
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const backgroundFade = useRef(new Animated.Value(1)).current;
 
@@ -26,8 +28,13 @@ export default function SelectAccountTypeScreen() {
     ]).start();
   }, []);
 
-  const handleCardPress = () => {
-    router.push('/SignupScreen');
+  const handleCardPress = (nextRole: 'consumer' | 'provider') => {
+    setRole(nextRole);
+    if (nextRole === 'provider') {
+      router.push('/ProviderSignUpScreen');
+    } else {
+      router.push('/SignupScreen');
+    }
   };
 
 
@@ -70,15 +77,15 @@ export default function SelectAccountTypeScreen() {
               title="Individual Client"
               subtitle="Personal service requests"
               tags={["Established", "Licensed", "Certified"]}
-              onPress={handleCardPress}
+              onPress={() => handleCardPress('consumer')}
             />
 
             <AccountTypeCard
               icon={<Building size={32} color="white" />}
-              title="Corporate Client"
-              subtitle="Business service solutions"
-              tags={["Established", "Licensed", "Certified"]}
-              onPress={handleCardPress}
+              title="Service Provider"
+              subtitle="Earn by completing jobs"
+              tags={["Verified", "Professional", "Insured"]}
+              onPress={() => handleCardPress('provider')}
             />
           </Animated.View>
         </ScrollView>

@@ -1,8 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
-import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Platform } from 'react-native';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -14,7 +13,7 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color:
   useEffect(() => {
     Animated.parallel([
       Animated.spring(scaleAnim, {
-        toValue: focused ? 1.15 : 1,
+        toValue: focused ? 1.1 : 1,
         tension: 400,
         friction: 8,
         useNativeDriver: true,
@@ -43,63 +42,12 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color:
         opacity: opacityAnim,
       }}
     >
-      <MaterialIcons name={iconName} size={24} color={color} />
+      <MaterialIcons name={iconName} size={22} color={color} />
     </Animated.View>
   );
 };
 
-const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
-  return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-      <TouchableOpacity
-        onPress={onPress}
-        activeOpacity={0.85}
-        style={{
-          top: -14,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <View
-          style={{
-            width: 58,
-            height: 58,
-            paddingTop: 13,
-            borderRadius: 31,
-            display: 'flex',
-            backgroundColor: '#6A9B00',
-            justifyContent: 'center',
-            alignItems: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.15,
-            shadowRadius: 8,
-            elevation: 6,
-            borderWidth: 3,
-            borderColor: '#FFFFFF',
-          }}
-        >
-          {children}
-        </View>
-      </TouchableOpacity>
-      <Text
-        style={{
-          fontSize: 11,
-          fontFamily: 'Poppins-Medium',
-          color: '#6A9B00',
-          marginTop: -8,
-          position: 'absolute',
-          bottom: 0,
-        }}
-      >
-   
-      </Text>
-    </View>
-  );
-};
-
-
-export default function TabLayout() {
+export default function ProviderLayout() {
   return (
     <Tabs
       screenOptions={{
@@ -152,21 +100,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="categories"
+        name="wallet"
         options={{
-          title: 'Request',
-          tabBarLabel: '',
-          tabBarIcon: () => <MaterialIcons name="add" size={30} color="white" />,
-          tabBarButton: (props) => <CentralTabButton {...props} />,
-        }}
-      />
-      <Tabs.Screen
-        name="discover"
-        options={{
-          title: 'Discover',
-          tabBarLabel: 'Discover',
+          title: 'Wallet',
+          tabBarLabel: 'Wallet',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedIcon iconName="explore" color={color} focused={focused} />
+            <AnimatedIcon iconName="account-balance-wallet" color={color} focused={focused} />
           ),
         }}
       />

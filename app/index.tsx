@@ -1,18 +1,27 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { useAuthRole } from '../hooks/useAuth';
 import useOnboarding from '../hooks/useOnboarding';
 
 export default function EntryPoint() {
   const router = useRouter();
   const { isOnboardingComplete, isLoading } = useOnboarding();
+  const { role, isRoleLoading } = useAuthRole();
 
   useEffect(() => {
-    if (!isLoading) {
-      const destination = isOnboardingComplete ? '/(tabs)/home' : '/onboarding';
-      router.replace(destination);
+    if (isLoading || isRoleLoading) {
+      return;
     }
-  }, [isLoading, isOnboardingComplete, router]);
+
+    if (!isOnboardingComplete) {
+      router.replace('/onboarding');
+      return;
+    }
+
+    const destination = role === 'provider' ? '/provider/home' : '/(tabs)/home';
+    router.replace(destination);
+  }, [isLoading, isRoleLoading, isOnboardingComplete, role, router]);
 
   return (
     <View

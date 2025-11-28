@@ -3,9 +3,11 @@ import { useRouter } from 'expo-router';
 import { Bell, BookOpen, Camera, ChevronRight, FileText, HelpCircle, LogOut, MapPin, Trash2, User } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
 import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useAuthRole } from '../../hooks/useAuth';
 
 const ProfileScreen = () => {
   const router = useRouter();
+  const { logout } = useAuthRole();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -131,7 +133,14 @@ const ProfileScreen = () => {
             })}
           </View>
           <View className="px-4 mb-6">
-            <TouchableOpacity className="bg-red-50 rounded-2xl px-4 py-4 mb-3 flex-row items-center justify-center border border-red-200">
+            <TouchableOpacity
+              className="bg-red-50 rounded-2xl px-4 py-4 mb-3 flex-row items-center justify-center border border-red-200"
+              onPress={async () => {
+                await logout();
+                router.replace('/onboarding');
+              }}
+              activeOpacity={0.8}
+            >
               <LogOut size={20} color="#EF4444" />
               <Text 
                 className="text-red-600 text-base font-semibold ml-2" 

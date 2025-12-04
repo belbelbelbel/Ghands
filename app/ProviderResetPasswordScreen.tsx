@@ -9,8 +9,8 @@ export default function ProviderResetPasswordScreen() {
   const router = useRouter();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(true);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(true);
 
   const handleConfirm = () => {
     if (newPassword !== confirmPassword) {
@@ -47,7 +47,7 @@ export default function ProviderResetPasswordScreen() {
             onPress={() => setShowNewPassword(!showNewPassword)}
             className="w-12 h-12 bg-[#6A9B00] border border-[#6A9B00] rounded-xl items-center justify-center ml-4"
           >
-            {showNewPassword ? <EyeOff size={20} color="black" /> : <Eye size={20} color="black" />}
+            {showNewPassword ? <Eye size={20} color="white" /> : <EyeOff size={20} color="white" />}
           </TouchableOpacity>
         </View>
 
@@ -65,7 +65,7 @@ export default function ProviderResetPasswordScreen() {
             onPress={() => setShowConfirmPassword(!showConfirmPassword)}
             className="w-12 h-12 bg-[#6A9B00] border border-[#6A9B00] rounded-xl items-center justify-center ml-4"
           >
-            {showConfirmPassword ? <EyeOff size={20} color="black" /> : <Eye size={20} color="black" />}
+            {showConfirmPassword ? <Eye size={20} color="white" /> : <EyeOff size={20} color="white" />}
           </TouchableOpacity>
         </View>
 

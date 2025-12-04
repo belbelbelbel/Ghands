@@ -31,9 +31,9 @@ export default function SelectAccountTypeScreen() {
   const handleCardPress = (nextRole: 'consumer' | 'provider') => {
     setRole(nextRole);
     if (nextRole === 'provider') {
-      router.push('/ProviderSignUpScreen');
+      router.replace('/ProviderSignUpScreen');
     } else {
-      router.push('/SignupScreen');
+      router.replace('/SignupScreen');
     }
   };
 

@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "ghands",
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#ADF802",
+    "backgroundColor": "#000000",
     "newArchEnabled": false,
     "ios": {
       "icon": "./assets/images/icon.png",
@@ -43,7 +43,7 @@
       }
     },
     "androidStatusBar": {
-      "backgroundColor": "#ADF802",
+      "backgroundColor": "#000000",
       "barStyle": "light-content",
       "translucent": false,
       "hidden": false

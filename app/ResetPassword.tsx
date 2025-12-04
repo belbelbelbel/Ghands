@@ -63,7 +63,7 @@ export default function ResetPasswordScreen() {
           <TouchableOpacity onPress={handleBackToLogin} activeOpacity={0.7}>
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
               Remember your password?{' '}
-              <Text className="text-black font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Back to Login</Text>
+              <Text className="text-[#6A9B00] font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Back to Login</Text>
             </Text>
           </TouchableOpacity>
         </View>

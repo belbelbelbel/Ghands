@@ -10,8 +10,8 @@ export default function PasswordConfirmationScreen() {
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(true);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(true);
 
   const handleResetPassword = () => {
     if (password && confirmPassword && password === confirmPassword) {
@@ -52,7 +52,7 @@ export default function PasswordConfirmationScreen() {
             placeholder="New password"
             icon={
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                {showPassword ? <EyeOff size={20} color={'white'} /> : <Eye size={20} color={'white'} />}
+                {showPassword ? <Eye size={20} color={'white'} /> : <EyeOff size={20} color={'white'} />}
               </TouchableOpacity>
             }
             secureTextEntry={!showPassword}
@@ -68,7 +68,7 @@ export default function PasswordConfirmationScreen() {
             placeholder="Confirm new password"
             icon={
               <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                {showConfirmPassword ? <EyeOff size={20} color={'white'} /> : <Eye size={20} color={'white'} />}
+                {showConfirmPassword ? <Eye size={20} color={'white'} /> : <EyeOff size={20} color={'white'} />}
               </TouchableOpacity>
             }
             secureTextEntry={!showConfirmPassword}
@@ -88,7 +88,7 @@ export default function PasswordConfirmationScreen() {
           <TouchableOpacity onPress={() => router.push('/LoginScreen')} activeOpacity={0.7}>
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
               Remember your password?{' '}
-              <Text className="text-black font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Back to Login</Text>
+              <Text className="text-[#6A9B00] font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Back to Login</Text>
             </Text>
           </TouchableOpacity>
         </View>

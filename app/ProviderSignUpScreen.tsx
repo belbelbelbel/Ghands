@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Lock, Mail, Phone } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -57,12 +56,7 @@ export default function ProviderSignUpScreen() {
 
   return (
     <SafeAreaWrapper>
-      <View style={{ paddingTop: 20, paddingHorizontal: 20 }}>
-        <TouchableOpacity onPress={() => router.back()} className="mb-6">
-          <Ionicons name="arrow-back" size={22} color="#000" />
-        </TouchableOpacity>
-      </View>
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
         <Text className="text-3xl font-bold text-black mb-8" style={{
           fontFamily: 'Poppins-ExtraBold',
         }}>Sign Up</Text>

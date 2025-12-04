@@ -115,7 +115,7 @@ export default function SignupScreen() {
           <TouchableOpacity onPress={handleLogin} activeOpacity={0.7}>
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
               Already have an account?{' '}
-              <Text className="text-black font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Login</Text>
+              <Text className="text-[#6A9B00] font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Login</Text>
             </Text>
           </TouchableOpacity>
         </View>

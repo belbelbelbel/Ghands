@@ -16,15 +16,11 @@ export default function OnboardingScreen() {
     completeOnboarding,
   } = useOnboarding();
 
-  // Fix Android navigation bar and force immersive mode
-
   const handleNext = async () => {
     if (currentSlideIndex === ONBOARDING_SLIDES.length - 1) {
-      // Last slide - complete onboarding
       await completeOnboarding();
       router.replace('/SelectAccountTypeScreen');
     } else {
-      // Go to next slide
       nextSlide();
     }
   };

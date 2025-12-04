@@ -86,7 +86,7 @@ export default function LoginScreen() {
         {/* Forgot Password Link */}
         <View className="items-end mb-4">
           <TouchableOpacity onPress={() => router.push('/ResetPassword')} activeOpacity={0.7}>
-            <Text className="text-blue-500 font-bold text-base" style={{ fontFamily: 'Poppins-Bold' }}>
+            <Text className="text-[#6A9B00] font-bold text-base" style={{ fontFamily: 'Poppins-Bold' }}>
               Forgot password?
             </Text>
           </TouchableOpacity>
@@ -102,7 +102,7 @@ export default function LoginScreen() {
           <TouchableOpacity onPress={handleSignup} activeOpacity={0.7}>
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
               Don't have an account?{' '}
-              <Text className="text-blue-600 font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Sign Up</Text>
+              <Text className="text-[#6A9B00] font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Sign Up</Text>
             </Text>
           </TouchableOpacity>
         </View>

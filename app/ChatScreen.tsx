@@ -46,7 +46,6 @@ export default function ChatScreen() {
 
   const handleSend = () => {
     if (message.trim()) {
-      // Handle send message
       setMessage('');
     }
   };
@@ -113,7 +112,7 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Messages Area */}
+        
         <FlatList
           ref={flatListRef}
           data={MOCK_MESSAGES}
@@ -124,13 +123,12 @@ export default function ChatScreen() {
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
 
-        {/* View Quotation Button */}
+        
         <View className="px-4 pb-3">
           <TouchableOpacity
             activeOpacity={0.85}
             className="bg-[#3B82F6] rounded-xl py-4 px-4 flex-row items-center justify-center"
             onPress={() => {
-              // Navigate to quotation view
             }}
           >
             <Ionicons name="document-text-outline" size={20} color="white" style={{ marginRight: 8 }} />
@@ -140,7 +138,7 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Input Field */}
+        
         <View className="px-4 pb-4 pt-2 border-t border-gray-100">
           <View className="flex-row items-center bg-gray-100 rounded-2xl px-4 py-3">
             <TextInput

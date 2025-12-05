@@ -50,7 +50,6 @@ export default function LocationSearchScreen() {
   };
 
   const handleSearch = () => {
-    // Handle search logic
   };
 
   const handleLocationSelect = (value: string) => {
@@ -81,7 +80,7 @@ export default function LocationSearchScreen() {
         }}
         className="flex-1"
       >
-        {/* Header */}
+        
         <View className="flex-row items-center px-4 py-3" style={{ minHeight: screenHeight * 0.02 }}>
           <TouchableOpacity onPress={handleBack} className="mr-4">
             <ArrowLeft size={24} color="black" />
@@ -93,7 +92,7 @@ export default function LocationSearchScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {/* Search Bar */}
+          
           <View className="flex-row items-center mb-4" style={{ minHeight: screenHeight * 0.06 }}>
             <View className="flex-1 bg-gray-100 rounded-xl px-4 flex  justify-center mr-3" style={{ height: screenHeight * 0.06 }}>
               <View className="flex-1 bg-gray-100 rounded-xl px-4 flex  justify-center" style={{ height: screenHeight * 0.06 }}>
@@ -116,7 +115,7 @@ export default function LocationSearchScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Use Current Location */}
+          
           <TouchableOpacity
             onPress={handleUseCurrentLocation}
             className="flex-row items-center mb-6"
@@ -135,7 +134,7 @@ export default function LocationSearchScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Selected/Recent Address */}
+          
           <View 
             className="bg-gray-100 rounded-xl px-4 py-3 mb-6"
             style={{ minHeight: screenHeight * 0.08 }}
@@ -151,7 +150,7 @@ export default function LocationSearchScreen() {
             </Text>
           </View>
 
-          {/* Search Results Header */}
+          
           <Text 
             className="text-gray-500 text-sm mb-4"
             style={{ fontFamily: 'Poppins-Medium' }}
@@ -159,7 +158,7 @@ export default function LocationSearchScreen() {
             SEARCH RESULTS
           </Text>
 
-          {/* Search Results */}
+          
           <View className="mb-8">
             {searchResults.map((result, index) => (
               <TouchableOpacity

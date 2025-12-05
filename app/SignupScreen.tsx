@@ -4,10 +4,10 @@ import { Lock, Mail, Phone } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import Toast from '../components/Toast';
 import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import { SocialButton } from '../components/SocialButton';
+import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 
 export default function SignupScreen() {
@@ -19,7 +19,6 @@ export default function SignupScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleSignup = async () => {
-    // Basic validation
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       showError('Please fill in all required fields');
       return;
@@ -36,7 +35,6 @@ export default function SignupScreen() {
     }
 
     try {
-      // After successful signup, navigate to location permission
       router.push('/LocationPermissionScreen');
     } catch (error) {
       showError('Signup failed. Please try again.');
@@ -44,27 +42,22 @@ export default function SignupScreen() {
   };
 
   const handleLogin = () => {
-    // Navigate to login screen
     router.push('/LoginScreen');
   };
 
   const handleGoogleSignup = () => {
-    // Handle Google signup
   };
 
   const handleFacebookSignup = () => {
-    // Handle Facebook signup
   };
 
   return (
     <SafeAreaWrapper>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
-        {/* Title */}
         <Text className="text-3xl font-bold text-black mb-8" style={{
              fontFamily: 'Poppins-ExtraBold',
         }}>Sign Up</Text>
 
-        {/* Company Email Input */}
         <InputField
           placeholder="Company email"
           icon={<Mail size={20} color={'white'}/>}
@@ -74,7 +67,6 @@ export default function SignupScreen() {
           iconPosition="left"
         />
 
-        {/* Company Fax Input */}
         <InputField
           placeholder="+234 Company fax"
           icon={<Phone size={20} color={'white'}/>}
@@ -84,7 +76,6 @@ export default function SignupScreen() {
           iconPosition="right"
         />
 
-        {/* Password Input */}
         <InputField
           placeholder="Password"
           icon={<Lock size={20} color={'white'}/>}
@@ -94,7 +85,6 @@ export default function SignupScreen() {
           iconPosition="right"
         />
 
-        {/* Confirm Password Input */}
         <InputField
           placeholder="Confirm password"
           icon={<Lock size={20} color={'white'}/>}
@@ -104,13 +94,10 @@ export default function SignupScreen() {
           iconPosition="right"
         />
 
-
-        {/* Sign Up Button */}
         <View className="mt-4">
           <AuthButton title="Sign Up" onPress={handleSignup} />
         </View>
 
-        {/* Login Link */}
         <View className="items-center mb-8">
           <TouchableOpacity onPress={handleLogin} activeOpacity={0.7}>
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
@@ -120,14 +107,12 @@ export default function SignupScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Divider */}
         <View className="flex-row items-center mb-8">
           <View className="flex-1 h-px bg-gray-300" />
           <Text className="mx-4 text-gray-500 text-base" style={{ fontFamily: 'Poppins-Medium' }}>or</Text>
           <View className="flex-1 h-px bg-gray-300" />
         </View>
 
-        {/* Social Buttons */}
         <SocialButton
           title="Continue with Google"
           icon={

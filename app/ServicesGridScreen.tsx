@@ -220,8 +220,6 @@ export default function ServicesGridScreen() {
   }, []);
 
   const handleServicePress = (service: ServiceItem) => {
-    // Navigate to service details or booking screen
-    // router.push(`/service/${service.id}`);
   };
 
   return (
@@ -233,7 +231,7 @@ export default function ServicesGridScreen() {
         }}
         className="flex-1"
       >
-        {/* Header */}
+        
         <View className="px-4 py-6">
           <Text 
             className="text-2xl font-bold text-black mb-2"
@@ -249,7 +247,7 @@ export default function ServicesGridScreen() {
           </Text>
         </View>
 
-        {/* Services Grid */}
+        
         <ScrollView className="flex-1 px-4">
           <View className="flex-row flex-wrap justify-between">
             {services.map((service, index) => (
@@ -277,12 +275,12 @@ export default function ServicesGridScreen() {
                   }}
                   activeOpacity={0.8}
                 >
-                  {/* Icon Container */}
+                  
                   <View className="w-16 h-16 bg-white rounded-2xl items-center justify-center mb-3 shadow-sm">
                     {service.icon}
                   </View>
                   
-                  {/* Service Title */}
+                  
                   <Text 
                     className="text-base font-semibold text-black text-center"
                     style={{ fontFamily: 'Poppins-SemiBold' }}
@@ -295,7 +293,7 @@ export default function ServicesGridScreen() {
           </View>
         </ScrollView>
 
-        {/* Bottom Action */}
+        
         <View className="px-4 pb-4">
           <TouchableOpacity
             onPress={() => router.back()}

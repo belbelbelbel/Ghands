@@ -12,7 +12,7 @@ const accountCards = [
     icon: User,
     iconColor: '#666',
     iconBgColor: '#F5F5F5',
-    onPress: () => {} // Will handle navigation
+    onPress: () => {}
   },
   {
     id: '2',
@@ -21,7 +21,7 @@ const accountCards = [
     icon: MapPin,
     iconColor: '#6A9B00',
     iconBgColor: '#EEFFD9',
-    onPress: () => {} // Will handle navigation
+    onPress: () => {}
   },
   {
     id: '3',
@@ -30,7 +30,7 @@ const accountCards = [
     icon: HelpCircle,
     iconColor: '#6A9B00',
     iconBgColor: '#EEFFD9',
-    onPress: () => {} // Will handle navigation
+    onPress: () => {}
   }
 ];
 
@@ -43,13 +43,11 @@ export default function AccountInformationScreen() {
     } else if (id === '2') {
       router.push('/AddressBookScreen' as any);
     } else if (id === '3') {
-      // Handle verification status navigation
     }
   };
 
   return (
     <SafeAreaWrapper backgroundColor="#F9FAFB">
-      {/* Header */}
       <View className='flex-row items-center px-4 py-3 bg-white border-b border-gray-100' style={{ paddingTop: 20 }}>
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
           <Text className='text-black text-2xl'>←</Text>
@@ -63,7 +61,6 @@ export default function AccountInformationScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Content */}
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
         <View className="px-4 pt-6">
           {accountCards.map((card) => {
@@ -110,7 +107,6 @@ export default function AccountInformationScreen() {
           })}
         </View>
 
-        {/* Bottom Spacer */}
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaWrapper>

@@ -283,12 +283,12 @@ export default function Jobdetails() {
               </TouchableOpacity>
             </View>
 
-            {/* Job Progress Tracker */}
+            
             <View className="mb-8">
               {renderTimeline()}
             </View>
 
-            {/* Job Completed Button */}
+            
             <TouchableOpacity
               className="w-full py-4 rounded-xl items-center justify-center bg-gray-400 mb-4"
               activeOpacity={0.85}

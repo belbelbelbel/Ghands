@@ -42,13 +42,9 @@ export default function DateTimeScreen() {
     const day = selectedDate.getDate();
     const year = selectedDate.getFullYear();
     
-    // Format time (e.g., "09:00" -> "9am" or "01:00" -> "1pm")
     const [hours, minutes] = selectedTime.split(':');
     const hourNum = parseInt(hours, 10);
     
-    // Determine if it's AM or PM based on the hour
-    // AM_HOURS: ['09:00', '10:00', '11:00', '12:00'] -> 9am, 10am, 11am, 12pm
-    // PM_HOURS: ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00'] -> 1pm-8pm
     const isAM = AM_HOURS.includes(selectedTime);
     const isPM = PM_HOURS.includes(selectedTime);
     
@@ -56,7 +52,6 @@ export default function DateTimeScreen() {
     let period: string;
     
     if (isAM) {
-      // AM hours: 09:00=9am, 10:00=10am, 11:00=11am, 12:00=12pm
       if (hourNum === 12) {
         displayHour = 12;
         period = 'pm';
@@ -65,11 +60,9 @@ export default function DateTimeScreen() {
         period = 'am';
       }
     } else if (isPM) {
-      // PM hours: 01:00=1pm, 02:00=2pm, etc.
       displayHour = hourNum;
       period = 'pm';
     } else {
-      // Fallback for any other time format
       const isAMHour = hourNum < 12;
       displayHour = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
       period = isAMHour ? 'am' : 'pm';
@@ -100,14 +93,12 @@ export default function DateTimeScreen() {
     if (!selectedDate || !selectedTime) {
       return;
     }
-    // Show confirmation modal
     setShowConfirmModal(true);
   }, [selectedDate, selectedTime]);
 
   const handleConfirmAndProceed = useCallback(() => {
     setShowConfirmModal(false);
     
-    // Pass formatted date/time as route params
     router.push({
       pathname: '../AddPhotosScreen' as any,
       params: {
@@ -159,23 +150,19 @@ export default function DateTimeScreen() {
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
 
-    // Get last day of previous month
     const prevMonthLastDay = new Date(year, month, 0).getDate();
 
     const days: Array<{ day: number; isCurrentMonth: boolean }> = [];
 
-    // Add days from previous month
     for (let i = startingDayOfWeek - 1; i >= 0; i--) {
       days.push({ day: prevMonthLastDay - i, isCurrentMonth: false });
     }
 
-    // Add all days of the current month
     for (let day = 1; day <= daysInMonth; day++) {
       days.push({ day, isCurrentMonth: true });
     }
 
-    // Add days from next month to fill the last week (if needed)
-    const remainingCells = 42 - days.length; // 6 rows × 7 days = 42
+    const remainingCells = 42 - days.length;
     for (let day = 1; day <= remainingCells; day++) {
       days.push({ day, isCurrentMonth: false });
     }
@@ -433,7 +420,7 @@ export default function DateTimeScreen() {
         </View>
       </Animated.View>
 
-      {/* Confirmation Modal */}
+      
       <Modal
         transparent
         visible={showConfirmModal}

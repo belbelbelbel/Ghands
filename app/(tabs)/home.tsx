@@ -7,6 +7,7 @@ import RecommendedCard from '@/components/home/RecommendedCard';
 import TodoCard from '@/components/home/TodoCard';
 import { jobActivities, promoCodes, recommendedServices, todoItems } from '@/components/home/data';
 import { useUserLocation } from '@/hooks/useUserLocation';
+import { Colors } from '@/lib/designSystem';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
@@ -59,10 +60,8 @@ const HomeScreen = React.memo(() => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  // Refresh location when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      // Reload location from storage when screen comes into focus
       refreshLocation();
     }, [refreshLocation])
   );
@@ -121,7 +120,6 @@ const HomeScreen = React.memo(() => {
         category.title.toLowerCase().includes(query) ||
         category.id.toLowerCase().includes(query)
     );
-    // If no results found, show all categories instead of empty
     return filtered.length > 0 ? filtered.slice(0, 4) : homeScreenCategories.slice(0, 4);
   }, [searchQuery]);
 
@@ -193,7 +191,7 @@ const HomeScreen = React.memo(() => {
                 className="relative p-2 ml-4"
                 onPress={handleNotificationPress}
               >
-                <Bell size={22} color="#111827" />
+                <Bell size={22} color={Colors.textPrimary} />
                 <View className="absolute top-1 right-1 w-2 h-2 bg-[#9bd719ff] rounded-full" />
               </TouchableOpacity>
             </View>
@@ -248,7 +246,7 @@ const HomeScreen = React.memo(() => {
                 >
                   View all
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color="black" />
+                <Ionicons name="chevron-forward" size={16} color={Colors.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -339,7 +337,7 @@ const HomeScreen = React.memo(() => {
                 >
                   View all
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color="black" />
+                <Ionicons name="chevron-forward" size={16} color={Colors.textPrimary} />
               </TouchableOpacity>
             </View>
             {isLoading ? (

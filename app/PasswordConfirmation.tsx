@@ -15,7 +15,6 @@ export default function PasswordConfirmationScreen() {
 
   const handleResetPassword = () => {
     if (password && confirmPassword && password === confirmPassword) {
-      // Navigate back to login screen
       router.push('/LoginScreen');
     }
   };
@@ -27,26 +26,22 @@ export default function PasswordConfirmationScreen() {
   return (
     <SafeAreaWrapper>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
-        {/* Back Button */}
         <TouchableOpacity onPress={handleBackToOtp} className="mb-6" activeOpacity={0.7}>
           <View className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center">
             <ArrowLeft size={20} color={'black'} />
           </View>
         </TouchableOpacity>
 
-        {/* Title */}
         <Text className="text-3xl font-bold text-black mb-4" style={{
           fontFamily: 'Poppins-ExtraBold',
         }}>Create New Password</Text>
 
-        {/* Description */}
         <Text className="text-base text-gray-600 mb-8" style={{
           fontFamily: 'Poppins-Medium',
         }}>
           Your new password must be different from your previous password.
         </Text>
 
-        {/* New Password Input */}
         <View className="mb-4">
           <InputField
             placeholder="New password"
@@ -62,7 +57,6 @@ export default function PasswordConfirmationScreen() {
           />
         </View>
 
-        {/* Confirm Password Input */}
         <View className="mb-8">
           <InputField
             placeholder="Confirm new password"
@@ -78,12 +72,10 @@ export default function PasswordConfirmationScreen() {
           />
         </View>
 
-        {/* Reset Password Button */}
         <View className="mt-4">
           <AuthButton title="Reset Password" onPress={handleResetPassword} />
         </View>
 
-        {/* Back to Login Link */}
         <View className="items-center mt-8">
           <TouchableOpacity onPress={() => router.push('/LoginScreen')} activeOpacity={0.7}>
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>

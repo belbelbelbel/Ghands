@@ -36,7 +36,7 @@ export default function AddressBookScreen() {
 
   return (
     <SafeAreaWrapper>
-      {/* Header */}
+      
       <View className='flex-row items-center px-4 py-3 bg-white border-b border-gray-100' style={{ paddingTop: 20 }}>
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
           <Ionicons name="arrow-back" size={22} color="#000000" />
@@ -50,7 +50,7 @@ export default function AddressBookScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Content */}
+      
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-white">
         <View className="px-4 pt-6">
           {addresses.map((address) => (
@@ -59,7 +59,7 @@ export default function AddressBookScreen() {
               activeOpacity={0.85}
               className="bg-white rounded-2xl px-4 py-4 mb-3 flex-row items-center border border-gray-200"
             >
-              {/* Selection Indicator */}
+              
               <View className="mr-4">
                 {address.isSelected ? (
                   <View className="w-6 h-6 bg-gray-400 rounded-full" />
@@ -68,7 +68,7 @@ export default function AddressBookScreen() {
                 )}
               </View>
 
-              {/* Address Content */}
+              
               <View className="flex-1">
                 {address.title ? (
                   <Text 
@@ -86,7 +86,7 @@ export default function AddressBookScreen() {
                 </Text>
               </View>
 
-              {/* More Options Icon */}
+              
               <TouchableOpacity className="ml-3" activeOpacity={0.85}>
                 <Ionicons name="ellipsis-vertical" size={20} color="#666" />
               </TouchableOpacity>
@@ -94,7 +94,7 @@ export default function AddressBookScreen() {
           ))}
         </View>
 
-        {/* Bottom Spacer */}
+        
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaWrapper>

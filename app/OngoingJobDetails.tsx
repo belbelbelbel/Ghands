@@ -109,7 +109,7 @@ interface Quotation {
   id: string;
   providerName: string;
   providerType: string;
-  providerImage: string; // URI or require path
+  providerImage: string;
   quoteAmount: string;
   serviceBreakdown: ServiceBreakdownItem[];
   paymentTerms: PaymentTerm[];
@@ -120,7 +120,7 @@ const QUOTATIONS: Quotation[] = [
     id: 'quote-1',
     providerName: 'AquaFix Solutions',
     providerType: 'Plumbing Specialists',
-    providerImage: 'https://i.pravatar.cc/150?img=12',
+    providerImage: 'https://via.placeholder.com/150',
     quoteAmount: '$65',
     serviceBreakdown: [
       { service: 'Complete faucet assessment', price: 'Free' },
@@ -138,7 +138,7 @@ const QUOTATIONS: Quotation[] = [
     id: 'quote-2',
     providerName: "Mike's Plumbing",
     providerType: 'Professional Plumber',
-    providerImage: 'https://i.pravatar.cc/150?img=47',
+    providerImage: 'https://via.placeholder.com/150',
     quoteAmount: '$75',
     serviceBreakdown: [
       { service: 'Faucet inspection & diagnosis', price: '$10' },
@@ -156,7 +156,7 @@ const QUOTATIONS: Quotation[] = [
     id: 'quote-3',
     providerName: 'Elite Plumbing Services',
     providerType: 'Certified Plumbers',
-    providerImage: 'https://i.pravatar.cc/150?img=33',
+    providerImage: 'https://via.placeholder.com/150',
     quoteAmount: '$85',
     serviceBreakdown: [
       { service: 'Comprehensive assessment', price: '$15' },
@@ -455,7 +455,7 @@ export default function OngoingJobDetails() {
             </>
           ) : (
             <View className="flex-1">
-              {/* Info Banner */}
+              
               <View className="rounded-2xl bg-[#E0F2FE] px-4 py-3 mb-4 flex-row items-start">
                 <View className="w-5 h-5 rounded-full bg-[#0EA5E9] items-center justify-center mr-3 mt-0.5">
                   <Text className="text-white text-xs" style={{ fontFamily: 'Poppins-Bold' }}>
@@ -474,7 +474,7 @@ export default function OngoingJobDetails() {
 
               {QUOTATIONS.length > 0 && (
                 <>
-                  {/* Quotation Card */}
+                  
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => {
@@ -521,7 +521,7 @@ export default function OngoingJobDetails() {
                     </Animated.View>
                   </TouchableOpacity>
 
-                  {/* Service Breakdown */}
+                  
                   <Animated.View
                     className="mb-4"
                     style={{
@@ -564,7 +564,7 @@ export default function OngoingJobDetails() {
                     </View>
                   </Animated.View>
 
-                  {/* Payment Terms */}
+                  
                   <Animated.View
                     className="mb-6"
                     style={{
@@ -594,12 +594,11 @@ export default function OngoingJobDetails() {
                     </View>
                   </Animated.View>
 
-                  {/* Accept Button */}
+                  
                   <TouchableOpacity
                     activeOpacity={0.85}
                     className="bg-black rounded-xl py-4 items-center justify-center mb-4"
                     onPress={() => {
-                      // Handle accept quote
                     }}
                   >
                     <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
@@ -607,7 +606,7 @@ export default function OngoingJobDetails() {
                     </Text>
                   </TouchableOpacity>
 
-                  {/* Navigation & Pagination */}
+                  
                   <View className="flex-row items-center justify-between mb-6">
                     <TouchableOpacity
                       onPress={() => {

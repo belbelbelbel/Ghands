@@ -47,11 +47,9 @@ export default function ProviderSignUpScreen() {
   };
 
   const handleGoogleSignup = () => {
-    // Handle Google signup
   };
 
   const handleFacebookSignup = () => {
-    // Handle Facebook signup
   };
 
   return (

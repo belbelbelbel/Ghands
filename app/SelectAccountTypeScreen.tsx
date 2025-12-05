@@ -1,4 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { Colors, Fonts } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { Building, User, Users } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
@@ -44,29 +45,26 @@ export default function SelectAccountTypeScreen() {
 
   const interpolatedBackgroundColor = backgroundFade.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#0b0b07', '#ffffff'], 
+    outputRange: [Colors.background, Colors.backgroundLight], 
   });
 
   return (
     <Animated.View style={{ flex: 1, backgroundColor: interpolatedBackgroundColor,  }}>
       <SafeAreaWrapper>
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-          {/* Header Icon */}
           <Animated.View style={{ opacity: fadeAnim }} className="items-center mt-16 mb-8">
-            <View className="w-40 h-40 bg-[#6A9B00] rounded-full items-center justify-center">
-              <Users size={60} color="white" />
+            <View className="w-40 h-40 bg-[#6A9B00] rounded-full items-center justify-center" style={{ backgroundColor: Colors.accent }}>
+              <Users size={60} color={Colors.white} />
             </View>
           </Animated.View>
           <Animated.View style={{ opacity: fadeAnim, flex: 0, justifyContent: 'center' }}>
                <Animated.Text
             style={{
               opacity: fadeAnim,
-              fontSize: 18,
-              fontWeight: '800',
+              ...Fonts.h3,
               textAlign: 'left',
               marginBottom: 10,
-              color: '#000000', 
-              fontFamily: 'Poppins-ExtraBold',
+              color: Colors.textPrimary, 
               marginLeft: 15
             }}
           >

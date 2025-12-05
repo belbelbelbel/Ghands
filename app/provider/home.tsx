@@ -207,15 +207,6 @@ export default function ProviderHomeScreen() {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 16 }}>
             <Text style={{ fontSize: 20, fontFamily: 'Poppins-SemiBold', color: '#000000' }}>Welcome, Alex</Text>
-            {/* <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: '#000000' }}>Online</Text>
-              <Switch
-                value={isOnline}
-                onValueChange={setIsOnline}
-                trackColor={{ false: '#E5E7EB', true: '#6A9B00' }}
-                thumbColor="#FFFFFF"
-              />
-            </View> */}
           </View>
 
           {!hasActiveJobs && (
@@ -371,7 +362,7 @@ export default function ProviderHomeScreen() {
                   justifyContent: 'center',
                 }}
               >
-                {/* <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins-Bold', fontSize: 11 }}>GET YOUR GUIDE</Text> */}
+                
                 <Image source={require('../../assets/images/guideimg.jpg')} style={{ width: '100%', height: '100%', borderRadius: 12 }} resizeMode='cover' />
               </View>
               <View style={{ padding: 10 }}>
@@ -386,7 +377,7 @@ export default function ProviderHomeScreen() {
           </View>
         </View>
 
-        {/* Insights Section */}
+        
         {hasActiveJobs ? (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
             <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 10 }}>

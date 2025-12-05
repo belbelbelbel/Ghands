@@ -27,8 +27,8 @@ export const CommonStyles = {
   // Button styles
   buttonPrimary: {
     backgroundColor: Colors.black,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -37,8 +37,8 @@ export const CommonStyles = {
   
   buttonSecondary: {
     backgroundColor: Colors.accent,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,

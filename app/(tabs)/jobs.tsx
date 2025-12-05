@@ -1,4 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { BorderRadius, Colors, CommonStyles, Fonts, Spacing } from '@/lib/designSystem';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
@@ -98,110 +99,185 @@ export default function JobsScreen() {
 
   return (
     <SafeAreaWrapper>
-      <View className="flex-1 px-4" style={{ paddingTop: 20 }}>
-        <Text className="text-2xl text-black mb-6 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
+      <View style={{ flex: 1, paddingHorizontal: Spacing.xs + 4, paddingTop: Spacing.xl }}>
+        <Text style={{
+          ...Fonts.h2,
+          fontSize: 24,
+          color: Colors.textPrimary,
+          marginBottom: Spacing.lg + 2,
+          textAlign: 'center',
+        }}>
           Jobs
         </Text>
 
-        <View className="flex flex-row justify-around mb-4">
+        <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: Spacing.xs + 4 }}>
           {(['Ongoing', 'Completed', 'Cancelled'] as JobStatus[]).map((status) => {
             const isActive = activeTab === status;
             return (
               <TouchableOpacity key={status} onPress={() => setActiveTab(status)} activeOpacity={0.8}>
                 <Text
-                  className={`text-base ${isActive ? 'text-black' : 'text-gray-500'}`}
-                  style={{ fontFamily: 'Poppins-Medium' }}
+                  style={{
+                    ...Fonts.body,
+                    fontFamily: 'Poppins-Medium',
+                    color: isActive ? Colors.textPrimary : Colors.textTertiary,
+                  }}
                 >
                   {status}
                 </Text>
                 <View
-                  className={`mt-2 h-0.5 rounded-full ${isActive ? 'bg-[#6A9B00]' : 'bg-transparent'}`}
-                  style={{ width: 68 }}
+                  style={{
+                    marginTop: Spacing.xs + 2,
+                    height: 2,
+                    borderRadius: 1,
+                    width: 68,
+                    backgroundColor: isActive ? Colors.accent : 'transparent',
+                  }}
                 />
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
           {jobs.map((job) => (
             <View
               key={`${activeTab}-${job.id}`}
-              className="border border-gray-200 mb-6 px-5 py-5 rounded-2xl shadow-[0px_6px_18px_rgba(15,23,42,0.04)]"
+              style={{
+                borderWidth: 1,
+                borderColor: Colors.border,
+                marginBottom: Spacing.lg + 2,
+                paddingHorizontal: Spacing.xl + 1,
+                paddingVertical: Spacing.xl + 1,
+                borderRadius: BorderRadius.lg,
+                backgroundColor: Colors.backgroundLight,
+                shadowColor: Colors.shadow,
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.04,
+                shadowRadius: 18,
+                elevation: 2,
+              }}
             >
-              <View className="flex-row justify-between mb-3">
-                <View className="flex-1 pr-3">
-                  <Text className="text-lg text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm + 1 }}>
+                <View style={{ flex: 1, paddingRight: Spacing.sm + 1 }}>
+                  <Text style={{
+                    ...Fonts.h3,
+                    fontSize: 18,
+                    color: Colors.textPrimary,
+                    marginBottom: 4,
+                  }}>
                     {job.title}
                   </Text>
-                  <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
+                  <Text style={{
+                    ...Fonts.bodySmall,
+                    color: Colors.textSecondaryDark,
+                  }}>
                     {job.subtitle}
                   </Text>
                 </View>
                 <View
-                  className={`self-start px-3 py-1 rounded-xl ${
-                    activeTab === 'Ongoing'
-                      ? 'bg-yellow-100'
+                  style={{
+                    alignSelf: 'flex-start',
+                    paddingHorizontal: Spacing.sm + 1,
+                    paddingVertical: 4,
+                    borderRadius: BorderRadius.default,
+                    backgroundColor: activeTab === 'Ongoing'
+                      ? '#FEF3C7'
                       : activeTab === 'Completed'
-                        ? 'bg-green-100'
-                        : 'bg-gray-100'
-                  }`}
+                        ? Colors.successLight
+                        : Colors.backgroundGray,
+                  }}
                 >
-                  <Text className="text-xs" style={{ fontFamily: 'Poppins-Medium' }}>
+                  <Text style={{
+                    ...Fonts.bodyTiny,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.textPrimary,
+                  }}>
                     {job.status}
                   </Text>
                 </View>
               </View>
 
-              <View className="flex-row items-center gap-3 mt-2">
-                <Ionicons name="person-outline" size={16} color="#4B5563" />
-                <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm + 1, marginTop: Spacing.xs + 2 }}>
+                <Ionicons name="person-outline" size={16} color={Colors.textSecondaryDark} />
+                <Text style={{
+                  ...Fonts.bodySmall,
+                  color: Colors.textSecondaryDark,
+                }}>
                   {job.name}
                 </Text>
               </View>
-              <View className="flex-row items-center gap-3 mt-2">
-                <Ionicons name="calendar-outline" size={16} color="#4B5563" />
-                <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm + 1, marginTop: Spacing.xs + 2 }}>
+                <Ionicons name="calendar-outline" size={16} color={Colors.textSecondaryDark} />
+                <Text style={{
+                  ...Fonts.bodySmall,
+                  color: Colors.textSecondaryDark,
+                }}>
                   {job.time}
                 </Text>
               </View>
-              <View className="flex-row items-center gap-3 mt-2">
-                <Ionicons name="location-outline" size={16} color="#4B5563" />
-                <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm + 1, marginTop: Spacing.xs + 2 }}>
+                <Ionicons name="location-outline" size={16} color={Colors.textSecondaryDark} />
+                <Text style={{
+                  ...Fonts.bodySmall,
+                  color: Colors.textSecondaryDark,
+                }}>
                   {job.location}
                 </Text>
               </View>
 
               <View
-                className={`flex flex-row pt-4 ${activeTab === 'Ongoing' ? 'justify-between' : 'justify-center'}`}
+                style={{
+                  flexDirection: 'row',
+                  paddingTop: Spacing.xs + 4,
+                  justifyContent: activeTab === 'Ongoing' ? 'space-between' : 'center',
+                }}
               >
                 {activeTab === 'Ongoing' && (
                   <TouchableOpacity
-                    className="bg-red-50 border border-red-500 py-2 px-5 rounded-lg"
+                    style={{
+                      backgroundColor: Colors.errorLight,
+                      borderWidth: 1,
+                      borderColor: Colors.error,
+                      paddingVertical: Spacing.xs + 2,
+                      paddingHorizontal: Spacing.xl + 1,
+                      borderRadius: BorderRadius.md,
+                    }}
                     activeOpacity={0.85}
                     onPress={() => setPendingCancelJob(job)}
                   >
-                    <Text className="text-sm text-[#FF2C2C]" style={{ fontFamily: 'Poppins-Medium' }}>
+                    <Text style={{
+                      ...Fonts.bodySmall,
+                      fontFamily: 'Poppins-Medium',
+                      color: Colors.error,
+                    }}>
                       Cancel Request
                     </Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  className={`py-3 px-6 rounded-lg ${
-                    activeTab === 'Ongoing'
-                      ? 'bg-gray-100'
+                  style={{
+                    paddingVertical: Spacing.sm + 1,
+                    paddingHorizontal: Spacing.lg + 2,
+                    borderRadius: BorderRadius.md,
+                    backgroundColor: activeTab === 'Ongoing'
+                      ? Colors.backgroundGray
                       : activeTab === 'Completed'
-                        ? 'bg-[#6A9B00] w-full'
-                        : 'bg-black w-full'
-                  }`}
+                        ? Colors.accent
+                        : Colors.black,
+                    width: activeTab === 'Ongoing' ? undefined : '100%',
+                    flex: activeTab === 'Ongoing' ? 1 : undefined,
+                    marginLeft: activeTab === 'Ongoing' ? Spacing.sm + 1 : 0,
+                  }}
                   activeOpacity={0.85}
                   onPress={() => handlePrimaryAction(activeTab)}
                 >
                   <Text
-                    className={`text-sm  text-center ${
-                      activeTab === 'Ongoing' ? 'text-black' : 'text-white '
-                    }`}
-                    style={{ fontFamily: 'Poppins-Medium' }}
+                    style={{
+                      ...Fonts.bodySmall,
+                      fontFamily: 'Poppins-Medium',
+                      color: activeTab === 'Ongoing' ? Colors.textPrimary : Colors.white,
+                      textAlign: 'center',
+                    }}
                   >
                     {activeTab === 'Ongoing'
                       ? 'Check Updates'

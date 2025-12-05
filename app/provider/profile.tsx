@@ -1,4 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { Colors, Fonts, Spacing, BorderRadius, CommonStyles } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -8,11 +9,10 @@ export default function ProviderProfileScreen() {
   const { logout } = useAuthRole();
   const router = useRouter();
   return (
-    <SafeAreaWrapper backgroundColor="#FFFFFF">
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
       <ScrollView
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 17,
+          ...CommonStyles.container,
           paddingBottom: 48,
         }}
         showsVerticalScrollIndicator={false}
@@ -20,7 +20,7 @@ export default function ProviderProfileScreen() {
         <View
           style={{
             alignItems: 'center',
-            marginBottom: 20,
+            marginBottom: Spacing.xl,
           }}
         >
           <View
@@ -28,41 +28,32 @@ export default function ProviderProfileScreen() {
               width: 80,
               height: 80,
               borderRadius: 40,
-              backgroundColor: '#E5E7EB',
-              marginBottom: 10,
+              backgroundColor: Colors.border,
+              marginBottom: Spacing.sm + 2,
             }}
           />
-          <Text style={{ fontSize: 18, fontFamily: 'Poppins-Bold', color: '#000000' }}>Isaac Okoro</Text>
-          <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: '#666666', marginTop: 4 }}>
+          <Text style={{ ...Fonts.h3, color: Colors.textPrimary }}>Isaac Okoro</Text>
+          <Text style={{ ...Fonts.bodySmall, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginTop: Spacing.xs }}>
             Professional Electrician
           </Text>
         </View>
 
-        <View
-          style={{
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: '#E5E7EB',
-            backgroundColor: '#fff',
-            padding: 12,
-            marginBottom: 12,
-          }}
-        >
-          <Text style={{ fontFamily: 'Poppins-SemiBold', fontSize: 13, color: '#000000', marginBottom: 8 }}>
+        <View style={CommonStyles.card}>
+          <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: Spacing.sm }}>
             Metrics
           </Text>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <View>
-              <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#000000' }}>4.9</Text>
-              <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 11, color: '#666666' }}>Rating</Text>
+              <Text style={{ ...Fonts.h3, fontSize: 18, color: Colors.textPrimary }}>4.9</Text>
+              <Text style={{ ...Fonts.bodyTiny, color: Colors.textSecondaryDark }}>Rating</Text>
             </View>
             <View>
-              <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#000000' }}>128</Text>
-              <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 11, color: '#666666' }}>Jobs</Text>
+              <Text style={{ ...Fonts.h3, fontSize: 18, color: Colors.textPrimary }}>128</Text>
+              <Text style={{ ...Fonts.bodyTiny, color: Colors.textSecondaryDark }}>Jobs</Text>
             </View>
             <View>
-              <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#000000' }}>98%</Text>
-              <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 11, color: '#666666' }}>On-time</Text>
+              <Text style={{ ...Fonts.h3, fontSize: 18, color: Colors.textPrimary }}>98%</Text>
+              <Text style={{ ...Fonts.bodyTiny, color: Colors.textSecondaryDark }}>On-time</Text>
             </View>
           </View>
         </View>
@@ -78,32 +69,29 @@ export default function ProviderProfileScreen() {
             key={item}
             activeOpacity={0.8}
             style={{
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: '#E5E7EB',
-              backgroundColor: '#fff',
-              paddingVertical: 12,
-              paddingHorizontal: 14,
-              marginBottom: 10,
+              ...CommonStyles.card,
+              paddingVertical: Spacing.md,
+              paddingHorizontal: Spacing.md + 2,
+              marginBottom: Spacing.sm + 2,
               flexDirection: 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontFamily: 'Poppins-Medium', fontSize: 13, color: '#000000' }}>{item}</Text>
-            <Text style={{ fontSize: 16, color: '#999999' }}>›</Text>
+            <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-Medium', color: Colors.textPrimary }}>{item}</Text>
+            <Text style={{ fontSize: 16, color: Colors.textTertiary }}>›</Text>
           </TouchableOpacity>
         ))}
 
         <TouchableOpacity
           activeOpacity={0.8}
           style={{
-            marginTop: 6,
-            borderRadius: 12,
+            marginTop: Spacing.xs + 2,
+            borderRadius: BorderRadius.default,
             borderWidth: 1,
-            borderColor: '#FECACA',
-            backgroundColor: '#FEF2F2',
-            paddingVertical: 12,
+            borderColor: Colors.errorBorder,
+            backgroundColor: Colors.errorLight,
+            paddingVertical: Spacing.md,
             alignItems: 'center',
           }}
           onPress={async () => {
@@ -111,7 +99,7 @@ export default function ProviderProfileScreen() {
             router.replace('/onboarding');
           }}
         >
-          <Text style={{ fontFamily: 'Poppins-SemiBold', fontSize: 13, color: '#B91C1C' }}>Sign out</Text>
+          <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-SemiBold', color: Colors.error }}>Sign out</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaWrapper>

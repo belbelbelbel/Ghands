@@ -1,4 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { Colors, Fonts, Spacing, BorderRadius, CommonStyles } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { MapPin, Plus } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
@@ -25,8 +26,7 @@ export default function LocationPermissionScreen() {
   }, []);
 
   const handleAllowLocation = () => {
-    // Navigate to next screen after permission granted
-    router.push('/LocationSearchScreen');
+    router.push('/ProfileSetupScreen');
   };
 
   const handleManualEntry = () => {
@@ -39,7 +39,7 @@ export default function LocationPermissionScreen() {
 
   return (
     <SafeAreaWrapper>
-      <View className="flex-1 justify-center items-center px-8">
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.lg }}>
         <Animated.View 
           style={{ 
             opacity: fadeAnim,
@@ -47,22 +47,21 @@ export default function LocationPermissionScreen() {
           }}
           className="mb-8"
         >
-          <View className="w-32 h-32 bg-[#6A9B00] rounded-full items-center justify-center relative">
-            <MapPin size={48} color="black" />
-            <View className="absolute -top-1 -right-1 w-8 h-8 bg-black rounded-full items-center justify-center">
-              <Plus size={16} color="white" />
+          <View style={{ width: 128, height: 128, backgroundColor: Colors.accent, borderRadius: 64, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            <MapPin size={48} color={Colors.white} />
+            <View style={{ position: 'absolute', top: -4, right: -4, width: 32, height: 32, backgroundColor: Colors.black, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+              <Plus size={16} color={Colors.white} />
             </View>
           </View>
         </Animated.View>
         <Animated.Text
           style={{
             opacity: fadeAnim,
+            ...Fonts.h2,
             fontSize: 24,
-            fontWeight: '800',
-            color: '#000000',
+            color: Colors.textPrimary,
             textAlign: 'center',
-            fontFamily: 'Poppins-ExtraBold',
-            marginBottom: 16,
+            marginBottom: Spacing.lg,
           }}
         >
           Your location?
@@ -70,58 +69,77 @@ export default function LocationPermissionScreen() {
         <Animated.Text
           style={{
             opacity: fadeAnim,
-            fontSize: 16,
-            fontWeight: '400',
-            color: '#000000',
+            ...Fonts.body,
+            color: Colors.textPrimary,
             textAlign: 'center',
-            fontFamily: 'Poppins-Regular',
-            lineHeight: 24,
             marginBottom: 48,
           }}
         >
           We need your location to find nearby services and improve your experience.
         </Animated.Text>
         <Animated.View 
-          style={{ opacity: fadeAnim }}
-          className="w-full mb-4"
+          style={{ opacity: fadeAnim, width: '100%', marginBottom: Spacing.md }}
         >
           <TouchableOpacity
             onPress={handleAllowLocation}
             activeOpacity={0.8}
-            className="bg-black rounded-xl py-4 px-6"
+            style={{
+              ...CommonStyles.buttonPrimary,
+              width: '100%',
+              paddingVertical: Spacing.md,
+              paddingHorizontal: Spacing.lg + 2,
+            }}
           >
             <Text 
-              className="text-white text-center text-lg font-semibold"
-              style={{ fontFamily: 'Poppins-SemiBold' }}
+              style={{
+                ...Fonts.button,
+                fontSize: 16,
+                color: Colors.white,
+                textAlign: 'center',
+              }}
             >
               Allow Location Access
             </Text>
           </TouchableOpacity>
         </Animated.View>
         <Animated.View 
-          style={{ opacity: fadeAnim }}
-          className="w-full mb-6"
+          style={{ opacity: fadeAnim, width: '100%', marginBottom: Spacing.lg + 2 }}
         >
           <TouchableOpacity
             onPress={handleManualEntry}
             activeOpacity={0.8}
-            className="border-2 border-[#000000] rounded-xl py-4 px-6"
+            style={{
+              borderWidth: 2,
+              borderColor: Colors.black,
+              borderRadius: BorderRadius.default,
+              paddingVertical: Spacing.md,
+              paddingHorizontal: Spacing.lg + 2,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
             <Text 
-              className="text-[#000000] text-center text-lg font-semibold"
-              style={{ fontFamily: 'Poppins-SemiBold' }}
+              style={{
+                ...Fonts.button,
+                fontSize: 16,
+                color: Colors.textPrimary,
+                textAlign: 'center',
+              }}
             >
               Enter location manually
             </Text>
           </TouchableOpacity>
         </Animated.View>
 
-        {/* I'll do this later Link */}
         <Animated.View style={{ opacity: fadeAnim }}>
           <TouchableOpacity onPress={handleLater} activeOpacity={0.7}>
             <Text 
-              className="text-[#000000] text-center text-base underline"
-              style={{ fontFamily: 'Poppins-Medium' }}
+              style={{
+                ...Fonts.body,
+                color: Colors.textPrimary,
+                textAlign: 'center',
+                textDecorationLine: 'underline',
+              }}
             >
               I'll do this later
             </Text>

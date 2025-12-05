@@ -33,7 +33,6 @@ export default function PaymentMethodsScreen() {
   const router = useRouter();
 
   const handleRemove = (id: string) => {
-    // Handle remove payment method
   };
 
   return (

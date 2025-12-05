@@ -42,7 +42,7 @@ const MOCK_PROVIDER: ProviderDetail = {
   id: 'provider-1',
   name: 'Marcus Johnson',
   role: 'Professional Electrician',
-  image: 'https://i.pravatar.cc/150?img=12',
+  image: 'https://via.placeholder.com/150',
   rating: 4.9,
   reviewCount: 127,
   distance: '2.3 mi away',
@@ -51,9 +51,9 @@ const MOCK_PROVIDER: ProviderDetail = {
   onTimePercentage: 98,
   skills: ['Sink', 'Shower', 'Boiler', 'Toilet'],
   recentWork: [
-    'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400',
-    'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=400',
-    'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=400',
+    'https://via.placeholder.com/300',
+    'https://via.placeholder.com/300',
+    'https://via.placeholder.com/300',
   ],
   about:
     'Licensed electrician with 8+ years of experience. Specialized in residential and commercial electrical work. Committed to safety, quality, and customer satisfaction. Available for emergency calls and scheduled appointments.',
@@ -61,7 +61,7 @@ const MOCK_PROVIDER: ProviderDetail = {
     {
       id: 'review-1',
       reviewerName: 'Sarah Miller',
-      reviewerImage: 'https://i.pravatar.cc/150?img=47',
+      reviewerImage: 'https://via.placeholder.com/100',
       timeAgo: '2 days ago',
       rating: 5,
       reviewText:
@@ -70,7 +70,7 @@ const MOCK_PROVIDER: ProviderDetail = {
     {
       id: 'review-2',
       reviewerName: 'Sarah Miller',
-      reviewerImage: 'https://i.pravatar.cc/150?img=47',
+      reviewerImage: 'https://via.placeholder.com/100',
       timeAgo: '2 days ago',
       rating: 5,
       reviewText:
@@ -79,7 +79,7 @@ const MOCK_PROVIDER: ProviderDetail = {
     {
       id: 'review-3',
       reviewerName: 'Sarah Miller',
-      reviewerImage: 'https://i.pravatar.cc/150?img=47',
+      reviewerImage: 'https://via.placeholder.com/100',
       timeAgo: '2 days ago',
       rating: 5,
       reviewText:
@@ -93,7 +93,6 @@ export default function ProviderDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ providerId?: string; providerName?: string }>();
   
-  // In a real app, you'd fetch provider data based on params.providerId
   const provider = {
     ...MOCK_PROVIDER,
     name: params.providerName || MOCK_PROVIDER.name,
@@ -102,14 +101,14 @@ export default function ProviderDetailScreen() {
   return (
     <SafeAreaWrapper>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-        {/* Header */}
+        
         <View className="flex-row items-center px-4 pb-2" style={{ paddingTop: 20 }}>
           <TouchableOpacity onPress={() => router.back()} className="mr-3" activeOpacity={0.85}>
             <Ionicons name="arrow-back" size={22} color="#000000" />
           </TouchableOpacity>
         </View>
 
-        {/* Profile Header */}
+        
         <View className="px-4 mb-8">
           <View className="bg-white rounded-3xl border border-gray-100 p-6 ">
             <View className="flex-row items-start">
@@ -147,7 +146,7 @@ export default function ProviderDetailScreen() {
           </View>
         </View>
 
-        {/* Statistics */}
+        
         <View className="px-4 mb-8">
           <View className="bg-white rounded-3xl border border-gray-100 p-6 ">
             <View className="flex-row justify-between">
@@ -200,7 +199,7 @@ export default function ProviderDetailScreen() {
           </View>
         </View>
 
-        {/* Recent Work */}
+        
         <View className="px-4 mb-8">
           <Text className="text-xl text-black mb-4 px-1" style={{ fontFamily: 'Poppins-Bold' }}>
             Recent Work
@@ -219,7 +218,7 @@ export default function ProviderDetailScreen() {
           </View>
         </View>
 
-        {/* About */}
+        
         <View className="px-4 mb-8">
           <Text className="text-xl text-black mb-4 px-1" style={{ fontFamily: 'Poppins-Bold' }}>
             About
@@ -231,7 +230,7 @@ export default function ProviderDetailScreen() {
           </View>
         </View>
 
-        {/* Reviews */}
+        
         <View className="px-4 mb-8">
           <Text className="text-xl text-black mb-4 px-1" style={{ fontFamily: 'Poppins-Bold' }}>
             Reviews

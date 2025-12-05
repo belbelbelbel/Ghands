@@ -1,4 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { BorderRadius, Colors, CommonStyles, Fonts, Spacing } from '@/lib/designSystem';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Calendar, Clock, MapPin, Shield } from 'lucide-react-native';
@@ -9,18 +10,17 @@ export default function ProviderJobDetailsScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaWrapper backgroundColor="#FFFFFF">
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
       <View style={{ flex: 1 }}>
-        {/* Header */}
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingTop: 16,
-            paddingBottom: 12,
+            paddingHorizontal: Spacing.lg,
+            paddingTop: Spacing.lg,
+            paddingBottom: Spacing.md,
             borderBottomWidth: 1,
-            borderBottomColor: '#F3F4F6',
+            borderBottomColor: Colors.borderLight,
           }}
         >
           <TouchableOpacity
@@ -31,13 +31,13 @@ export default function ProviderJobDetailsScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: 18,
-              backgroundColor: '#F3F4F6',
-              marginRight: 12,
+              backgroundColor: Colors.borderLight,
+              marginRight: Spacing.md,
             }}
           >
-            <Ionicons name="arrow-back" size={20} color="#000000" />
+            <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={{ fontSize: 18, fontFamily: 'Poppins-Bold', color: '#000000', flex: 1 }}>
+          <Text style={{ ...Fonts.h3, fontSize: 18, color: Colors.textPrimary, flex: 1 }}>
             Job Details
           </Text>
           <View style={{ width: 36 }} />
@@ -46,56 +46,45 @@ export default function ProviderJobDetailsScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingTop: 12,
+            paddingHorizontal: Spacing.lg,
+            paddingTop: Spacing.md,
             paddingBottom: 100,
           }}
         >
-          {/* Client Information Card */}
-          <View
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: 12,
-              padding: 12,
-              marginBottom: 12,
-              borderWidth: 1,
-              borderColor: '#E5E7EB',
-            }}
-          >
+          <View style={CommonStyles.card}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View
                 style={{
                   width: 48,
                   height: 48,
                   borderRadius: 24,
-                  backgroundColor: '#E5E7EB',
-                  marginRight: 10,
+                  backgroundColor: Colors.border,
+                  marginRight: Spacing.sm + 2,
                 }}
               />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 2 }}>
+                <Text style={{ ...Fonts.bodyMedium, fontSize: 16, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 2 }}>
                   Lawal Johnson
                 </Text>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: '#666666' }}>
+                <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark }}>
                   Individual Client
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={{ fontSize: 11, fontFamily: 'Poppins-Medium', color: '#666666', marginBottom: 2 }}>
+                <Text style={{ ...Fonts.bodyTiny, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 2 }}>
                   Member since
                 </Text>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: '#000000' }}>Jan 2023</Text>
+                <Text style={{ ...Fonts.bodySmall, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Jan 2023</Text>
               </View>
             </View>
           </View>
 
-          {/* Job Type Card */}
           <View
             style={{
-              backgroundColor: '#F9FAFB',
-              borderRadius: 12,
-              padding: 12,
-              marginBottom: 12,
+              backgroundColor: Colors.borderLight,
+              borderRadius: BorderRadius.default,
+              padding: Spacing.md,
+              marginBottom: Spacing.md,
               flexDirection: 'row',
               alignItems: 'center',
             }}
@@ -105,73 +94,52 @@ export default function ProviderJobDetailsScreen() {
                 width: 40,
                 height: 40,
                 borderRadius: 20,
-                backgroundColor: '#E5E7EB',
+                backgroundColor: Colors.border,
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginRight: 10,
+                marginRight: Spacing.sm + 2,
               }}
             >
-              <Shield size={20} color="#6A9B00" />
+              <Shield size={20} color={Colors.accent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: '#666666', marginBottom: 2 }}>
+              <Text style={{ ...Fonts.bodySmall, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 2 }}>
                 Service Type
               </Text>
-              <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: '#000000' }}>House Cleaning</Text>
+              <Text style={{ ...Fonts.bodyMedium, fontSize: 16, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>House Cleaning</Text>
             </View>
           </View>
-
-          {/* Description Card */}
-          <View
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: 12,
-              padding: 12,
-              marginBottom: 12,
-              borderWidth: 1,
-              borderColor: '#E5E7EB',
-            }}
-          >
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 8 }}>
+          <View style={CommonStyles.card}>
+            <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: Spacing.sm }}>
               Description
             </Text>
-            <Text style={{ fontSize: 13, fontFamily: 'Poppins-Regular', color: '#666666', lineHeight: 20 }}>
+            <Text style={{ ...Fonts.bodySmall, fontSize: 13, color: Colors.textSecondaryDark, lineHeight: 20 }}>
               I need a thorough cleaning of my 3-bedroom apartment. This includes kitchen deep cleaning, bathroom
               sanitization, living areas dusting and vacuuming, and bedroom organization. I have two cats, so please be
               mindful of pet hair. The apartment is approximately 1,200 sq ft.
             </Text>
           </View>
 
-          {/* Date and Time Card */}
-          <View
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: 12,
-              padding: 12,
-              marginBottom: 12,
-              borderWidth: 1,
-              borderColor: '#E5E7EB',
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
+          <View style={CommonStyles.card}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.md }}>
               <View
                 style={{
                   width: 32,
                   height: 32,
                   borderRadius: 16,
-                  backgroundColor: '#F3F4F6',
+                  backgroundColor: Colors.borderLight,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginRight: 10,
+                  marginRight: Spacing.sm + 2,
                 }}
               >
-                <Calendar size={16} color="#6A9B00" />
+                <Calendar size={16} color={Colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 2 }}>
+                <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 2 }}>
                   Saturday October 20, 2024
                 </Text>
-                <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: '#666666' }}>
+                <Text style={{ ...Fonts.bodyTiny, color: Colors.textSecondaryDark }}>
                   Preferred date
                 </Text>
               </View>
@@ -182,89 +150,69 @@ export default function ProviderJobDetailsScreen() {
                   width: 32,
                   height: 32,
                   borderRadius: 16,
-                  backgroundColor: '#F3F4F6',
+                  backgroundColor: Colors.borderLight,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginRight: 10,
+                  marginRight: Spacing.sm + 2,
                 }}
               >
-                <Clock size={16} color="#6A9B00" />
+                <Clock size={16} color={Colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: '#000000' }}>From 10:00AM</Text>
+                <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>From 10:00AM</Text>
               </View>
             </View>
           </View>
 
-          {/* Photos Card */}
-          <View
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: 12,
-              padding: 12,
-              marginBottom: 12,
-              borderWidth: 1,
-              borderColor: '#E5E7EB',
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: '#000000' }}>Photos</Text>
+          <View style={CommonStyles.card}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm + 2 }}>
+              <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>Photos</Text>
               <TouchableOpacity>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: '#6A9B00', marginRight: 4 }}>
+                  <Text style={{ ...Fonts.bodySmall, fontFamily: 'Poppins-SemiBold', color: Colors.accent, marginRight: Spacing.xs }}>
                     View all
                   </Text>
-                  <Ionicons name="chevron-forward" size={14} color="#6A9B00" />
+                  <Ionicons name="chevron-forward" size={14} color={Colors.accent} />
                 </View>
               </TouchableOpacity>
             </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
               {[1, 2, 3].map((index) => (
                 <View
                   key={index}
                   style={{
                     width: 80,
                     height: 80,
-                    borderRadius: 10,
-                    backgroundColor: '#E5E7EB',
+                    borderRadius: BorderRadius.md,
+                    backgroundColor: Colors.border,
                     borderWidth: 1,
-                    borderColor: '#D1D5DB',
+                    borderColor: Colors.border,
                   }}
                 />
               ))}
             </View>
           </View>
 
-          {/* Location Card */}
-          <View
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: 12,
-              padding: 12,
-              marginBottom: 12,
-              borderWidth: 1,
-              borderColor: '#E5E7EB',
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 }}>
+          <View style={CommonStyles.card}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.sm + 2 }}>
               <View
                 style={{
                   width: 32,
                   height: 32,
                   borderRadius: 16,
-                  backgroundColor: '#F3F4F6',
+                  backgroundColor: Colors.borderLight,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginRight: 10,
+                  marginRight: Spacing.sm + 2,
                 }}
               >
-                <MapPin size={16} color="#6A9B00" />
+                <MapPin size={16} color={Colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 2 }}>
+                <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 2 }}>
                   Downtown Apartment
                 </Text>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: '#666666' }}>
+                <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark }}>
                   123 Main St, Apt 48, shomolu Estate
                 </Text>
               </View>
@@ -272,17 +220,16 @@ export default function ProviderJobDetailsScreen() {
             <View
               style={{
                 height: 160,
-                borderRadius: 10,
-                backgroundColor: '#F3F4F6',
+                borderRadius: BorderRadius.md,
+                backgroundColor: Colors.borderLight,
                 borderWidth: 1,
-                borderColor: '#E5E7EB',
+                borderColor: Colors.border,
                 overflow: 'hidden',
               }}
             >
-              {/* Map placeholder */}
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                <MapPin size={32} color="#9CA3AF" />
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: '#9CA3AF', marginTop: 6 }}>
+                <MapPin size={32} color={Colors.tabInactive} />
+                <Text style={{ ...Fonts.bodySmall, fontFamily: 'Poppins-Medium', color: Colors.tabInactive, marginTop: Spacing.xs + 2 }}>
                   Map View
                 </Text>
               </View>
@@ -290,20 +237,19 @@ export default function ProviderJobDetailsScreen() {
           </View>
         </ScrollView>
 
-        {/* Action Buttons - Fixed at bottom */}
         <View
           style={{
             position: 'absolute',
             bottom: 0,
             left: 0,
             right: 0,
-            paddingHorizontal: 16,
-            paddingBottom: 16,
-            paddingTop: 12,
-            backgroundColor: '#FFFFFF',
+            paddingHorizontal: Spacing.lg,
+            paddingBottom: Spacing.lg,
+            paddingTop: Spacing.md,
+            backgroundColor: Colors.backgroundLight,
             borderTopWidth: 1,
-            borderTopColor: '#E5E7EB',
-            shadowColor: '#000',
+            borderTopColor: Colors.border,
+            shadowColor: Colors.shadow,
             shadowOffset: { width: 0, height: -2 },
             shadowOpacity: 0.05,
             shadowRadius: 8,
@@ -312,34 +258,26 @@ export default function ProviderJobDetailsScreen() {
         >
           <TouchableOpacity
             style={{
-              backgroundColor: '#6A9B00',
-              paddingVertical: 12,
-              borderRadius: 10,
-              alignItems: 'center',
-              marginBottom: 10,
+              ...CommonStyles.buttonSecondary,
+              paddingVertical: Spacing.md,
+              marginBottom: Spacing.sm + 2,
+              width: '100%',
             }}
-            onPress={() => {
-              // Handle send quotation
-            }}
+            onPress={() => {}}
             activeOpacity={0.8}
           >
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: '#000000' }}>Send Quotation</Text>
+            <Text style={{ ...Fonts.button, fontSize: 14, color: Colors.textPrimary }}>Send Quotation</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={{
-              backgroundColor: '#FFFFFF',
-              paddingVertical: 12,
-              borderRadius: 10,
-              alignItems: 'center',
-              borderWidth: 1,
-              borderColor: '#FEE2E2',
+              ...CommonStyles.buttonDanger,
+              paddingVertical: Spacing.md,
+              width: '100%',
             }}
-            onPress={() => {
-              // Handle decline request
-            }}
+            onPress={() => {}}
             activeOpacity={0.8}
           >
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: '#DC2626' }}>Decline Request</Text>
+            <Text style={{ ...Fonts.button, fontSize: 14, color: Colors.error }}>Decline Request</Text>
           </TouchableOpacity>
         </View>
       </View>

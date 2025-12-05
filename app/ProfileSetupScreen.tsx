@@ -114,7 +114,7 @@ export default function ProfileSetupScreen() {
         type,
       } as any);
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://api.ghands.com'}/upload/profile`, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://api.example.com/upload'}/upload`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -158,7 +158,7 @@ export default function ProfileSetupScreen() {
         }}
         className="flex-1"
       >
-        {/* Header */}
+        
         <View 
           className="flex-row items-center justify-between px-4 py-4"
           style={{ minHeight: screenHeight * 0.02 }}
@@ -183,7 +183,7 @@ export default function ProfileSetupScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {/* Profile Picture Section */}
+          
           <View className="items-center mb-8">
             <TouchableOpacity 
               onPress={pickImage}
@@ -235,7 +235,7 @@ export default function ProfileSetupScreen() {
             )}
           </View>
 
-          {/* Full Name Input */}
+          
           <View 
             className="flex-row items-center mb-4"
             style={{ minHeight: screenHeight * 0.06 }}
@@ -268,7 +268,7 @@ export default function ProfileSetupScreen() {
             </View>
           </View>
 
-          {/* Home Address Input */}
+          
           <View 
             className="flex-row items-center mb-4"
             style={{ minHeight: screenHeight * 0.06 }}
@@ -302,7 +302,7 @@ export default function ProfileSetupScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Location Input */}
+          
           <View 
             className="bg-gray-100 rounded-xl px-4 py-3 mb-6"
             style={{ minHeight: screenHeight * 0.06 }}
@@ -320,7 +320,7 @@ export default function ProfileSetupScreen() {
             />
           </View>
 
-          {/* Gender Selection */}
+          
           <View className="mb-6">
             <Text 
               className="text-black text-base mb-3"
@@ -379,7 +379,7 @@ export default function ProfileSetupScreen() {
             </View>
           </View>
 
-          {/* Description Input */}
+          
           <View className="mb-8">
             <TextInput
               placeholder="Description"
@@ -399,7 +399,7 @@ export default function ProfileSetupScreen() {
           </View>
         </ScrollView>
 
-        {/* Save Button */}
+        
         <View 
           className="px-4 pb-4"
           style={{ minHeight: screenHeight * 0.08 }}

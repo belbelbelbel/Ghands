@@ -19,7 +19,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
-    // Basic validation
     if (!email.trim() || !password.trim()) {
       showError('Please fill in all required fields');
       return;
@@ -43,27 +42,22 @@ export default function LoginScreen() {
   };
 
   const handleSignup = () => {
-    // Navigate to signup screen
     router.push('/SignupScreen');
   };
 
   const handleGoogleLogin = () => {
-    // Handle Google login
   };
 
   const handleFacebookLogin = () => {
-    // Handle Facebook login
   };
 
   return (
     <SafeAreaWrapper>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
-        {/* Title */}
         <Text className="text-3xl font-bold text-black mb-8" style={{
              fontFamily: 'Poppins-ExtraBold',
         }}>Login</Text>
 
-        {/* Company Email Input */}
         <InputField
           placeholder="Company email"
           icon={<Mail size={20} color={'white'}/>}
@@ -73,7 +67,6 @@ export default function LoginScreen() {
           iconPosition="left"
         />
 
-        {/* Password Input */}
         <InputField
           placeholder="Password"
           icon={<Lock size={20} color={'white'}/>}
@@ -83,7 +76,6 @@ export default function LoginScreen() {
           iconPosition="right"
         />
 
-        {/* Forgot Password Link */}
         <View className="items-end mb-4">
           <TouchableOpacity onPress={() => router.push('/ResetPassword')} activeOpacity={0.7}>
             <Text className="text-[#6A9B00] font-bold text-base" style={{ fontFamily: 'Poppins-Bold' }}>
@@ -92,12 +84,10 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Login Button */}
         <View className="mt-4">
           <AuthButton title="Login" onPress={handleLogin} />
         </View>
 
-        {/* Signup Link */}
         <View className="items-center mb-8">
           <TouchableOpacity onPress={handleSignup} activeOpacity={0.7}>
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
@@ -107,14 +97,12 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Divider */}
         <View className="flex-row items-center mb-8">
           <View className="flex-1 h-px bg-gray-300" />
           <Text className="mx-4 text-gray-500 text-base" style={{ fontFamily: 'Poppins-Medium' }}>or</Text>
           <View className="flex-1 h-px bg-gray-300" />
         </View>
 
-        {/* Social Buttons */}
         <SocialButton
           title="Continue with Google"
           icon={

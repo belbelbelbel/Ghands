@@ -10,7 +10,6 @@ import { InputField } from '../components/InputField';
 import { useProfile, useUpdateProfile } from '../hooks/useProfile';
 import { ProfileFormData, profileFormSchema } from '../lib/validation';
 
-// Mock user ID - In production, get from auth context/store
 const MOCK_USER_ID = 'user-123';
 
 export default function EditProfileScreen() {
@@ -18,13 +17,10 @@ export default function EditProfileScreen() {
   const [profileImageUri, setProfileImageUri] = useState<string | undefined>();
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  // Fetch user profile
   const { data: profile, isLoading: isLoadingProfile } = useProfile(MOCK_USER_ID);
   
-  // Update profile mutation
   const updateProfileMutation = useUpdateProfile();
 
-  // Form setup with validation
   const {
     control,
     handleSubmit,
@@ -45,7 +41,6 @@ export default function EditProfileScreen() {
   const email = watch('email');
   const phone = watch('phone');
 
-  // Load profile data into form
   useEffect(() => {
     if (profile) {
       setValue('name', profile.name);
@@ -57,7 +52,6 @@ export default function EditProfileScreen() {
     }
   }, [profile, setValue]);
 
-  // Handle form submission
   const onSubmit = async (data: ProfileFormData) => {
     try {
       await updateProfileMutation.mutateAsync({
@@ -163,7 +157,7 @@ export default function EditProfileScreen() {
         type,
       } as any);
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://api.ghands.com'}/upload/profile`, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://api.example.com/upload'}/upload`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -217,7 +211,7 @@ export default function EditProfileScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
         <View className="px-6 pt-8">
-          {/* Profile Picture */}
+          
           <View className="items-center mb-8">
             <View className="relative">
               <View className="w-32 h-32 bg-white rounded-full items-center justify-center border-2 border-black overflow-hidden">
@@ -242,7 +236,7 @@ export default function EditProfileScreen() {
             </View>
           </View>
 
-          {/* Form Fields */}
+          
           <View className="space-y-4">
             <View>
               <InputField
@@ -290,7 +284,7 @@ export default function EditProfileScreen() {
             </View>
           </View>
 
-          {/* Save Button */}
+          
           <TouchableOpacity
             className={`rounded-xl py-4 px-6 mt-6 items-center ${
               isSaveDisabled ? 'bg-gray-400' : 'bg-black'
@@ -312,7 +306,7 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Bottom Spacer */}
+        
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaWrapper>

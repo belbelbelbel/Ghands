@@ -251,14 +251,14 @@ export default function ProviderJobsScreen() {
   return (
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
       <View style={{ flex: 1 }}>
-        {/* Header */}
+        
         <View style={{ ...CommonStyles.container, paddingTop: Spacing.md + 1 }}>
           <Text style={{ ...Fonts.h2, color: Colors.textPrimary, textAlign: 'center' }}>
             Job History
           </Text>
         </View>
 
-        {/* Tabs */}
+        
         <View
           style={{
             flexDirection: 'row',
@@ -292,7 +292,7 @@ export default function ProviderJobsScreen() {
           ))}
         </View>
 
-        {/* Job List */}
+        
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{

@@ -1,4 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { BorderRadius, Colors, Fonts, Spacing } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { Bell, BookOpen, Camera, ChevronRight, FileText, HelpCircle, LogOut, MapPin, Trash2, User } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
@@ -42,60 +43,111 @@ const ProfileScreen = () => {
   };
 
   return (
-    <SafeAreaWrapper backgroundColor="#F9FAFB">
-      <Animated.View style={[animatedStyles, { flex: 1, paddingTop: 20 }]}>
-        <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mx-3">
-          {/* Profile Banner */}
-          <View className="bg-[#8BC34A] rounded-3xl px-6 py-8 pt-12 mb-6">
-            {/* Profile Picture */}
-            <View className="items-center mb-4">
-              <View className="relative">
-                <View className="w-32 h-32 bg-gray-200 rounded-full items-center justify-center border-4 border-white">
-                  <User size={60} color="#6A9B00" />
+    <SafeAreaWrapper backgroundColor={Colors.borderLight}>
+      <Animated.View style={[animatedStyles, { flex: 1, paddingTop: Spacing.xl }]}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={{ paddingBottom: Spacing.huge }}
+          style={{ flex: 1, marginHorizontal: Spacing.sm + 1 }}
+        >
+          <View style={{
+            backgroundColor: Colors.accent,
+            borderRadius: BorderRadius.xl + 4,
+            paddingHorizontal: Spacing.lg + 2,
+            paddingTop: Spacing.xxxl,
+            paddingBottom: Spacing.lg,
+            marginBottom: Spacing.lg + 2,
+          }}>
+            <View style={{ alignItems: 'center', marginBottom: Spacing.xs + 4 }}>
+              <View style={{ position: 'relative' }}>
+                <View style={{
+                  width: 128,
+                  height: 128,
+                  backgroundColor: Colors.border,
+                  borderRadius: 64,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 4,
+                  borderColor: Colors.white,
+                }}>
+                  <User size={60} color={Colors.accent} />
                 </View>
-                <TouchableOpacity className="absolute bottom-0 right-0 bg-white rounded-full p-2">
-                  <Camera size={20} color="#6A9B00" />
+                <TouchableOpacity style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  backgroundColor: Colors.white,
+                  borderRadius: 16,
+                  padding: Spacing.xs + 2,
+                }}>
+                  <Camera size={20} color={Colors.accent} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* User Info */}
-            <View className="items-center mb-6">
+            <View style={{ alignItems: 'center', marginBottom: Spacing.lg + 2 }}>
               <Text 
-                className="text-3xl font-bold text-white mb-2" 
-                style={{ fontFamily: 'Poppins-Bold' }}
+                style={{
+                  ...Fonts.h1,
+                  fontSize: 28,
+                  color: Colors.white,
+                  marginBottom: Spacing.xs + 2,
+                }}
               >
                 Sarah Johnson
               </Text>
               <Text 
-                className="text-base text-white/90" 
-                style={{ fontFamily: 'Poppins-Medium' }}
+                style={{
+                  ...Fonts.body,
+                  color: Colors.white,
+                  opacity: 0.9,
+                }}
               >
                 Individual Client
               </Text>
             </View>
 
-            {/* View Job History Button */}
-            <TouchableOpacity className="bg-white rounded-xl py-4 px-6 flex-row items-center justify-center">
+            <TouchableOpacity style={{
+              backgroundColor: Colors.white,
+              borderRadius: BorderRadius.default,
+              paddingVertical: Spacing.md,
+              paddingHorizontal: Spacing.lg + 2,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
               <Text 
-                className="text-black text-lg font-semibold mr-2" 
-                style={{ fontFamily: 'Poppins-SemiBold' }}
+                style={{
+                  ...Fonts.button,
+                  fontSize: 16,
+                  color: Colors.textPrimary,
+                  marginRight: Spacing.xs + 2,
+                }}
               >
                 View Job History
               </Text>
-              <ChevronRight size={20} color="#000" />
+              <ChevronRight size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
           </View>
 
-          {/* Profile Options */}
-          <View className="px-4 mb-6">
+          <View style={{ paddingHorizontal: Spacing.xs + 4, marginBottom: Spacing.lg + 2 }}>
             {profileOptions.map((option, index) => {
               const IconComponent = option.icon;
               return (
                 <TouchableOpacity
                   key={option.id}
                   onPress={() => handleOptionPress(option.id)}
-                  className="bg-white rounded-2xl px-4 py-6 mb-3 flex-row items-center border-gray-200 border-[1px]"
+                  style={{
+                    backgroundColor: Colors.backgroundLight,
+                    borderRadius: BorderRadius.lg,
+                    paddingHorizontal: Spacing.xs + 4,
+                    paddingVertical: Spacing.lg + 2,
+                    marginBottom: Spacing.sm + 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: Colors.border,
+                  }}
                   activeOpacity={0.7}
                 >
                   <View 
@@ -103,57 +155,94 @@ const ProfileScreen = () => {
                       width: 44, 
                       height: 44, 
                       borderRadius: 22, 
-                      backgroundColor: option.iconColor === '#6A9B00' ? '#EEFFD9' : '#F5F5F5',
+                      backgroundColor: option.iconColor === Colors.accent ? '#EEFFD9' : Colors.backgroundGray,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginRight: 16
+                      marginRight: Spacing.lg,
                     }}
                   >
                     <IconComponent size={22} color={option.iconColor} />
                   </View>
                   
-                  <View className="flex-1">
+                  <View style={{ flex: 1 }}>
                     <Text 
-                      className="text-base font-bold text-black mb-1" 
-                      style={{ fontFamily: 'Poppins-Bold' }}
+                      style={{
+                        ...Fonts.body,
+                        fontFamily: 'Poppins-Bold',
+                        color: Colors.textPrimary,
+                        marginBottom: 4,
+                      }}
                     >
                       {option.title}
                     </Text>
                     <Text 
-                      className={`text-sm ${option.subtitle.includes('Identity Verified') ? 'text-[#6A9B00]' : 'text-gray-500'}`} 
-                      style={{ fontFamily: 'Poppins-Medium' }}
+                      style={{
+                        ...Fonts.bodySmall,
+                        color: option.subtitle.includes('Identity Verified') ? Colors.accent : Colors.textSecondaryDark,
+                        fontFamily: 'Poppins-Medium',
+                      }}
                     >
                       {option.subtitle}
                     </Text>
                   </View>
 
-                  <ChevronRight size={24} color="#666" />
+                  <ChevronRight size={24} color={Colors.textSecondaryDark} />
                 </TouchableOpacity>
               );
             })}
           </View>
-          <View className="px-4 mb-6">
+          <View style={{ paddingHorizontal: Spacing.xs + 4, marginBottom: Spacing.lg + 2 }}>
             <TouchableOpacity
-              className="bg-red-50 rounded-2xl px-4 py-4 mb-3 flex-row items-center justify-center border border-red-200"
+              style={{
+                backgroundColor: Colors.errorLight,
+                borderRadius: BorderRadius.lg,
+                paddingHorizontal: Spacing.xs + 4,
+                paddingVertical: Spacing.md,
+                marginBottom: Spacing.sm + 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: Colors.errorBorder,
+              }}
               onPress={async () => {
                 await logout();
                 router.replace('/onboarding');
               }}
               activeOpacity={0.8}
             >
-              <LogOut size={20} color="#EF4444" />
+              <LogOut size={20} color={Colors.error} />
               <Text 
-                className="text-red-600 text-base font-semibold ml-2" 
-                style={{ fontFamily: 'Poppins-SemiBold' }}
+                style={{
+                  ...Fonts.body,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.error,
+                  marginLeft: Spacing.xs + 2,
+                }}
               >
                 Sign Out
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity className="bg-white rounded-2xl px-4 py-4 mb-3 flex-row items-center justify-center border border-gray-200">
-              <Trash2 size={20} color="#666" />
+            <TouchableOpacity style={{
+              backgroundColor: Colors.backgroundLight,
+              borderRadius: BorderRadius.lg,
+              paddingHorizontal: Spacing.xs + 4,
+              paddingVertical: Spacing.xs + 4,
+              marginBottom: Spacing.sm + 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: Colors.border,
+            }}>
+              <Trash2 size={20} color={Colors.textSecondaryDark} />
               <Text 
-                className="text-gray-600 text-base font-semibold ml-2" 
-                style={{ fontFamily: 'Poppins-SemiBold' }}
+                style={{
+                  ...Fonts.body,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.textSecondaryDark,
+                  marginLeft: Spacing.xs + 2,
+                }}
               >
                 Delete Account
               </Text>

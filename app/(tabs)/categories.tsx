@@ -111,11 +111,8 @@ export default function CategoryPage() {
     );
   }, [searchQuery, categoryArrays]);
 
-  // Track if we're coming from navigation vs tab
   useFocusEffect(
     React.useCallback(() => {
-      // When screen comes into focus, check if we have searchQuery param
-      // If not, we're coming from tab navigation, so clear the flag
       if (!params.searchQuery && !params.selectedCategoryId) {
         setHasNavigatedFromHome(false);
         setSearchQuery('');
@@ -172,7 +169,6 @@ export default function CategoryPage() {
       }, 300);
       return () => clearTimeout(scrollTimer);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.selectedCategoryId]);
 
   const searchBarStyle = useMemo(() => ({ height: 50 }), []);

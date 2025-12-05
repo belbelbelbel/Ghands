@@ -1,5 +1,5 @@
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
-import { Ionicons } from '@expo/vector-icons';
+import { Colors, Fonts, Spacing, BorderRadius } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { Clock } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
@@ -66,34 +66,44 @@ export default function ProviderOtpScreen() {
 
   return (
     <SafeAreaWrapper>
-      <View style={{ paddingTop: 20, paddingHorizontal: 20 }}>
-        <TouchableOpacity onPress={() => router.back()} className="mb-6">
-          <Ionicons name="arrow-back" size={22} color="#000" />
-        </TouchableOpacity>
-      </View>
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-        <Text className="text-3xl font-bold text-black mb-4" style={{
-          fontFamily: 'Poppins-ExtraBold',
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: Spacing.xl, paddingVertical: 40 }}>
+        <Text style={{
+          ...Fonts.h1,
+          fontSize: 28,
+          color: Colors.textPrimary,
+          marginBottom: Spacing.xs,
         }}>Verify Phone Number</Text>
 
-        <Text className="text-base text-black mb-2" style={{
-          fontFamily: 'Poppins-Medium',
+        <Text style={{
+          ...Fonts.body,
+          color: Colors.textPrimary,
+          marginBottom: 2,
         }}>
           OTP Code has been sent to
         </Text>
-        <Text className="text-base font-bold text-black mb-8" style={{
+        <Text style={{
+          ...Fonts.body,
           fontFamily: 'Poppins-Bold',
+          color: Colors.textPrimary,
+          marginBottom: Spacing.lg,
         }}>
           +234 912 012 4567
         </Text>
 
-        <View className="flex-row justify-between mb-6 px-4">
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.lg + 2, paddingHorizontal: Spacing.xs + 4 }}>
           {otp.map((digit, index) => (
             <View 
               key={index} 
-              className={`w-14 h-14 rounded-xl border items-center justify-center ${
-                digit ? 'bg-[#6A9B00] border-[#6A9B00]' : 'bg-white border-gray-300'
-              }`}
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: BorderRadius.default,
+                borderWidth: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: digit ? Colors.accent : Colors.backgroundLight,
+                borderColor: digit ? Colors.accent : Colors.border,
+              }}
             >
               <TextInput
                 ref={(ref) => {
@@ -104,12 +114,14 @@ export default function ProviderOtpScreen() {
                 onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
                 keyboardType="numeric"
                 maxLength={1}
-                className="text-xl font-bold text-center w-full"
                 style={{
+                  fontSize: 20,
                   fontFamily: 'Poppins-Bold',
-                  color: digit ? '#FFFFFF' : '#000000',
+                  color: digit ? Colors.white : Colors.textPrimary,
+                  textAlign: 'center',
+                  width: '100%',
                 }}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.tabInactive}
                 selectTextOnFocus
                 autoFocus={index === 0}
               />
@@ -117,18 +129,18 @@ export default function ProviderOtpScreen() {
           ))}
         </View>
 
-        <View className="flex-row items-center justify-center mb-4">
-          <Clock size={16} color="#EF4444" />
-          <Text className="text-red-500 text-sm ml-2" style={{ fontFamily: 'Poppins-Medium' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs + 4 }}>
+          <Clock size={16} color={Colors.error} />
+          <Text style={{ ...Fonts.bodySmall, color: Colors.error, marginLeft: Spacing.xs + 2, fontFamily: 'Poppins-Medium' }}>
             {String(Math.floor(resendTimer / 60)).padStart(2, '0')}:{String(resendTimer % 60).padStart(2, '0')}
           </Text>
         </View>
 
-        <Text className="text-base text-black text-center mb-2" style={{ fontFamily: 'Poppins-Medium' }}>
+        <Text style={{ ...Fonts.body, color: Colors.textPrimary, textAlign: 'center', marginBottom: 2 }}>
           Didn't get the code?
         </Text>
         <TouchableOpacity onPress={handleResendCode} disabled={!canResend} activeOpacity={0.7}>
-          <Text className="text-[#6A9B00] text-base font-bold text-center mb-8" style={{ fontFamily: 'Poppins-Bold' }}>
+          <Text style={{ ...Fonts.body, fontFamily: 'Poppins-Bold', color: Colors.accent, textAlign: 'center', marginBottom: Spacing.lg }}>
             Resend OTP
           </Text>
         </TouchableOpacity>
@@ -136,16 +148,23 @@ export default function ProviderOtpScreen() {
         <TouchableOpacity
           onPress={handleConfirm}
           disabled={!isCodeComplete}
-          className={`rounded-xl py-4 px-6 ${
-            isCodeComplete ? 'bg-[#6A9B00]' : 'bg-gray-300'
-          }`}
+          style={{
+            borderRadius: BorderRadius.default,
+            paddingVertical: Spacing.md,
+            paddingHorizontal: Spacing.lg + 2,
+            backgroundColor: isCodeComplete ? Colors.accent : Colors.borderLight,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
           activeOpacity={0.8}
         >
           <Text 
-            className={`text-center text-lg font-semibold ${
-              isCodeComplete ? 'text-white' : 'text-gray-500'
-            }`}
-            style={{ fontFamily: 'Poppins-SemiBold' }}
+            style={{
+              ...Fonts.button,
+              fontSize: 16,
+              color: isCodeComplete ? Colors.textPrimary : Colors.textTertiary,
+              textAlign: 'center',
+            }}
           >
             Confirm
           </Text>

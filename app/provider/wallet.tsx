@@ -1,4 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { BorderRadius, Colors, CommonStyles, Fonts, Spacing } from '@/lib/designSystem';
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
@@ -10,63 +11,48 @@ const TRANSACTIONS = [
 
 export default function ProviderWalletScreen() {
   return (
-    <SafeAreaWrapper backgroundColor="#FFFFFF">
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
       <ScrollView
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 17,
+          ...CommonStyles.container,
           paddingBottom: 48,
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Text
-          style={{
-            fontSize: 20,
-            fontFamily: 'Poppins-Bold',
-            color: '#000000',
-            marginBottom: 12,
-          }}
-        >
+        <Text style={{ ...Fonts.h2, color: Colors.textPrimary, marginBottom: Spacing.md }}>
           Wallet
         </Text>
 
         <View
           style={{
-            borderRadius: 16,
-            backgroundColor: '#000000',
-            padding: 20,
-            marginBottom: 20,
+            borderRadius: BorderRadius.lg,
+            backgroundColor: Colors.black,
+            padding: Spacing.xl,
+            marginBottom: Spacing.xl,
           }}
         >
-          <Text style={{ color: '#F9FAFB', fontFamily: 'Poppins-Regular', fontSize: 12 }}>Available balance</Text>
-          <Text style={{ color: '#6A9B00', fontFamily: 'Poppins-Bold', fontSize: 28, marginVertical: 8 }}>
+          <Text style={{ ...Fonts.bodySmall, color: Colors.softWarm }}>Available balance</Text>
+          <Text style={{ ...Fonts.h1, fontSize: 28, color: Colors.accent, marginVertical: Spacing.sm }}>
             ₦142,300
           </Text>
-          <Text style={{ color: '#999999', fontFamily: 'Poppins-Medium', fontSize: 12 }}>
+          <Text style={{ ...Fonts.bodySmall, color: Colors.textTertiary, fontFamily: 'Poppins-Medium' }}>
             Next payout · Sep 28, 10:00 AM
           </Text>
         </View>
 
-        <Text style={{ fontFamily: 'Poppins-SemiBold', fontSize: 14, color: '#000000', marginBottom: 10 }}>
+        <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: Spacing.sm + 2 }}>
           Recent activity
         </Text>
         {TRANSACTIONS.map((tx) => (
           <View
             key={tx.id}
-            style={{
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: '#E5E7EB',
-              backgroundColor: '#fff',
-              padding: 12,
-              marginBottom: 10,
-            }}
+            style={CommonStyles.card}
           >
-            <Text style={{ fontFamily: 'Poppins-SemiBold', fontSize: 13, color: '#000000' }}>{tx.label}</Text>
-            <Text style={{ fontFamily: 'Poppins-Medium', fontSize: 14, color: '#000000', marginVertical: 4 }}>
+            <Text style={{ ...Fonts.bodyMedium, fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>{tx.label}</Text>
+            <Text style={{ ...Fonts.bodyMedium, fontSize: 14, color: Colors.textPrimary, marginVertical: Spacing.xs }}>
               {tx.amount}
             </Text>
-            <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 11, color: '#666666' }}>{tx.time}</Text>
+            <Text style={{ ...Fonts.bodyTiny, color: Colors.textSecondaryDark }}>{tx.time}</Text>
           </View>
         ))}
       </ScrollView>

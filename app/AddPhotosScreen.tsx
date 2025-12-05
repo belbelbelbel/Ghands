@@ -122,7 +122,6 @@ export default function AddPhotosScreen() {
     const hasPermission = await requestPermissions();
     if (!hasPermission) return;
 
-    // For now, directly open gallery. In a full implementation, you'd show a bottom sheet
     handleOpenGallery();
   }, [requestPermissions, handleOpenGallery]);
 
@@ -181,7 +180,6 @@ export default function AddPhotosScreen() {
       showError('Please select at least one photo to continue');
       return;
     }
-    // Show confirmation modal with date/time
     setShowConfirmModal(true);
   }, [isFindingProviders, selectedPhotos, showError]);
 
@@ -378,7 +376,7 @@ export default function AddPhotosScreen() {
         </View>
       </Animated.View>
 
-      {/* Confirmation Modal - Date/Time & Photos */}
+      
       <Modal
         transparent
         visible={showConfirmModal}
@@ -398,7 +396,7 @@ export default function AddPhotosScreen() {
                 Confirm Details
               </Text>
               
-              {/* Date/Time Display */}
+              
               {params.selectedDateTime && (
                 <View className="w-full mb-4">
                   <View className="bg-gray-50 rounded-xl px-4 py-3 mb-3">
@@ -410,7 +408,7 @@ export default function AddPhotosScreen() {
                     </Text>
                   </View>
                   
-                  {/* Photos Preview */}
+                  
                   <View className="bg-gray-50 rounded-xl px-4 py-3">
                     <Text className="text-xs text-gray-500 mb-2" style={{ fontFamily: 'Poppins-Medium' }}>
                       Selected Photos
@@ -468,7 +466,7 @@ export default function AddPhotosScreen() {
         </View>
       </Modal>
 
-      {/* Finding Providers Modal */}
+      
       <Modal transparent visible={isFindingProviders} animationType="fade">
         <View className="flex-1 bg-black/45 items-center justify-center px-6">
           <View className="w-full max-w-sm rounded-3xl bg-white px-6 py-8 items-center shadow-[0px_24px_48px_rgba(15,23,42,0.2)]">

@@ -38,11 +38,9 @@ export default function ProviderSignInScreen() {
   };
 
   const handleGoogleLogin = () => {
-    // Handle Google login
   };
 
   const handleFacebookLogin = () => {
-    // Handle Facebook login
   };
 
   return (

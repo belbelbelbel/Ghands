@@ -127,7 +127,6 @@ export default function AddCardDetailsScreen() {
   const handleSave = () => {
     if (isFormValid()) {
       router.back();
-      // Handle save card logic
     }
   };
 
@@ -157,7 +156,7 @@ export default function AddCardDetailsScreen() {
           contentContainerStyle={{ paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Card Number */}
+          
           <View className="mb-6">
             <Text 
               className="text-sm text-gray-700 mb-2" 
@@ -200,7 +199,7 @@ export default function AddCardDetailsScreen() {
             )}
           </View>
 
-          {/* Expiration and CVC Row */}
+          
           <View className="flex-row mb-6" style={{ gap: 12 }}>
             <View className="flex-1">
               <Text 
@@ -254,7 +253,7 @@ export default function AddCardDetailsScreen() {
             </View>
           </View>
 
-          {/* Zip Code */}
+          
           <View className="mb-8">
             <Text 
               className="text-sm text-gray-700 mb-2" 
@@ -276,7 +275,7 @@ export default function AddCardDetailsScreen() {
             />
           </View>
 
-          {/* Save Button */}
+          
           <TouchableOpacity
             onPress={handleSave}
             disabled={!isFormValid()}

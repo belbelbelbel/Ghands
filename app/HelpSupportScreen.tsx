@@ -20,7 +20,7 @@ const helpOptions = [
     subtitle: 'How it works',
     icon: HelpCircle,
     iconBgColor: '#F5F5F5',
-    route: null,
+    route: null, // Placeholder for later
   },
 ];
 
@@ -31,16 +31,17 @@ export default function HelpSupportScreen() {
     if (route) {
       router.push(route as any);
     } else {
+      // Navigate to User Guide
       router.push('/UserGuideScreen' as any);
     }
   };
 
   return (
     <SafeAreaWrapper>
-      
+      {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
-          <Ionicons name="arrow-back" size={22} color="#000000" />
+          <Ionicons name="arrow-back" size={24} color="#000000" />
         </TouchableOpacity>
         <Text className="text-xl font-bold text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
           Help & Support
@@ -48,7 +49,7 @@ export default function HelpSupportScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      
+      {/* Content */}
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
         <View className="px-4 pt-6">
           {helpOptions.map((option) => {

@@ -47,9 +47,11 @@ export default function ProviderSignUpScreen() {
   };
 
   const handleGoogleSignup = () => {
+    // Handle Google signup
   };
 
   const handleFacebookSignup = () => {
+    // Handle Facebook signup
   };
 
   return (
@@ -68,8 +70,8 @@ export default function ProviderSignUpScreen() {
           iconPosition="left"
         />
 
-        <View className="bg-gray-100 border-[0pc] rounded-xl mb-4 px-4 py-3 flex-row items-center">
-          <View className="w-12 h-12 mr-4 bg-[#6A9B00] border-blackx rounded-xl items-center justify-center">
+        <View className="bg-gray-100 border-0 rounded-xl mb-4 px-4 py-3 flex-row items-center">
+          <View className="w-12 h-12 mr-4 bg-[#6A9B00] border-black rounded-xl items-center justify-center">
             <Text className="text-white text-sm font-bold" style={{ fontFamily: 'Poppins-Bold' }}>+234</Text>
           </View>
           <TextInput
@@ -81,7 +83,7 @@ export default function ProviderSignUpScreen() {
             placeholderTextColor="#666666"
             style={{ fontFamily: 'Poppins-Medium' }}
           />
-          <View className="w-12 h-12 ml-4 bg-[#6A9B00] r border-blsack rounded-xl items-center justify-center">
+          <View className="w-12 h-12 ml-4 bg-[#6A9B00] border-black rounded-xl items-center justify-center">
             <Phone size={20} color="white" />
           </View>
         </View>

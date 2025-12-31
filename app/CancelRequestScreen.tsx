@@ -2,6 +2,8 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import React, { useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Button } from '@/components/ui/Button';
+import { Colors, Spacing } from '@/lib/designSystem';
 
 const REASONS = [
   'Service Unavailable',
@@ -21,16 +23,44 @@ export default function CancelRequestScreen() {
 
   return (
     <SafeAreaWrapper>
-      <ScrollView className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 40 }}>
-        <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-xl text-black" style={{ fontFamily: 'Poppins-Bold' }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 16,
+          paddingBottom: 40,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 16,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.textPrimary,
+            }}
+          >
             Why did you cancel?
           </Text>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text className="text-2xl">×</Text>
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+            <Text style={{ fontSize: 24, color: Colors.textPrimary }}>×</Text>
           </TouchableOpacity>
         </View>
-        <Text className="text-sm text-gray-500 mb-6" style={{ fontFamily: 'Poppins-Regular' }}>
+        <Text
+          style={{
+            fontSize: 14,
+            fontFamily: 'Poppins-Regular',
+            color: Colors.textSecondaryDark,
+            marginBottom: 24,
+          }}
+        >
           Help us improve by sharing your reason
         </Text>
 
@@ -64,25 +94,23 @@ export default function CancelRequestScreen() {
           />
         )}
 
-        <TouchableOpacity
-          onPress={handleSubmit}
-          activeOpacity={0.85}
-          className="bg-black rounded-xl py-4 items-center justify-center mb-4"
-        >
-          <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
-            Submit
-          </Text>
-        </TouchableOpacity>
+        <View style={{ marginBottom: 16 }}>
+          <Button
+            title="Submit"
+            onPress={handleSubmit}
+            variant="secondary"
+            size="large"
+            fullWidth
+          />
+        </View>
 
-        <TouchableOpacity
+        <Button
+          title="Back"
           onPress={() => router.back()}
-          activeOpacity={0.85}
-          className="bg-gray-100 rounded-xl py-4 items-center justify-center"
-        >
-          <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
-            Back
-          </Text>
-        </TouchableOpacity>
+          variant="ghost"
+          size="large"
+          fullWidth
+        />
 
         <Text className="text-xs text-center text-gray-400 mt-4" style={{ fontFamily: 'Poppins-Regular' }}>
           Your feedback is anonymous

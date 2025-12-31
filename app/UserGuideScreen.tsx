@@ -558,6 +558,7 @@ export default function UserGuideScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const arrowAnims = useRef<{ [key: string]: Animated.Value }>({});
 
+  // Initialize arrow animations
   GUIDE_STEPS.forEach((step) => {
     step.highlights.forEach((highlight, index) => {
       const key = `${step.id}-${index}`;
@@ -568,6 +569,7 @@ export default function UserGuideScreen() {
   });
 
   useEffect(() => {
+    // Animate arrows when step changes
     GUIDE_STEPS[currentStep].highlights.forEach((_, index) => {
       const key = `${GUIDE_STEPS[currentStep].id}-${index}`;
       const anim = arrowAnims.current[key];
@@ -591,6 +593,7 @@ export default function UserGuideScreen() {
   }, [currentStep]);
 
   useEffect(() => {
+    // Fade and slide animation when step changes
     fadeAnim.setValue(0);
     slideAnim.setValue(30);
     Animated.parallel([
@@ -620,6 +623,7 @@ export default function UserGuideScreen() {
   };
 
   const handleBackToTop = () => {
+    // No longer needed since we removed ScrollView
   };
 
   const renderAnimatedArrow = (direction: 'left' | 'right' | 'up' | 'down', animValue: Animated.Value) => {
@@ -658,10 +662,10 @@ export default function UserGuideScreen() {
 
   return (
     <SafeAreaWrapper>
-      
+      {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
-          <Ionicons name="arrow-back" size={22} color="#000000" />
+          <Ionicons name="arrow-back" size={24} color="#000000" />
         </TouchableOpacity>
         <Text className="text-xl font-bold text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
           User Guide
@@ -677,7 +681,7 @@ export default function UserGuideScreen() {
           }}
           className="px-4 pt-3 flex-1"
         >
-          
+          {/* Step Number and Title */}
           <View className="flex-row items-center mb-2">
             <View className="w-8 h-8 rounded-full bg-black items-center justify-center mr-2">
               <Text className="text-white text-sm" style={{ fontFamily: 'Poppins-Bold' }}>
@@ -689,11 +693,11 @@ export default function UserGuideScreen() {
             </Text>
           </View>
 
-          
+          {/* Phone Mockup Container */}
           <View className="items-center mb-2" style={{ height: SCREEN_WIDTH * 0.5 }}>
             <View className="bg-gray-900 rounded-[30px] p-1.5 shadow-lg" style={{ width: SCREEN_WIDTH * 0.5 }}>
               <View className="bg-white rounded-[24px] overflow-hidden" style={{ width: '100%', height: '100%' }}>
-                
+                {/* Phone Status Bar */}
                 <View className="flex-row items-center justify-between px-3 pt-1.5 pb-1">
                   <Text className="text-[8px] text-black" style={{ fontFamily: 'Poppins-Medium' }}>
                     9:41
@@ -708,11 +712,11 @@ export default function UserGuideScreen() {
                   </View>
                 </View>
 
-                
+                {/* Phone Content Area */}
                 <View className="flex-1 relative overflow-hidden">
                   {currentStepData.content}
 
-                  
+                  {/* Animated Arrows for Highlights */}
                   {currentStepData.highlights.map((highlight, index) => {
                     const key = `${currentStepData.id}-${index}`;
                     const anim = arrowAnims.current[key];
@@ -756,7 +760,7 @@ export default function UserGuideScreen() {
                   })}
                 </View>
 
-                
+                {/* Phone Bottom Navigation */}
                 <View className="flex-row items-center justify-between px-2 py-1 bg-white border-t border-gray-200">
                   <Ionicons name="home-outline" size={12} color="#9CA3AF" />
                   <Ionicons name="document-text-outline" size={12} color="#9CA3AF" />
@@ -770,14 +774,14 @@ export default function UserGuideScreen() {
             </View>
           </View>
 
-          
+          {/* Description */}
           <View className="mb-2 flex-1">
             <Text className="text-xs text-gray-700 leading-4" style={{ fontFamily: 'Poppins-Regular' }}>
               {currentStepData.description}
             </Text>
           </View>
 
-          
+          {/* Navigation Buttons */}
           <View className="flex-row items-center justify-between mb-2">
             <TouchableOpacity
               onPress={handlePrevious}
@@ -823,7 +827,7 @@ export default function UserGuideScreen() {
             </TouchableOpacity>
           </View>
 
-          
+          {/* Step Indicators */}
           <View className="flex-row items-center justify-center">
             {GUIDE_STEPS.map((step, index) => (
               <TouchableOpacity

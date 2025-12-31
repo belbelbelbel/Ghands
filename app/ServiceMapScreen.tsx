@@ -1,9 +1,11 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import ServiceMap, { ProviderCategory, ServiceProvider } from '@/components/ServiceMap';
+import { haptics } from '@/hooks/useHaptics';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Button } from '@/components/ui/Button';
 const MAX_SELECTION = 3;
 
 const SAMPLE_PROVIDERS: ServiceProvider[] = [
@@ -100,12 +102,15 @@ const ServiceMapScreen = () => {
       setSelectedProviders((prev) => {
         const exists = prev.find((item) => item.id === provider.id);
         if (exists) {
+          haptics.light();
           return prev.filter((item) => item.id !== provider.id);
         }
         if (prev.length >= MAX_SELECTION) {
+          haptics.warning();
           Alert.alert('Selection limit reached', `You can select up to ${MAX_SELECTION} providers.`);
           return prev;
         }
+        haptics.selection();
         return [...prev, provider];
       });
     },
@@ -143,15 +148,18 @@ const ServiceMapScreen = () => {
               </View>
             ))}
           </View>
-          <TouchableOpacity
-            onPress={() => router.push('../BookingConfirmationScreen' as any)}
-            activeOpacity={0.85}
-            className="bg-[#6A9B00] rounded-xl py-4 items-center justify-center"
-          >
-            <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
-              Confirm Booking
-            </Text>
-          </TouchableOpacity>
+          <Button
+            title="Confirm Booking"
+            onPress={() => {
+              haptics.success();
+              // Use replace so user can't simply back into the selection screen;
+              // they can manage the job from Jobs instead, like Uber/Bolt.
+              router.replace('../BookingConfirmationScreen' as any);
+            }}
+            variant="primary"
+            size="large"
+            fullWidth
+          />
         </View>
       )}
     </SafeAreaWrapper>

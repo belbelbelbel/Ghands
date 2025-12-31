@@ -1,4 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { Button } from '@/components/ui/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
@@ -46,6 +47,7 @@ export default function ChatScreen() {
 
   const handleSend = () => {
     if (message.trim()) {
+      // Handle send message
       setMessage('');
     }
   };
@@ -112,7 +114,7 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
 
-        
+        {/* Messages Area */}
         <FlatList
           ref={flatListRef}
           data={MOCK_MESSAGES}
@@ -123,22 +125,22 @@ export default function ChatScreen() {
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
 
-        
-        <View className="px-4 pb-3">
-          <TouchableOpacity
-            activeOpacity={0.85}
-            className="bg-[#3B82F6] rounded-xl py-4 px-4 flex-row items-center justify-center"
+        {/* View Quotation Button */}
+        <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+          <Button
+            title="View Quotation"
             onPress={() => {
+              // Navigate to quotation view
             }}
-          >
-            <Ionicons name="document-text-outline" size={20} color="white" style={{ marginRight: 8 }} />
-            <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
-              View Quotation
-            </Text>
-          </TouchableOpacity>
+            variant="primary"
+            size="medium"
+            fullWidth
+            icon={<Ionicons name="document-text-outline" size={20} color="white" />}
+            iconPosition="left"
+          />
         </View>
 
-        
+        {/* Input Field */}
         <View className="px-4 pb-4 pt-2 border-t border-gray-100">
           <View className="flex-row items-center bg-gray-100 rounded-2xl px-4 py-3">
             <TextInput

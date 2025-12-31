@@ -1,15 +1,16 @@
+import { AuthButton } from '@/components/AuthButton';
+import { InputField } from '@/components/InputField';
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { SocialButton } from '@/components/SocialButton';
+import Toast from '@/components/Toast';
+import { useAuthRole } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/useToast';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Lock, Mail } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { AuthButton } from '../components/AuthButton';
-import { InputField } from '../components/InputField';
-import SafeAreaWrapper from '../components/SafeAreaWrapper';
-import { SocialButton } from '../components/SocialButton';
-import Toast from '../components/Toast';
-import { useAuthRole } from '../hooks/useAuth';
-import { useToast } from '../hooks/useToast';
 
 
 export default function ProviderSignInScreen() {
@@ -38,14 +39,21 @@ export default function ProviderSignInScreen() {
   };
 
   const handleGoogleLogin = () => {
+    // Handle Google login
   };
 
   const handleFacebookLogin = () => {
+    // Handle Facebook login
   };
 
   return (
     <SafeAreaWrapper>
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
+      <View style={{ paddingTop: 20, paddingHorizontal: 20 }}>
+        <TouchableOpacity onPress={() => router.back()} className="mb-6">
+          <Ionicons name="arrow-back" size={22} color="#000" />
+        </TouchableOpacity>
+      </View>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
         <Text className="text-3xl font-bold text-black mb-8" style={{
           fontFamily: 'Poppins-ExtraBold',
         }}>Sign In</Text>

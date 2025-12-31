@@ -1,9 +1,11 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, CommonStyles, Fonts, Spacing } from '@/lib/designSystem';
+import AnimatedModal from '@/components/AnimatedModal';
+import AnimatedStatusChip from '@/components/AnimatedStatusChip';
+import { haptics } from '@/hooks/useHaptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 type JobStatus = 'Ongoing' | 'Completed' | 'Cancelled';
 
@@ -88,6 +90,7 @@ export default function JobsScreen() {
   }, [activeTab]);
 
   const handlePrimaryAction = (status: JobStatus) => {
+    haptics.selection();
     if (status === 'Ongoing') {
       router.push('/OngoingJobDetails');
     } else if (status === 'Completed') {
@@ -99,185 +102,126 @@ export default function JobsScreen() {
 
   return (
     <SafeAreaWrapper>
-      <View style={{ flex: 1, paddingHorizontal: Spacing.xs + 4, paddingTop: Spacing.xl }}>
-        <Text style={{
-          ...Fonts.h2,
-          fontSize: 24,
-          color: Colors.textPrimary,
-          marginBottom: Spacing.lg + 2,
-          textAlign: 'center',
-        }}>
+      <View className="flex-1 px-4" style={{ paddingTop: 20 }}>
+        <Text className="text-2xl text-black mb-6 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
           Jobs
         </Text>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: Spacing.xs + 4 }}>
+        <View className="flex flex-row justify-around mb-4">
           {(['Ongoing', 'Completed', 'Cancelled'] as JobStatus[]).map((status) => {
             const isActive = activeTab === status;
             return (
-              <TouchableOpacity key={status} onPress={() => setActiveTab(status)} activeOpacity={0.8}>
+              <TouchableOpacity
+                key={status}
+                onPress={() => {
+                  haptics.selection();
+                  setActiveTab(status);
+                }}
+                activeOpacity={0.8}
+              >
                 <Text
-                  style={{
-                    ...Fonts.body,
-                    fontFamily: 'Poppins-Medium',
-                    color: isActive ? Colors.textPrimary : Colors.textTertiary,
-                  }}
+                  className={`text-base ${isActive ? 'text-black' : 'text-gray-500'}`}
+                  style={{ fontFamily: 'Poppins-Medium' }}
                 >
                   {status}
                 </Text>
                 <View
-                  style={{
-                    marginTop: Spacing.xs + 2,
-                    height: 2,
-                    borderRadius: 1,
-                    width: 68,
-                    backgroundColor: isActive ? Colors.accent : 'transparent',
-                  }}
+                  className={`mt-2 h-0.5 rounded-full ${isActive ? 'bg-[#6A9B00]' : 'bg-transparent'}`}
+                  style={{ width: 68 }}
                 />
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
           {jobs.map((job) => (
             <View
               key={`${activeTab}-${job.id}`}
-              style={{
-                borderWidth: 1,
-                borderColor: Colors.border,
-                marginBottom: Spacing.lg + 2,
-                paddingHorizontal: Spacing.xl + 1,
-                paddingVertical: Spacing.xl + 1,
-                borderRadius: BorderRadius.lg,
-                backgroundColor: Colors.backgroundLight,
-                shadowColor: Colors.shadow,
-                shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.04,
-                shadowRadius: 18,
-                elevation: 2,
-              }}
+              className="border border-gray-200 mb-6 px-5 py-5 rounded-2xl shadow-[0px_6px_18px_rgba(15,23,42,0.04)]"
             >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm + 1 }}>
-                <View style={{ flex: 1, paddingRight: Spacing.sm + 1 }}>
-                  <Text style={{
-                    ...Fonts.h3,
-                    fontSize: 18,
-                    color: Colors.textPrimary,
-                    marginBottom: 4,
-                  }}>
+              <View className="flex-row justify-between mb-3">
+                <View className="flex-1 pr-3">
+                  <Text className="text-lg text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
                     {job.title}
                   </Text>
-                  <Text style={{
-                    ...Fonts.bodySmall,
-                    color: Colors.textSecondaryDark,
-                  }}>
+                  <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
                     {job.subtitle}
                   </Text>
                 </View>
-                <View
-                  style={{
-                    alignSelf: 'flex-start',
-                    paddingHorizontal: Spacing.sm + 1,
-                    paddingVertical: 4,
-                    borderRadius: BorderRadius.default,
-                    backgroundColor: activeTab === 'Ongoing'
-                      ? '#FEF3C7'
+                <AnimatedStatusChip
+                  status={job.status}
+                  statusColor={
+                    activeTab === 'Ongoing'
+                      ? '#FEF9C3'
                       : activeTab === 'Completed'
-                        ? Colors.successLight
-                        : Colors.backgroundGray,
-                  }}
-                >
-                  <Text style={{
-                    ...Fonts.bodyTiny,
-                    fontFamily: 'Poppins-Medium',
-                    color: Colors.textPrimary,
-                  }}>
-                    {job.status}
-                  </Text>
-                </View>
+                        ? '#DCFCE7'
+                        : '#F3F4F6'
+                  }
+                  textColor={
+                    activeTab === 'Ongoing'
+                      ? '#92400E'
+                      : activeTab === 'Completed'
+                        ? '#166534'
+                        : '#6B7280'
+                  }
+                  size="small"
+                  animated={true}
+                />
               </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm + 1, marginTop: Spacing.xs + 2 }}>
-                <Ionicons name="person-outline" size={16} color={Colors.textSecondaryDark} />
-                <Text style={{
-                  ...Fonts.bodySmall,
-                  color: Colors.textSecondaryDark,
-                }}>
+              <View className="flex-row items-center gap-3 mt-2">
+                <Ionicons name="person-outline" size={16} color="#4B5563" />
+                <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
                   {job.name}
                 </Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm + 1, marginTop: Spacing.xs + 2 }}>
-                <Ionicons name="calendar-outline" size={16} color={Colors.textSecondaryDark} />
-                <Text style={{
-                  ...Fonts.bodySmall,
-                  color: Colors.textSecondaryDark,
-                }}>
+              <View className="flex-row items-center gap-3 mt-2">
+                <Ionicons name="calendar-outline" size={16} color="#4B5563" />
+                <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
                   {job.time}
                 </Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm + 1, marginTop: Spacing.xs + 2 }}>
-                <Ionicons name="location-outline" size={16} color={Colors.textSecondaryDark} />
-                <Text style={{
-                  ...Fonts.bodySmall,
-                  color: Colors.textSecondaryDark,
-                }}>
+              <View className="flex-row items-center gap-3 mt-2">
+                <Ionicons name="location-outline" size={16} color="#4B5563" />
+                <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
                   {job.location}
                 </Text>
               </View>
 
               <View
-                style={{
-                  flexDirection: 'row',
-                  paddingTop: Spacing.xs + 4,
-                  justifyContent: activeTab === 'Ongoing' ? 'space-between' : 'center',
-                }}
+                className={`flex flex-row pt-4 ${activeTab === 'Ongoing' ? 'justify-between' : 'justify-center'}`}
               >
                 {activeTab === 'Ongoing' && (
                   <TouchableOpacity
-                    style={{
-                      backgroundColor: Colors.errorLight,
-                      borderWidth: 1,
-                      borderColor: Colors.error,
-                      paddingVertical: Spacing.xs + 2,
-                      paddingHorizontal: Spacing.xl + 1,
-                      borderRadius: BorderRadius.md,
-                    }}
+                    className="bg-red-50 border border-red-500 py-2 px-5 rounded-lg"
                     activeOpacity={0.85}
-                    onPress={() => setPendingCancelJob(job)}
+                    onPress={() => {
+                      haptics.warning();
+                      setPendingCancelJob(job);
+                    }}
                   >
-                    <Text style={{
-                      ...Fonts.bodySmall,
-                      fontFamily: 'Poppins-Medium',
-                      color: Colors.error,
-                    }}>
+                    <Text className="text-sm text-[#FF2C2C]" style={{ fontFamily: 'Poppins-Medium' }}>
                       Cancel Request
                     </Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  style={{
-                    paddingVertical: Spacing.sm + 1,
-                    paddingHorizontal: Spacing.lg + 2,
-                    borderRadius: BorderRadius.md,
-                    backgroundColor: activeTab === 'Ongoing'
-                      ? Colors.backgroundGray
+                  className={`py-3 px-6 rounded-lg ${
+                    activeTab === 'Ongoing'
+                      ? 'bg-gray-100'
                       : activeTab === 'Completed'
-                        ? Colors.accent
-                        : Colors.black,
-                    width: activeTab === 'Ongoing' ? undefined : '100%',
-                    flex: activeTab === 'Ongoing' ? 1 : undefined,
-                    marginLeft: activeTab === 'Ongoing' ? Spacing.sm + 1 : 0,
-                  }}
+                        ? 'bg-[#6A9B00] w-full'
+                        : 'bg-black w-full'
+                  }`}
                   activeOpacity={0.85}
                   onPress={() => handlePrimaryAction(activeTab)}
                 >
                   <Text
-                    style={{
-                      ...Fonts.bodySmall,
-                      fontFamily: 'Poppins-Medium',
-                      color: activeTab === 'Ongoing' ? Colors.textPrimary : Colors.white,
-                      textAlign: 'center',
-                    }}
+                    className={`text-sm  text-center ${
+                      activeTab === 'Ongoing' ? 'text-black' : 'text-white '
+                    }`}
+                    style={{ fontFamily: 'Poppins-Medium' }}
                   >
                     {activeTab === 'Ongoing'
                       ? 'Check Updates'
@@ -292,44 +236,53 @@ export default function JobsScreen() {
         </ScrollView>
       </View>
 
-      <Modal visible={!!pendingCancelJob} transparent animationType="fade" onRequestClose={() => setPendingCancelJob(null)}>
-        <View className="flex-1 bg-black/40 items-center justify-center px-6">
-          <View className="w-full max-w-sm rounded-2xl bg-white px-6 py-6 shadow-[0px_20px_45px_rgba(15,23,42,0.25)]">
-            <Text className="text-lg text-center text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
-              Cancel Request?
-            </Text>
-            <Text className="text-sm text-center text-gray-500 mb-5" style={{ fontFamily: 'Poppins-Regular' }}>
-              This action cannot be undone
-            </Text>
-            <View className="flex-row justify-between gap-3">
-              <TouchableOpacity
-                className="flex-1 bg-[#FF2C2C] py-3 rounded-xl items-center justify-center"
-                activeOpacity={0.85}
-                onPress={() => {
-                  const job = pendingCancelJob;
-                  setPendingCancelJob(null);
-                  if (job) {
-                    router.push('/CancelRequestScreen');
-                  }
-                }}
-              >
-                <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="flex-1 bg-gray-100 py-3 rounded-xl items-center justify-center"
-                activeOpacity={0.85}
-                onPress={() => setPendingCancelJob(null)}
-              >
-                <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                  Go back
-                </Text>
-              </TouchableOpacity>
-            </View>
+      <AnimatedModal
+        visible={!!pendingCancelJob}
+        onClose={() => {
+          haptics.light();
+          setPendingCancelJob(null);
+        }}
+        animationType="slide"
+      >
+        <View className="px-2">
+          <Text className="text-lg text-center text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
+            Cancel Request?
+          </Text>
+          <Text className="text-sm text-center text-gray-500 mb-5" style={{ fontFamily: 'Poppins-Regular' }}>
+            This action cannot be undone
+          </Text>
+          <View className="flex-row justify-between gap-3">
+            <TouchableOpacity
+              className="flex-1 bg-[#FF2C2C] py-3 rounded-xl items-center justify-center"
+              activeOpacity={0.85}
+              onPress={() => {
+                const job = pendingCancelJob;
+                haptics.error();
+                setPendingCancelJob(null);
+                if (job) {
+                  router.push('/CancelRequestScreen');
+                }
+              }}
+            >
+              <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 bg-gray-100 py-3 rounded-xl items-center justify-center"
+              activeOpacity={0.85}
+              onPress={() => {
+                haptics.light();
+                setPendingCancelJob(null);
+              }}
+            >
+              <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                Go back
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </AnimatedModal>
     </SafeAreaWrapper>
   );
 }

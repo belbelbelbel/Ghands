@@ -44,6 +44,7 @@ export default function LiveChatScreen() {
 
   const handleSend = () => {
     if (message.trim()) {
+      // Handle send message
       setMessage('');
     }
   };
@@ -90,10 +91,10 @@ export default function LiveChatScreen() {
         className="flex-1"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        
+        {/* Header */}
         <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
           <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
-            <Ionicons name="arrow-back" size={22} color="#000000" />
+            <Ionicons name="arrow-back" size={24} color="#000000" />
           </TouchableOpacity>
           <Text className="text-lg text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
             Live chat
@@ -101,7 +102,7 @@ export default function LiveChatScreen() {
           <View style={{ width: 24 }} />
         </View>
 
-        
+        {/* Messages Area */}
         <FlatList
           ref={flatListRef}
           data={MOCK_MESSAGES}
@@ -112,7 +113,7 @@ export default function LiveChatScreen() {
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
 
-        
+        {/* Input Field */}
         <View className="px-4 pb-4 pt-2 border-t border-gray-100">
           <View className="flex-row items-center bg-gray-100 rounded-2xl px-4 py-3">
             <TextInput

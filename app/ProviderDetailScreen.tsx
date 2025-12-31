@@ -1,4 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { BorderRadius, Colors, Fonts, Spacing } from '@/lib/designSystem';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MapPin, Star } from 'lucide-react-native';
@@ -42,7 +43,7 @@ const MOCK_PROVIDER: ProviderDetail = {
   id: 'provider-1',
   name: 'Marcus Johnson',
   role: 'Professional Electrician',
-  image: 'https://via.placeholder.com/150',
+  image: 'https://i.pravatar.cc/150?img=12',
   rating: 4.9,
   reviewCount: 127,
   distance: '2.3 mi away',
@@ -51,9 +52,9 @@ const MOCK_PROVIDER: ProviderDetail = {
   onTimePercentage: 98,
   skills: ['Sink', 'Shower', 'Boiler', 'Toilet'],
   recentWork: [
-    'https://via.placeholder.com/300',
-    'https://via.placeholder.com/300',
-    'https://via.placeholder.com/300',
+    'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400',
+    'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=400',
+    'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=400',
   ],
   about:
     'Licensed electrician with 8+ years of experience. Specialized in residential and commercial electrical work. Committed to safety, quality, and customer satisfaction. Available for emergency calls and scheduled appointments.',
@@ -61,7 +62,7 @@ const MOCK_PROVIDER: ProviderDetail = {
     {
       id: 'review-1',
       reviewerName: 'Sarah Miller',
-      reviewerImage: 'https://via.placeholder.com/100',
+      reviewerImage: 'https://i.pravatar.cc/150?img=47',
       timeAgo: '2 days ago',
       rating: 5,
       reviewText:
@@ -70,7 +71,7 @@ const MOCK_PROVIDER: ProviderDetail = {
     {
       id: 'review-2',
       reviewerName: 'Sarah Miller',
-      reviewerImage: 'https://via.placeholder.com/100',
+      reviewerImage: 'https://i.pravatar.cc/150?img=47',
       timeAgo: '2 days ago',
       rating: 5,
       reviewText:
@@ -79,7 +80,7 @@ const MOCK_PROVIDER: ProviderDetail = {
     {
       id: 'review-3',
       reviewerName: 'Sarah Miller',
-      reviewerImage: 'https://via.placeholder.com/100',
+      reviewerImage: 'https://i.pravatar.cc/150?img=47',
       timeAgo: '2 days ago',
       rating: 5,
       reviewText:
@@ -93,173 +94,475 @@ export default function ProviderDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ providerId?: string; providerName?: string }>();
   
+  // In a real app, you'd fetch provider data based on params.providerId
   const provider = {
     ...MOCK_PROVIDER,
     name: params.providerName || MOCK_PROVIDER.name,
   };
 
   return (
-    <SafeAreaWrapper>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-        
-        <View className="flex-row items-center px-4 pb-2" style={{ paddingTop: 20 }}>
-          <TouchableOpacity onPress={() => router.back()} className="mr-3" activeOpacity={0.85}>
-            <Ionicons name="arrow-back" size={22} color="#000000" />
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ 
+          paddingBottom: 32,
+          backgroundColor: Colors.backgroundLight,
+        }}
+      >
+        {/* Header with Back Button */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingTop: 16,
+            paddingBottom: 16,
+          }}
+        >
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            activeOpacity={0.7}
+            style={{
+              width: 40,
+              height: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
-        
-        <View className="px-4 mb-8">
-          <View className="bg-white rounded-3xl border border-gray-100 p-6 ">
-            <View className="flex-row items-start">
-              <View className="relative">
+        {/* Profile Summary Section */}
+        <View
+          style={{
+            paddingHorizontal: 20,
+            marginBottom: 24,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: BorderRadius.xl,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: Colors.border,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+              }}
+            >
+              {/* Profile Picture */}
+              <View style={{ position: 'relative' }}>
                 <Image
                   source={{ uri: provider.image }}
-                  className="w-24 h-24 rounded-full"
-                  style={{ borderRadius: 48 }}
+                  style={{
+                    width: 100,
+                    height: 100,
+                    borderRadius: 50,
+                    backgroundColor: Colors.backgroundGray,
+                  }}
                 />
                 {provider.isOnline && (
-                  <View className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-[#6A9B00] border-2 border-white" />
+                  <View
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: Colors.accent,
+                      borderWidth: 3,
+                      borderColor: Colors.white,
+                    }}
+                  />
                 )}
               </View>
-              <View className="flex-1 ml-5">
-                <Text className="text-2xl text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
+
+              {/* Profile Info */}
+              <View
+                style={{
+                  flex: 1,
+                  marginLeft: 16,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 24,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                    marginBottom: 4,
+                  }}
+                >
                   {provider.name}
                 </Text>
-                <Text className="text-base text-gray-600 mb-3" style={{ fontFamily: 'Poppins-Medium' }}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.textSecondaryDark,
+                    marginBottom: 12,
+                  }}
+                >
                   {provider.role}
                 </Text>
-                <View className="flex-row items-center mb-3">
+
+                {/* Rating */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginBottom: 8,
+                  }}
+                >
                   <Star size={18} color="#FACC15" fill="#FACC15" />
-                  <Text className="text-sm text-gray-600 ml-2" style={{ fontFamily: 'Poppins-Medium' }}>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Medium',
+                      color: Colors.textSecondaryDark,
+                      marginLeft: 6,
+                    }}
+                  >
                     {provider.rating} ({provider.reviewCount})
                   </Text>
                 </View>
-                <View className="flex-row items-center">
-                  <MapPin size={16} color="#6B7280" />
-                  <Text className="text-sm text-gray-600 ml-2" style={{ fontFamily: 'Poppins-Regular' }}>
+
+                {/* Distance */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}
+                >
+                  <MapPin size={16} color={Colors.textSecondaryDark} />
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Medium',
+                      color: Colors.textSecondaryDark,
+                      marginLeft: 4,
+                    }}
+                  >
                     {provider.distance}
                   </Text>
                 </View>
               </View>
             </View>
-          </View>
-        </View>
 
-        
-        <View className="px-4 mb-8">
-          <View className="bg-white rounded-3xl border border-gray-100 p-6 ">
-            <View className="flex-row justify-between">
-              <View className="items-center flex-1">
-                <Text className="text-3xl text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
+            {/* Statistics Row */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                marginTop: 24,
+                paddingTop: 24,
+                borderTopWidth: 1,
+                borderTopColor: Colors.border,
+              }}
+            >
+              <View style={{ alignItems: 'center', flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 32,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                    marginBottom: 4,
+                  }}
+                >
                   {provider.jobsDone}
                 </Text>
-                <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins-Regular' }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.textSecondaryDark,
+                  }}
+                >
                   Jobs Done
                 </Text>
               </View>
-              <View className="w-px bg-gray-200 mx-2" />
-              <View className="items-center flex-1">
-                <Text className="text-3xl text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
+
+              <View
+                style={{
+                  width: 1,
+                  backgroundColor: Colors.border,
+                  marginHorizontal: 16,
+                }}
+              />
+
+              <View style={{ alignItems: 'center', flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 32,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                    marginBottom: 4,
+                  }}
+                >
                   {provider.responseTime}
                 </Text>
-                <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins-Regular' }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.textSecondaryDark,
+                  }}
+                >
                   Response Time
                 </Text>
               </View>
-              <View className="w-px bg-gray-200 mx-2" />
-              <View className="items-center flex-1">
-                <Text className="text-3xl text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
+
+              <View
+                style={{
+                  width: 1,
+                  backgroundColor: Colors.border,
+                  marginHorizontal: 16,
+                }}
+              />
+
+              <View style={{ alignItems: 'center', flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 32,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                    marginBottom: 4,
+                  }}
+                >
                   {provider.onTimePercentage}%
                 </Text>
-                <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins-Regular' }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.textSecondaryDark,
+                  }}
+                >
                   On Time
                 </Text>
               </View>
             </View>
           </View>
         </View>
-        <View className="px-4 mb-8">
-          <Text className="text-xl text-black mb-4 px-1" style={{ fontFamily: 'Poppins-Bold' }}>
+
+        {/* Skills Section */}
+        <View
+          style={{
+            paddingHorizontal: 20,
+            marginBottom: 24,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.textPrimary,
+              marginBottom: 16,
+            }}
+          >
             Skills
           </Text>
-          <View className="bg-white rounded-3xl border border-gray-100 p-5 ">
-            <View className="flex-row flex-wrap">
-              {provider.skills.map((skill, index) => (
-                <TouchableOpacity
-                  key={index}
-                  className="bg-gray-100 rounded-xl px-5 py-2 mr-3 mb-3"
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: 12,
+            }}
+          >
+            {provider.skills.map((skill, index) => (
+              <View
+                key={index}
+                style={{
+                  backgroundColor: Colors.backgroundLight,
+                  borderRadius: BorderRadius.default,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.textPrimary,
+                  }}
                 >
-                  <Text className="text-sm text-black" style={{ fontFamily: 'Poppins-Medium' }}>
-                    {skill}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  {skill}
+                </Text>
+              </View>
+            ))}
           </View>
         </View>
 
-        
-        <View className="px-4 mb-8">
-          <Text className="text-xl text-black mb-4 px-1" style={{ fontFamily: 'Poppins-Bold' }}>
+        {/* Recent Work Section */}
+        <View
+          style={{
+            paddingHorizontal: 20,
+            marginBottom: 24,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.textPrimary,
+              marginBottom: 16,
+            }}
+          >
             Recent Work
           </Text>
-          <View className="bg-white rounded-3xl border border-gray-100 p-5 ">
-            <View className="flex-row">
-              {provider.recentWork.map((workImage, index) => (
-                <Image
-                  key={index}
-                  source={{ uri: workImage }}
-                  className="w-28 h-28 rounded-2xl mr-3"
-                  style={{ borderRadius: 16 }}
-                />
-              ))}
-            </View>
+          <View
+            style={{
+              flexDirection: 'row',
+              gap: 12,
+            }}
+          >
+            {provider.recentWork.map((workImage, index) => (
+              <Image
+                key={index}
+                source={{ uri: workImage }}
+                style={{
+                  width: 112,
+                  height: 112,
+                  borderRadius: BorderRadius.lg,
+                  backgroundColor: Colors.backgroundGray,
+                }}
+              />
+            ))}
           </View>
         </View>
 
-        
-        <View className="px-4 mb-8">
-          <Text className="text-xl text-black mb-4 px-1" style={{ fontFamily: 'Poppins-Bold' }}>
+        {/* About Section */}
+        <View
+          style={{
+            paddingHorizontal: 20,
+            marginBottom: 24,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.textPrimary,
+              marginBottom: 16,
+            }}
+          >
             About
           </Text>
-          <View className="bg-white rounded-3xl border border-gray-100 p-6 ">
-            <Text className="text-sm text-gray-600 leading-6" style={{ fontFamily: 'Poppins-Regular' }}>
-              {provider.about}
-            </Text>
-          </View>
+          <Text
+            style={{
+              fontSize: 14,
+              fontFamily: 'Poppins-Regular',
+              color: Colors.textSecondaryDark,
+              lineHeight: 22,
+            }}
+          >
+            {provider.about}
+          </Text>
         </View>
 
-        
-        <View className="px-4 mb-8">
-          <Text className="text-xl text-black mb-4 px-1" style={{ fontFamily: 'Poppins-Bold' }}>
+        {/* Reviews Section */}
+        <View
+          style={{
+            paddingHorizontal: 20,
+            marginBottom: 24,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.textPrimary,
+              marginBottom: 16,
+            }}
+          >
             Reviews
           </Text>
           {provider.reviews.map((review, index) => (
             <View
               key={review.id}
-              className={`bg-white rounded-3xl border border-gray-100 p-5 mb-4  ${index === provider.reviews.length - 1 ? 'mb-0' : ''}`}
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.xl,
+                padding: 20,
+                marginBottom: index < provider.reviews.length - 1 ? 16 : 0,
+                borderWidth: 1,
+                borderColor: Colors.border,
+              }}
             >
-              <View className="flex-row items-center mb-4">
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
                 <Image
                   source={{ uri: review.reviewerImage }}
-                  className="w-12 h-12 rounded-full mr-4"
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    backgroundColor: Colors.backgroundGray,
+                    marginRight: 12,
+                  }}
                 />
-                <View className="flex-1">
-                  <Text className="text-base text-black mb-1" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.textPrimary,
+                      marginBottom: 2,
+                    }}
+                  >
                     {review.reviewerName}
                   </Text>
-                  <Text className="text-xs text-gray-500" style={{ fontFamily: 'Poppins-Regular' }}>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                    }}
+                  >
                     {review.timeAgo}
                   </Text>
                 </View>
               </View>
-              <View className="flex-row items-center mb-3">
+
+              {/* Star Rating */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  marginBottom: 12,
+                }}
+              >
                 {Array.from({ length: review.rating }).map((_, i) => (
-                  <Star key={i} size={16} color="#FACC15" fill="#FACC15" style={{ marginRight: 2 }} />
+                  <Star
+                    key={i}
+                    size={16}
+                    color="#FACC15"
+                    fill="#FACC15"
+                    style={{ marginRight: 2 }}
+                  />
                 ))}
               </View>
-              <Text className="text-sm text-gray-600 leading-6" style={{ fontFamily: 'Poppins-Regular' }}>
+
+              {/* Review Text */}
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  lineHeight: 20,
+                }}
+              >
                 {review.reviewText}
               </Text>
             </View>
@@ -269,4 +572,3 @@ export default function ProviderDetailScreen() {
     </SafeAreaWrapper>
   );
 }
-

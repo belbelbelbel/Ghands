@@ -1,47 +1,76 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ONBOARDING_STORAGE_KEY } from './useOnboarding';
 
-export type UserRole = 'consumer' | 'provider';
+export type UserRole = 'client' | 'provider' | null;
 
-export const ROLE_STORAGE_KEY = '@app:user_role';
+interface UseAuthRoleReturn {
+  role: UserRole;
+  setRole: (role: UserRole) => Promise<void>;
+  logout: () => Promise<void>;
+  isLoading: boolean;
+}
 
-export function useAuthRole() {
-  const [role, setRole] = useState<UserRole>('consumer');
-  const [isRoleLoading, setIsRoleLoading] = useState(true);
+const AUTH_ROLE_KEY = '@ghands:user_role';
+const AUTH_TOKEN_KEY = '@ghands:auth_token';
 
+/**
+ * Hook for managing user authentication and role
+ */
+export function useAuthRole(): UseAuthRoleReturn {
+  const router = useRouter();
+  const [role, setRoleState] = useState<UserRole>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load role from storage on mount
   useEffect(() => {
     const loadRole = async () => {
       try {
-        const storedRole = await AsyncStorage.getItem(ROLE_STORAGE_KEY);
-        if (storedRole === 'provider' || storedRole === 'consumer') {
-          setRole(storedRole);
+        const storedRole = await AsyncStorage.getItem(AUTH_ROLE_KEY);
+        if (storedRole) {
+          setRoleState(storedRole as UserRole);
         }
+      } catch (error) {
+        console.error('Error loading role:', error);
       } finally {
-        setIsRoleLoading(false);
+        setIsLoading(false);
       }
     };
-
     loadRole();
   }, []);
 
-  const updateRole = useCallback(async (nextRole: UserRole) => {
-    await AsyncStorage.setItem(ROLE_STORAGE_KEY, nextRole);
-    setRole(nextRole);
+  const setRole = useCallback(async (newRole: UserRole) => {
+    try {
+      if (newRole) {
+        await AsyncStorage.setItem(AUTH_ROLE_KEY, newRole);
+      } else {
+        await AsyncStorage.removeItem(AUTH_ROLE_KEY);
+      }
+      setRoleState(newRole);
+    } catch (error) {
+      console.error('Error setting role:', error);
+      throw error;
+    }
   }, []);
 
   const logout = useCallback(async () => {
-    await AsyncStorage.multiRemove([ROLE_STORAGE_KEY, ONBOARDING_STORAGE_KEY]);
-    setRole('consumer');
-  }, []);
+    try {
+      // Clear all auth data
+      await AsyncStorage.multiRemove([AUTH_ROLE_KEY, AUTH_TOKEN_KEY]);
+      setRoleState(null);
+      // Navigate to onboarding
+      router.replace('/onboarding');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      throw error;
+    }
+  }, [router]);
 
   return {
     role,
-    isRoleLoading,
-    setRole: updateRole,
+    setRole,
     logout,
+    isLoading,
   };
 }
-
-
 

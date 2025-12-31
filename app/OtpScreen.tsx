@@ -1,9 +1,10 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { Colors, Fonts, Spacing, BorderRadius } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Button } from '@/components/ui/Button';
+import { Colors, Spacing } from '@/lib/designSystem';
 
 export default function OtpScreen() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function OtpScreen() {
   const inputRefs = useRef<TextInput[]>([]);
 
   useEffect(() => {
+    // Start resend timer
     const timer = setInterval(() => {
       setResendTimer((prev) => {
         if (prev <= 1) {
@@ -29,6 +31,7 @@ export default function OtpScreen() {
   }, []);
 
   const handleOtpChange = (value: string, index: number) => {
+    // Only allow numeric input
     const numericValue = value.replace(/[^0-9]/g, '');
     
     if (numericValue.length <= 1) {
@@ -36,6 +39,7 @@ export default function OtpScreen() {
       newOtp[index] = numericValue;
       setOtp(newOtp);
       
+      // Auto-focus next input if value is entered
       if (numericValue && index < 5) {
         inputRefs.current[index + 1]?.focus();
       }
@@ -43,6 +47,7 @@ export default function OtpScreen() {
   };
 
   const handleKeyPress = (key: string, index: number) => {
+    // Handle backspace - move to previous input
     if (key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -59,8 +64,10 @@ export default function OtpScreen() {
     setIsVerifying(true);
     
     try {
+      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
       
+      // For demo purposes, accept any 6-digit code
       if (code.length === 6) {
         router.push('/PasswordConfirmation');
       } else {
@@ -85,6 +92,7 @@ export default function OtpScreen() {
     setOtp(['', '', '', '', '', '']);
     inputRefs.current[0]?.focus();
     
+    // Simulate resend API call
     Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
   };
 
@@ -92,42 +100,69 @@ export default function OtpScreen() {
 
   return (
     <SafeAreaWrapper>
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
-        <TouchableOpacity onPress={handleBackToReset} className="mb-6" activeOpacity={0.7}>
-          <View className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center">
-            <ArrowLeft size={20} color={'black'} />
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingVertical: 40,
+          flexGrow: 1,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Back Button */}
+        <TouchableOpacity
+          onPress={handleBackToReset}
+          style={{ marginBottom: 24 }}
+          activeOpacity={0.7}
+        >
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: Colors.backgroundGray,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ArrowLeft size={20} color={Colors.textPrimary} />
           </View>
         </TouchableOpacity>
 
-        <Text style={{
-          ...Fonts.h1,
-          fontSize: 28,
-          color: Colors.textPrimary,
-          marginBottom: Spacing.xs,
-        }}>Enter Verification Code</Text>
+        {/* Title */}
+        <Text
+          style={{
+            fontSize: 32,
+            fontFamily: 'Poppins-ExtraBold',
+            color: Colors.textPrimary,
+            marginBottom: 16,
+            lineHeight: 40,
+          }}
+        >
+          Enter Verification Code
+        </Text>
 
-        <Text style={{
-          ...Fonts.body,
-          color: Colors.textSecondaryDark,
-          marginBottom: Spacing.lg,
-        }}>
+        {/* Description */}
+        <Text
+          style={{
+            fontSize: 16,
+            fontFamily: 'Poppins-Medium',
+            color: Colors.textSecondaryDark,
+            marginBottom: 32,
+            lineHeight: 24,
+          }}
+        >
           We've sent a 6-digit verification code to your email address.
         </Text>
 
+        {/* OTP Input */}
         <View className="flex-row justify-between mb-8 px-4">
           {otp.map((digit, index) => (
             <View 
               key={index} 
-              style={{
-                width: 48,
-                height: 56,
-                borderRadius: BorderRadius.default,
-                borderWidth: 0.5,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: digit ? Colors.accent : Colors.backgroundGray,
-                borderColor: digit ? Colors.accent : Colors.border,
-              }}
+              className={`w-12 h-14 rounded-xl border-[0.5px] items-center justify-center ${
+                digit ? 'bg-[#6A9B00] border-[#6A9B00]' : 'bg-gray-100 border-gray-300'
+              }`}
             >
               <TextInput
                 ref={(ref) => {
@@ -150,47 +185,50 @@ export default function OtpScreen() {
           ))}
         </View>
 
-        <View style={{ marginTop: Spacing.xs }}>
-          <TouchableOpacity
+        {/* Verify Button */}
+        <View style={{ marginTop: 16, marginBottom: 32 }}>
+          <Button
+            title={isVerifying ? 'Verifying...' : 'Verify Code'}
             onPress={handleVerifyCode}
+            variant="secondary"
+            size="large"
+            fullWidth
             disabled={!isCodeComplete || isVerifying}
-            style={{
-              borderRadius: BorderRadius.default,
-              paddingVertical: Spacing.md,
-              paddingHorizontal: Spacing.lg + 2,
-              backgroundColor: isCodeComplete && !isVerifying ? Colors.black : Colors.borderLight,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            activeOpacity={0.8}
-          >
-            <Text 
-              style={{
-                ...Fonts.button,
-                fontSize: 16,
-                color: isCodeComplete && !isVerifying ? Colors.white : Colors.textTertiary,
-                textAlign: 'center',
-              }}
-            >
-              {isVerifying ? 'Verifying...' : 'Verify Code'}
-            </Text>
-          </TouchableOpacity>
+            loading={isVerifying}
+          />
         </View>
 
-        <View className="items-center mt-8">
-          <TouchableOpacity 
-            onPress={handleResendCode} 
+        {/* Resend Code */}
+        <View style={{ alignItems: 'center', marginTop: 32 }}>
+          <TouchableOpacity
+            onPress={handleResendCode}
             activeOpacity={canResend ? 0.7 : 1}
             disabled={!canResend}
           >
-            <Text style={{ ...Fonts.body, color: Colors.textPrimary }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontFamily: 'Poppins-Medium',
+                color: Colors.textPrimary,
+              }}
+            >
               Didn't receive a code?{' '}
               {canResend ? (
-                <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-Bold', color: Colors.accent }}>
+                <Text
+                  style={{
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.accent,
+                  }}
+                >
                   Resend
                 </Text>
               ) : (
-                <Text style={{ ...Fonts.body, color: Colors.textTertiary }}>
+                <Text
+                  style={{
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.textSecondaryDark,
+                  }}
+                >
                   Resend in {resendTimer}s
                 </Text>
               )}

@@ -157,7 +157,7 @@ export default function EditProfileScreen() {
         type,
       } as any);
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://api.example.com/upload'}/upload`, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://api.example.com'}/upload`, {
         method: 'POST',
         body: formData,
         headers: {

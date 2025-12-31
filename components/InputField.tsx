@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { KeyboardTypeOptions, TextInput, View } from 'react-native';
+import { Colors, Spacing, BorderRadius, INPUT_HEIGHTS } from '@/lib/designSystem';
 
 interface InputFieldProps {
   placeholder: string;
@@ -9,6 +10,8 @@ interface InputFieldProps {
   value: string;
   onChangeText: (text: string) => void;
   iconPosition?: 'left' | 'right';
+  error?: boolean;
+  disabled?: boolean;
 }
 
 export const InputField: React.FC<InputFieldProps> = ({
@@ -19,11 +22,37 @@ export const InputField: React.FC<InputFieldProps> = ({
   value,
   onChangeText,
   iconPosition = 'left',
+  error = false,
+  disabled = false,
 }) => {
   return (
-    <View className="bg-gray-100 border-[0pc] rounded-xl mb-4 px-4 py-3 flex-row items-center">
+    <View
+      style={{
+        backgroundColor: Colors.backgroundGray,
+        borderRadius: BorderRadius.default,
+        marginBottom: Spacing.lg,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
+        flexDirection: 'row',
+        alignItems: 'center',
+        minHeight: INPUT_HEIGHTS.medium,
+        borderWidth: error ? 1 : 0,
+        borderColor: error ? Colors.error : 'transparent',
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
       {iconPosition === 'left' && (
-        <View className="w-12 h-12 mr-4 bg-[#6A9B00]    border-blackx rounded-xl items-center justify-center">
+        <View
+          style={{
+            width: 48,
+            height: 48,
+            marginRight: Spacing.lg,
+            backgroundColor: Colors.accent,
+            borderRadius: BorderRadius.default,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {icon}
         </View>
       )}
@@ -33,14 +62,27 @@ export const InputField: React.FC<InputFieldProps> = ({
         keyboardType={keyboardType}
         value={value}
         onChangeText={onChangeText}
-        className="flex-1 text-black text-base"
-        placeholderTextColor="#666666"
+        editable={!disabled}
         style={{
+          flex: 1,
+          color: Colors.textPrimary,
+          fontSize: 16,
           fontFamily: 'Poppins-Medium',
         }}
+        placeholderTextColor={Colors.textSecondaryDark}
       />
       {iconPosition === 'right' && (
-        <View className="w-12 h-12 ml-4 bg-[#6A9B00] r border-blsack rounded-xl items-center justify-center">
+        <View
+          style={{
+            width: 48,
+            height: 48,
+            marginLeft: Spacing.lg,
+            backgroundColor: Colors.accent,
+            borderRadius: BorderRadius.default,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {icon}
         </View>
       )}

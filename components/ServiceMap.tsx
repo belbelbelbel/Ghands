@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { useRouter } from 'expo-router';
 
 import mapStyle from '@/lib/mapStyle';
 
@@ -59,6 +60,7 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
   userLocation,
   categories = CATEGORY_CHIPS,
 }) => {
+  const router = useRouter();
   const [activeProvider, setActiveProvider] = useState<ServiceProvider | null>(null);
   const bottomCardAnim = useRef(new Animated.Value(0)).current;
 
@@ -192,6 +194,16 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
                     onPress={() => {
                       setActiveProvider(provider);
                     }}
+                    onLongPress={() => {
+                      // Navigate to provider detail on long press
+                      router.push({
+                        pathname: '/ProviderDetailScreen',
+                        params: {
+                          providerName: provider.name,
+                          providerId: provider.id,
+                        },
+                      } as any);
+                    }}
                     activeOpacity={0.9}
                     className="mb-3 last:mb-0"
                   >
@@ -296,9 +308,27 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
               </TouchableOpacity>
             </View>
             <TouchableOpacity
+              onPress={() => {
+                // Navigate to provider detail screen
+                router.push({
+                  pathname: '/ProviderDetailScreen',
+                  params: {
+                    providerName: activeProvider.name,
+                    providerId: activeProvider.id,
+                  },
+                } as any);
+              }}
+              activeOpacity={0.85}
+              className="mt-3 rounded-xl px-4 py-2.5 flex-row items-center justify-center bg-white border border-gray-200"
+            >
+              <Text className="text-sm text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                View Profile
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               onPress={() => handleSelectProvider(activeProvider)}
               activeOpacity={0.85}
-              className={`mt-4 rounded-xl px-4 py-3 flex-row items-center justify-center ${
+              className={`mt-2 rounded-xl px-4 py-3 flex-row items-center justify-center ${
                 activeSelected ? 'bg-[#6A9B00]' : 'bg-black'
               }`}
             >

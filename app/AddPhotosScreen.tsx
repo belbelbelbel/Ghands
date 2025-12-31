@@ -1,12 +1,13 @@
+import AnimatedModal from '@/components/AnimatedModal';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
+import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
-import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowRight, Camera, Plus, X } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Camera, Plus, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 const IMAGE_SIZE = (screenWidth - 48) / 3 - 8;
@@ -118,13 +119,6 @@ export default function AddPhotosScreen() {
     }
   }, []);
 
-  const handleUploadPhotos = useCallback(async () => {
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) return;
-
-    handleOpenGallery();
-  }, [requestPermissions, handleOpenGallery]);
-
   const handleOpenCamera = useCallback(async () => {
     const hasPermission = await requestCameraPermissions();
     if (!hasPermission) return;
@@ -149,7 +143,15 @@ export default function AddPhotosScreen() {
         return newSet;
       });
     }
-  }, []);
+  }, [requestCameraPermissions]);
+
+  const handleUploadPhotos = useCallback(async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    // For now, directly open gallery. In a full implementation, you'd show a bottom sheet
+    handleOpenGallery();
+  }, [requestPermissions, handleOpenGallery]);
 
   const handleTogglePhoto = useCallback((photoId: string) => {
     setSelectedPhotos((prev) => {
@@ -180,6 +182,7 @@ export default function AddPhotosScreen() {
       showError('Please select at least one photo to continue');
       return;
     }
+    // Show confirmation modal with date/time
     setShowConfirmModal(true);
   }, [isFindingProviders, selectedPhotos, showError]);
 
@@ -194,7 +197,8 @@ export default function AddPhotosScreen() {
 
     findingTimeoutRef.current = setTimeout(() => {
       setIsFindingProviders(false);
-      router.push('/ServiceMapScreen');
+      // Use replace so back doesn't walk through wizard steps
+      router.replace('/ServiceMapScreen');
     }, 1800);
   }, [photos, router, selectedPhotos]);
 
@@ -231,7 +235,7 @@ export default function AddPhotosScreen() {
               onPress={handleBack}
               className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
             >
-              <Ionicons name="arrow-back" size={22} color="#111827" />
+              <ArrowLeft size={20} color="#111827" />
             </TouchableOpacity>
             <Text className="text-xl text-black" style={{ fontFamily: 'Poppins-Bold' }}>
               Add photos
@@ -376,125 +380,128 @@ export default function AddPhotosScreen() {
         </View>
       </Animated.View>
 
-      
-      <Modal
-        transparent
+      {/* Confirmation Modal - Date/Time & Photos */}
+      <AnimatedModal
         visible={showConfirmModal}
-        animationType="fade"
-        onRequestClose={handleChangePhotos}
+        onClose={handleChangePhotos}
+        animationType="slide"
       >
-        <View className="flex-1 bg-black/50 items-center justify-center px-4">
-          <Animated.View
-            style={[animatedStyles]}
-            className="w-full max-w-sm rounded-3xl bg-white px-6 py-8 shadow-[0px_24px_48px_rgba(15,23,42,0.2)]"
-          >
-            <View className="items-center mb-6">
-              <View className="w-16 h-16 rounded-full bg-[#E3F4DF] items-center justify-center mb-4">
-                <Text className="text-3xl">📸</Text>
-              </View>
-              <Text className="text-lg text-black mb-3" style={{ fontFamily: 'Poppins-Bold' }}>
-                Confirm Details
-              </Text>
-              
-              
-              {params.selectedDateTime && (
-                <View className="w-full mb-4">
-                  <View className="bg-gray-50 rounded-xl px-4 py-3 mb-3">
-                    <Text className="text-xs text-gray-500 mb-1" style={{ fontFamily: 'Poppins-Medium' }}>
-                      Scheduled Date & Time
-                    </Text>
-                    <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                      {params.selectedDateTime}
-                    </Text>
-                  </View>
-                  
-                  
-                  <View className="bg-gray-50 rounded-xl px-4 py-3">
-                    <Text className="text-xs text-gray-500 mb-2" style={{ fontFamily: 'Poppins-Medium' }}>
-                      Selected Photos
-                    </Text>
-                    <View className="flex-row flex-wrap gap-2">
-                      {photos
-                        .filter((photo) => selectedPhotos.has(photo.id))
-                        .slice(0, 3)
-                        .map((photo) => (
-                          <Image
-                            key={photo.id}
-                            source={{ uri: photo.uri }}
-                            className="w-16 h-16 rounded-lg"
-                            resizeMode="cover"
-                          />
-                        ))}
-                      {selectedPhotos.size > 3 && (
-                        <View className="w-16 h-16 rounded-lg bg-gray-200 items-center justify-center">
-                          <Text className="text-xs text-gray-600" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                            +{selectedPhotos.size - 3}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                </View>
-              )}
+        <View className="px-2">
+          <View className="items-center mb-6">
+            <View className="w-16 h-16 rounded-full bg-[#E3F4DF] items-center justify-center mb-4">
+              <Text className="text-3xl">📸</Text>
             </View>
-
-            <View className="gap-3">
-              <TouchableOpacity
-                onPress={handleConfirmAndProceed}
-                activeOpacity={0.85}
-                className="bg-black rounded-xl py-4 items-center justify-center"
-              >
-                <View className="flex-row items-center">
-                  <Text className="text-base text-white mr-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                    Next
+            <Text className="text-lg text-black mb-3" style={{ fontFamily: 'Poppins-Bold' }}>
+              Confirm Details
+            </Text>
+            
+            {/* Date/Time Display */}
+            {params.selectedDateTime && (
+              <View className="w-full mb-4">
+                <View className="bg-gray-50 rounded-xl px-4 py-3 mb-3">
+                  <Text className="text-xs text-gray-500 mb-1" style={{ fontFamily: 'Poppins-Medium' }}>
+                    Scheduled Date & Time
                   </Text>
-                  <ArrowRight size={18} color="#FFFFFF" />
+                  <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                    {params.selectedDateTime}
+                  </Text>
                 </View>
-              </TouchableOpacity>
+                
+                {/* Photos Preview */}
+                <View className="bg-gray-50 rounded-xl px-4 py-3">
+                  <Text className="text-xs text-gray-500 mb-2" style={{ fontFamily: 'Poppins-Medium' }}>
+                    Selected Photos
+                  </Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {photos
+                      .filter((photo) => selectedPhotos.has(photo.id))
+                      .slice(0, 3)
+                      .map((photo) => (
+                        <Image
+                          key={photo.id}
+                          source={{ uri: photo.uri }}
+                          className="w-16 h-16 rounded-lg"
+                          resizeMode="cover"
+                        />
+                      ))}
+                    {selectedPhotos.size > 3 && (
+                      <View className="w-16 h-16 rounded-lg bg-gray-200 items-center justify-center">
+                        <Text className="text-xs text-gray-600" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                          +{selectedPhotos.size - 3}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
 
-              <TouchableOpacity
-                onPress={handleChangePhotos}
-                activeOpacity={0.85}
-                className="bg-white border border-gray-200 rounded-xl py-4 items-center justify-center"
-              >
-                <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                  Change
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
-
-      
-      <Modal transparent visible={isFindingProviders} animationType="fade">
-        <View className="flex-1 bg-black/45 items-center justify-center px-6">
-          <View className="w-full max-w-sm rounded-3xl bg-white px-6 py-8 items-center shadow-[0px_24px_48px_rgba(15,23,42,0.2)]">
-            <Animated.View
-              style={{
-                width: 76,
-                height: 76,
-                borderRadius: 38,
-                backgroundColor: '#E6F4D7',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: [{ rotate: spin }],
+          <View className="gap-3">
+            <TouchableOpacity
+              onPress={() => {
+                haptics.success();
+                handleConfirmAndProceed();
               }}
+              activeOpacity={0.85}
+              className="bg-black rounded-xl py-4 items-center justify-center"
             >
-              <Image source={require('../assets/images/plumbericon2.png')} style={{ width: 42, height: 42, resizeMode: 'contain' }} />
-            </Animated.View>
-            <Text className="mt-5 text-lg text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
-              Finding providers…
-            </Text>
-            <Text
-              className="mt-2 text-sm text-gray-500 text-center"
-              style={{ fontFamily: 'Poppins-Medium' }}
+              <View className="flex-row items-center">
+                <Text className="text-base text-white mr-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                  Next
+                </Text>
+                <ArrowRight size={18} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                handleChangePhotos();
+              }}
+              activeOpacity={0.85}
+              className="bg-white border border-gray-200 rounded-xl py-4 items-center justify-center"
             >
-              Sit tight while we match you with trusted professionals nearby.
-            </Text>
+              <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                Change
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </AnimatedModal>
+
+      {/* Finding Providers Modal */}
+      <AnimatedModal
+        visible={isFindingProviders}
+        onClose={() => {}}
+        animationType="slide"
+        dismissible={false}
+      >
+        <View className="px-2 items-center">
+          <Animated.View
+            style={{
+              width: 76,
+              height: 76,
+              borderRadius: 38,
+              backgroundColor: '#E6F4D7',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: [{ rotate: spin }],
+            }}
+          >
+            <Image source={require('../assets/images/plumbericon2.png')} style={{ width: 42, height: 42, resizeMode: 'contain' }} />
+          </Animated.View>
+          <Text className="mt-5 text-lg text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+            Finding providers…
+          </Text>
+          <Text
+            className="mt-2 text-sm text-gray-500 text-center"
+            style={{ fontFamily: 'Poppins-Medium' }}
+          >
+            Sit tight while we match you with trusted professionals nearby.
+          </Text>
+        </View>
+      </AnimatedModal>
 
       <Toast
         message={toast.message}

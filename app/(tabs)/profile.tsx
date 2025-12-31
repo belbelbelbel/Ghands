@@ -1,16 +1,30 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Fonts, Spacing } from '@/lib/designSystem';
+import { Button } from '@/components/ui/Button';
+import { useAuthRole } from '@/hooks/useAuth';
+import { useUserLocation } from '@/hooks/useUserLocation';
+import { BorderRadius, Colors } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
-import { Bell, BookOpen, Camera, ChevronRight, FileText, HelpCircle, LogOut, MapPin, Trash2, User } from 'lucide-react-native';
-import React, { useEffect, useRef } from 'react';
-import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { useAuthRole } from '../../hooks/useAuth';
+import { ArrowRight, Bell, ChevronRight, CreditCard, HelpCircle, MapPin, Share2, Star, Trash2, User, Wallet } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, Animated, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
 
 const ProfileScreen = () => {
   const router = useRouter();
   const { logout } = useAuthRole();
+  const { location } = useUserLocation();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+
+  // Mock user data - in production, fetch from API
+  const [userData] = useState({
+    name: 'Marcus Johnson',
+    isVerified: true,
+    location: location || 'New York, NY',
+    rating: 4.8,
+    reviews: 24,
+    balance: 12847.50,
+    referralCode: 'SARAH2024',
+  });
 
   useEffect(() => {
     Animated.parallel([
@@ -29,120 +43,283 @@ const ProfileScreen = () => {
 
   const animatedStyles = {
     opacity: fadeAnim,
-    transform: [{ translateY: slideAnim }]
+    transform: [{ translateY: slideAnim }],
   };
 
   const handleOptionPress = (id: string) => {
-    if (id === '1') {
+    if (id === 'account') {
       router.push('../AccountInformationScreen' as any);
-    } else if (id === '2') {
-      router.push('../PaymentMethodsScreen' as any);
-    } else if (id === '4') {
+    } else if (id === 'billing') {
+      router.push('../PaymentHistoryScreen' as any);
+    } else if (id === 'support') {
       router.push('../HelpSupportScreen' as any);
     }
   };
 
+  const handleViewWallet = () => {
+    router.push('../WalletScreen' as any);
+  };
+
+  const handleShareReferral = async () => {
+    try {
+      const message = `Join GHands using my referral code ${userData.referralCode} and get $10!`;
+      await Share.share({
+        message,
+        title: 'Refer GHands',
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to share referral code');
+    }
+  };
+
+  const handleSignOut = async () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/onboarding');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            // Handle account deletion
+            Alert.alert('Account Deletion', 'Account deletion feature coming soon.');
+          },
+        },
+      ]
+    );
+  };
+
   return (
-    <SafeAreaWrapper backgroundColor={Colors.borderLight}>
-      <Animated.View style={[animatedStyles, { flex: 1, paddingTop: Spacing.xl }]}>
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+      <Animated.View style={[animatedStyles, { flex: 1 }]}>
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 20,
+            paddingTop: 20,
+            paddingBottom: 20,
+            backgroundColor: Colors.backgroundLight,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 24,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.textPrimary,
+              flex: 1,
+              textAlign: 'center',
+            }}
+          >
+            Profile
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('../NotificationsScreen' as any)}
+            style={{ position: 'relative' }}
+            activeOpacity={0.7}
+          >
+            <Bell size={24} color={Colors.textPrimary} />
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: Colors.accent,
+              }}
+            />
+          </TouchableOpacity>
+        </View>
+
         <ScrollView 
           showsVerticalScrollIndicator={false} 
-          contentContainerStyle={{ paddingBottom: Spacing.huge }}
-          style={{ flex: 1, marginHorizontal: Spacing.sm + 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingBottom: 100,
+          }}
         >
-          <View style={{
-            backgroundColor: Colors.accent,
-            borderRadius: BorderRadius.xl + 4,
-            paddingHorizontal: Spacing.lg + 2,
-            paddingTop: Spacing.xxxl,
-            paddingBottom: Spacing.lg,
-            marginBottom: Spacing.lg + 2,
-          }}>
-            <View style={{ alignItems: 'center', marginBottom: Spacing.xs + 4 }}>
-              <View style={{ position: 'relative' }}>
-                <View style={{
-                  width: 128,
-                  height: 128,
-                  backgroundColor: Colors.border,
-                  borderRadius: 64,
+          {/* User Profile Section */}
+          <View
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: BorderRadius.xl,
+              paddingVertical: 0,
+              paddingHorizontal: 10,
+              marginTop: 24,
+              marginBottom: 32,
+              borderWidth: 0,
+              borderColor: Colors.border,
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+            }}
+          >
+            {/* Profile Picture */}
+            <View style={{ position: 'relative', marginRight: 16 }}>
+              <View
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: Colors.backgroundGray,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  borderWidth: 4,
-                  borderColor: Colors.white,
-                }}>
-                  <User size={60} color={Colors.accent} />
-                </View>
-                <TouchableOpacity style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  right: 0,
-                  backgroundColor: Colors.white,
-                  borderRadius: 16,
-                  padding: Spacing.xs + 2,
-                }}>
-                  <Camera size={20} color={Colors.accent} />
-                </TouchableOpacity>
+                }}
+              >
+                <User size={40} color={Colors.accent} />
               </View>
             </View>
 
-            <View style={{ alignItems: 'center', marginBottom: Spacing.lg + 2 }}>
-              <Text 
+            {/* User Info */}
+            <View style={{ flex: 1, paddingTop: 4 }}>
+              {/* Name with Verified Badge */}
+              <View
                 style={{
-                  ...Fonts.h1,
-                  fontSize: 28,
-                  color: Colors.white,
-                  marginBottom: Spacing.xs + 2,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                  flexWrap: 'wrap',
                 }}
               >
-                Sarah Johnson
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                    marginRight: 6,
+                  }}
+                >
+                  {userData.name}
               </Text>
+                {userData.isVerified && (
+                  <View
+                    style={{
+                      backgroundColor: Colors.accent,
+                      paddingHorizontal: 6 ,
+                      paddingVertical: 4,
+                      borderRadius: 4,
+                    }}
+                  >
               <Text 
+                      style={{
+                        fontSize: 10,
+                        fontFamily: 'Poppins-Bold',
+                        color: Colors.white,
+                      }}
+                    >
+                      Verified
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Location */}
+              <View
                 style={{
-                  ...Fonts.body,
-                  color: Colors.white,
-                  opacity: 0.9,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 12,
                 }}
               >
-                Individual Client
+                <MapPin size={14} color={Colors.textSecondaryDark} />
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.textSecondaryDark,
+                    marginLeft: 4,
+                  }}
+                >
+                  {userData.location}
               </Text>
             </View>
 
-            <TouchableOpacity style={{
-              backgroundColor: Colors.white,
-              borderRadius: BorderRadius.default,
-              paddingVertical: Spacing.md,
-              paddingHorizontal: Spacing.lg + 2,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Text 
+              {/* Rating */}
+              <View
                 style={{
-                  ...Fonts.button,
-                  fontSize: 16,
-                  color: Colors.textPrimary,
-                  marginRight: Spacing.xs + 2,
+                  flexDirection: 'row',
+                  alignItems: 'center',
                 }}
               >
-                View Job History
+                <Star size={14} color="#FACC15" fill="#FACC15" />
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Medium',
+                    color: '#FACC15',
+                    marginLeft: 4,
+                  }}
+                >
+                  {userData.rating}
+                </Text>
+                <View
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: Colors.textSecondaryDark,
+                    marginHorizontal: 6,
+                  }}
+                />
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.textSecondaryDark,
+                  }}
+                >
+                  {userData.reviews} reviews
               </Text>
-              <ChevronRight size={20} color={Colors.textPrimary} />
-            </TouchableOpacity>
+              </View>
+            </View>
           </View>
 
-          <View style={{ paddingHorizontal: Spacing.xs + 4, marginBottom: Spacing.lg + 2 }}>
-            {profileOptions.map((option, index) => {
-              const IconComponent = option.icon;
+          {/* Account Settings Section */}
+          <View style={{ marginBottom: 24 }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+                marginBottom: 16,
+              }}
+            >
+              Account Settings
+            </Text>
+
+            {accountSettings.map((setting) => {
+              const IconComponent = setting.icon;
               return (
                 <TouchableOpacity
-                  key={option.id}
-                  onPress={() => handleOptionPress(option.id)}
+                  key={setting.id}
+                  onPress={() => handleOptionPress(setting.id)}
                   style={{
                     backgroundColor: Colors.backgroundLight,
                     borderRadius: BorderRadius.lg,
-                    paddingHorizontal: Spacing.xs + 4,
-                    paddingVertical: Spacing.lg + 2,
-                    marginBottom: Spacing.sm + 1,
+                    padding: 16,
+                    marginBottom: 12,
                     flexDirection: 'row',
                     alignItems: 'center',
                     borderWidth: 1,
@@ -152,152 +329,258 @@ const ProfileScreen = () => {
                 >
                   <View 
                     style={{ 
-                      width: 44, 
-                      height: 44, 
-                      borderRadius: 22, 
-                      backgroundColor: option.iconColor === Colors.accent ? '#EEFFD9' : Colors.backgroundGray,
+                      width: 48,
+                      height: 48,
+                      borderRadius: 12,
+                      backgroundColor: setting.iconBgColor,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginRight: Spacing.lg,
+                      marginRight: 16,
                     }}
                   >
-                    <IconComponent size={22} color={option.iconColor} />
+                    <IconComponent size={24} color={setting.iconColor} />
                   </View>
                   
                   <View style={{ flex: 1 }}>
                     <Text 
                       style={{
-                        ...Fonts.body,
+                        fontSize: 16,
                         fontFamily: 'Poppins-Bold',
                         color: Colors.textPrimary,
                         marginBottom: 4,
                       }}
                     >
-                      {option.title}
+                      {setting.title}
                     </Text>
                     <Text 
                       style={{
-                        ...Fonts.bodySmall,
-                        color: option.subtitle.includes('Identity Verified') ? Colors.accent : Colors.textSecondaryDark,
+                        fontSize: 12,
                         fontFamily: 'Poppins-Medium',
+                        color: Colors.textSecondaryDark,
                       }}
                     >
-                      {option.subtitle}
+                      {setting.subtitle}
                     </Text>
                   </View>
 
-                  <ChevronRight size={24} color={Colors.textSecondaryDark} />
+                  <ChevronRight size={20} color={Colors.textSecondaryDark} />
                 </TouchableOpacity>
               );
             })}
           </View>
-          <View style={{ paddingHorizontal: Spacing.xs + 4, marginBottom: Spacing.lg + 2 }}>
-            <TouchableOpacity
+
+          {/* Current Balance Section */}
+          <View
+            style={{
+              backgroundColor: Colors.accent,
+              borderRadius: BorderRadius.lg,
+              padding: 20,
+              marginBottom: 24,
+              position: 'relative',
+            }}
+          >
+            <View
               style={{
-                backgroundColor: Colors.errorLight,
-                borderRadius: BorderRadius.lg,
-                paddingHorizontal: Spacing.xs + 4,
-                paddingVertical: Spacing.md,
-                marginBottom: Spacing.sm + 1,
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: 16,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.white,
+                    opacity: 0.9,
+                    marginBottom: 8,
+                  }}
+                >
+                  Current balance
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 32,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.white,
+                  }}
+                >
+                  ₦{userData.balance.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </Text>
+              </View>
+              <Wallet size={32} color={Colors.white} opacity={0.3} />
+            </View>
+
+            <Button
+              title="View Wallet"
+              onPress={handleViewWallet}
+              variant="secondary"
+              size="medium"
+              fullWidth
+              icon={<ArrowRight size={18} color={Colors.white} />}
+              iconPosition="right"
+              style={{
+                backgroundColor: Colors.black,
+              }}
+            />
+          </View>
+
+          {/* Refer Friends Section */}
+          <View
+            style={{
+              marginBottom: 24,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+                marginBottom: 8,
+              }}
+            >
+              Refer Friends
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: 'Poppins-Medium',
+                color: Colors.textSecondaryDark,
+                marginBottom: 12,
+              }}
+            >
+              Get $10 for each referral
+            </Text>
+            <View
+              style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: Colors.backgroundLight,
+                borderRadius: BorderRadius.default,
+                padding: 16,
                 borderWidth: 1,
-                borderColor: Colors.errorBorder,
+                borderColor: Colors.border,
               }}
-              onPress={async () => {
-                await logout();
-                router.replace('/onboarding');
-              }}
-              activeOpacity={0.8}
             >
-              <LogOut size={20} color={Colors.error} />
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-Medium',
+                  color: Colors.textPrimary,
+                }}
+              >
+                Your code:{' '}
+                <Text
+                  style={{
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  {userData.referralCode}
+                </Text>
+              </Text>
+              <Button
+                title="Share"
+                onPress={handleShareReferral}
+                variant="primary"
+                size="small"
+                icon={<Share2 size={16} color={Colors.white} />}
+                iconPosition="left"
+              />
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={{ marginBottom: 24 }}>
+            <TouchableOpacity
+              onPress={handleSignOut}
+              style={{
+                backgroundColor: Colors.backgroundLight,
+                borderRadius: BorderRadius.default,
+                padding: 16,
+                marginBottom: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: Colors.border,
+              }}
+              activeOpacity={0.7}
+            >
+              <ArrowRight size={20} color="#DC2626" />
               <Text 
                 style={{
-                  ...Fonts.body,
+                  fontSize: 16,
                   fontFamily: 'Poppins-SemiBold',
-                  color: Colors.error,
-                  marginLeft: Spacing.xs + 2,
+                  color: '#DC2626',
+                  marginLeft: 12,
                 }}
               >
                 Sign Out
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={{
+
+            <TouchableOpacity
+              onPress={handleDeleteAccount}
+              style={{
               backgroundColor: Colors.backgroundLight,
-              borderRadius: BorderRadius.lg,
-              paddingHorizontal: Spacing.xs + 4,
-              paddingVertical: Spacing.xs + 4,
-              marginBottom: Spacing.sm + 1,
+                borderRadius: BorderRadius.default,
+                padding: 16,
               flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'center',
               borderWidth: 1,
               borderColor: Colors.border,
-            }}>
-              <Trash2 size={20} color={Colors.textSecondaryDark} />
+              }}
+              activeOpacity={0.7}
+            >
+              <Trash2 size={20} color={Colors.textPrimary} />
               <Text 
                 style={{
-                  ...Fonts.body,
+                  fontSize: 16,
                   fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textSecondaryDark,
-                  marginLeft: Spacing.xs + 2,
+                  color: Colors.textPrimary,
+                  marginLeft: 12,
                 }}
               >
                 Delete Account
               </Text>
             </TouchableOpacity>
           </View>
-          <View style={{ height: 100 }} />
         </ScrollView>
       </Animated.View>
     </SafeAreaWrapper>
   );
 };
 
-const profileOptions = [
+const accountSettings = [
   {
-    id: '1',
-    title: 'Account Information',
-    subtitle: 'Personal, Address, Status',
+    id: 'account',
+    title: 'Account & Preferences',
+    subtitle: 'Personal info, Notification',
     icon: User,
-    iconColor: '#666'
+    iconColor: '#666666',
+    iconBgColor: '#F5F5F5',
   },
   {
-    id: '2',
-    title: 'Payment Information',
-    subtitle: 'Billing, Payment',
-    icon: MapPin,
-    iconColor: '#666'
+    id: 'billing',
+    title: 'Billing and payment',
+    subtitle: 'Transaction history, payment methods',
+    icon: CreditCard,
+    iconColor: '#2563EB',
+    iconBgColor: '#EEF1FF',
   },
   {
-    id: '3',
-    title: 'Notification',
-    subtitle: 'Notification settings',
-    icon: Bell,
-    iconColor: '#666'
-  },
-  {
-    id: '4',
-    title: 'Help & Support',
-    subtitle: 'Identity Verified',
+    id: 'support',
+    title: 'Support & Information',
+    subtitle: 'Manage preferences',
     icon: HelpCircle,
-    iconColor: '#666'
+    iconColor: '#2563EB',
+    iconBgColor: '#EEF1FF',
   },
-  {
-    id: '5',
-    title: 'Legal & About',
-    subtitle: 'Identity Verified',
-    icon: FileText,
-    iconColor: '#666'
-  },
-  {
-    id: '6',
-    title: 'Userguide',
-    subtitle: 'Identity Verified',
-    icon: BookOpen,
-    iconColor: '#666'
-  }
 ];
 
 export default ProfileScreen;

@@ -1,12 +1,21 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { Colors, Fonts, Spacing, BorderRadius, CommonStyles } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { MapPin, Plus } from 'lucide-react-native';
-import React, { useEffect, useRef } from 'react';
-import { Animated, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
+import * as Location from 'expo-location';
+import { useUserLocation } from '@/hooks/useUserLocation';
+import { Button } from '@/components/ui/Button';
+import { Colors, Spacing } from '@/lib/designSystem';
+import { useToast } from '@/hooks/useToast';
+import Toast from '@/components/Toast';
 
 export default function LocationPermissionScreen() {
   const router = useRouter();
+  const { setLocation } = useUserLocation();
+  const { toast, showError, showSuccess, hideToast } = useToast();
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
@@ -25,31 +34,130 @@ export default function LocationPermissionScreen() {
     ]).start();
   }, []);
 
-  const handleAllowLocation = () => {
-    router.push('/ProfileSetupScreen');
+  const handleAllowLocation = async () => {
+    setIsRequesting(true);
+
+    try {
+      // Request location permissions
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        setIsRequesting(false);
+        Alert.alert(
+          'Permission Denied',
+          'Location permission is required to find nearby services. You can enter your location manually instead.',
+          [
+            { text: 'Enter Manually', onPress: handleManualEntry },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        return;
+      }
+
+      setIsRequesting(false);
+      setIsGettingLocation(true);
+      showSuccess('Location permission granted! Getting your location...');
+
+      // Get current location
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const { latitude, longitude } = location.coords;
+
+      // Try to get address from coordinates
+      let address: string;
+      try {
+        // For now, use a simple format. In production, use reverse geocoding API
+        address = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        
+        // Try to get a more readable address (you can integrate Google Maps Geocoding API here)
+        // For demo, we'll use coordinates
+        address = `Current Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+      } catch (error) {
+        address = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+      }
+
+      // Save location
+      await setLocation(address);
+      
+      showSuccess('Location saved successfully!');
+      
+      // Navigate to profile setup after a brief delay
+      setTimeout(() => {
+        router.replace('/ProfileSetupScreen');
+      }, 1500);
+
+    } catch (error) {
+      setIsRequesting(false);
+      setIsGettingLocation(false);
+      console.error('Error getting location:', error);
+      showError('Failed to get your location. Please try entering it manually.');
+      
+      // Offer manual entry as fallback
+      setTimeout(() => {
+        Alert.alert(
+          'Location Error',
+          'We couldn\'t get your location automatically. Would you like to enter it manually?',
+          [
+            { text: 'Enter Manually', onPress: handleManualEntry },
+            { text: 'Skip for Now', onPress: handleLater },
+          ]
+        );
+      }, 2000);
+    }
   };
 
   const handleManualEntry = () => {
-    router.push('/LocationSearchScreen');
+    // Go to the search screen specifically to pick a location,
+    // then continue to profile setup instead of coming back here.
+    router.push({
+      pathname: '/LocationSearchScreen',
+      params: { next: 'ProfileSetupScreen' },
+    } as any);
   };
 
   const handleLater = () => {
-    router.push('/ProfileSetupScreen');
+    // Skip location for now but still move forward
+    // User can set location later in profile settings
+    router.replace('/ProfileSetupScreen');
   };
 
   return (
     <SafeAreaWrapper>
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.lg }}>
+      <View className="flex-1 justify-center items-center px-8">
         <Animated.View 
           style={{ 
             opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }]
+            transform: [{ scale: scaleAnim }],
+            marginBottom: Spacing.xxl,
           }}
-          className="mb-8"
         >
-          <View style={{ width: 128, height: 128, backgroundColor: Colors.accent, borderRadius: 64, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-            <MapPin size={48} color={Colors.white} />
-            <View style={{ position: 'absolute', top: -4, right: -4, width: 32, height: 32, backgroundColor: Colors.black, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+          <View
+            style={{
+              width: 128,
+              height: 128,
+              backgroundColor: Colors.accent,
+              borderRadius: 64,
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+            }}
+          >
+            <MapPin size={48} color={Colors.black} />
+            <View
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                width: 32,
+                height: 32,
+                backgroundColor: Colors.black,
+                borderRadius: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               <Plus size={16} color={Colors.white} />
             </View>
           </View>
@@ -57,11 +165,12 @@ export default function LocationPermissionScreen() {
         <Animated.Text
           style={{
             opacity: fadeAnim,
-            ...Fonts.h2,
             fontSize: 24,
+            fontFamily: 'Poppins-ExtraBold',
             color: Colors.textPrimary,
             textAlign: 'center',
             marginBottom: Spacing.lg,
+            lineHeight: 32,
           }}
         >
           Your location?
@@ -69,83 +178,102 @@ export default function LocationPermissionScreen() {
         <Animated.Text
           style={{
             opacity: fadeAnim,
-            ...Fonts.body,
+            fontSize: 16,
+            fontFamily: 'Poppins-Regular',
             color: Colors.textPrimary,
             textAlign: 'center',
-            marginBottom: 48,
+            lineHeight: 24,
+            marginBottom: Spacing.huge,
           }}
         >
           We need your location to find nearby services and improve your experience.
         </Animated.Text>
-        <Animated.View 
-          style={{ opacity: fadeAnim, width: '100%', marginBottom: Spacing.md }}
-        >
-          <TouchableOpacity
-            onPress={handleAllowLocation}
-            activeOpacity={0.8}
-            style={{
-              ...CommonStyles.buttonPrimary,
-              width: '100%',
-              paddingVertical: Spacing.md,
-              paddingHorizontal: Spacing.lg + 2,
-            }}
-          >
-            <Text 
-              style={{
-                ...Fonts.button,
-                fontSize: 16,
-                color: Colors.white,
-                textAlign: 'center',
-              }}
-            >
-              Allow Location Access
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
-        <Animated.View 
-          style={{ opacity: fadeAnim, width: '100%', marginBottom: Spacing.lg + 2 }}
-        >
-          <TouchableOpacity
-            onPress={handleManualEntry}
-            activeOpacity={0.8}
-            style={{
-              borderWidth: 2,
-              borderColor: Colors.black,
-              borderRadius: BorderRadius.default,
-              paddingVertical: Spacing.md,
-              paddingHorizontal: Spacing.lg + 2,
+        {/* Loading State */}
+        {(isRequesting || isGettingLocation) && (
+          <Animated.View 
+            style={{ 
+              opacity: fadeAnim,
+              marginBottom: Spacing.lg,
               alignItems: 'center',
-              justifyContent: 'center',
             }}
           >
-            <Text 
+            <ActivityIndicator size="large" color={Colors.accent} />
+            <Text
               style={{
-                ...Fonts.button,
+                marginTop: Spacing.md,
                 fontSize: 16,
-                color: Colors.textPrimary,
-                textAlign: 'center',
+                fontFamily: 'Poppins-Medium',
+                color: Colors.textSecondaryDark,
               }}
             >
-              Enter location manually
+              {isRequesting ? 'Requesting permission...' : 'Getting your location...'}
             </Text>
-          </TouchableOpacity>
-        </Animated.View>
+          </Animated.View>
+        )}
 
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <TouchableOpacity onPress={handleLater} activeOpacity={0.7}>
-            <Text 
-              style={{
-                ...Fonts.body,
-                color: Colors.textPrimary,
-                textAlign: 'center',
-                textDecorationLine: 'underline',
-              }}
-            >
-              I'll do this later
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
+        {/* Allow Location Button */}
+        {!isRequesting && !isGettingLocation && (
+          <Animated.View 
+            style={{ 
+              opacity: fadeAnim,
+              width: '100%',
+              marginBottom: Spacing.lg,
+            }}
+          >
+            <Button
+              title="Allow Location Access"
+              onPress={handleAllowLocation}
+              variant="secondary"
+              size="large"
+              fullWidth
+            />
+          </Animated.View>
+        )}
+
+        {/* Manual Entry Button */}
+        {!isRequesting && !isGettingLocation && (
+          <Animated.View 
+            style={{ 
+              opacity: fadeAnim,
+              width: '100%',
+              marginBottom: Spacing.xxl,
+            }}
+          >
+            <Button
+              title="Enter location manually"
+              onPress={handleManualEntry}
+              variant="outline"
+              size="large"
+              fullWidth
+            />
+          </Animated.View>
+        )}
+
+        {/* I'll do this later Link */}
+        {!isRequesting && !isGettingLocation && (
+          <Animated.View style={{ opacity: fadeAnim }}>
+            <TouchableOpacity onPress={handleLater} activeOpacity={0.7}>
+              <Text 
+                style={{
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Medium',
+                  color: Colors.textPrimary,
+                  textAlign: 'center',
+                  textDecorationLine: 'underline',
+                }}
+              >
+                I'll do this later
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
       </View>
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onClose={hideToast}
+      />
     </SafeAreaWrapper>
   );
 }

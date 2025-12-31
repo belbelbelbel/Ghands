@@ -1,18 +1,25 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Search, Send } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-
 import { useUserLocation } from '@/hooks/useUserLocation';
+import { Button } from '@/components/ui/Button';
+import { Colors, Spacing } from '@/lib/designSystem';
+import { useToast } from '@/hooks/useToast';
+import Toast from '@/components/Toast';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function LocationSearchScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ next?: string }>();
+  const next = params?.next;
   const { location, setLocation } = useUserLocation();
+  const { toast, showError, showSuccess, hideToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -43,10 +50,29 @@ export default function LocationSearchScreen() {
     router.back();
   };
 
-  const handleUseCurrentLocation = () => {
-    const currentLocation = 'Current Location';
-    setSearchQuery(currentLocation);
-    setSelectedLocation(currentLocation);
+  const handleUseCurrentLocation = async () => {
+    try {
+      // Request location permission and get current location
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        showError('Location permission is required to use current location.');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const { latitude, longitude } = location.coords;
+      const currentLocation = `Current Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+      
+      setSearchQuery(currentLocation);
+      setSelectedLocation(currentLocation);
+      showSuccess('Current location detected!');
+    } catch (error) {
+      showError('Failed to get current location. Please enter manually.');
+    }
   };
 
   const handleSearch = () => {
@@ -59,10 +85,30 @@ export default function LocationSearchScreen() {
 
   const handleConfirm = async () => {
     if (!selectedLocation.trim()) {
+      showError('Please select or enter a location');
       return;
     }
-    await setLocation(selectedLocation.trim());
-    router.back();
+
+    setIsSaving(true);
+
+    try {
+      await setLocation(selectedLocation.trim());
+      showSuccess('Location saved successfully!');
+
+      // If this screen was opened as part of the onboarding/profile flow,
+      // send the user forward instead of back to the permission screen.
+      setTimeout(() => {
+        if (next === 'ProfileSetupScreen') {
+          router.replace('/ProfileSetupScreen');
+        } else {
+          router.back();
+        }
+      }, 1000);
+    } catch (error) {
+      showError('Failed to save location. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const searchResults = [
@@ -184,25 +230,30 @@ export default function LocationSearchScreen() {
           </View>
         </ScrollView>
 
-        <View className="px-4 pb-4" style={{ minHeight: screenHeight * 0.08 }}>
-          <TouchableOpacity
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingBottom: 16,
+            paddingTop: 8,
+          }}
+        >
+          <Button
+            title={isSaving ? 'Saving...' : 'Save location'}
             onPress={handleConfirm}
-            className="bg-black rounded-xl py-4 px-6"
-            activeOpacity={0.8}
-            style={{ minHeight: 52 }}
-          >
-            <Text 
-              className="text-[#9bd719ff] text-center text-lg font-semibold"
-              style={{ 
-                fontFamily: 'Poppins-SemiBold',
-                fontSize: screenWidth < 375 ? 16 : 18
-              }}
-            >
-              Save location
-            </Text>
-          </TouchableOpacity>
+            variant="secondary"
+            size="large"
+            fullWidth
+            loading={isSaving}
+            disabled={isSaving || !selectedLocation.trim()}
+          />
         </View>
       </Animated.View>
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onClose={hideToast}
+      />
     </SafeAreaWrapper>
   );
 }

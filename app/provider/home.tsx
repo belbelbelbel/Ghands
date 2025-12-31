@@ -1,5 +1,4 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, CommonStyles, Fonts, Spacing } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, Users } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -61,104 +60,155 @@ export default function ProviderHomeScreen() {
     <View
       key={job.id}
       style={{
-        ...CommonStyles.card,
-        position: 'relative',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
       }}
     >
       {job.matchedTime && (
-        <Text style={{ ...Fonts.bodyTiny, color: Colors.textTertiary, marginBottom: Spacing.xs + 2 }}>
+        <Text style={{ fontSize: 11, color: '#999999', fontFamily: 'Poppins-Medium', marginBottom: 6 }}>
           matched {job.matchedTime}
         </Text>
       )}
       {isActive && (
-        <View style={CommonStyles.badgeSuccess}>
-          <Text style={{ ...Fonts.label, color: Colors.success }}>In Progress</Text>
-        </View>
-      )}
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.xs + 2, paddingRight: 50 }}>
-        <Image source={require('../../assets/images/userimg.jpg')} style={{ width: 36, height: 36, borderRadius: 18, marginRight: Spacing.sm + 2 }} resizeMode='cover' />
-        <View style={{ flex: 1 }}>
-          <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
-            {job.clientName}
-          </Text>
-          <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, marginTop: 2 }}>
-            {job.service}
-          </Text>
-        </View>
-      </View>
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
-        <Calendar size={12} color={Colors.textSecondaryDark} />
-        <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium', marginLeft: Spacing.xs + 2 }}>
-          {job.date} - {job.time}
-        </Text>
-      </View>
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm + 2 }}>
-        <MapPin size={12} color={Colors.textSecondaryDark} />
-        <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium', marginLeft: Spacing.xs + 2 }}>
-          {job.location}
-        </Text>
-      </View>
-
-      {isActive ? (
-        <TouchableOpacity
-          style={{ ...CommonStyles.buttonPrimary, width: '100%' }}
-          onPress={() => router.push('/ProviderJobDetailsScreen')}
+        <View
+          style={{
+            backgroundColor: '#FEF3C7',
+            alignSelf: 'flex-start',
+            paddingHorizontal: 6,
+            paddingVertical: 3,
+            borderRadius: 10,
+            marginBottom: 6,
+          }}
         >
-          <Text style={{ ...Fonts.button, color: Colors.white, marginRight: Spacing.xs }}>
-            Check Updates
-          </Text>
-          <ArrowRight size={14} color={Colors.white} />
-        </TouchableOpacity>
-      ) : (
-        <View style={{ flexDirection: 'row', gap: Spacing.xs }}>
-          <TouchableOpacity style={CommonStyles.buttonDanger}>
-            <Text style={{ ...Fonts.button, color: Colors.error, textAlign: 'center' }}>
-              Decline
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              ...CommonStyles.buttonSecondary,
-              flex: 1,
-            }}
-            onPress={() => router.push('/ProviderJobDetailsScreen')}
-          >
-            <Text style={{ ...Fonts.button, color: Colors.textPrimary, marginRight: Spacing.xs }}>
-              View details
-            </Text>
-            <ArrowRight size={14} color={Colors.textPrimary} />
-          </TouchableOpacity>
+          <Text style={{ fontSize: 10, color: '#166534', fontFamily: 'Poppins-SemiBold' }}>In Progress</Text>
         </View>
       )}
 
-      <View style={{ position: 'absolute', right: Spacing.md, top: 60 }}>
-        <View style={{ flexDirection: 'row', gap: -6 }}>
-          {job.images.slice(0, 3).map((imgSource, index) => (
-            <Image
-              key={index}
-              source={imgSource}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+        <View style={{ flex: 1, alignSelf: 'stretch' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+            {/* <View
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: BorderRadius.sm,
-                marginLeft: index > 0 ? -6 : 0,
-                borderWidth: 2,
-                borderColor: Colors.white,
-                zIndex: 3 - index,
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: '#E5E7EB',
+                marginRight: 10,
               }}
-              resizeMode="cover"
-            />
-          ))}
+            /> */}
+            <Image source={require('../../assets/images/userimg.jpg')} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} resizeMode='cover' />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: '#000000' }}>
+                {job.clientName}
+              </Text>
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: '#666666', marginTop: 2 }}>
+                {job.service}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+            <Calendar size={12} color="#666666" />
+            <Text style={{ fontSize: 12, color: '#666666', fontFamily: 'Poppins-Medium', marginLeft: 6 }}>
+              {job.date} - {job.time}
+            </Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+            <MapPin size={12} color="#666666" />
+            <Text style={{ fontSize: 12, color: '#666666', fontFamily: 'Poppins-Medium', marginLeft: 6 }}>
+              {job.location}
+            </Text>
+          </View>
+
+          {isActive ? (
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#000000',
+                paddingVertical: 8,
+                paddingHorizontal: 4,
+                borderRadius: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                alignSelf: 'stretch',
+              }}
+              onPress={() => router.push('/ProviderJobDetailsScreen')}
+            >
+              <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
+                Check Updates
+              </Text>
+              <ArrowRight size={14} color="#FFFFFF" />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 4, alignSelf: 'stretch' }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 8,
+                  paddingHorizontal: 4,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: '#FEE2E2',
+                  backgroundColor: '#FEF2F2',
+                }}
+              >
+                <Text style={{ color: '#DC2626', fontFamily: 'Poppins-SemiBold', fontSize: 12, textAlign: 'center' }}>
+                  Decline
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 8,
+                  paddingHorizontal: 4,
+                  borderRadius: 10,
+                  backgroundColor: '#6A9B00',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={() => router.push('/ProviderJobDetailsScreen')}
+              >
+                <Text style={{ color: '#000000', fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
+                  View details
+                </Text>
+                <ArrowRight size={14} color="#000000" />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <View style={{ marginLeft: 10 }}>
+          <View style={{ flexDirection: 'row', gap: -6 }}>
+            {job.images.slice(0, 3).map((imgSource, index) => (
+              <Image
+                key={index}
+                source={imgSource}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  marginLeft: index > 0 ? -6 : 0,
+                  borderWidth: 2,
+                  borderColor: '#FFFFFF',
+                  zIndex: 3 - index,
+                }}
+                resizeMode="cover"
+              />
+            ))}
+          </View>
         </View>
       </View>
     </View>
   );
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+    <SafeAreaWrapper backgroundColor="#FFFFFF">
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -207,6 +257,15 @@ export default function ProviderHomeScreen() {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 16 }}>
             <Text style={{ fontSize: 20, fontFamily: 'Poppins-SemiBold', color: '#000000' }}>Welcome, Alex</Text>
+            {/* <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: '#000000' }}>Online</Text>
+              <Switch
+                value={isOnline}
+                onValueChange={setIsOnline}
+                trackColor={{ false: '#E5E7EB', true: '#6A9B00' }}
+                thumbColor="#FFFFFF"
+              />
+            </View> */}
           </View>
 
           {!hasActiveJobs && (
@@ -362,7 +421,7 @@ export default function ProviderHomeScreen() {
                   justifyContent: 'center',
                 }}
               >
-                
+                {/* <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins-Bold', fontSize: 11 }}>GET YOUR GUIDE</Text> */}
                 <Image source={require('../../assets/images/guideimg.jpg')} style={{ width: '100%', height: '100%', borderRadius: 12 }} resizeMode='cover' />
               </View>
               <View style={{ padding: 10 }}>
@@ -377,7 +436,7 @@ export default function ProviderHomeScreen() {
           </View>
         </View>
 
-        
+        {/* Insights Section */}
         {hasActiveJobs ? (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
             <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 10 }}>

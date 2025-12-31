@@ -1,7 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Platform } from 'react-native';
+import { useAuthRole } from '@/hooks/useAuth';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -48,6 +49,18 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color:
 };
 
 export default function ProviderLayout() {
+  const { role, isLoading } = useAuthRole();
+
+  // While loading role, avoid showing wrong layout
+  if (isLoading) {
+    return null;
+  }
+
+  // Only providers can access provider tabs
+  if (role !== 'provider') {
+    return <Redirect href="/ProviderSignInScreen" />;
+  }
+
   return (
     <Tabs
       screenOptions={{

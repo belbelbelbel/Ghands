@@ -4,13 +4,14 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Camera, MapPin, Plus, User } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, Dimensions, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useUserLocation } from '@/hooks/useUserLocation';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
+  const { location: savedLocation } = useUserLocation();
   const [fullName, setFullName] = useState('');
-  const [homeAddress, setHomeAddress] = useState('');
   const [location, setLocation] = useState('');
   const [selectedGender, setSelectedGender] = useState<'male' | 'female' | null>(null);
   const [description, setDescription] = useState('');
@@ -34,6 +35,13 @@ export default function ProfileSetupScreen() {
       }),
     ]).start();
   }, []);
+
+  // Sync location field with the shared user location (from LocationSearchScreen)
+  useEffect(() => {
+    if (savedLocation && !location) {
+      setLocation(savedLocation);
+    }
+  }, [savedLocation, location]);
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -114,7 +122,7 @@ export default function ProfileSetupScreen() {
         type,
       } as any);
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://api.example.com/upload'}/upload`, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://api.example.com'}/upload`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -140,6 +148,8 @@ export default function ProfileSetupScreen() {
   };
 
   const handleAddHomeAddress = () => {
+    // Go to search screen specifically to choose a home address,
+    // then come back here with the stored location.
     router.push('/LocationSearchScreen');
   };
 

@@ -1,9 +1,10 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import AnimatedModal from '@/components/AnimatedModal';
+import { haptics } from '@/hooks/useHaptics';
+import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const MONTHS = [
   'January',
@@ -42,9 +43,13 @@ export default function DateTimeScreen() {
     const day = selectedDate.getDate();
     const year = selectedDate.getFullYear();
     
+    // Format time (e.g., "09:00" -> "9am" or "01:00" -> "1pm")
     const [hours, minutes] = selectedTime.split(':');
     const hourNum = parseInt(hours, 10);
     
+    // Determine if it's AM or PM based on the hour
+    // AM_HOURS: ['09:00', '10:00', '11:00', '12:00'] -> 9am, 10am, 11am, 12pm
+    // PM_HOURS: ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00'] -> 1pm-8pm
     const isAM = AM_HOURS.includes(selectedTime);
     const isPM = PM_HOURS.includes(selectedTime);
     
@@ -52,6 +57,7 @@ export default function DateTimeScreen() {
     let period: string;
     
     if (isAM) {
+      // AM hours: 09:00=9am, 10:00=10am, 11:00=11am, 12:00=12pm
       if (hourNum === 12) {
         displayHour = 12;
         period = 'pm';
@@ -60,9 +66,11 @@ export default function DateTimeScreen() {
         period = 'am';
       }
     } else if (isPM) {
+      // PM hours: 01:00=1pm, 02:00=2pm, etc.
       displayHour = hourNum;
       period = 'pm';
     } else {
+      // Fallback for any other time format
       const isAMHour = hourNum < 12;
       displayHour = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
       period = isAMHour ? 'am' : 'pm';
@@ -93,13 +101,16 @@ export default function DateTimeScreen() {
     if (!selectedDate || !selectedTime) {
       return;
     }
+    // Show confirmation modal
     setShowConfirmModal(true);
   }, [selectedDate, selectedTime]);
 
   const handleConfirmAndProceed = useCallback(() => {
     setShowConfirmModal(false);
     
-    router.push({
+    // Pass formatted date/time as route params
+    // Use replace so user can't navigate back into this step chain like a wizard
+    router.replace({
       pathname: '../AddPhotosScreen' as any,
       params: {
         selectedDateTime: formattedDateTime,
@@ -150,19 +161,23 @@ export default function DateTimeScreen() {
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
 
+    // Get last day of previous month
     const prevMonthLastDay = new Date(year, month, 0).getDate();
 
     const days: Array<{ day: number; isCurrentMonth: boolean }> = [];
 
+    // Add days from previous month
     for (let i = startingDayOfWeek - 1; i >= 0; i--) {
       days.push({ day: prevMonthLastDay - i, isCurrentMonth: false });
     }
 
+    // Add all days of the current month
     for (let day = 1; day <= daysInMonth; day++) {
       days.push({ day, isCurrentMonth: true });
     }
 
-    const remainingCells = 42 - days.length;
+    // Add days from next month to fill the last week (if needed)
+    const remainingCells = 42 - days.length; // 6 rows × 7 days = 42
     for (let day = 1; day <= remainingCells; day++) {
       days.push({ day, isCurrentMonth: false });
     }
@@ -219,7 +234,7 @@ export default function DateTimeScreen() {
               onPress={handleBack}
               className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
             >
-              <Ionicons name="arrow-back" size={22} color="#111827" />
+              <ArrowLeft size={20} color="#111827" />
             </TouchableOpacity>
             <Text className="text-xl text-black" style={{ fontFamily: 'Poppins-Bold' }}>
               Date & Time
@@ -420,57 +435,57 @@ export default function DateTimeScreen() {
         </View>
       </Animated.View>
 
-      
-      <Modal
-        transparent
+      {/* Confirmation Modal */}
+      <AnimatedModal
         visible={showConfirmModal}
-        animationType="fade"
-        onRequestClose={handleChangeDateTime}
+        onClose={handleChangeDateTime}
+        animationType="slide"
       >
-        <View className="flex-1 bg-black/50 items-center justify-center px-4">
-          <Animated.View
-            style={[animatedStyles]}
-            className="w-full max-w-sm rounded-3xl bg-white px-6 py-8 shadow-[0px_24px_48px_rgba(15,23,42,0.2)]"
-          >
-            <View className="items-center mb-6">
-              <View className="w-16 h-16 rounded-full bg-[#E3F4DF] items-center justify-center mb-4">
-                <Text className="text-3xl">📅</Text>
-              </View>
-              <Text className="text-lg text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
-                Confirm Date & Time
-              </Text>
-              <Text className="text-base text-gray-600 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
-                {formattedDateTime}
-              </Text>
+        <View className="px-2">
+          <View className="items-center mb-6">
+            <View className="w-16 h-16 rounded-full bg-[#E3F4DF] items-center justify-center mb-4">
+              <Text className="text-3xl">📅</Text>
             </View>
+            <Text className="text-lg text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
+              Confirm Date & Time
+            </Text>
+            <Text className="text-base text-gray-600 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
+              {formattedDateTime}
+            </Text>
+          </View>
 
-            <View className="gap-3">
-              <TouchableOpacity
-                onPress={handleConfirmAndProceed}
-                activeOpacity={0.85}
-                className="bg-black rounded-xl py-4 items-center justify-center"
-              >
-                <View className="flex-row items-center">
-                  <Text className="text-base text-white mr-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                    Next
-                  </Text>
-                  <ArrowRight size={18} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleChangeDateTime}
-                activeOpacity={0.85}
-                className="bg-white border border-gray-200 rounded-xl py-4 items-center justify-center"
-              >
-                <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                  Change
+          <View className="gap-3">
+            <TouchableOpacity
+              onPress={() => {
+                haptics.success();
+                handleConfirmAndProceed();
+              }}
+              activeOpacity={0.85}
+              className="bg-black rounded-xl py-4 items-center justify-center"
+            >
+              <View className="flex-row items-center">
+                <Text className="text-base text-white mr-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                  Next
                 </Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
+                <ArrowRight size={18} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                handleChangeDateTime();
+              }}
+              activeOpacity={0.85}
+              className="bg-white border border-gray-200 rounded-xl py-4 items-center justify-center"
+            >
+              <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                Change
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </Modal>
+      </AnimatedModal>
     </SafeAreaWrapper>
   );
 }

@@ -6,6 +6,10 @@ import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import '../global.css';
 import { QueryProvider } from '../providers/QueryProvider';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { analytics } from '@/services/analytics';
+import { performance } from '@/services/performance';
+import { crashReporting } from '@/services/crashReporting';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -36,10 +40,25 @@ export default function RootLayout() {
         await NavigationBar.setButtonStyleAsync('light');
       } catch (error) {
         console.warn('Navigation bar config failed', error);
+        crashReporting.captureException(error as Error, { context: 'android_nav_config' });
       }
     };
 
     configureAndroidNav();
+  }, []);
+
+  useEffect(() => {
+    // Initialize analytics and performance monitoring
+    performance.mark('app_init_start');
+    
+    // Track app launch
+    analytics.track('app_launched', {
+      timestamp: new Date().toISOString(),
+    });
+
+    return () => {
+      performance.measure('app_init', 'app_init_start');
+    };
   }, []);
 
   if (!fontsLoaded) {
@@ -47,13 +66,14 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryProvider>
-      <StatusBar 
-        barStyle="dark-content" 
-        backgroundColor="white" 
-        translucent={false}
-      />
-      <Stack>
+    <ErrorBoundary>
+      <QueryProvider>
+        <StatusBar 
+          barStyle="dark-content" 
+          backgroundColor="white" 
+          translucent={false}
+        />
+        <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="SelectAccountTypeScreen" options={{ headerShown: false }} />
@@ -62,6 +82,7 @@ export default function RootLayout() {
         <Stack.Screen name="ResetPassword" options={{ headerShown: false }} />
         <Stack.Screen name="OtpScreen" options={{ headerShown: false }} />
         <Stack.Screen name='categories' options={{headerShown: false}}/>
+        {/* <Stack.Screen name='chat' options={{headerShown: false}}/> */}
         <Stack.Screen name="PasswordConfirmation" options={{ headerShown: false }} />
         <Stack.Screen name="LocationPermissionScreen" options={{ headerShown: false }} />
         <Stack.Screen name="LocationSearchScreen" options={{ headerShown: false }} />
@@ -88,6 +109,12 @@ export default function RootLayout() {
         <Stack.Screen name="LiveChatScreen" options={{ headerShown: false }} />
         <Stack.Screen name="UserGuideScreen" options={{ headerShown: false }} />
         <Stack.Screen name="PaymentMethodsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="WalletScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="TopUpScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="BankTransferScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="PaymentPendingScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="PaymentSuccessfulScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ActivityScreen" options={{ headerShown: false }} />
         <Stack.Screen name="AddCardDetailsScreen" options={{ headerShown: false }} />
         <Stack.Screen name="main" options={{ headerShown: false }} />
         <Stack.Screen name="provider" options={{ headerShown: false }} />
@@ -98,8 +125,8 @@ export default function RootLayout() {
         <Stack.Screen name="ProviderProfileSetupScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderUploadDocumentsScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderVerifyIdentityScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderJobDetailsScreen" options={{ headerShown: false }} />
-      </Stack>
-    </QueryProvider>
+        </Stack>
+      </QueryProvider>
+    </ErrorBoundary>
   );
 }

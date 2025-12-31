@@ -8,56 +8,67 @@ import Toast from '../components/Toast';
 import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import { SocialButton } from '../components/SocialButton';
-import { useAuthRole, UserRole } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { setRole } = useAuthRole();
   const { toast, showError, hideToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
+    // Basic validation
     if (!email.trim() || !password.trim()) {
       showError('Please fill in all required fields');
       return;
     }
 
     try {
-      const derivedRole: UserRole = email.toLowerCase().includes('provider')
-        ? 'provider'
-        : 'consumer';
-
-      await setRole(derivedRole);
-
-      if (derivedRole === 'provider') {
-        router.replace('/provider/home');
-      } else {
-        router.replace('/LocationPermissionScreen');
-      }
+      // After successful login, navigate to location permission
+      router.push('/LocationPermissionScreen');
     } catch (error) {
       showError('Login failed. Please check your credentials and try again.');
     }
   };
 
   const handleSignup = () => {
+    // Navigate to signup screen
     router.push('/SignupScreen');
   };
 
   const handleGoogleLogin = () => {
+    // Handle Google login
   };
 
   const handleFacebookLogin = () => {
+    // Handle Facebook login
   };
 
   return (
     <SafeAreaWrapper>
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
-        <Text className="text-3xl font-bold text-black mb-8" style={{
-             fontFamily: 'Poppins-ExtraBold',
-        }}>Login</Text>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingVertical: 40,
+          flexGrow: 1,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Title */}
+        <Text
+          style={{
+            fontSize: 32,
+            fontFamily: 'Poppins-ExtraBold',
+            color: '#000000',
+            marginBottom: 32,
+            lineHeight: 40,
+          }}
+        >
+          Login
+        </Text>
 
+        {/* Company Email Input */}
         <InputField
           placeholder="Company email"
           icon={<Mail size={20} color={'white'}/>}
@@ -67,6 +78,7 @@ export default function LoginScreen() {
           iconPosition="left"
         />
 
+        {/* Password Input */}
         <InputField
           placeholder="Password"
           icon={<Lock size={20} color={'white'}/>}
@@ -76,33 +88,72 @@ export default function LoginScreen() {
           iconPosition="right"
         />
 
-        <View className="items-end mb-4">
+        {/* Forgot Password Link */}
+        <View style={{ alignItems: 'flex-end', marginBottom: 16 }}>
           <TouchableOpacity onPress={() => router.push('/ResetPassword')} activeOpacity={0.7}>
-            <Text className="text-[#6A9B00] font-bold text-base" style={{ fontFamily: 'Poppins-Bold' }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontFamily: 'Poppins-SemiBold',
+                color: '#6A9B00',
+              }}
+            >
               Forgot password?
             </Text>
           </TouchableOpacity>
         </View>
 
-        <View className="mt-4">
+        {/* Login Button */}
+        <View style={{ marginTop: 8, marginBottom: 24 }}>
           <AuthButton title="Login" onPress={handleLogin} />
         </View>
 
-        <View className="items-center mb-8">
+        {/* Signup Link */}
+        <View style={{ alignItems: 'center', marginBottom: 32 }}>
           <TouchableOpacity onPress={handleSignup} activeOpacity={0.7}>
-            <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontFamily: 'Poppins-Medium',
+                color: '#000000',
+              }}
+            >
               Don't have an account?{' '}
-              <Text className="text-[#6A9B00] font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Sign Up</Text>
+              <Text
+                style={{
+                  fontFamily: 'Poppins-Bold',
+                  color: '#6A9B00',
+                }}
+              >
+                Sign Up
+              </Text>
             </Text>
           </TouchableOpacity>
         </View>
 
-        <View className="flex-row items-center mb-8">
-          <View className="flex-1 h-px bg-gray-300" />
-          <Text className="mx-4 text-gray-500 text-base" style={{ fontFamily: 'Poppins-Medium' }}>or</Text>
-          <View className="flex-1 h-px bg-gray-300" />
+        {/* Divider */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: 32,
+          }}
+        >
+          <View style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
+          <Text
+            style={{
+              marginHorizontal: 16,
+              fontSize: 16,
+              fontFamily: 'Poppins-Medium',
+              color: '#6B7280',
+            }}
+          >
+            or
+          </Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
         </View>
 
+        {/* Social Buttons */}
         <SocialButton
           title="Continue with Google"
           icon={

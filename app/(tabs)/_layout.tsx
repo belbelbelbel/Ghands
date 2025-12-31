@@ -1,8 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
+import { useAuthRole } from '@/hooks/useAuth';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -100,6 +101,23 @@ const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
 
 
 export default function TabLayout() {
+  const { role, isLoading } = useAuthRole();
+
+  // While loading role from storage, avoid flicker
+  if (isLoading) {
+    return null;
+  }
+
+  // If user is a provider, they should not see client tabs
+  if (role === 'provider') {
+    return <Redirect href="/provider/home" />;
+  }
+
+  // If no role yet, send to account type selection
+  if (!role) {
+    return <Redirect href="/SelectAccountTypeScreen" />;
+  }
+
   return (
     <Tabs
       screenOptions={{

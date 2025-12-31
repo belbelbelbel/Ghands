@@ -1,12 +1,17 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import Demcatorline from "@/components/Demacator";
 import HeaderComponent from "@/components/HeaderComponent";
+import { haptics } from '@/hooks/useHaptics';
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo } from "react";
 import { Animated, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { analytics } from '@/services/analytics';
 
 export default function Jobdetails() {
+  const router = useRouter();
+  
   const iconStack = [
     {
       id: 1,
@@ -77,15 +82,21 @@ export default function Jobdetails() {
   );
 
   useEffect(() => {
+    // Trigger success haptic for completed job (payment success)
+    haptics.success();
+    
     const timelineSequence = timelineAnimations.map((anim, index) =>
-      Animated.timing(anim, {
+      Animated.spring(anim, {
         toValue: 1,
-        duration: 250,
-        delay: index * 120,
         useNativeDriver: true,
+        tension: 80,
+        friction: 8,
+        delay: index * 120,
       })
     );
-    Animated.stagger(100, timelineSequence).start();
+    Animated.stagger(100, timelineSequence).start(() => {
+      haptics.light();
+    });
   }, [timelineAnimations]);
 
   const renderTimeline = () => (
@@ -145,11 +156,13 @@ export default function Jobdetails() {
               <Text className="text-sm text-gray-600 mb-3" style={{ fontFamily: 'Poppins-Regular' }}>
                 {step.description}
               </Text>
-              <View className="rounded-full px-3 py-1.5 self-start" style={{ backgroundColor: step.accent }}>
-                <Text className="text-xs text-gray-900" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                  {step.status}
-                </Text>
-              </View>
+              <AnimatedStatusChip
+                status={step.status}
+                statusColor={step.accent}
+                textColor="#111827"
+                size="small"
+                animated={true}
+              />
             </Animated.View>
           </View>
         );
@@ -174,7 +187,20 @@ export default function Jobdetails() {
               >
                 Service Provider
               </Text>
-              <View className="flex flex-row items-center justify-between px-5 py-5 bg-white rounded-2xl border border-gray-100">
+              <TouchableOpacity
+                className="flex flex-row items-center justify-between px-5 py-5 bg-white rounded-2xl border border-gray-100"
+                activeOpacity={0.7}
+                onPress={() => {
+                  haptics.selection();
+                  router.push({
+                    pathname: '/ProviderDetailScreen',
+                    params: {
+                      providerName: 'Mike Johnson',
+                      providerId: 'provider-1',
+                    },
+                  } as any);
+                }}
+              >
                 <View className="flex flex-row items-center gap-5">
                   <View className="w-14 h-14 rounded-full overflow-hidden">
                     <Image
@@ -215,12 +241,16 @@ export default function Jobdetails() {
                       className="p-3 rounded-xl bg-[#6A9B00]"
                       key={icons.id}
                       activeOpacity={0.85}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        // Handle call/chat action
+                      }}
                     >
                       <View>{icons.icons}</View>
                     </TouchableOpacity>
                   ))}
                 </View>
-              </View>
+              </TouchableOpacity>
             </View>
             <Demcatorline />
             <View className="mt-6 mb-6">
@@ -270,6 +300,11 @@ export default function Jobdetails() {
               <TouchableOpacity
                 className="flex gap-3 flex-row mt-4 py-4 rounded-xl items-center justify-center bg-[#6A9B00]"
                 activeOpacity={0.85}
+                onPress={() => {
+                  haptics.selection();
+                  analytics.track('view_receipt', { job_id: 'completed_job' });
+                  router.push('/PaymentHistoryScreen' as any);
+                }}
               >
                 <Text
                   className="text-white text-base"

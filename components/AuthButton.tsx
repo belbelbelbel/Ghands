@@ -1,21 +1,31 @@
 import React from 'react';
-import { Text, TouchableOpacity } from 'react-native';
+import { Button } from './ui/Button';
 
 interface AuthButtonProps {
   title: string;
   onPress: () => void;
+  variant?: 'primary' | 'secondary';
+  loading?: boolean;
+  disabled?: boolean;
 }
 
-export const AuthButton: React.FC<AuthButtonProps> = ({ title, onPress }) => {
+export const AuthButton: React.FC<AuthButtonProps> = ({
+  title,
+  onPress,
+  variant = 'secondary',
+  loading = false,
+  disabled = false,
+}) => {
   return (
-    <TouchableOpacity
+    <Button
+      title={title}
       onPress={onPress}
-      activeOpacity={0.8}
-      className="bg-black rounded-xl py-4 px-6 mb-6"
-    >
-      <Text className="text-white text-center text-lg font-semibold">
-        {title}
-      </Text>
-    </TouchableOpacity>
+      variant={variant}
+      size="large"
+      fullWidth
+      loading={loading}
+      disabled={disabled}
+      style={{ marginBottom: 24 }}
+    />
   );
 };

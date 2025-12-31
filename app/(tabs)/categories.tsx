@@ -4,7 +4,7 @@ import Toast from '@/components/Toast';
 import { useToast } from '@/hooks/useToast';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Search, X } from 'lucide-react-native';
+import { ArrowLeft, Search, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { serviceCategories } from '../../data/serviceCategories';
@@ -111,8 +111,11 @@ export default function CategoryPage() {
     );
   }, [searchQuery, categoryArrays]);
 
+  // Track if we're coming from navigation vs tab
   useFocusEffect(
     React.useCallback(() => {
+      // When screen comes into focus, check if we have searchQuery param
+      // If not, we're coming from tab navigation, so clear the flag
       if (!params.searchQuery && !params.selectedCategoryId) {
         setHasNavigatedFromHome(false);
         setSearchQuery('');
@@ -169,6 +172,7 @@ export default function CategoryPage() {
       }, 300);
       return () => clearTimeout(scrollTimer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.selectedCategoryId]);
 
   const searchBarStyle = useMemo(() => ({ height: 50 }), []);
@@ -192,7 +196,7 @@ export default function CategoryPage() {
                 onPress={() => routes.back()}
                 className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
               >
-                <Ionicons name="arrow-back" size={22} color="#111827" />
+                <ArrowLeft size={20} color="#111827" />
               </TouchableOpacity>
               <Text style={{
                 fontSize: 18,

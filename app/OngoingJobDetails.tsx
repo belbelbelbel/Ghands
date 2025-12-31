@@ -1,4 +1,6 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import AnimatedStatusChip from '@/components/AnimatedStatusChip';
+import { haptics } from '@/hooks/useHaptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -109,7 +111,7 @@ interface Quotation {
   id: string;
   providerName: string;
   providerType: string;
-  providerImage: string;
+  providerImage: string; // URI or require path
   quoteAmount: string;
   serviceBreakdown: ServiceBreakdownItem[];
   paymentTerms: PaymentTerm[];
@@ -120,7 +122,7 @@ const QUOTATIONS: Quotation[] = [
     id: 'quote-1',
     providerName: 'AquaFix Solutions',
     providerType: 'Plumbing Specialists',
-    providerImage: 'https://via.placeholder.com/150',
+    providerImage: 'https://i.pravatar.cc/150?img=12',
     quoteAmount: '$65',
     serviceBreakdown: [
       { service: 'Complete faucet assessment', price: 'Free' },
@@ -138,7 +140,7 @@ const QUOTATIONS: Quotation[] = [
     id: 'quote-2',
     providerName: "Mike's Plumbing",
     providerType: 'Professional Plumber',
-    providerImage: 'https://via.placeholder.com/150',
+    providerImage: 'https://i.pravatar.cc/150?img=47',
     quoteAmount: '$75',
     serviceBreakdown: [
       { service: 'Faucet inspection & diagnosis', price: '$10' },
@@ -156,7 +158,7 @@ const QUOTATIONS: Quotation[] = [
     id: 'quote-3',
     providerName: 'Elite Plumbing Services',
     providerType: 'Certified Plumbers',
-    providerImage: 'https://via.placeholder.com/150',
+    providerImage: 'https://i.pravatar.cc/150?img=33',
     quoteAmount: '$85',
     serviceBreakdown: [
       { service: 'Comprehensive assessment', price: '$15' },
@@ -183,6 +185,11 @@ export default function OngoingJobDetails() {
     []
   );
 
+  const lineAnimations = useMemo(
+    () => TIMELINE_STEPS.slice(0, -1).map(() => new Animated.Value(0)),
+    []
+  );
+
   const providerAnimations = useMemo(
     () => PROVIDERS.map(() => new Animated.Value(0)),
     []
@@ -204,64 +211,94 @@ export default function OngoingJobDetails() {
   }, [currentQuoteIndex, quoteCardAnim]);
 
   useEffect(() => {
+    // Enhanced timeline animation with haptics
     const timelineSequence = timelineAnimations.map((anim, index) =>
-      Animated.timing(anim, {
+      Animated.spring(anim, {
         toValue: 1,
-        duration: 250,
-        delay: index * 120,
         useNativeDriver: true,
+        tension: 80,
+        friction: 8,
+        delay: index * 120,
       })
     );
-    Animated.stagger(100, timelineSequence).start();
+    Animated.stagger(100, timelineSequence).start(() => {
+      // Light haptic when timeline finishes animating
+      haptics.light();
+    });
 
-    const providerSequence = providerAnimations.map((anim, index) =>
+    // Animate progress lines after dots
+    const lineSequence = lineAnimations.map((anim, index) =>
       Animated.timing(anim, {
         toValue: 1,
-        duration: 300,
-        delay: 100 * index,
+        duration: 400,
+        delay: (index + 1) * 120 + 200,
+        useNativeDriver: false,
+      })
+    );
+    Animated.stagger(100, lineSequence).start();
+
+    // Provider cards animation
+    const providerSequence = providerAnimations.map((anim, index) =>
+      Animated.spring(anim, {
+        toValue: 1,
         useNativeDriver: true,
+        tension: 80,
+        friction: 8,
+        delay: 100 * index,
       })
     );
     Animated.stagger(120, providerSequence).start();
-  }, [timelineAnimations, providerAnimations]);
+  }, [timelineAnimations, lineAnimations, providerAnimations]);
 
   const renderTimeline = () => (
     <View className="mb-8">
       {TIMELINE_STEPS.map((step, index) => {
         const isLast = index === TIMELINE_STEPS.length - 1;
         const animation = timelineAnimations[index];
+        const lineAnim = !isLast ? lineAnimations[index] : null;
 
-        return (
-          <View key={step.id} className="flex-row mb-6">
-            <View className="items-center mr-5">
-              <Animated.View
-                style={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: 8,
-                  backgroundColor: step.dotColor,
-                  transform: [
-                    {
-                      scale: animation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.7, 1],
-                      }),
-                    },
-                  ],
-                  opacity: animation,
-                }}
-              />
-              {!isLast && (
-                <View
-                  className="w-0.5"
+          return (
+            <View key={step.id} className="flex-row mb-6">
+              <View className="items-center mr-5">
+                <Animated.View
                   style={{
-                    flex: 1,
-                    backgroundColor: '#E5E7EB',
-                    marginTop: 6,
+                    width: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    backgroundColor: step.dotColor,
+                    transform: [
+                      {
+                        scale: animation.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.7, 1],
+                        }),
+                      },
+                    ],
+                    opacity: animation,
                   }}
                 />
-              )}
-            </View>
+                {!isLast && (
+                  <Animated.View
+                    className="w-0.5"
+                    style={{
+                      flex: 1,
+                      backgroundColor: lineAnim
+                        ? lineAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['#E5E7EB', step.dotColor],
+                          })
+                        : '#E5E7EB',
+                      marginTop: 6,
+                      height: lineAnim
+                        ? lineAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, 60],
+                          })
+                        : 60,
+                    }}
+                  />
+                )}
+              </View>
             <Animated.View
               style={{
                 flex: 1,
@@ -283,11 +320,13 @@ export default function OngoingJobDetails() {
               <Text className="text-sm text-gray-600 mb-3" style={{ fontFamily: 'Poppins-Regular' }}>
                 {step.description}
               </Text>
-              <View className="rounded-full px-3 py-1.5 self-start" style={{ backgroundColor: step.accent }}>
-                <Text className="text-xs text-gray-900" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                  {step.status}
-                </Text>
-              </View>
+              <AnimatedStatusChip
+                status={step.status}
+                statusColor={step.accent}
+                textColor="#111827"
+                size="small"
+                animated={true}
+              />
             </Animated.View>
           </View>
         );
@@ -313,16 +352,30 @@ export default function OngoingJobDetails() {
         }}
         className="mb-6 rounded-2xl bg-white border border-gray-100 shadow-[0px_12px_32px_rgba(15,23,42,0.08)]"
       >
-          <View className="flex-row items-start px-5 pt-5 pb-2">
-          <View className="w-12 h-12 rounded-full bg-[#E5E7EB] mr-4" />
-          <View className="flex-1">
-            <Text className="text-base text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
-              {provider.name}
-            </Text>
-            <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
-              {provider.role}
-            </Text>
-          </View>
+        <View className="flex-row items-start px-5 pt-5 pb-2">
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              router.push({
+                pathname: '/ProviderDetailScreen',
+                params: {
+                  providerName: provider.name,
+                  providerId: provider.id,
+                },
+              } as any);
+            }}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+          >
+            <View className="w-12 h-12 rounded-full bg-[#E5E7EB] mr-4" />
+            <View className="flex-1">
+              <Text className="text-base text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
+                {provider.name}
+              </Text>
+              <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
+                {provider.role}
+              </Text>
+            </View>
+          </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.85}
             className="mr-2"
@@ -338,17 +391,13 @@ export default function OngoingJobDetails() {
           >
             <Ionicons name="chatbubble-ellipses-outline" size={22} color="#6B7280" />
           </TouchableOpacity>
-          <View
-            className="px-3 py-1 rounded-full"
-            style={{ backgroundColor: provider.statusColor }}
-          >
-            <Text
-              className="text-xs"
-              style={{ fontFamily: 'Poppins-SemiBold', color: provider.statusTextColor }}
-            >
-              {provider.status}
-            </Text>
-          </View>
+          <AnimatedStatusChip
+            status={provider.status}
+            statusColor={provider.statusColor}
+            textColor={provider.statusTextColor}
+            size="small"
+            animated={true}
+          />
         </View>
 
         {provider.quote ? (
@@ -407,8 +456,8 @@ export default function OngoingJobDetails() {
     <SafeAreaWrapper>
       <View className="flex-1 px-4" style={{ paddingTop: 20 }}>
         <View className="flex-row items-center mb-6">
-          <TouchableOpacity onPress={() => router.back()} className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100" activeOpacity={0.85}>
-            <Ionicons name="arrow-back" size={22} color="#111827" />
+          <TouchableOpacity onPress={() => router.back()} className="mr-3" activeOpacity={0.85}>
+            <Text className="text-lg">←</Text>
           </TouchableOpacity>
           <Text className="text-xl text-black" style={{ fontFamily: 'Poppins-Bold' }}>
             {activeTab === 'Updates' ? 'Updates' : 'Quotations'}
@@ -455,7 +504,7 @@ export default function OngoingJobDetails() {
             </>
           ) : (
             <View className="flex-1">
-              
+              {/* Info Banner */}
               <View className="rounded-2xl bg-[#E0F2FE] px-4 py-3 mb-4 flex-row items-start">
                 <View className="w-5 h-5 rounded-full bg-[#0EA5E9] items-center justify-center mr-3 mt-0.5">
                   <Text className="text-white text-xs" style={{ fontFamily: 'Poppins-Bold' }}>
@@ -474,7 +523,7 @@ export default function OngoingJobDetails() {
 
               {QUOTATIONS.length > 0 && (
                 <>
-                  
+                  {/* Quotation Card */}
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => {
@@ -521,7 +570,7 @@ export default function OngoingJobDetails() {
                     </Animated.View>
                   </TouchableOpacity>
 
-                  
+                  {/* Service Breakdown */}
                   <Animated.View
                     className="mb-4"
                     style={{
@@ -564,7 +613,7 @@ export default function OngoingJobDetails() {
                     </View>
                   </Animated.View>
 
-                  
+                  {/* Payment Terms */}
                   <Animated.View
                     className="mb-6"
                     style={{
@@ -594,11 +643,15 @@ export default function OngoingJobDetails() {
                     </View>
                   </Animated.View>
 
-                  
+                  {/* Accept Button */}
                   <TouchableOpacity
                     activeOpacity={0.85}
                     className="bg-black rounded-xl py-4 items-center justify-center mb-4"
                     onPress={() => {
+                      // Handle accept quote - artisan accepted job
+                      haptics.success();
+                      analytics.track('accept_quote', { job_id: 'ongoing_job' });
+                      router.push('/PaymentMethodsScreen' as any);
                     }}
                   >
                     <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
@@ -606,11 +659,12 @@ export default function OngoingJobDetails() {
                     </Text>
                   </TouchableOpacity>
 
-                  
+                  {/* Navigation & Pagination */}
                   <View className="flex-row items-center justify-between mb-6">
                     <TouchableOpacity
                       onPress={() => {
                         if (currentQuoteIndex > 0) {
+                          haptics.selection();
                           setCurrentQuoteIndex(currentQuoteIndex - 1);
                         }
                       }}
@@ -641,6 +695,7 @@ export default function OngoingJobDetails() {
                     <TouchableOpacity
                       onPress={() => {
                         if (currentQuoteIndex < QUOTATIONS.length - 1) {
+                          haptics.selection();
                           setCurrentQuoteIndex(currentQuoteIndex + 1);
                         }
                       }}

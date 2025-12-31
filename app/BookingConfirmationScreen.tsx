@@ -1,4 +1,6 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import AnimatedStatusChip from '@/components/AnimatedStatusChip';
+import { haptics } from '@/hooks/useHaptics';
 import { useRouter } from 'expo-router';
 import { ArrowRight, CheckCircle } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
@@ -58,26 +60,38 @@ export default function BookingConfirmationScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Trigger success haptic on mount (booking confirmation)
+    haptics.success();
+    
     Animated.parallel([
-      Animated.timing(fadeAnim, {
+      Animated.spring(fadeAnim, {
         toValue: 1,
-        duration: 500,
         useNativeDriver: true,
+        tension: 50,
+        friction: 7,
       }),
-      Animated.timing(slideAnim, {
+      Animated.spring(slideAnim, {
         toValue: 0,
-        duration: 500,
         useNativeDriver: true,
+        tension: 50,
+        friction: 7,
       }),
     ]).start();
+    
+    // Animate steps with staggered timing and haptics
     PROGRESS_STEPS.forEach((_, index) => {
       setTimeout(() => {
         setAnimatedSteps((prev) => [...prev, index]);
+        // Light haptic for each step animation
+        if (index > 0) {
+          haptics.light();
+        }
       }, 300 + index * 150);
     });
   }, [fadeAnim, slideAnim]);
 
   const handleContinue = () => {
+    haptics.selection();
     router.push('/(tabs)/home');
   };
 
@@ -211,17 +225,13 @@ export default function BookingConfirmationScreen() {
                     >
                       {step.description}
                     </Text>
-                    <View
-                      className="rounded-full px-3 py-1 self-start"
-                      style={{ backgroundColor: step.statusColor }}
-                    >
-                      <Text
-                        className="text-xs"
-                        style={{ fontFamily: 'Poppins-SemiBold', color: textColor }}
-                      >
-                        {step.statusText}
-                      </Text>
-                    </View>
+                    <AnimatedStatusChip
+                      status={step.statusText}
+                      statusColor={step.statusColor}
+                      textColor={textColor}
+                      size="small"
+                      animated={isAnimated}
+                    />
                   </View>
                 </View>
               );

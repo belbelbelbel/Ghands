@@ -7,7 +7,6 @@ import RecommendedCard from '@/components/home/RecommendedCard';
 import TodoCard from '@/components/home/TodoCard';
 import { jobActivities, promoCodes, recommendedServices, todoItems } from '@/components/home/data';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { Colors } from '@/lib/designSystem';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
@@ -60,8 +59,10 @@ const HomeScreen = React.memo(() => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
+  // Refresh location when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      // Reload location from storage when screen comes into focus
       refreshLocation();
     }, [refreshLocation])
   );
@@ -120,6 +121,7 @@ const HomeScreen = React.memo(() => {
         category.title.toLowerCase().includes(query) ||
         category.id.toLowerCase().includes(query)
     );
+    // If no results found, show all categories instead of empty
     return filtered.length > 0 ? filtered.slice(0, 4) : homeScreenCategories.slice(0, 4);
   }, [searchQuery]);
 
@@ -191,7 +193,7 @@ const HomeScreen = React.memo(() => {
                 className="relative p-2 ml-4"
                 onPress={handleNotificationPress}
               >
-                <Bell size={22} color={Colors.textPrimary} />
+                <Bell size={22} color="#111827" />
                 <View className="absolute top-1 right-1 w-2 h-2 bg-[#9bd719ff] rounded-full" />
               </TouchableOpacity>
             </View>
@@ -229,7 +231,7 @@ const HomeScreen = React.memo(() => {
             </View>
           </View>
           <View className="px-4 pt-6 mb-0">
-            <View className="flex-row pb-2 items-center justify-between mb-0vieew detaiuls">
+            <View className="flex-row pb-2 items-center justify-between mb-4">
               <Text
                 className="text-xl font-bold text-black"
                 style={{ fontFamily: 'Poppins-Bold' }}
@@ -246,7 +248,7 @@ const HomeScreen = React.memo(() => {
                 >
                   View all
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color={Colors.textPrimary} />
+                <Ionicons name="chevron-forward" size={16} color="black" />
               </TouchableOpacity>
             </View>
 
@@ -277,33 +279,75 @@ const HomeScreen = React.memo(() => {
               )}
             </View>
           </View>
-          <View className="px-0 mb-0">
-            <View className="bg-gradient-to-r from-[#6A9B00] to-[#5A8A00] rounded-2xl p-6 ">
-              <View className="flex-row items-center">
-                <View className="flex-1">
+          <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
+            <View
+              style={{
+                backgroundColor: '#6A9B00',
+                borderRadius: 16,
+                padding: 24,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.1,
+                shadowRadius: 8,
+                elevation: 4,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
                   <Text
-                    className="text-xl font-bold text-black mb-2"
-                    style={{ fontFamily: 'Poppins-Bold' }}
+                    style={{
+                      fontSize: 20,
+                      fontFamily: 'Poppins-Bold',
+                      color: '#000000',
+                      marginBottom: 8,
+                    }}
                   >
                     Your one-stop shop for help
                   </Text>
                   <Text
-                    className="text-sm text-black/70 mb-4"
-                    style={{ fontFamily: 'Poppins-Medium' }}
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Medium',
+                      color: 'rgba(0, 0, 0, 0.7)',
+                      marginBottom: 16,
+                    }}
                   >
                     Find trusted professionals for all your needs
                   </Text>
-                  <TouchableOpacity className="bg-black rounded-xl py-3 px-6 self-start" onPress={() => router.push('categories' as any)}>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#000000',
+                      borderRadius: 12,
+                      paddingVertical: 12,
+                      paddingHorizontal: 24,
+                      alignSelf: 'flex-start',
+                    }}
+                    onPress={() => router.push('categories' as any)}
+                    activeOpacity={0.8}
+                  >
                     <Text
-                      className="text-white font-semibold"
-                      style={{ fontFamily: 'Poppins-SemiBold' }}
+                      style={{
+                        fontSize: 16,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: '#FFFFFF',
+                      }}
                     >
                       Get Started
                     </Text>
                   </TouchableOpacity>
                 </View>
-                <View className="w-20 h-20 bg-black/10 rounded-full items-center justify-center">
-                  <Text className="text-3xl">🛠️</Text>
+                <View
+                  style={{
+                    width: 80,
+                    height: 80,
+                    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                    borderRadius: 40,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginLeft: 16,
+                  }}
+                >
+                  <Text style={{ fontSize: 32 }}>🛠️</Text>
                 </View>
               </View>
             </View>
@@ -337,7 +381,7 @@ const HomeScreen = React.memo(() => {
                 >
                   View all
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color={Colors.textPrimary} />
+                <Ionicons name="chevron-forward" size={16} color="black" />
               </TouchableOpacity>
             </View>
             {isLoading ? (

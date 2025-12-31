@@ -4,14 +4,14 @@ import { useRouter } from 'expo-router';
 import { ChevronDown, Mail, Phone, Search } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import {
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 interface FAQItem {
@@ -53,6 +53,7 @@ export default function SupportScreen() {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   
+  // Initialize animations for each FAQ item
   const animations = useRef<{ [key: string]: Animated.Value }>(
     FAQ_ITEMS.reduce((acc, item) => {
       acc[item.id] = new Animated.Value(0);
@@ -72,6 +73,7 @@ export default function SupportScreen() {
 
     setExpandedItems(newExpanded);
 
+    // Animate expansion/collapse
     Animated.timing(animations.current[id], {
       toValue: isExpanded ? 0 : 1,
       duration: 300,
@@ -85,6 +87,7 @@ export default function SupportScreen() {
 
   const handleSubmitForm = () => {
     if (formData.name && formData.email && formData.message) {
+      // Handle form submission
       setFormData({ name: '', email: '', message: '' });
     }
   };
@@ -102,10 +105,10 @@ export default function SupportScreen() {
         className="flex-1"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        
+        {/* Header */}
         <View className="flex-row items-center px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
           <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
-            <Ionicons name="arrow-back" size={22} color="#000000" />
+            <Ionicons name="arrow-back" size={24} color="#000000" />
           </TouchableOpacity>
           <Text className="text-xl font-bold text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
             Support
@@ -114,7 +117,7 @@ export default function SupportScreen() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-          
+          {/* Search Bar */}
           <View className="px-4 pt-6 mb-6">
             <View className="bg-gray-100 rounded-xl px-4 py-3 flex-row items-center">
               <TextInput
@@ -131,7 +134,7 @@ export default function SupportScreen() {
             </View>
           </View>
 
-          
+          {/* FAQ Section */}
           <View className="px-4 mb-6">
             {filteredFAQs.map((item) => {
               const isExpanded = expandedItems.has(item.id);
@@ -156,7 +159,7 @@ export default function SupportScreen() {
                     </Animated.View>
                   </TouchableOpacity>
 
-                  
+                  {/* Answer with animation */}
                   <Animated.View
                     style={{
                       maxHeight: animation.interpolate({
@@ -178,7 +181,7 @@ export default function SupportScreen() {
             })}
           </View>
 
-          
+          {/* Contact Support Section */}
           <View className="px-4 mb-6">
             <Text className="text-xl font-bold text-black mb-4" style={{ fontFamily: 'Poppins-Bold' }}>
               Contact Support
@@ -243,7 +246,7 @@ export default function SupportScreen() {
             </View>
           </View>
 
-          
+          {/* Contact Information */}
           <View className="px-4 mb-6">
             <Text className="text-xl font-bold text-black mb-4" style={{ fontFamily: 'Poppins-Bold' }}>
               Contact Information

@@ -368,12 +368,8 @@ export const authService = {
     await apiClient.setAuthToken(response.accessToken);
     await AsyncStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken);
     return response;
-  },
-
-  logout: async () => {
+  },  logout: async () => {
     await apiClient.clearAuthTokens();
-  },
-
-  setAuthToken: (token: string) => apiClient.setAuthToken(token),
+  },  setAuthToken: (token: string) => apiClient.setAuthToken(token),
   clearAuthTokens: () => apiClient.clearAuthTokens(),
 };

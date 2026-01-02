@@ -233,7 +233,7 @@ export default function WalletScreen() {
           style={{
             flexDirection: 'row',
             gap: 12,
-            marginBottom: 20,
+            marginBottom: 32,
           }}
         >
           {/* Add Funds - BRIGHT LIME GREEN */}
@@ -294,7 +294,7 @@ export default function WalletScreen() {
         </View>
 
         {/* Recent Activity Section */}
-        <View style={{ marginBottom: 12 }}>
+        <View style={{ marginTop: 8, marginBottom: 12 }}>
           <View
             style={{
               flexDirection: 'row',

@@ -1,8 +1,8 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { AlertTriangle, RefreshCw } from 'lucide-react-native';
-import SafeAreaWrapper from './SafeAreaWrapper';
 import { crashReporting } from '@/services/crashReporting';
+import { AlertTriangle, RefreshCw } from 'lucide-react-native';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import SafeAreaWrapper from './SafeAreaWrapper';
 
 interface Props {
   children: ReactNode;

@@ -1,160 +1,300 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { Ionicons } from '@expo/vector-icons';
+import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import { ArrowLeft, ArrowRight, Calendar, CheckCircle, Clock, FileText, Handshake, MessageCircle, Wallet } from 'lucide-react-native';
+import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-const notificationsData = [
+interface Notification {
+  id: string;
+  type: string;
+  description: string;
+  time: string;
+  barColor: string;
+  icon: any;
+  iconBgColor: string;
+  isRead: boolean;
+  section: 'Recent' | 'Yesterday' | 'Last week';
+}
+
+const NOTIFICATIONS: Notification[] = [
   {
     id: '1',
     type: 'Job Status',
     description: 'Marcus lee marked job as completed.',
     time: '20mins ago',
-    barColor: '#2196F3',
-    icon: 'checkbox-outline',
-    iconBgColor: '#BBDEFB',
-    isRead: false
+    barColor: '#4B5563',
+    icon: Handshake,
+    iconBgColor: '#FEF3C7',
+    isRead: false,
+    section: 'Recent',
   },
   {
     id: '2',
     type: 'New message',
-    description: 'Marcus lee sent you a text',
+    description: 'Marcus lee sent you a text.',
     time: '20mins ago',
-    barColor: '#6A9B00',
-    icon: 'chatbubble-ellipses-outline',
-    iconBgColor: '#C8E6C9',
-    isRead: false
+    barColor: '#4B5563',
+    icon: MessageCircle,
+    iconBgColor: '#E5E7EB',
+    isRead: false,
+    section: 'Recent',
   },
   {
     id: '3',
     type: 'Job Status',
     description: 'Marcus lee marked job as completed.',
     time: '20mins ago',
-    barColor: '#6A9B00',
-    icon: 'checkmark-circle-outline',
-    iconBgColor: '#C8E6C9',
-    isRead: false
+    barColor: Colors.accent,
+    icon: Handshake,
+    iconBgColor: '#FEF3C7',
+    isRead: true,
+    section: 'Yesterday',
   },
   {
     id: '4',
-    type: 'Job Status',
-    description: 'Marcus lee marked job as completed.',
+    type: 'New Request',
+    description: 'You have a new job request.',
     time: '20mins ago',
-    barColor: '#666',
-    icon: 'document-text-outline',
-    iconBgColor: '#E0E0E0',
-    isRead: true
+    barColor: '#4B5563',
+    icon: FileText,
+    iconBgColor: '#DBEAFE',
+    isRead: true,
+    section: 'Yesterday',
   },
   {
     id: '5',
-    type: 'Job Status',
-    description: 'Marcus lee marked job as completed.',
+    type: 'Work order Issued',
+    description: 'Work order for #WO-2024-115 has been issued. Start date: Dec 12, 2024.',
     time: '20mins ago',
-    barColor: '#666',
-    icon: 'document-text-outline',
-    iconBgColor: '#E0E0E0',
-    isRead: true
+    barColor: Colors.accent,
+    icon: Calendar,
+    iconBgColor: '#DCFCE7',
+    isRead: true,
+    section: 'Yesterday',
   },
   {
     id: '6',
-    type: 'Job Status',
-    description: 'Marcus lee marked job as completed.',
+    type: 'Payment Released',
+    description: '20,000 has been released for #WO-2024-1157. Funds will be available in your wallet shortly.',
     time: '20mins ago',
-    barColor: '#666',
-    icon: 'document-text-outline',
-    iconBgColor: '#E0E0E0',
-    isRead: true
+    barColor: '#4B5563',
+    icon: Wallet,
+    iconBgColor: '#DCFCE7',
+    isRead: true,
+    section: 'Last week',
   },
   {
     id: '7',
-    type: 'Job Status',
-    description: 'Marcus lee marked job as completed.',
+    type: 'Withdrawal Status',
+    description: 'Your withdrawal request of 45,000 has been processed successfully.',
     time: '20mins ago',
-    barColor: '#666',
-    icon: 'document-text-outline',
-    iconBgColor: '#E0E0E0',
-    isRead: true
-  }
+    barColor: '#4B5563',
+    icon: Clock,
+    iconBgColor: '#E5E7EB',
+    isRead: true,
+    section: 'Last week',
+  },
 ];
 
-const NotificationsScreen = () => {
+export default function NotificationsScreen() {
   const router = useRouter();
+  const [hasNotifications] = useState(true); // Set to false to show empty state
+
+  const groupedNotifications = NOTIFICATIONS.reduce((acc, notif) => {
+    if (!acc[notif.section]) {
+      acc[notif.section] = [];
+    }
+    acc[notif.section].push(notif);
+    return acc;
+  }, {} as Record<string, Notification[]>);
+
+  const handleClearAll = () => {
+    // Handle clear all
+  };
+
+  const handleMarkAsRead = (id: string) => {
+    // Handle mark as read
+  };
+
+  if (!hasNotifications) {
+    return (
+      <SafeAreaWrapper backgroundColor={Colors.white}>
+        <View style={{ flex: 1 }}>
+          {/* Header */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 20,
+              paddingTop: 16,
+              paddingBottom: 12,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{
+                width: 40,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 12,
+              }}
+              activeOpacity={0.7}
+            >
+              <ArrowLeft size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text
+              style={{
+                fontSize: 20,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+                flex: 1,
+              }}
+            >
+              Notifications
+            </Text>
+          </View>
+
+          {/* Empty State */}
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.textSecondaryDark,
+                textAlign: 'center',
+              }}
+            >
+              You don't have any Notifications
+            </Text>
+          </View>
+
+          {/* Skip Button */}
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingBottom: 32,
+              alignItems: 'flex-end',
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.accent,
+                }}
+              >
+                Skip
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
 
   return (
-    <SafeAreaWrapper>
-      <View className='flex-row items-center justify-between px-4 py-3 border-b border-gray-100' style={{ paddingTop: 20 }}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name='arrow-back' size={24} color="#000" />
-        </TouchableOpacity>
-        <Text
-          className='text-xl font-bold text-black'
-          style={{ fontFamily: 'Poppins-Bold' }}
+    <SafeAreaWrapper backgroundColor={Colors.white}>
+      <View style={{ flex: 1 }}>
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingTop: 16,
+            paddingBottom: 12,
+          }}
         >
-          Notifications
-        </Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-
-      <View className='px-4 pt-4'>
-        <View className='bg-[#6A9B00] rounded-2xl p-4'>
-          <Text
-            className='text-white text-2xl font-bold mb-2'
-            style={{ fontFamily: 'Poppins-Bold' }}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{
+              width: 40,
+              height: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 12,
+            }}
+            activeOpacity={0.7}
           >
-            Job Inspection Ready
-          </Text>
+            <ArrowLeft size={24} color={Colors.textPrimary} />
+          </TouchableOpacity>
           <Text
-            className='text-white text-base mb-4'
-            style={{ fontFamily: 'Poppins-Medium' }}
+            style={{
+              fontSize: 20,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.textPrimary,
+              flex: 1,
+            }}
           >
-            3 providers have submitted quotes for Kitchen Faucet Repair
+            Notifications
           </Text>
-          <TouchableOpacity className='bg-white  border border-white rounded-xl py-3 px-4 items-center'>
+          <TouchableOpacity
+            onPress={handleClearAll}
+            activeOpacity={0.7}
+          >
             <Text
-              className='text-black font-semibold'
-              style={{ fontFamily: 'Poppins-SemiBold' }}
+              style={{
+                fontSize: 14,
+                fontFamily: 'Poppins-SemiBold',
+                color: Colors.accent,
+              }}
             >
-              View Quotes
+              Clear all
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
 
-      <View className='flex-row items-center justify-between px-4 py-4'>
-        <Text
-          className='text-lg font-bold text-black'
-          style={{ fontFamily: 'Poppins-Bold' }}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingBottom: 100,
+          }}
         >
-          Recent
-        </Text>
-        <TouchableOpacity>
-          <Text
-            className='text-[#6A9B00] text-sm font-semibold'
-            style={{ fontFamily: 'Poppins-SemiBold' }}
-          >
-            Clear all
-          </Text>
-        </TouchableOpacity>
-      </View>
-      <ScrollView showsVerticalScrollIndicator={false} className='flex-1'>
-        <View className='px-4'>
-          {notificationsData.map((notification, index) => (
-            <View key={notification.id}>
-              <View className='flex-row my-4 items-start mb-1'>
-                <View
-                  style={{
-                    width: 4,
-                    height: '100%',
-                    backgroundColor: notification.barColor,
-                    borderTopLeftRadius: 4,
-                    borderBottomLeftRadius: 4,
-                    marginRight: 12
-                  }}
-                />
+          {(['Recent', 'Yesterday', 'Last week'] as const).map((section) => {
+            const sectionNotifications = groupedNotifications[section] || [];
+            if (sectionNotifications.length === 0) return null;
 
-                <View className='flex-1 pb-4'>
-                  <View className='flex-row items-start'>
+            return (
+              <View key={section} style={{ marginBottom: 24 }}>
+                {/* Section Header */}
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                    marginBottom: 12,
+                  }}
+                >
+                  {section}
+                </Text>
+
+                {/* Notifications in Section */}
+                {sectionNotifications.map((notification, index) => (
+                  <View
+                    key={notification.id}
+                    style={{
+                      flexDirection: 'row',
+                      marginBottom: index < sectionNotifications.length - 1 ? 16 : 0,
+                    }}
+                  >
+                    {/* Colored Bar */}
+                    <View
+                      style={{
+                        width: 4,
+                        backgroundColor: notification.barColor,
+                        borderRadius: 2,
+                        marginRight: 12,
+                      }}
+                    />
+
+                    {/* Icon */}
                     <View
                       style={{
                         width: 44,
@@ -163,81 +303,93 @@ const NotificationsScreen = () => {
                         backgroundColor: notification.iconBgColor,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginRight: 12
+                        marginRight: 12,
                       }}
                     >
-                      <Ionicons
-                        name={notification.icon as any}
-                        size={22}
-                        color={notification.barColor}
-                      />
+                      {notification.icon && (
+                        <notification.icon
+                          size={22}
+                          color={notification.barColor === Colors.accent ? Colors.accent : Colors.textSecondaryDark}
+                        />
+                      )}
                     </View>
-                    <View className='flex-1'>
-                      <View className='flex-row items-start justify-between mb-1'>
-                        <Text
-                          className='text-base font-bold text-black'
-                          style={{ fontFamily: 'Poppins-Bold' }}
-                        >
-                          {notification.type}
-                        </Text>
-                        <Text
-                          className='text-gray-400 text-xs'
-                          style={{ fontFamily: 'Poppins-Medium' }}
-                        >
-                          {notification.time}
-                        </Text>
-                      </View>
 
+                    {/* Content */}
+                    <View style={{ flex: 1 }}>
                       <Text
-                        className='text-gray-600 text-sm mb-2'
-                        style={{ fontFamily: 'Poppins-Medium' }}
+                        style={{
+                          fontSize: 14,
+                          fontFamily: 'Poppins-Bold',
+                          color: Colors.textPrimary,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {notification.type}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textSecondaryDark,
+                          marginBottom: 8,
+                          lineHeight: 18,
+                        }}
                       >
                         {notification.description}
                       </Text>
+                      <TouchableOpacity
+                        style={{
+                          alignSelf: 'flex-start',
+                          marginBottom: 8,
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontFamily: 'Poppins-SemiBold',
+                            color: Colors.accent,
+                          }}
+                        >
+                          View details
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
 
-                      <View className='flex-row items-center justify-between'>
-                        <TouchableOpacity>
-                          <Text
-                            className='text-[#6A9B00] text-sm font-semibold'
-                            style={{ fontFamily: 'Poppins-SemiBold' }}
-                          >
-                            View details
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity>
-                          <Text
-                            className='text-gray-400 text-sm'
-                            style={{ fontFamily: 'Poppins-Medium' }}
-                          >
-                            Mark as read
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
+                    {/* Right Side - Time and Mark as read */}
+                    <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textSecondaryDark,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {notification.time}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => handleMarkAsRead(notification.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontFamily: 'Poppins-Regular',
+                            color: Colors.textTertiary,
+                          }}
+                        >
+                          Mark as read
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
-                </View>
+                ))}
               </View>
-              {index < notificationsData.length - 1 && (
-                <View className='border-b border-gray-100 mb-1' />
-              )}
-            </View>
-          ))}
-        </View>
-        
-        <View className='px-4 pb-6 pt-4'>
-          <TouchableOpacity className='border border-gray-300 rounded-xl py-4 px-6 flex-row items-center justify-center bg-white'>
-            <Ionicons name='add' size={20} color="#666" />
-            <Text
-              className='text-gray-700 text-base font-semibold ml-2'
-              style={{ fontFamily: 'Poppins-SemiBold' }}
-            >
-              Load More Notifications
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+            );
+          })}
+        </ScrollView>
+      </View>
     </SafeAreaWrapper>
   );
-};
-
-export default NotificationsScreen;
+}

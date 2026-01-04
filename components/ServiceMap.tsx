@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Image, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { useRouter } from 'expo-router';
+import { Search } from 'lucide-react-native';
+import { BorderRadius, Colors } from '@/lib/designSystem';
 
 import mapStyle from '@/lib/mapStyle';
 
@@ -47,6 +49,8 @@ export type ServiceMapProps = {
   onToggleList: () => void;
   userLocation?: { latitude: number; longitude: number } | null;
   categories?: ProviderCategory[];
+  serviceLocation?: string;
+  onServiceLocationChange?: (location: string) => void;
 };
 
 const ServiceMap: React.FC<ServiceMapProps> = ({
@@ -59,15 +63,26 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
   onToggleList,
   userLocation,
   categories = CATEGORY_CHIPS,
+  serviceLocation,
+  onServiceLocationChange,
 }) => {
   const router = useRouter();
   const [activeProvider, setActiveProvider] = useState<ServiceProvider | null>(null);
+  const [locationSearchQuery, setLocationSearchQuery] = useState(serviceLocation || '');
   const bottomCardAnim = useRef(new Animated.Value(0)).current;
 
   const filteredProviders = useMemo(() => {
+    // Filter by category only
     if (selectedCategory === 'All') return providers;
     return providers.filter((provider) => provider.category === selectedCategory);
   }, [providers, selectedCategory]);
+
+  // Update parent when location changes
+  useEffect(() => {
+    if (onServiceLocationChange) {
+      onServiceLocationChange(locationSearchQuery);
+    }
+  }, [locationSearchQuery, onServiceLocationChange]);
 
   useEffect(() => {
     Animated.timing(bottomCardAnim, {
@@ -138,6 +153,66 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
       )}
 
       <View className="absolute top-4 left-0 right-0 px-4">
+        {/* Location Search Input */}
+        <View
+          style={{
+            backgroundColor: Colors.white,
+            borderRadius: BorderRadius.xl,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            marginBottom: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: Colors.border,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 4,
+          }}
+        >
+          <Search size={20} color={Colors.textSecondaryDark} style={{ marginRight: 12 }} />
+          <TextInput
+            placeholder="Where do you need service?"
+            placeholderTextColor={Colors.textSecondaryDark}
+            value={locationSearchQuery}
+            onChangeText={setLocationSearchQuery}
+            style={{
+              flex: 1,
+              fontSize: 14,
+              fontFamily: 'Poppins-Regular',
+              color: Colors.textPrimary,
+            }}
+          />
+          {locationSearchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setLocationSearchQuery('')}
+              activeOpacity={0.7}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                backgroundColor: Colors.backgroundGray,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: 8,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textSecondaryDark,
+                }}
+              >
+                ×
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Category Chips and Toggle */}
         <View className="flex-row items-center justify-between">
           <ScrollView
             horizontal
@@ -172,7 +247,7 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
           <TouchableOpacity
             onPress={() => onToggleList?.()}
             activeOpacity={0.85}
-            className="rounded-full absolute right-0 top-10 bg-green-500 px-4 py-2 shadow-sm border border-gray-200"
+            className="rounded-full bg-green-500 px-4 py-2 shadow-sm border border-gray-200"
           >
             <Text className="text-sm text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
               {showList ? 'Hide list' : 'View list'}

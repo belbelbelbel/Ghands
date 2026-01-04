@@ -73,6 +73,7 @@ const ServiceMapScreen = () => {
   const [selectedProviders, setSelectedProviders] = useState<ServiceProvider[]>([]);
   const [showList, setShowList] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [serviceLocation, setServiceLocation] = useState<string>('');
 
   useEffect(() => {
     let isMounted = true;
@@ -129,6 +130,8 @@ const ServiceMapScreen = () => {
           showList={showList}
           onToggleList={() => setShowList((prev) => !prev)}
           userLocation={userLocation}
+          serviceLocation={serviceLocation}
+          onServiceLocationChange={setServiceLocation}
         />
       </View>
       {selectedProviders.length > 0 && (

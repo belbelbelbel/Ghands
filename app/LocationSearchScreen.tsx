@@ -2,14 +2,13 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Search, Send } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { Button } from '@/components/ui/Button';
-import { Colors, Spacing } from '@/lib/designSystem';
+import { Colors, BorderRadius } from '@/lib/designSystem';
 import { useToast } from '@/hooks/useToast';
 import Toast from '@/components/Toast';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+import * as Location from 'expo-location';
 
 export default function LocationSearchScreen() {
   const router = useRouter();
@@ -52,7 +51,6 @@ export default function LocationSearchScreen() {
 
   const handleUseCurrentLocation = async () => {
     try {
-      // Request location permission and get current location
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
@@ -60,43 +58,33 @@ export default function LocationSearchScreen() {
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({
+      const currentLocation = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
 
-      const { latitude, longitude } = location.coords;
-      const currentLocation = `Current Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+      const { latitude, longitude } = currentLocation.coords;
+      const locationText = `Current Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
       
-      setSearchQuery(currentLocation);
-      setSelectedLocation(currentLocation);
+      setSearchQuery(locationText);
+      setSelectedLocation(locationText);
       showSuccess('Current location detected!');
     } catch (error) {
       showError('Failed to get current location. Please enter manually.');
     }
   };
 
-  const handleSearch = () => {
-  };
-
-  const handleLocationSelect = (value: string) => {
-    setSelectedLocation(value);
-    setSearchQuery(value);
-  };
-
   const handleConfirm = async () => {
-    if (!selectedLocation.trim()) {
-      showError('Please select or enter a location');
+    if (!searchQuery.trim()) {
+      showError('Please enter a location');
       return;
     }
 
     setIsSaving(true);
 
     try {
-      await setLocation(selectedLocation.trim());
+      await setLocation(searchQuery.trim());
       showSuccess('Location saved successfully!');
 
-      // If this screen was opened as part of the onboarding/profile flow,
-      // send the user forward instead of back to the permission screen.
       setTimeout(() => {
         if (next === 'ProfileSetupScreen') {
           router.replace('/ProfileSetupScreen');
@@ -111,140 +99,167 @@ export default function LocationSearchScreen() {
     }
   };
 
-  const searchResults = [
-    { name: 'Gowon Estate', address: '1, veekee james ave. b close, cowardice seminar' },
-    { name: 'Gowon Estate', address: '1, veekee james ave. b close, cowardice seminar' },
-    { name: 'Gowon Estate', address: '1, veekee james ave. b close, cowardice seminar' },
-  ];
-
   return (
-    <SafeAreaWrapper>
+    <SafeAreaWrapper backgroundColor={Colors.white}>
       <Animated.View 
         style={{ 
           opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }]
+          transform: [{ translateY: slideAnim }],
+          flex: 1,
         }}
-        className="flex-1"
       >
-        
-        <View className="flex-row items-center px-4 py-3" style={{ minHeight: screenHeight * 0.02 }}>
-          <TouchableOpacity onPress={handleBack} className="mr-4">
-            <ArrowLeft size={24} color="black" />
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingTop: 16,
+            paddingBottom: 12,
+          }}
+        >
+          <TouchableOpacity
+            onPress={handleBack}
+            style={{
+              width: 40,
+              height: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 12,
+            }}
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
         <ScrollView 
-          className="flex-1 px-4"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingBottom: 100,
+          }}
         >
-          
-          <View className="flex-row items-center mb-4" style={{ minHeight: screenHeight * 0.06 }}>
-            <View className="flex-1 bg-gray-100 rounded-xl px-4 flex  justify-center mr-3" style={{ height: screenHeight * 0.06 }}>
-              <View className="flex-1 bg-gray-100 rounded-xl px-4 flex  justify-center" style={{ height: screenHeight * 0.06 }}>
-                <TextInput
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder="Enter your location"
-                  className="text-black text-base"
-                  placeholderTextColor="#666666"
-                  style={{ fontFamily: 'Poppins-Medium', fontSize: screenWidth < 375 ? 14 : 16 }}
-                />
-              </View>
+          {/* Search Input */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginBottom: 16,
+              gap: 12,
+            }}
+          >
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: Colors.backgroundGray,
+                borderRadius: BorderRadius.xl,
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderWidth: 1,
+                borderColor: Colors.border,
+              }}
+            >
+              <TextInput
+                placeholder="Lagos, 100001"
+                placeholderTextColor={Colors.textSecondaryDark}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={handleConfirm}
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textPrimary,
+                }}
+              />
             </View>
             <TouchableOpacity
-              onPress={handleSearch}
-              className="bg-black rounded-xl items-center justify-center"
-              style={{ width: screenWidth * 0.15, height: screenWidth * 0.12, minWidth: 48, minHeight: 48 }}
+              style={{
+                width: 48,
+                height: 48,
+                backgroundColor: Colors.black,
+                borderRadius: BorderRadius.default,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              activeOpacity={0.7}
+              onPress={handleConfirm}
             >
-              <Search size={20} color="#9bd719ff" />
+              <Search size={20} color={Colors.white} />
             </TouchableOpacity>
           </View>
 
-          
+          {/* Use Current Location */}
           <TouchableOpacity
             onPress={handleUseCurrentLocation}
-            className="flex-row items-center mb-6"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginBottom: 16,
+            }}
             activeOpacity={0.7}
-            style={{ minHeight: screenHeight * 0.06 }}
           >
-            <Send size={20} color="#000000" className="mr-3" />
-            <Text 
-              className="text-[#000000] text-base"
-              style={{ 
+            <Send size={20} color={Colors.accent} style={{ marginRight: 12 }} />
+            <Text
+              style={{
+                fontSize: 14,
                 fontFamily: 'Poppins-Medium',
-                fontSize: screenWidth < 375 ? 14 : 16
+                color: Colors.accent,
               }}
             >
               Use my current location
             </Text>
           </TouchableOpacity>
 
-          
-          <View 
-            className="bg-gray-100 rounded-xl px-4 py-3 mb-6"
-            style={{ minHeight: screenHeight * 0.08 }}
-          >
-            <Text 
-              className="text-black text-base"
-              style={{ 
-                fontFamily: 'Poppins-Medium',
-                fontSize: screenWidth < 375 ? 14 : 16
+          {/* Selected Location Display */}
+          {selectedLocation && (
+            <View
+              style={{
+                backgroundColor: '#FFF9E6',
+                borderRadius: BorderRadius.xl,
+                padding: 14,
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: Colors.border,
               }}
             >
-              {selectedLocation}
-            </Text>
-          </View>
-
-          
-          <Text 
-            className="text-gray-500 text-sm mb-4"
-            style={{ fontFamily: 'Poppins-Medium' }}
-          >
-            SEARCH RESULTS
-          </Text>
-
-          
-          <View className="mb-8">
-            {searchResults.map((result, index) => (
-              <TouchableOpacity
-                key={index}
-                onPress={() => handleLocationSelect(result.address)}
-                className={`py-4 ${index !== searchResults.length - 1 ? 'border-b border-gray-200' : ''}`}
-                activeOpacity={0.7}
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textPrimary,
+                  lineHeight: 20,
+                }}
               >
-                <Text 
-                  className="text-black text-base font-bold mb-1"
-                  style={{ fontFamily: 'Poppins-Bold' }}
-                >
-                  {result.name}
-                </Text>
-                <Text 
-                  className="text-gray-600 text-sm"
-                  style={{ fontFamily: 'Poppins-Regular' }}
-                >
-                  {result.address}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                {selectedLocation}
+              </Text>
+            </View>
+          )}
         </ScrollView>
 
+        {/* Save Button */}
         <View
           style={{
-            paddingHorizontal: 16,
-            paddingBottom: 16,
-            paddingTop: 8,
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            paddingHorizontal: 20,
+            paddingTop: 16,
+            paddingBottom: 32,
+            backgroundColor: Colors.white,
+            borderTopWidth: 1,
+            borderTopColor: Colors.border,
           }}
         >
           <Button
             title={isSaving ? 'Saving...' : 'Save location'}
             onPress={handleConfirm}
-            variant="secondary"
+            variant="primary"
             size="large"
             fullWidth
             loading={isSaving}
-            disabled={isSaving || !selectedLocation.trim()}
+            disabled={isSaving || !searchQuery.trim()}
           />
         </View>
       </Animated.View>

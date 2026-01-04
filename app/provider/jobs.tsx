@@ -1,5 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, CommonStyles, Fonts, Spacing } from '@/lib/designSystem';
+import { BorderRadius, Colors, Fonts, Spacing } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Calendar, MapPin } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -138,11 +138,16 @@ export default function ProviderJobsScreen() {
   const renderJobCard = (job: JobItem) => (
     <View
       key={job.id}
-          style={{
-            ...CommonStyles.card,
-            position: 'relative',
-          }}
-        >
+      style={{
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.xl,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        position: 'relative',
+      }}
+    >
       {(job.matchedTime || job.completedTime) && (
         <Text style={{ ...Fonts.bodyTiny, color: Colors.textTertiary, marginBottom: Spacing.xs + 2 }}>
           {job.completedTime ? `completed ${job.completedTime}` : `matched ${job.matchedTime}`}
@@ -150,8 +155,17 @@ export default function ProviderJobsScreen() {
       )}
 
       {job.status === 'Ongoing' && (
-        <View style={CommonStyles.badgeSuccess}>
-          <Text style={{ ...Fonts.label, color: Colors.success }}>In Progress</Text>
+        <View
+          style={{
+            backgroundColor: Colors.successLight,
+            alignSelf: 'flex-start',
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: BorderRadius.xl,
+            marginBottom: 8,
+          }}
+        >
+          <Text style={{ fontSize: 11, fontFamily: 'Poppins-SemiBold', color: Colors.success }}>In Progress</Text>
         </View>
       )}
 
@@ -183,29 +197,56 @@ export default function ProviderJobsScreen() {
 
       {job.status === 'Ongoing' ? (
         <TouchableOpacity
-            style={{ ...CommonStyles.buttonPrimary, width: '100%' }}
-            onPress={() => router.push('/ProviderJobDetailsScreen')}
-          >
-            <Text style={{ ...Fonts.button, color: Colors.white, marginRight: Spacing.xs }}>
-              Check Updates
-            </Text>
-            <ArrowRight size={14} color={Colors.white} />
+          style={{
+            backgroundColor: Colors.black,
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderRadius: BorderRadius.default,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+          }}
+          onPress={() => router.push('/ProviderUpdatesScreen' as any)}
+        >
+          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: Spacing.xs }}>
+            Check Updates
+          </Text>
+          <ArrowRight size={14} color={Colors.white} />
         </TouchableOpacity>
       ) : job.status === 'Pending' ? (
         <View style={{ flexDirection: 'row', gap: Spacing.xs }}>
-          <TouchableOpacity style={CommonStyles.buttonDanger}>
-            <Text style={{ ...Fonts.button, color: Colors.error, textAlign: 'center' }}>
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderRadius: BorderRadius.default,
+              borderWidth: 1,
+              borderColor: Colors.errorBorder,
+              backgroundColor: Colors.errorLight,
+            }}
+          >
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.error, textAlign: 'center' }}>
               Decline
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={{
-              ...CommonStyles.buttonSecondary,
               flex: 1,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderRadius: BorderRadius.default,
+              borderWidth: 1,
+              borderColor: Colors.border,
+              backgroundColor: Colors.white,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
-            onPress={() => router.push('/ProviderJobDetailsScreen')}
+            onPress={() => router.push('/ProviderCompletedJobScreen' as any)}
           >
-            <Text style={{ ...Fonts.button, color: Colors.textPrimary, marginRight: Spacing.xs }}>
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginRight: Spacing.xs }}>
               View details
             </Text>
             <ArrowRight size={14} color={Colors.textPrimary} />
@@ -214,12 +255,21 @@ export default function ProviderJobsScreen() {
       ) : (
         <TouchableOpacity
           style={{
-            ...CommonStyles.buttonSecondary,
             width: '100%',
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderRadius: BorderRadius.default,
+            borderWidth: 1,
+            borderColor: Colors.border,
+            backgroundColor: Colors.white,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
+          onPress={() => router.push('/ProviderCompletedJobScreen' as any)}
         >
-          <Text style={{ ...Fonts.button, color: Colors.textPrimary, marginRight: Spacing.xs }}>
-            View Receipt
+          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginRight: Spacing.xs }}>
+            View details
           </Text>
           <ArrowRight size={14} color={Colors.textPrimary} />
         </TouchableOpacity>
@@ -252,8 +302,8 @@ export default function ProviderJobsScreen() {
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
       <View style={{ flex: 1 }}>
         
-        <View style={{ ...CommonStyles.container, paddingTop: Spacing.md + 1 }}>
-          <Text style={{ ...Fonts.h2, color: Colors.textPrimary, textAlign: 'center' }}>
+        <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md }}>
+          <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, textAlign: 'center' }}>
             Job History
           </Text>
         </View>
@@ -286,7 +336,7 @@ export default function ProviderJobsScreen() {
                   color: activeTab === tab ? Colors.textPrimary : Colors.textTertiary,
                 }}
               >
-                {tab}
+                {tab === 'Completed' ? 'Updates' : tab}
               </Text>
             </TouchableOpacity>
           ))}

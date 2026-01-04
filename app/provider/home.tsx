@@ -1,4 +1,6 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import LocationSearchModal from '@/components/LocationSearchModal';
+import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, Users } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -54,133 +56,68 @@ const MOCK_PENDING_JOBS: JobCard[] = [
 export default function ProviderHomeScreen() {
   const router = useRouter();
   const [isOnline, setIsOnline] = useState(true);
-  const [hasActiveJobs, setHasActiveJobs] = useState(true); 
+  const [hasActiveJobs, setHasActiveJobs] = useState(true);
+  const [showLocationModal, setShowLocationModal] = useState(false); 
 
   const renderJobCard = (job: JobCard, isActive: boolean) => (
     <View
       key={job.id}
       style={{
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.xl,
         padding: 12,
         marginBottom: 10,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.border,
       }}
     >
       {job.matchedTime && (
-        <Text style={{ fontSize: 11, color: '#999999', fontFamily: 'Poppins-Medium', marginBottom: 6 }}>
+        <Text style={{ fontSize: 11, color: Colors.textTertiary, fontFamily: 'Poppins-Regular', marginBottom: 6 }}>
           matched {job.matchedTime}
         </Text>
       )}
       {isActive && (
         <View
           style={{
-            backgroundColor: '#FEF3C7',
+            backgroundColor: Colors.successLight,
             alignSelf: 'flex-start',
-            paddingHorizontal: 6,
-            paddingVertical: 3,
-            borderRadius: 10,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: BorderRadius.default,
             marginBottom: 6,
           }}
         >
-          <Text style={{ fontSize: 10, color: '#166534', fontFamily: 'Poppins-SemiBold' }}>In Progress</Text>
+          <Text style={{ fontSize: 11, color: Colors.success, fontFamily: 'Poppins-SemiBold' }}>In Progress</Text>
         </View>
       )}
 
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-        <View style={{ flex: 1, alignSelf: 'stretch' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
+        <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-            {/* <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: '#E5E7EB',
-                marginRight: 10,
-              }}
-            /> */}
             <Image source={require('../../assets/images/userimg.jpg')} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} resizeMode='cover' />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: '#000000' }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
                 {job.clientName}
               </Text>
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: '#666666', marginTop: 2 }}>
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 2 }}>
                 {job.service}
               </Text>
             </View>
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
-            <Calendar size={12} color="#666666" />
-            <Text style={{ fontSize: 12, color: '#666666', fontFamily: 'Poppins-Medium', marginLeft: 6 }}>
+            <Calendar size={12} color={Colors.textSecondaryDark} />
+            <Text style={{ fontSize: 12, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Regular', marginLeft: 6 }}>
               {job.date} - {job.time}
             </Text>
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-            <MapPin size={12} color="#666666" />
-            <Text style={{ fontSize: 12, color: '#666666', fontFamily: 'Poppins-Medium', marginLeft: 6 }}>
+            <MapPin size={12} color={Colors.textSecondaryDark} />
+            <Text style={{ fontSize: 12, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Regular', marginLeft: 6 }}>
               {job.location}
             </Text>
           </View>
-
-          {isActive ? (
-            <TouchableOpacity
-              style={{
-                backgroundColor: '#000000',
-                paddingVertical: 8,
-                paddingHorizontal: 4,
-                borderRadius: 10,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                alignSelf: 'stretch',
-              }}
-              onPress={() => router.push('/ProviderJobDetailsScreen')}
-            >
-              <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
-                Check Updates
-              </Text>
-              <ArrowRight size={14} color="#FFFFFF" />
-            </TouchableOpacity>
-          ) : (
-            <View style={{ flexDirection: 'row', gap: 4, alignSelf: 'stretch' }}>
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  paddingHorizontal: 4,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: '#FEE2E2',
-                  backgroundColor: '#FEF2F2',
-                }}
-              >
-                <Text style={{ color: '#DC2626', fontFamily: 'Poppins-SemiBold', fontSize: 12, textAlign: 'center' }}>
-                  Decline
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  paddingHorizontal: 4,
-                  borderRadius: 10,
-                  backgroundColor: '#6A9B00',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                onPress={() => router.push('/ProviderJobDetailsScreen')}
-              >
-                <Text style={{ color: '#000000', fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
-                  View details
-                </Text>
-                <ArrowRight size={14} color="#000000" />
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
 
         <View style={{ marginLeft: 10 }}>
@@ -204,11 +141,71 @@ export default function ProviderHomeScreen() {
           </View>
         </View>
       </View>
+
+      {/* Buttons - Full Width */}
+      {isActive ? (
+        <TouchableOpacity
+          style={{
+            backgroundColor: Colors.black,
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderRadius: BorderRadius.default,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+          }}
+          onPress={() => router.push('/ProviderUpdatesScreen' as any)}
+        >
+          <Text style={{ color: Colors.white, fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
+            Check Updates
+          </Text>
+          <ArrowRight size={14} color={Colors.white} />
+        </TouchableOpacity>
+      ) : (
+        <View style={{ flexDirection: 'column', gap: 8, width: '100%' }}>
+          <TouchableOpacity
+            style={{
+              width: '100%',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderRadius: BorderRadius.default,
+              borderWidth: 1,
+              borderColor: Colors.errorBorder,
+              backgroundColor: Colors.errorLight,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ color: Colors.error, fontFamily: 'Poppins-SemiBold', fontSize: 12 }}>
+              Decline
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              width: '100%',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderRadius: BorderRadius.default,
+              backgroundColor: Colors.accent,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onPress={() => router.push('/ProviderJobDetailsScreen' as any)}
+          >
+            <Text style={{ color: Colors.textPrimary, fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
+              View details
+            </Text>
+            <ArrowRight size={14} color={Colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 
   return (
-    <SafeAreaWrapper backgroundColor="#FFFFFF">
+    <SafeAreaWrapper backgroundColor={Colors.white}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -220,27 +217,32 @@ export default function ProviderHomeScreen() {
             <TouchableOpacity
               style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
               activeOpacity={0.8}
+              onPress={() => setShowLocationModal(true)}
             >
               <View
                 style={{
                   width: 32,
                   height: 32,
                   borderRadius: 16,
-                  backgroundColor: '#000000',
+                  backgroundColor: Colors.black,
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: 8,
                 }}
               >
-                <MapPin size={16} color="#6A9B00" />
+                <MapPin size={16} color={Colors.accent} />
               </View>
-              <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: '#000000', flex: 1 }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textPrimary, flex: 1 }}>
                 Enter your location
               </Text>
-              <ChevronDown size={16} color="#666666" />
+              <ChevronDown size={16} color={Colors.textSecondaryDark} />
             </TouchableOpacity>
-            <TouchableOpacity style={{ position: 'relative', padding: 8, marginLeft: 16 }}>
-              <Bell size={22} color="#000000" />
+            <TouchableOpacity
+              style={{ position: 'relative', padding: 8, marginLeft: 16 }}
+              onPress={() => router.push('/NotificationsScreen' as any)}
+              activeOpacity={0.7}
+            >
+              <Bell size={22} color={Colors.textPrimary} />
               <View
                 style={{
                   position: 'absolute',
@@ -249,14 +251,14 @@ export default function ProviderHomeScreen() {
                   width: 8,
                   height: 8,
                   borderRadius: 4,
-                  backgroundColor: '#6A9B00',
+                  backgroundColor: Colors.accent,
                 }}
               />
             </TouchableOpacity>
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 16 }}>
-            <Text style={{ fontSize: 20, fontFamily: 'Poppins-SemiBold', color: '#000000' }}>Welcome, Alex</Text>
+            <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>Welcome, Alex</Text>
             {/* <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: '#000000' }}>Online</Text>
               <Switch
@@ -271,8 +273,8 @@ export default function ProviderHomeScreen() {
           {!hasActiveJobs && (
             <TouchableOpacity
               style={{
-                backgroundColor: '#F3F4F6',
-                borderRadius: 12,
+                backgroundColor: Colors.backgroundGray,
+                borderRadius: BorderRadius.xl,
                 padding: 12,
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -284,56 +286,56 @@ export default function ProviderHomeScreen() {
                   width: 36,
                   height: 36,
                   borderRadius: 18,
-                  backgroundColor: '#E5E7EB',
+                  backgroundColor: Colors.border,
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: 10,
                 }}
               >
-                <Shield size={18} color="#666666" />
+                <Shield size={18} color={Colors.textSecondaryDark} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: '#000000' }}>
+                <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
                   Verification Pending
                 </Text>
               </View>
-              <ArrowRight size={18} color="#666666" />
+              <ArrowRight size={18} color={Colors.textSecondaryDark} />
             </TouchableOpacity>
           )}
 
-          <Text style={{ fontSize: 17, fontFamily: 'Poppins-SemiBold', color: '#000000', marginBottom: 10 }}>
+          <Text style={{ fontSize: 15, fontFamily: 'Poppins-Medium', color: Colors.textPrimary, marginBottom: 10 }}>
             Quick Actions
           </Text>
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
             <TouchableOpacity
               style={{
                 flex: 1,
-                backgroundColor: '#000000',
-                borderRadius: 12,
+                backgroundColor: Colors.black,
+                borderRadius: BorderRadius.xl,
                 padding: 12,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Plus size={18} color="#FFFFFF" />
-              <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: '#FFFFFF', marginLeft: 6 }}>
+              <Plus size={16} color={Colors.white} />
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: Colors.white, marginLeft: 6 }}>
                 Add Service
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={{
                 flex: 1,
-                backgroundColor: '#000000',
-                borderRadius: 12,
+                backgroundColor: Colors.black,
+                borderRadius: BorderRadius.xl,
                 padding: 12,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Users size={18} color="#FFFFFF" />
-              <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: '#FFFFFF', marginLeft: 6 }}>
+              <Users size={16} color={Colors.white} />
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: Colors.white, marginLeft: 6 }}>
                 Invite Friends
               </Text>
             </TouchableOpacity>
@@ -342,10 +344,10 @@ export default function ProviderHomeScreen() {
         {hasActiveJobs && MOCK_ACTIVE_JOBS.length > 0 && (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ fontSize: 17, fontFamily: 'Poppins-SemiBold', color: '#000000' }}>Active Jobs</Text>
+              <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Active Jobs</Text>
               <TouchableOpacity onPress={() => router.push('/provider/jobs')}>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: '#6A9B00' }}>
-                  View all <ArrowRight size={12} color="#6A9B00" />
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
+                  View all <ArrowRight size={12} color={Colors.accent} />
                 </Text>
               </TouchableOpacity>
             </View>
@@ -356,10 +358,10 @@ export default function ProviderHomeScreen() {
         {hasActiveJobs && MOCK_PENDING_JOBS.length > 0 && (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ fontSize: 17, fontFamily: 'Poppins-SemiBold', color: '#000000' }}>Pending Requests</Text>
+              <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Pending Requests</Text>
               <TouchableOpacity onPress={() => router.push('/provider/jobs')}>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: '#6A9B00' }}>
-                  View all <ArrowRight size={12} color="#6A9B00" />
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
+                  View all <ArrowRight size={12} color={Colors.accent} />
                 </Text>
               </TouchableOpacity>
             </View>
@@ -368,17 +370,17 @@ export default function ProviderHomeScreen() {
         )}
 
         <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
-          <Text style={{ fontSize: 20, fontFamily: 'Poppins-SemiBold', color: '#000000', marginBottom: 10 }}>
+          <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 10 }}>
             Featured Resources
           </Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <TouchableOpacity
               style={{
                 flex: 1,
-                backgroundColor: '#FFFFFF',
-                borderRadius: 12,
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.xl,
                 borderWidth: 1,
-                borderColor: '#E5E7EB',
+                borderColor: Colors.border,
                 overflow: 'hidden',
               }}
             >
@@ -394,10 +396,10 @@ export default function ProviderHomeScreen() {
                 <Image source={require('../../assets/images/guideimg.jpg')} style={{ width: '100%', height: '100%', borderRadius: 12 }} resizeMode='cover' />
               </View>
               <View style={{ padding: 10 }}>
-                <Text style={{ fontSize: 13, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 3 }}>
+                <Text style={{ fontSize: 13, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 3 }}>
                   How to get started
                 </Text>
-                <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: '#666666' }}>
+                <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
                   Learn best practices and guidelines for providing services.
                 </Text>
               </View>
@@ -406,29 +408,28 @@ export default function ProviderHomeScreen() {
             <TouchableOpacity
               style={{
                 flex: 1,
-                backgroundColor: '#FFFFFF',
-                borderRadius: 12,
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.xl,
                 borderWidth: 1,
-                borderColor: '#E5E7EB',
+                borderColor: Colors.border,
                 overflow: 'hidden',
               }}
             >
               <View
                 style={{
                   height: 100,
-                  backgroundColor: '#000000',
+                  backgroundColor: Colors.black,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                {/* <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins-Bold', fontSize: 11 }}>GET YOUR GUIDE</Text> */}
-                <Image source={require('../../assets/images/guideimg.jpg')} style={{ width: '100%', height: '100%', borderRadius: 12 }} resizeMode='cover' />
+                <Image source={require('../../assets/images/guideimg.jpg')} style={{ width: '100%', height: '100%', borderRadius: BorderRadius.xl }} resizeMode='cover' />
               </View>
               <View style={{ padding: 10 }}>
-                <Text style={{ fontSize: 13, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 3 }}>
+                <Text style={{ fontSize: 13, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 3 }}>
                   FAQ & Support
                 </Text>
-                <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: '#666666' }}>
+                <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
                   Find answers to common questions and get support.
                 </Text>
               </View>
@@ -439,32 +440,32 @@ export default function ProviderHomeScreen() {
         {/* Insights Section */}
         {hasActiveJobs ? (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
-            <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 10 }}>
+            <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 10 }}>
               Insights
             </Text>
             <View
               style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: 12,
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.xl,
                 borderWidth: 1,
-                borderColor: '#E5E7EB',
+                borderColor: Colors.border,
                 padding: 16,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: '#000000' }}>Job Completion Rate</Text>
+                <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>Job Completion Rate</Text>
                 <TouchableOpacity>
-                  <Text style={{ fontSize: 11, fontFamily: 'Poppins-SemiBold', color: '#6A9B00' }}>
-                    View full analytics <ArrowRight size={11} color="#6A9B00" />
+                  <Text style={{ fontSize: 11, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
+                    View full analytics <ArrowRight size={11} color={Colors.accent} />
                   </Text>
                 </TouchableOpacity>
               </View>
-              <Text style={{ fontSize: 32, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 4 }}>
+              <Text style={{ fontSize: 32, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 4 }}>
                 95%
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: '#666666' }}>Last 30 Days </Text>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: '#6A9B00' }}>+5%</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>Last 30 Days </Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>+5%</Text>
               </View>
               <View
                 style={{
@@ -481,7 +482,7 @@ export default function ProviderHomeScreen() {
                       style={{
                         flex: 1,
                         height: `${height}%`,
-                        backgroundColor: '#6A9B00',
+                        backgroundColor: Colors.accent,
                         borderRadius: 2,
                       }}
                     />
@@ -492,40 +493,49 @@ export default function ProviderHomeScreen() {
           </View>
         ) : (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
-            <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 10 }}>
+            <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 10 }}>
               Insights
             </Text>
             <View
               style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: 12,
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.xl,
                 borderWidth: 2,
-                borderColor: '#E5E7EB',
+                borderColor: Colors.border,
                 borderStyle: 'dashed',
                 padding: 32,
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 18, fontFamily: 'Poppins-Bold', color: '#000000', marginBottom: 6 }}>
+              <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 6 }}>
                 No insights yet
               </Text>
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: '#666666', textAlign: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 16 }}>
                 Once you start getting jobs, you'll see insights here.
               </Text>
               <TouchableOpacity
                 style={{
-                  backgroundColor: '#000000',
+                  backgroundColor: Colors.black,
                   paddingVertical: 10,
                   paddingHorizontal: 20,
-                  borderRadius: 10,
+                  borderRadius: BorderRadius.default,
                 }}
               >
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: '#FFFFFF' }}>Learn more</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>Learn more</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
       </ScrollView>
+
+      {/* Location Search Modal */}
+      <LocationSearchModal
+        visible={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        onLocationSelected={() => {
+          setShowLocationModal(false);
+        }}
+      />
     </SafeAreaWrapper>
   );
 }

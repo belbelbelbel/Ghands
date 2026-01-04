@@ -104,6 +104,12 @@ export default function RootLayout() {
         <Stack.Screen name="OngoingJobDetails" options={{ headerShown: false }} />
         <Stack.Screen name="ChatScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderDetailScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ProviderJobDetailsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ProviderUpdatesScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ProviderCompletedJobScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="SendQuotationScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ProviderReceiptScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="PhotosGalleryScreen" options={{ headerShown: false }} />
         <Stack.Screen name="HelpSupportScreen" options={{ headerShown: false }} />
         <Stack.Screen name="SupportScreen" options={{ headerShown: false }} />
         <Stack.Screen name="LiveChatScreen" options={{ headerShown: false }} />

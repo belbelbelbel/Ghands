@@ -153,7 +153,7 @@ export default function WalletScreen() {
           style={{
             backgroundColor: 'rgba(18, 18, 18, 1)', // Dark grey/black
             borderRadius: BorderRadius.xl,
-            padding: 28,
+            padding: 20,
             marginBottom: 20,
             position: 'relative',
           }}
@@ -161,11 +161,11 @@ export default function WalletScreen() {
           {/* Wallet ID at top */}
           <Text
             style={{
-              fontSize: 12,
+              fontSize: 11,
               fontFamily: 'Poppins-Medium',
               color: Colors.white,
               opacity: 0.8,
-              marginBottom: 12,
+              marginBottom: 10,
             }}
           >
             Id: {walletId}
@@ -182,18 +182,18 @@ export default function WalletScreen() {
             <View style={{ flex: 1 }}>
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: 13,
                   fontFamily: 'Poppins-Medium',
                   color: Colors.white,
                   opacity: 0.9,
-                  marginBottom: 8,
+                  marginBottom: 6,
                 }}
               >
                 Current balance
               </Text>
               <Text
                 style={{
-                  fontSize: 32,
+                  fontSize: 26,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.white,
                 }}
@@ -207,9 +207,9 @@ export default function WalletScreen() {
             {/* Green circular icon with currency symbol */}
             <View
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
+                width: 36,
+                height: 36,
+                borderRadius: 18,
                 backgroundColor: Colors.accent,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -217,7 +217,7 @@ export default function WalletScreen() {
             >
               <Text
                 style={{
-                  fontSize: 20,
+                  fontSize: 18,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.white,
                 }}

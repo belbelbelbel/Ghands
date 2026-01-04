@@ -130,6 +130,8 @@ const ProfileScreen = () => {
               color: Colors.textPrimary,
               flex: 1,
               textAlign: 'center',
+              
+              
             }}
           >
             Profile
@@ -159,6 +161,8 @@ const ProfileScreen = () => {
           contentContainerStyle={{
             paddingHorizontal: 20,
             paddingBottom: 100,
+            borderTopWidth: 1,
+            borderColor: Colors.border,
           }}
         >
           {/* User Profile Section */}
@@ -167,13 +171,15 @@ const ProfileScreen = () => {
               backgroundColor: Colors.white,
               borderRadius: BorderRadius.xl,
               paddingVertical: 0,
-              paddingHorizontal: 10,
+              paddingHorizontal: 0,
               marginTop: 24,
               marginBottom: 32,
               borderWidth: 0,
               borderColor: Colors.border,
               flexDirection: 'row',
-              alignItems: 'flex-start',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              display: 'flex',
             }}
           >
             {/* Profile Picture */}

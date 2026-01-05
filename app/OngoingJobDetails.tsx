@@ -1,5 +1,5 @@
-import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';

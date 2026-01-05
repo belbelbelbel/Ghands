@@ -24,8 +24,9 @@ export default function LoginScreen() {
     }
 
     try {
-      // After successful login, navigate to location permission
-      router.push('/LocationPermissionScreen');
+      // After successful login, navigate directly to main app
+      // Location and profile setup can be done later when needed
+      router.replace('/(tabs)/home');
     } catch (error) {
       showError('Login failed. Please check your credentials and try again.');
     }

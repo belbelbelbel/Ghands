@@ -1,9 +1,10 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import LocationSearchModal from '@/components/LocationSearchModal';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
+import { useUserLocation } from '@/hooks/useUserLocation';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, Users } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 interface JobCard {
@@ -55,9 +56,17 @@ const MOCK_PENDING_JOBS: JobCard[] = [
 
 export default function ProviderHomeScreen() {
   const router = useRouter();
+  const { location, refreshLocation } = useUserLocation();
   const [isOnline, setIsOnline] = useState(true);
   const [hasActiveJobs, setHasActiveJobs] = useState(true);
-  const [showLocationModal, setShowLocationModal] = useState(false); 
+  const [showLocationModal, setShowLocationModal] = useState(false);
+
+  // Refresh location when modal closes
+  useEffect(() => {
+    if (!showLocationModal) {
+      refreshLocation();
+    }
+  }, [showLocationModal, refreshLocation]); 
 
   const renderJobCard = (job: JobCard, isActive: boolean) => (
     <View
@@ -232,8 +241,16 @@ export default function ProviderHomeScreen() {
               >
                 <MapPin size={16} color={Colors.accent} />
               </View>
-              <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textPrimary, flex: 1 }}>
-                Enter your location
+              <Text 
+                style={{ 
+                  fontSize: 14, 
+                  fontFamily: 'Poppins-Medium', 
+                  color: location ? Colors.textPrimary : Colors.textSecondaryDark, 
+                  flex: 1 
+                }}
+                numberOfLines={1}
+              >
+                {location || 'Enter your location'}
               </Text>
               <ChevronDown size={16} color={Colors.textSecondaryDark} />
             </TouchableOpacity>
@@ -531,9 +548,13 @@ export default function ProviderHomeScreen() {
       {/* Location Search Modal */}
       <LocationSearchModal
         visible={showLocationModal}
-        onClose={() => setShowLocationModal(false)}
-        onLocationSelected={() => {
+        onClose={() => {
           setShowLocationModal(false);
+          refreshLocation();
+        }}
+        onLocationSelected={(selectedLocation) => {
+          setShowLocationModal(false);
+          refreshLocation();
         }}
       />
     </SafeAreaWrapper>

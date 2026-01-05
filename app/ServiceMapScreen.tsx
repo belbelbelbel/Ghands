@@ -1,8 +1,10 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import ServiceMap, { ProviderCategory, ServiceProvider } from '@/components/ServiceMap';
+import BookingSummaryModal, { BookingSummaryData } from '@/components/BookingSummaryModal';
 import { haptics } from '@/hooks/useHaptics';
+import { useUserLocation } from '@/hooks/useUserLocation';
 import * as Location from 'expo-location';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
@@ -69,11 +71,27 @@ const SAMPLE_PROVIDERS: ServiceProvider[] = [
 
 const ServiceMapScreen = () => {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    selectedDateTime?: string;
+    selectedDate?: string;
+    selectedTime?: string;
+    photoCount?: string;
+    serviceType?: string;
+  }>();
+  const { location: savedLocation } = useUserLocation();
   const [selectedCategory, setSelectedCategory] = useState<ProviderCategory>('All');
   const [selectedProviders, setSelectedProviders] = useState<ServiceProvider[]>([]);
   const [showList, setShowList] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [serviceLocation, setServiceLocation] = useState<string>('');
+  const [serviceLocation, setServiceLocation] = useState<string>(savedLocation || '');
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+
+  // Update serviceLocation when savedLocation changes
+  useEffect(() => {
+    if (savedLocation) {
+      setServiceLocation(savedLocation);
+    }
+  }, [savedLocation]);
 
   useEffect(() => {
     let isMounted = true;
@@ -154,10 +172,8 @@ const ServiceMapScreen = () => {
           <Button
             title="Confirm Booking"
             onPress={() => {
-              haptics.success();
-              // Use replace so user can't simply back into the selection screen;
-              // they can manage the job from Jobs instead, like Uber/Bolt.
-              router.replace('../BookingConfirmationScreen' as any);
+              haptics.light();
+              setShowSummaryModal(true);
             }}
             variant="primary"
             size="large"
@@ -165,6 +181,96 @@ const ServiceMapScreen = () => {
           />
         </View>
       )}
+
+      {/* Booking Summary Modal */}
+      <BookingSummaryModal
+        visible={showSummaryModal}
+        onClose={() => setShowSummaryModal(false)}
+        onConfirm={() => {
+          setShowSummaryModal(false);
+          haptics.success();
+          router.replace('../BookingConfirmationScreen' as any);
+        }}
+        onEditService={(bookingData) => {
+          // Navigate back to service selection with current data preserved
+          router.push({
+            pathname: '/ServicesGridScreen' as any,
+            params: {
+              // Pass current booking data so it can be restored
+              preserveData: 'true',
+              serviceType: bookingData.serviceType,
+              selectedDateTime: bookingData.dateTime || params.selectedDateTime,
+              selectedDate: bookingData.date || params.selectedDate,
+              selectedTime: bookingData.time || params.selectedTime,
+              photoCount: bookingData.photoCount?.toString() || params.photoCount,
+              location: bookingData.location,
+            },
+          } as any);
+        }}
+        onEditDateTime={(bookingData) => {
+          // Navigate to date/time screen with all current data preserved
+          router.push({
+            pathname: '/DateTimeScreen' as any,
+            params: {
+              selectedDateTime: bookingData.dateTime || params.selectedDateTime,
+              selectedDate: bookingData.date || params.selectedDate,
+              selectedTime: bookingData.time || params.selectedTime,
+              serviceType: bookingData.serviceType || params.serviceType,
+              photoCount: bookingData.photoCount?.toString() || params.photoCount,
+              location: bookingData.location,
+              preserveData: 'true',
+            },
+          } as any);
+        }}
+        onEditLocation={(bookingData) => {
+          // Navigate to location search with current data preserved
+          router.push({
+            pathname: '/LocationSearchScreen' as any,
+            params: {
+              next: 'ServiceMapScreen',
+              preserveData: 'true',
+              serviceType: bookingData.serviceType || params.serviceType,
+              selectedDateTime: bookingData.dateTime || params.selectedDateTime,
+              selectedDate: bookingData.date || params.selectedDate,
+              selectedTime: bookingData.time || params.selectedTime,
+              photoCount: bookingData.photoCount?.toString() || params.photoCount,
+            },
+          } as any);
+        }}
+        onEditPhotos={(bookingData) => {
+          // Navigate to photos screen with all current data preserved
+          router.push({
+            pathname: '/AddPhotosScreen' as any,
+            params: {
+              selectedDateTime: bookingData.dateTime || params.selectedDateTime,
+              selectedDate: bookingData.date || params.selectedDate,
+              selectedTime: bookingData.time || params.selectedTime,
+              serviceType: bookingData.serviceType || params.serviceType,
+              location: bookingData.location,
+              photoCount: bookingData.photoCount?.toString() || params.photoCount,
+              preserveData: 'true',
+            },
+          } as any);
+        }}
+        onEditProviders={(bookingData) => {
+          // Stay on current screen, just close modal to allow editing
+          // Selected providers are already in state, so user can modify them
+        }}
+        data={{
+          serviceType: params.serviceType || 'Plumbing Service',
+          dateTime: params.selectedDateTime,
+          date: params.selectedDate,
+          time: params.selectedTime,
+          location: serviceLocation || savedLocation || 'Location not set',
+          photoCount: params.photoCount ? parseInt(params.photoCount, 10) : 0,
+          selectedProviders: selectedProviders.map((p) => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            image: p.image,
+          })),
+        }}
+      />
     </SafeAreaWrapper>
   );
 };

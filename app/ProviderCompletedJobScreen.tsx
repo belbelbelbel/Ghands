@@ -163,6 +163,15 @@ export default function ProviderCompletedJobScreen() {
                     justifyContent: 'center',
                   }}
                   activeOpacity={0.8}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/ChatScreen',
+                      params: {
+                        clientName: 'Lawal Johnson',
+                        providerId: 'provider-1',
+                      },
+                    } as any);
+                  }}
                 >
                   <MessageCircle size={18} color={Colors.white} />
                 </TouchableOpacity>

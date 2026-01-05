@@ -1,5 +1,6 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
+import { useAuthRole } from '@/hooks/useAuth';
 import { useRouter } from 'expo-router';
 import {
   ArrowRight,
@@ -19,6 +20,7 @@ import { Alert, Image, ScrollView, Share, Text, TouchableOpacity, View } from 'r
 
 export default function ProviderProfileScreen() {
   const router = useRouter();
+  const { logout } = useAuthRole();
   const [isOnline, setIsOnline] = useState(true);
 
   const handleShareReferral = async () => {
@@ -46,8 +48,12 @@ export default function ProviderProfileScreen() {
         {
           text: 'Sign Out',
           style: 'destructive',
-          onPress: () => {
-            // Handle sign out
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
           },
         },
       ]

@@ -322,17 +322,17 @@ const HomeScreen = React.memo(() => {
                       paddingHorizontal: 24,
                       alignSelf: 'flex-start',
                     }}
-                    onPress={() => router.push('categories' as any)}
+                    onPress={() => router.push('/UserGuideScreen' as any)}
                     activeOpacity={0.8}
                   >
                     <Text
                       style={{
-                        fontSize: 16,
+                        fontSize: 14,
                         fontFamily: 'Poppins-SemiBold',
                         color: '#FFFFFF',
                       }}
                     >
-                      Get Started
+                      New to GHands? Learn how it works
                     </Text>
                   </TouchableOpacity>
                 </View>

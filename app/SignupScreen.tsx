@@ -36,8 +36,9 @@ export default function SignupScreen() {
     }
 
     try {
-      // After successful signup, navigate to location permission
-      router.push('/LocationPermissionScreen');
+      // After successful signup, navigate directly to main app
+      // Location and profile setup can be done later when needed
+      router.replace('/(tabs)/home');
     } catch (error) {
       showError('Signup failed. Please try again.');
     }

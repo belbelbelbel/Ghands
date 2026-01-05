@@ -1,7 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { Button } from '@/components/ui/Button';
-import { Ionicons } from '@expo/vector-icons';
+import { BorderRadius, Colors } from '@/lib/designSystem';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowLeft, FileText, Image as ImageIcon, Mic, Phone, User } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import {
   FlatList,
@@ -10,7 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 
 interface Message {
@@ -40,10 +40,14 @@ const MOCK_MESSAGES: Message[] = [
 
 export default function ChatScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ providerName?: string; providerId?: string }>();
+  const params = useLocalSearchParams<{ providerName?: string; providerId?: string; clientName?: string }>();
   const providerName = params.providerName || 'AquaFix Solutions';
+  const clientName = params.clientName || 'Client';
   const [message, setMessage] = useState('');
   const flatListRef = useRef<FlatList>(null);
+
+  // Determine if this is provider view (has clientName) or user view
+  const isProviderView = !!params.clientName;
 
   const handleSend = () => {
     if (message.trim()) {
@@ -53,64 +57,135 @@ export default function ChatScreen() {
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
-    const isUser = item.sender === 'user';
+    // In provider view: 'user' sender = client, 'provider' sender = provider
+    // In user view: 'user' sender = user, 'provider' sender = provider
+    const isFromClient = isProviderView ? item.sender === 'user' : item.sender === 'user';
+    const isFromProvider = isProviderView ? item.sender === 'provider' : item.sender === 'provider';
+    
     return (
       <View
-        className={`flex-row items-start mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}
         key={item.id}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          marginBottom: 16,
+          justifyContent: isFromClient ? 'flex-end' : 'flex-start',
+        }}
       >
-        {!isUser && (
-          <View className="w-8 h-8 rounded-full bg-[#1E40AF] items-center justify-center mr-2">
-            <Ionicons name="person" size={16} color="white" />
+        {/* Avatar on left for provider messages, right for user messages */}
+        {isFromProvider && (
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: Colors.black,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 8,
+            }}
+          >
+            <User size={16} color={Colors.white} />
           </View>
         )}
-        <View className={`max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
+
+        <View
+          style={{
+            maxWidth: '75%',
+            alignItems: isFromClient ? 'flex-end' : 'flex-start',
+          }}
+        >
+          {/* Timestamp */}
           <Text
-            className={`text-xs text-gray-500 mb-1 ${isUser ? 'text-right mr-2' : 'text-left ml-2'}`}
-            style={{ fontFamily: 'Poppins-Medium' }}
+            style={{
+              fontSize: 11,
+              fontFamily: 'Poppins-Medium',
+              color: Colors.textSecondaryDark,
+              marginBottom: 4,
+              textAlign: isFromClient ? 'right' : 'left',
+            }}
           >
-            {isUser ? 'You' : providerName} {item.time}
+            {isFromClient ? 'You' : providerName} {item.time}
           </Text>
-          <View className="flex-row items-start">
-            {!isUser && <View style={{ width: 0 }} />}
-            <View
-              className={`rounded-2xl px-4 py-3 ${
-                isUser ? 'bg-gray-200' : 'bg-gray-200'
-              }`}
+
+          {/* Message Bubble */}
+          <View
+            style={{
+              backgroundColor: Colors.backgroundGray,
+              borderRadius: 12,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.textPrimary,
+              }}
             >
-              <Text className="text-sm text-gray-900" style={{ fontFamily: 'Poppins-Regular' }}>
-                {item.text}
-              </Text>
-            </View>
-            {isUser && <View style={{ width: 0 }} />}
+              {item.text}
+            </Text>
           </View>
         </View>
-        {isUser && (
-          <View className="w-8 h-8 rounded-full bg-[#1E40AF] items-center justify-center ml-2">
-            <Ionicons name="person" size={16} color="white" />
+
+        {/* Avatar on right for user messages */}
+        {isFromClient && (
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: Colors.black,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginLeft: 8,
+            }}
+          >
+            <User size={16} color={Colors.white} />
           </View>
         )}
       </View>
     );
   };
 
-  
   return (
-    <SafeAreaWrapper>
+    <SafeAreaWrapper backgroundColor={Colors.white}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
+        style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
-            <Ionicons name="arrow-back" size={22} color="#000000" />
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 20,
+            paddingTop: 16,
+            paddingBottom: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: Colors.border,
+            backgroundColor: Colors.white,
+          }}
+        >
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+            <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text className="text-lg text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
-            {providerName}
+          <Text
+            style={{
+              fontSize: 18,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.textPrimary,
+              flex: 1,
+              textAlign: 'center',
+            }}
+          >
+            {isProviderView ? clientName : providerName}
           </Text>
-          <TouchableOpacity activeOpacity={0.85}>
-            <Ionicons name="call-outline" size={24} color="#000000" />
+          <TouchableOpacity activeOpacity={0.7}>
+            <Phone size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -125,41 +200,92 @@ export default function ChatScreen() {
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
 
-        {/* View Quotation Button */}
-        <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-          <Button
-            title="View Quotation"
-            onPress={() => {
-              // Navigate to quotation view
-            }}
-            variant="primary"
-            size="medium"
-            fullWidth
-            icon={<Ionicons name="document-text-outline" size={20} color="white" />}
-            iconPosition="left"
-          />
-        </View>
+        {/* Send Quotation Button - Only show for providers */}
+        {isProviderView && (
+          <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+            <TouchableOpacity
+              onPress={() => router.push('/SendQuotationScreen' as any)}
+              style={{
+                backgroundColor: '#E0F2FE',
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: '#0284C7',
+                paddingVertical: 14,
+                paddingHorizontal: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              activeOpacity={0.8}
+            >
+              <FileText size={18} color="#0284C7" style={{ marginRight: 8 }} />
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: '#0284C7',
+                }}
+              >
+                Send Quotation
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Input Field */}
-        <View className="px-4 pb-4 pt-2 border-t border-gray-100">
-          <View className="flex-row items-center bg-gray-100 rounded-2xl px-4 py-3">
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingBottom: Platform.OS === 'ios' ? 20 : 16,
+            paddingTop: 8,
+            borderTopWidth: 1,
+            borderTopColor: Colors.border,
+            backgroundColor: Colors.white,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: Colors.white,
+              borderRadius: 24,
+              borderWidth: 1,
+              borderColor: Colors.border,
+              paddingHorizontal: 16,
+              paddingVertical: 10,
+            }}
+          >
             <TextInput
               placeholder="Type a message"
               value={message}
               onChangeText={setMessage}
-              className="flex-1 text-base text-black"
-              style={{ fontFamily: 'Poppins-Regular' }}
-              placeholderTextColor="#9CA3AF"
+              style={{
+                flex: 1,
+                fontSize: 14,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.textPrimary,
+                paddingVertical: 0,
+              }}
+              placeholderTextColor={Colors.textSecondaryDark}
               multiline
               maxLength={500}
             />
-            <TouchableOpacity activeOpacity={0.85} className="mr-3">
-              <Ionicons name="image-outline" size={24} color="#000000" />
+            <TouchableOpacity activeOpacity={0.7} style={{ marginRight: 12 }}>
+              <ImageIcon size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.85} onPress={handleSend}>
-              <View className="w-10 h-10 rounded-full bg-[#6A9B00] items-center justify-center">
-                <Ionicons name="mic" size={20} color="white" />
-              </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleSend}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: Colors.accent,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Mic size={18} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -167,4 +293,3 @@ export default function ChatScreen() {
     </SafeAreaWrapper>
   );
 }
-

@@ -25,7 +25,6 @@ export default function AddPhotosScreen() {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [isFindingProviders, setIsFindingProviders] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -182,12 +181,7 @@ export default function AddPhotosScreen() {
       showError('Please select at least one photo to continue');
       return;
     }
-    // Show confirmation modal with date/time
-    setShowConfirmModal(true);
-  }, [isFindingProviders, selectedPhotos, showError]);
-
-  const handleConfirmAndProceed = useCallback(() => {
-    setShowConfirmModal(false);
+    // Navigate directly to provider selection - confirmation will be shown in summary
     const selected = photos.filter((photo) => selectedPhotos.has(photo.id));
     setIsFindingProviders(true);
 
@@ -197,14 +191,18 @@ export default function AddPhotosScreen() {
 
     findingTimeoutRef.current = setTimeout(() => {
       setIsFindingProviders(false);
-      // Use replace so back doesn't walk through wizard steps
-      router.replace('/ServiceMapScreen');
+      // Pass photo count as param for summary
+      router.replace({
+        pathname: '/ServiceMapScreen' as any,
+        params: {
+          selectedDateTime: params.selectedDateTime,
+          selectedDate: params.selectedDate,
+          selectedTime: params.selectedTime,
+          photoCount: selectedPhotos.size.toString(),
+        },
+      } as any);
     }, 1800);
-  }, [photos, router, selectedPhotos]);
-
-  const handleChangePhotos = useCallback(() => {
-    setShowConfirmModal(false);
-  }, []);
+  }, [isFindingProviders, selectedPhotos, photos, router, params]);
 
   const handleCancel = useCallback(() => {
     router.back();
@@ -380,95 +378,6 @@ export default function AddPhotosScreen() {
         </View>
       </Animated.View>
 
-      {/* Confirmation Modal - Date/Time & Photos */}
-      <AnimatedModal
-        visible={showConfirmModal}
-        onClose={handleChangePhotos}
-        animationType="slide"
-      >
-        <View className="px-2">
-          <View className="items-center mb-6">
-            <View className="w-16 h-16 rounded-full bg-[#E3F4DF] items-center justify-center mb-4">
-              <Text className="text-3xl">📸</Text>
-            </View>
-            <Text className="text-lg text-black mb-3" style={{ fontFamily: 'Poppins-Bold' }}>
-              Confirm Details
-            </Text>
-            
-            {/* Date/Time Display */}
-            {params.selectedDateTime && (
-              <View className="w-full mb-4">
-                <View className="bg-gray-50 rounded-xl px-4 py-3 mb-3">
-                  <Text className="text-xs text-gray-500 mb-1" style={{ fontFamily: 'Poppins-Medium' }}>
-                    Scheduled Date & Time
-                  </Text>
-                  <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                    {params.selectedDateTime}
-                  </Text>
-                </View>
-                
-                {/* Photos Preview */}
-                <View className="bg-gray-50 rounded-xl px-4 py-3">
-                  <Text className="text-xs text-gray-500 mb-2" style={{ fontFamily: 'Poppins-Medium' }}>
-                    Selected Photos
-                  </Text>
-                  <View className="flex-row flex-wrap gap-2">
-                    {photos
-                      .filter((photo) => selectedPhotos.has(photo.id))
-                      .slice(0, 3)
-                      .map((photo) => (
-                        <Image
-                          key={photo.id}
-                          source={{ uri: photo.uri }}
-                          className="w-16 h-16 rounded-lg"
-                          resizeMode="cover"
-                        />
-                      ))}
-                    {selectedPhotos.size > 3 && (
-                      <View className="w-16 h-16 rounded-lg bg-gray-200 items-center justify-center">
-                        <Text className="text-xs text-gray-600" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                          +{selectedPhotos.size - 3}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </View>
-            )}
-          </View>
-
-          <View className="gap-3">
-            <TouchableOpacity
-              onPress={() => {
-                haptics.success();
-                handleConfirmAndProceed();
-              }}
-              activeOpacity={0.85}
-              className="bg-black rounded-xl py-4 items-center justify-center"
-            >
-              <View className="flex-row items-center">
-                <Text className="text-base text-white mr-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                  Next
-                </Text>
-                <ArrowRight size={18} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                haptics.light();
-                handleChangePhotos();
-              }}
-              activeOpacity={0.85}
-              className="bg-white border border-gray-200 rounded-xl py-4 items-center justify-center"
-            >
-              <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                Change
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </AnimatedModal>
 
       {/* Finding Providers Modal */}
       <AnimatedModal

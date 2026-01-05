@@ -243,7 +243,17 @@ export default function Jobdetails() {
                       activeOpacity={0.85}
                       onPress={(e) => {
                         e.stopPropagation();
-                        // Handle call/chat action
+                        if (icons.id === 2) {
+                          // Chat icon - navigate to chat
+                          router.push({
+                            pathname: '/ChatScreen',
+                            params: {
+                              providerName: 'Mike Johnson',
+                              providerId: 'provider-1',
+                            },
+                          } as any);
+                        }
+                        // Handle call action for id === 1
                       }}
                     >
                       <View>{icons.icons}</View>

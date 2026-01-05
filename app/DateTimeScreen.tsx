@@ -2,7 +2,6 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import AnimatedModal from '@/components/AnimatedModal';
 import { haptics } from '@/hooks/useHaptics';
 import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -31,7 +30,6 @@ export default function DateTimeScreen() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -101,15 +99,7 @@ export default function DateTimeScreen() {
     if (!selectedDate || !selectedTime) {
       return;
     }
-    // Show confirmation modal
-    setShowConfirmModal(true);
-  }, [selectedDate, selectedTime]);
-
-  const handleConfirmAndProceed = useCallback(() => {
-    setShowConfirmModal(false);
-    
-    // Pass formatted date/time as route params
-    // Use replace so user can't navigate back into this step chain like a wizard
+    // Navigate directly to next screen - confirmation will be shown in summary
     router.replace({
       pathname: '../AddPhotosScreen' as any,
       params: {
@@ -119,10 +109,6 @@ export default function DateTimeScreen() {
       },
     });
   }, [selectedDate, selectedTime, formattedDateTime, router]);
-
-  const handleChangeDateTime = useCallback(() => {
-    setShowConfirmModal(false);
-  }, []);
 
   const handleCancel = useCallback(() => {
     router.back();
@@ -435,57 +421,6 @@ export default function DateTimeScreen() {
         </View>
       </Animated.View>
 
-      {/* Confirmation Modal */}
-      <AnimatedModal
-        visible={showConfirmModal}
-        onClose={handleChangeDateTime}
-        animationType="slide"
-      >
-        <View className="px-2">
-          <View className="items-center mb-6">
-            <View className="w-16 h-16 rounded-full bg-[#E3F4DF] items-center justify-center mb-4">
-              <Text className="text-3xl">📅</Text>
-            </View>
-            <Text className="text-lg text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
-              Confirm Date & Time
-            </Text>
-            <Text className="text-base text-gray-600 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
-              {formattedDateTime}
-            </Text>
-          </View>
-
-          <View className="gap-3">
-            <TouchableOpacity
-              onPress={() => {
-                haptics.success();
-                handleConfirmAndProceed();
-              }}
-              activeOpacity={0.85}
-              className="bg-black rounded-xl py-4 items-center justify-center"
-            >
-              <View className="flex-row items-center">
-                <Text className="text-base text-white mr-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                  Next
-                </Text>
-                <ArrowRight size={18} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                haptics.light();
-                handleChangeDateTime();
-              }}
-              activeOpacity={0.85}
-              className="bg-white border border-gray-200 rounded-xl py-4 items-center justify-center"
-            >
-              <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                Change
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </AnimatedModal>
     </SafeAreaWrapper>
   );
 }

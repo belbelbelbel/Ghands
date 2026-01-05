@@ -77,6 +77,13 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
     return providers.filter((provider) => provider.category === selectedCategory);
   }, [providers, selectedCategory]);
 
+  // Sync locationSearchQuery with serviceLocation prop when it changes
+  useEffect(() => {
+    if (serviceLocation && serviceLocation !== locationSearchQuery) {
+      setLocationSearchQuery(serviceLocation);
+    }
+  }, [serviceLocation]);
+
   // Update parent when location changes
   useEffect(() => {
     if (onServiceLocationChange) {

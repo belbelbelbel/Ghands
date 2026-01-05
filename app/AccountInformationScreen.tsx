@@ -22,15 +22,6 @@ const accountCards = [
     iconColor: '#6A9B00',
     iconBgColor: '#EEFFD9',
     onPress: () => {}
-  },
-  {
-    id: '3',
-    title: 'Verification Status',
-    subtitle: 'Identity Verified',
-    icon: HelpCircle,
-    iconColor: '#6A9B00',
-    iconBgColor: '#EEFFD9',
-    onPress: () => {}
   }
 ];
 
@@ -42,8 +33,6 @@ export default function AccountInformationScreen() {
       router.push('/EditProfileScreen' as any);
     } else if (id === '2') {
       router.push('/AddressBookScreen' as any);
-    } else if (id === '3') {
-      
     }
   };
 
@@ -95,7 +84,7 @@ export default function AccountInformationScreen() {
                     {card.title}
                   </Text>
                   <Text 
-                    className={`text-sm ${card.id === '3' ? 'text-[#6A9B00]' : 'text-gray-500'}`} 
+                    className="text-sm text-gray-500" 
                     style={{ fontFamily: 'Poppins-Medium' }}
                   >
                     {card.subtitle}

@@ -43,8 +43,8 @@ export default function TopUpScreen() {
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: 20,
-          paddingTop: 16,
-          paddingBottom: 16,
+          paddingTop: 12,
+          paddingBottom: 12,
         }}
       >
         <TouchableOpacity
@@ -62,7 +62,7 @@ export default function TopUpScreen() {
         </TouchableOpacity>
         <Text
           style={{
-            fontSize: 24,
+            fontSize: 20,
             fontFamily: 'Poppins-Bold',
             color: Colors.textPrimary,
             flex: 1,
@@ -86,17 +86,17 @@ export default function TopUpScreen() {
           style={{
             backgroundColor: Colors.backgroundGray,
             borderRadius: BorderRadius.xl,
-            padding: 20,
-            marginBottom: 32,
+            padding: 16,
+            marginBottom: 24,
             position: 'relative',
           }}
         >
           <Text
             style={{
-              fontSize: 14,
+              fontSize: 12,
               fontFamily: 'Poppins-Medium',
               color: Colors.textSecondaryDark,
-              marginBottom: 8,
+              marginBottom: 6,
             }}
           >
             Current balance
@@ -110,7 +110,7 @@ export default function TopUpScreen() {
           >
             <Text
               style={{
-                fontSize: 32,
+                fontSize: 24,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
               }}
@@ -120,7 +120,7 @@ export default function TopUpScreen() {
                 maximumFractionDigits: 2,
               })}
             </Text>
-            <Wallet size={24} color={Colors.textSecondaryDark} />
+            <Wallet size={20} color={Colors.textSecondaryDark} />
           </View>
         </View>
 
@@ -128,10 +128,10 @@ export default function TopUpScreen() {
         <View style={{ marginBottom: 32 }}>
           <Text
             style={{
-              fontSize: 18,
+              fontSize: 16,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
-              marginBottom: 16,
+              marginBottom: 12,
             }}
           >
             Choose Amount to Add
@@ -157,8 +157,8 @@ export default function TopUpScreen() {
                       ? Colors.accent
                       : Colors.backgroundGray,
                     borderRadius: BorderRadius.default,
-                    paddingVertical: 10,
-                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderWidth: isSelected ? 0 : 1,
@@ -168,7 +168,7 @@ export default function TopUpScreen() {
                 >
                   <Text
                     style={{
-                      fontSize: 18,
+                      fontSize: 16,
                       fontFamily: 'Poppins-Bold',
                       color: isSelected ? Colors.white : Colors.textPrimary,
                     }}
@@ -185,8 +185,8 @@ export default function TopUpScreen() {
             style={{
               backgroundColor: Colors.backgroundGray,
               borderRadius: BorderRadius.lg,
-              paddingHorizontal: 16,
-              paddingVertical: 16,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
               borderWidth: 1,
               borderColor: Colors.border,
             }}
@@ -197,7 +197,7 @@ export default function TopUpScreen() {
               placeholder="Enter amount"
               keyboardType="decimal-pad"
               style={{
-                fontSize: 18,
+                fontSize: 16,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
               }}
@@ -210,10 +210,10 @@ export default function TopUpScreen() {
         <View style={{ marginBottom: 32 }}>
           <Text
             style={{
-              fontSize: 18,
+              fontSize: 16,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
-              marginBottom: 16,
+              marginBottom: 12,
             }}
           >
             Select Payment Method
@@ -227,8 +227,8 @@ export default function TopUpScreen() {
             style={{
               backgroundColor: Colors.backgroundGray,
               borderRadius: BorderRadius.lg,
-              padding: 16,
-              marginBottom: 12,
+              padding: 14,
+              marginBottom: 10,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -239,14 +239,14 @@ export default function TopUpScreen() {
           >
             <Text
               style={{
-                fontSize: 16,
+                fontSize: 14,
                 fontFamily: 'Poppins-SemiBold',
                 color: Colors.textPrimary,
               }}
             >
               Bank Transfer
             </Text>
-            <ChevronRight size={20} color={Colors.textSecondaryDark} />
+            <ChevronRight size={18} color={Colors.textSecondaryDark} />
           </TouchableOpacity>
 
           {/* Card Option */}
@@ -258,7 +258,7 @@ export default function TopUpScreen() {
             style={{
               backgroundColor: Colors.backgroundGray,
               borderRadius: BorderRadius.lg,
-              padding: 16,
+              padding: 14,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -269,14 +269,14 @@ export default function TopUpScreen() {
           >
             <Text
               style={{
-                fontSize: 16,
+                fontSize: 14,
                 fontFamily: 'Poppins-SemiBold',
                 color: Colors.textPrimary,
               }}
             >
               Card
             </Text>
-            <ChevronRight size={20} color={Colors.textSecondaryDark} />
+            <ChevronRight size={18} color={Colors.textSecondaryDark} />
           </TouchableOpacity>
         </View>
 

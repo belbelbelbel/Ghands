@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/Button';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { useToast } from '@/hooks/useToast';
+import { locationService, authService, LocationSearchResult } from '@/services/api';
 import Toast from '@/components/Toast';
 import * as Location from 'expo-location';
-import { Search, Send, X } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Search, Send, X, MapPin } from 'lucide-react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { ScrollView, Text, TextInput, TouchableOpacity, View, StyleSheet, ActivityIndicator } from 'react-native';
 
 interface LocationSearchModalProps {
   visible: boolean;
@@ -16,32 +17,73 @@ interface LocationSearchModalProps {
 }
 
 export default function LocationSearchModal({ visible, onClose, onLocationSelected }: LocationSearchModalProps) {
-  const { location, setLocation } = useUserLocation();
+  const { location, setLocation, refreshLocation } = useUserLocation();
   const { toast, showError, showSuccess, hideToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('');
+  const [searchResults, setSearchResults] = useState<LocationSearchResult[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<LocationSearchResult | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    if (location) {
-      setSearchQuery(location);
-      setSelectedLocation(location);
-    }
-  }, [location]);
+  const [isGettingCurrentLocation, setIsGettingCurrentLocation] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (visible) {
       setSearchQuery(location || '');
-      setSelectedLocation(location || '');
+      setSelectedLocation(null);
+      setSearchResults([]);
     }
   }, [visible, location]);
 
+  // Debounced search
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (searchQuery.trim().length >= 2) {
+      setIsSearching(true);
+      searchTimeoutRef.current = setTimeout(async () => {
+        try {
+          const results = await locationService.searchLocations(searchQuery.trim());
+          setSearchResults(results);
+          // If no results and query is long enough, it might be API configuration issue
+          // But don't show error - allow manual entry
+        } catch (error) {
+          console.error('Search error:', error);
+          // Don't show error toast - allow user to type manually
+          // The search will just return empty results gracefully
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      }, 400); // 400ms debounce
+    } else {
+      setSearchResults([]);
+      setIsSearching(false);
+    }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  const handleSelectLocation = (result: LocationSearchResult) => {
+    setSelectedLocation(result);
+    setSearchQuery(result.fullAddress);
+    setSearchResults([]);
+  };
+
   const handleUseCurrentLocation = async () => {
     try {
+      setIsGettingCurrentLocation(true);
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
         showError('Location permission is required to use current location.');
+        setIsGettingCurrentLocation(false);
         return;
       }
 
@@ -50,41 +92,89 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
       });
 
       const { latitude, longitude } = currentLocation.coords;
-      const locationText = `Current Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
       
-      setSearchQuery(locationText);
-      setSelectedLocation(locationText);
+      // Get address from API
+      const locationDetails = await locationService.getCurrentLocation(latitude, longitude);
+      
+      setSelectedLocation({
+        placeId: locationDetails.placeId,
+        placeName: locationDetails.city || locationDetails.address,
+        fullAddress: locationDetails.formattedAddress,
+        address: locationDetails.address,
+      });
+      
+      setSearchQuery(locationDetails.formattedAddress);
+      setSearchResults([]);
       showSuccess('Current location detected!');
     } catch (error) {
+      console.error('Error getting current location:', error);
       showError('Failed to get current location. Please enter manually.');
+    } finally {
+      setIsGettingCurrentLocation(false);
     }
   };
 
   const handleSave = async () => {
-    if (!searchQuery.trim()) {
-      showError('Please enter a location');
+    if (!selectedLocation && !searchQuery.trim()) {
+      showError('Please select or enter a location');
       return;
     }
 
     setIsSaving(true);
 
     try {
-      const locationToSave = searchQuery.trim();
-      await setLocation(locationToSave);
-      setSelectedLocation(locationToSave);
+      let locationToSave: LocationSearchResult;
+      let locationText = '';
+
+      if (selectedLocation) {
+        // Use selected location with placeId
+        locationToSave = selectedLocation;
+        locationText = locationToSave.fullAddress;
+      } else {
+        // User typed manually, try to get details from search results
+        if (searchResults.length > 0) {
+          locationToSave = searchResults[0];
+          locationText = locationToSave.fullAddress;
+        } else {
+          // Fallback: save as text only
+          locationText = searchQuery.trim();
+        }
+      }
+
+      // Always save to local storage first (works without sign-in)
+      await setLocation(locationText);
+      
+      // Try to save to API if user is signed in (optional)
+      const userId = await authService.getUserId();
+      if (userId && selectedLocation) {
+        try {
+          await locationService.saveUserLocation(userId, { placeId: selectedLocation.placeId });
+        } catch (apiError: any) {
+          // API save failed, but local save succeeded - log warning but don't fail
+          console.warn('Failed to save location to API, but saved locally:', apiError.message);
+          if (__DEV__) {
+            console.warn('API Error details:', {
+              status: apiError.status,
+              message: apiError.message,
+            });
+          }
+        }
+      }
       
       if (onLocationSelected) {
-        onLocationSelected(locationToSave);
+        onLocationSelected(locationText);
       }
       
       showSuccess('Location saved successfully!');
       
       setTimeout(() => {
         onClose();
+        refreshLocation();
         setIsSaving(false);
       }, 1000);
-    } catch (error) {
-      showError('Failed to save location. Please try again.');
+    } catch (error: any) {
+      console.error('Error saving location:', error);
+      showError(error.message || 'Failed to save location. Please try again.');
       setIsSaving(false);
     }
   };
@@ -92,34 +182,13 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
   return (
     <>
       <AnimatedModal visible={visible} onClose={onClose} animationType="slide">
-        <View style={{ flex: 1 }}>
+        <View style={styles.container}>
           {/* Header */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 20,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 20,
-                fontFamily: 'Poppins-Bold',
-                color: Colors.textPrimary,
-                flex: 1,
-              }}
-            >
-              Change Address
-            </Text>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Change Address</Text>
             <TouchableOpacity
               onPress={onClose}
-              style={{
-                width: 32,
-                height: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              style={styles.closeButton}
               activeOpacity={0.7}
             >
               <X size={24} color={Colors.textPrimary} />
@@ -128,52 +197,26 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{
-              paddingBottom: 20,
-            }}
+            contentContainerStyle={styles.scrollContent}
           >
             {/* Search Input */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 16,
-                gap: 12,
-              }}
-            >
-              <View
-                style={{
-                  flex: 1,
-                  backgroundColor: Colors.backgroundGray,
-                  borderRadius: BorderRadius.xl,
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                }}
-              >
+            <View style={styles.searchContainer}>
+              <View style={styles.searchInputContainer}>
                 <TextInput
-                  placeholder="Lagos, 100001"
+                  placeholder="Search for location..."
                   placeholderTextColor={Colors.textSecondaryDark}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   onSubmitEditing={handleSave}
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.textPrimary,
-                  }}
+                  style={styles.searchInput}
+                  autoCapitalize="none"
                 />
+                {isSearching && (
+                  <ActivityIndicator size="small" color={Colors.accent} style={styles.searchLoader} />
+                )}
               </View>
               <TouchableOpacity
-                style={{
-                  width: 48,
-                  height: 48,
-                  backgroundColor: Colors.black,
-                  borderRadius: BorderRadius.default,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                style={styles.searchButton}
                 activeOpacity={0.7}
                 onPress={handleSave}
               >
@@ -181,56 +224,64 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
               </TouchableOpacity>
             </View>
 
+            {/* Search Results Dropdown */}
+            {searchResults.length > 0 && (
+              <View style={styles.resultsContainer}>
+                {searchResults.map((result, index) => (
+                  <TouchableOpacity
+                    key={result.placeId}
+                    style={[
+                      styles.resultItem,
+                      index === searchResults.length - 1 && styles.resultItemLast,
+                    ]}
+                    onPress={() => handleSelectLocation(result)}
+                    activeOpacity={0.7}
+                  >
+                    <MapPin size={16} color={Colors.accent} style={styles.resultIcon} />
+                    <View style={styles.resultContent}>
+                      <Text style={styles.resultName}>{result.placeName}</Text>
+                      <Text style={styles.resultAddress} numberOfLines={1}>
+                        {result.fullAddress}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
             {/* Use Current Location */}
             <TouchableOpacity
               onPress={handleUseCurrentLocation}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 16,
-              }}
+              style={styles.currentLocationButton}
               activeOpacity={0.7}
+              disabled={isGettingCurrentLocation}
             >
-              <Send size={20} color={Colors.accent} style={{ marginRight: 12 }} />
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-Medium',
-                  color: Colors.accent,
-                }}
-              >
-                Use my current location
+              {isGettingCurrentLocation ? (
+                <ActivityIndicator size="small" color={Colors.accent} style={styles.currentLocationIcon} />
+              ) : (
+                <Send size={20} color={Colors.accent} style={styles.currentLocationIcon} />
+              )}
+              <Text style={styles.currentLocationText}>
+                {isGettingCurrentLocation ? 'Getting location...' : 'Use my current location'}
               </Text>
             </TouchableOpacity>
 
             {/* Selected Location Display */}
             {selectedLocation && (
-              <View
-                style={{
-                  backgroundColor: '#FFF9E6',
-                  borderRadius: BorderRadius.xl,
-                  padding: 14,
-                  marginBottom: 16,
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.textPrimary,
-                    lineHeight: 20,
-                  }}
-                >
-                  {selectedLocation}
-                </Text>
+              <View style={styles.selectedLocationContainer}>
+                <MapPin size={16} color={Colors.accent} style={styles.selectedIcon} />
+                <View style={styles.selectedContent}>
+                  <Text style={styles.selectedName}>{selectedLocation.placeName}</Text>
+                  <Text style={styles.selectedAddress} numberOfLines={2}>
+                    {selectedLocation.fullAddress}
+                  </Text>
+                </View>
               </View>
             )}
           </ScrollView>
 
           {/* Save Button */}
-          <View style={{ marginTop: 16 }}>
+          <View style={styles.actions}>
             <Button
               title={isSaving ? 'Saving...' : 'Save location'}
               onPress={handleSave}
@@ -238,7 +289,7 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
               size="large"
               fullWidth
               loading={isSaving}
-              disabled={isSaving || !searchQuery.trim()}
+              disabled={isSaving || (!selectedLocation && !searchQuery.trim())}
             />
           </View>
         </View>
@@ -252,3 +303,144 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xl,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins-Bold',
+    color: Colors.textPrimary,
+    flex: 1,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    paddingBottom: Spacing.md,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    gap: Spacing.md,
+  },
+  searchInputContainer: {
+    flex: 1,
+    backgroundColor: Colors.backgroundGray,
+    borderRadius: BorderRadius.xl,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: Colors.textPrimary,
+  },
+  searchLoader: {
+    marginLeft: Spacing.sm,
+  },
+  searchButton: {
+    width: 48,
+    height: 48,
+    backgroundColor: Colors.black,
+    borderRadius: BorderRadius.default,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resultsContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.lg,
+    overflow: 'hidden',
+  },
+  resultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  resultItemLast: {
+    borderBottomWidth: 0,
+  },
+  resultIcon: {
+    marginRight: Spacing.md,
+  },
+  resultContent: {
+    flex: 1,
+  },
+  resultName: {
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
+    color: Colors.textPrimary,
+    marginBottom: 2,
+  },
+  resultAddress: {
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    color: Colors.textSecondaryDark,
+  },
+  currentLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  currentLocationIcon: {
+    marginRight: Spacing.md,
+  },
+  currentLocationText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    color: Colors.accent,
+  },
+  selectedLocationContainer: {
+    backgroundColor: '#FFF9E6',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  selectedIcon: {
+    marginRight: Spacing.md,
+    marginTop: 2,
+  },
+  selectedContent: {
+    flex: 1,
+  },
+  selectedName: {
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  selectedAddress: {
+    fontSize: 13,
+    fontFamily: 'Poppins-Regular',
+    color: Colors.textSecondaryDark,
+    lineHeight: 18,
+  },
+  actions: {
+    marginTop: Spacing.lg,
+  },
+});

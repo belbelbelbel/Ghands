@@ -12,6 +12,7 @@ interface InputFieldProps {
   iconPosition?: 'left' | 'right';
   error?: boolean;
   disabled?: boolean;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
 }
 
 export const InputField: React.FC<InputFieldProps> = ({
@@ -24,6 +25,7 @@ export const InputField: React.FC<InputFieldProps> = ({
   iconPosition = 'left',
   error = false,
   disabled = false,
+  autoCapitalize = 'sentences',
 }) => {
   return (
     <View
@@ -32,7 +34,7 @@ export const InputField: React.FC<InputFieldProps> = ({
         borderRadius: BorderRadius.default,
         marginBottom: Spacing.lg,
         paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.md,
+        paddingVertical: Spacing.sm,
         flexDirection: 'row',
         alignItems: 'center',
         minHeight: INPUT_HEIGHTS.medium,
@@ -63,6 +65,7 @@ export const InputField: React.FC<InputFieldProps> = ({
         value={value}
         onChangeText={onChangeText}
         editable={!disabled}
+        autoCapitalize={autoCapitalize}
         style={{
           flex: 1,
           color: Colors.textPrimary,

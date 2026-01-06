@@ -58,8 +58,11 @@ const ProfileScreen = () => {
           text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
-            await logout();
-            router.replace('/onboarding');
+            try {
+              await logout();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
           },
         },
       ]

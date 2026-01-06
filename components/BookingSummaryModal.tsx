@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View, Image, StyleSheet } from 'react-native';
 import AnimatedModal from './AnimatedModal';
 import { Colors, BorderRadius, Spacing } from '@/lib/designSystem';
 import { Edit2, Calendar, Clock, MapPin, Image as ImageIcon, Users, ChevronRight, X } from 'lucide-react-native';
 import { Button } from './ui/Button';
 import { haptics } from '@/hooks/useHaptics';
+import ProfileCompletionModal from './ProfileCompletionModal';
+import { useProfileCompletion } from '@/hooks/useProfileCompletion';
 
 export interface BookingSummaryData {
   serviceType?: string;
@@ -44,6 +46,9 @@ export default function BookingSummaryModal({
   onEditProviders,
   data,
 }: BookingSummaryModalProps) {
+  const { isProfileComplete, checkProfileComplete } = useProfileCompletion();
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
   const handleEdit = (callback?: (data: BookingSummaryData) => void) => {
     haptics.light();
     onClose();
@@ -52,7 +57,27 @@ export default function BookingSummaryModal({
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    // Check if profile is complete before confirming booking
+    const profileComplete = await checkProfileComplete();
+    
+    if (!profileComplete) {
+      // Show profile completion modal
+      setShowProfileModal(true);
+      return;
+    }
+
+    // Profile is complete, proceed with booking
+    haptics.success();
+    onConfirm();
+  };
+
+  const handleProfileComplete = async (profileData: { firstName: string; lastName: string; gender: string }) => {
+    // TODO: API call will be added after backend discussion
+    // For now, just mark as complete and close modal
+    setShowProfileModal(false);
+    
+    // Retry booking confirmation
     haptics.success();
     onConfirm();
   };
@@ -241,6 +266,13 @@ export default function BookingSummaryModal({
           />
         </View>
       </View>
+
+      {/* Profile Completion Modal */}
+      <ProfileCompletionModal
+        visible={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onComplete={handleProfileComplete}
+      />
     </AnimatedModal>
   );
 }

@@ -1,17 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, Image, Platform, StatusBar, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Animated, Dimensions, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import Svg, { Defs, Rect, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 import { SlideData } from '../lib/assets';
-import AnimatedIcon from './AnimatedIcon';
+import { Colors } from '../lib/designSystem';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-
-// Fixed values - no responsiveness
-const TITLE_FONT_SIZE = 28;
-const DESCRIPTION_FONT_SIZE = 17.5;
-const HORIZONTAL_PADDING = 28;
-const TEXT_PADDING = 10;
 
 interface OnboardingSlideProps {
   slide: SlideData;
@@ -20,40 +13,28 @@ interface OnboardingSlideProps {
 
 export default function OnboardingSlide({ slide, isActive }: OnboardingSlideProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const titleSlideAnim = useRef(new Animated.Value(40)).current;
-  const descSlideAnim = useRef(new Animated.Value(40)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const titleSlideAnim = useRef(new Animated.Value(30)).current;
+  const descSlideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     if (isActive) {
-      // Reset values for entrance
       fadeAnim.setValue(0);
-      titleSlideAnim.setValue(40);
-      descSlideAnim.setValue(40);
-      scaleAnim.setValue(0.95);
-    
-      // Staggered entrance animation
+      titleSlideAnim.setValue(30);
+      descSlideAnim.setValue(30);
+
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 500,
+          duration: 400,
           useNativeDriver: true,
         }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
+        Animated.timing(titleSlideAnim, {
+          toValue: 0,
           duration: 500,
           useNativeDriver: true,
         }),
       ]).start();
 
-      // Title slides up first
-      Animated.timing(titleSlideAnim, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }).start();
-
-      // Description slides up with delay
       setTimeout(() => {
         Animated.timing(descSlideAnim, {
           toValue: 0,
@@ -61,9 +42,7 @@ export default function OnboardingSlide({ slide, isActive }: OnboardingSlideProp
           useNativeDriver: true,
         }).start();
       }, 150);
-
     } else {
-      // Smooth exit animation when slide becomes inactive
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
@@ -71,151 +50,91 @@ export default function OnboardingSlide({ slide, isActive }: OnboardingSlideProp
           useNativeDriver: true,
         }),
         Animated.timing(titleSlideAnim, {
-          toValue: -40,
+          toValue: -30,
           duration: 300,
           useNativeDriver: true,
         }),
         Animated.timing(descSlideAnim, {
-          toValue: -40,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 0.9,
+          toValue: -30,
           duration: 300,
           useNativeDriver: true,
         }),
       ]).start();
     }
-  }, [isActive, fadeAnim, titleSlideAnim, descSlideAnim, scaleAnim]);
-  
-   const insets = useSafeAreaInsets();
+  }, [isActive, fadeAnim, titleSlideAnim, descSlideAnim]);
 
   return (
-    <View style={{ width: SCREEN_WIDTH, flex: 1, backgroundColor: '#0b0b07',  paddingBottom: Platform.OS === 'android' ? StatusBar.currentHeight : 0, }}>
-      {/* Image Section - Top Half */}
-      <View style={{ height: SCREEN_HEIGHT * 0.5, position: 'relative' }}>
-        <Image
-          source={slide.image}
-          style={{
-            width: '100%',
-            height: '100%',
-            resizeMode: 'cover',
-          }}
-        />
-        
-        {/* Shadow Gradient Overlay for smooth blending */}
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 150,
-            flexDirection: 'column',
-          }}
-          pointerEvents="none"
-        >
-          <View style={{ flex: 1, backgroundColor: 'rgba(11, 11, 7, 0)' }} />
-          <View style={{ flex: 1, backgroundColor: 'rgba(11, 11, 7, 0.05)' }} />
-          <View style={{ flex: 1, backgroundColor: 'rgba(11, 11, 7, 0.1)' }} />
-          <View style={{ flex: 1, backgroundColor: 'rgba(11, 11, 7, 0.2)' }} />
-          <View style={{ flex: 1, backgroundColor: 'rgba(11, 11, 7, 0.35)' }} />
-          <View style={{ flex: 1, backgroundColor: 'rgba(11, 11, 7, 0.5)' }} />
-          <View style={{ flex: 1, backgroundColor: 'rgba(11, 11, 7, 0.65)' }} />
-          <View style={{ flex: 1, backgroundColor: 'rgba(11, 11, 7, 0.8)' }} />
-          <View style={{ flex: 1, backgroundColor: 'rgba(11, 11, 7, 0.9)' }} />
-          <View style={{ flex: 1, backgroundColor: 'rgba(11, 11, 7, 0.95)' }} />
-          <View style={{ flex: 1, backgroundColor: '#0b0b07' }} />
-        </View>
+    <SafeAreaView style={styles.root}>
+      <Svg style={StyleSheet.absoluteFill} width={SCREEN_WIDTH} height={SCREEN_HEIGHT}>
+        <Defs>
+          <SvgLinearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor="#B8C5A8" />
+            <Stop offset="18%" stopColor="#A0B090" />
+            <Stop offset="38%" stopColor="#889B78" />
+            <Stop offset="50%" stopColor="#6A7D5A" />
+            <Stop offset="62%" stopColor="#4A5D3A" />
+            <Stop offset="78%" stopColor="#1B220F" />
+            <Stop offset="100%" stopColor="#0A0E07" />
+          </SvgLinearGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#gradient)" />
+      </Svg>
+
+      <View style={styles.heroZone}>
+        <Image source={slide.image} style={styles.illustration} resizeMode="contain" />
       </View>
 
-      {/* Animated Icon - Positioned at intersection */}
-      <Animated.View
-        style={{
-          position: 'absolute',
-          top: SCREEN_HEIGHT * 0.5 - 30,
-          left: 0,
-          right: 0,
-          alignItems: 'center',
-          zIndex: 10,
-          opacity: fadeAnim,
-          transform: [
-            { scale: scaleAnim }
-          ],
-        }}
-      >
-        <AnimatedIcon icon={slide.icon} animate={isActive} />
-      </Animated.View>
-
-      {/* Text Section - Bottom Half */}
-      <View
-        style={{
-          height: SCREEN_WIDTH < 375 ? SCREEN_HEIGHT * 0.35 - 20 : SCREEN_HEIGHT * 0.3,
-          backgroundColor: '#0b0b07',
-          paddingHorizontal: HORIZONTAL_PADDING,
-          paddingVertical: 0,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {/* Title - Staggered Animation */}
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [
-              { scale: scaleAnim },
-              { translateY: titleSlideAnim }
-            ],
-            width: '100%',
-            paddingHorizontal: TEXT_PADDING,
-            marginBottom: 20,
-            marginTop: 40,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: TITLE_FONT_SIZE,
-              fontWeight: '800',
-              color: '#FFFFFF',
-              textAlign: 'center',
-              fontFamily: 'Outfit-ExtraBold',
-              lineHeight: TITLE_FONT_SIZE + 8,
-              letterSpacing: -0.5,
-            }}
-          >
-            {slide.title}
-          </Text>
+      <View style={styles.contentZone}>
+        <Animated.View style={[styles.textBlock, { opacity: fadeAnim, transform: [{ translateY: titleSlideAnim }] }]}>
+          <Text style={styles.title}>{slide.title}</Text>
         </Animated.View>
-
-        {/* Description - Staggered Animation */}
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [
-              { scale: scaleAnim },
-              { translateY: descSlideAnim }
-            ],
-            width: '100%',
-            paddingHorizontal: TEXT_PADDING,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: DESCRIPTION_FONT_SIZE,
-              fontWeight: '500',
-              color: '#FFFFFF',
-              textAlign: 'center',
-              fontFamily: 'Outfit-Medium',
-              lineHeight: DESCRIPTION_FONT_SIZE + 8,
-              letterSpacing: 0.3,
-              zIndex: 1
-            }}
-          >
-            {slide.description}
-          </Text>
+        <Animated.View style={[styles.textBlock, { opacity: fadeAnim, transform: [{ translateY: descSlideAnim }] }]}>
+          <Text style={styles.description}>{slide.description}</Text>
         </Animated.View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  heroZone: {
+    height: SCREEN_HEIGHT * 0.58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    paddingTop: SCREEN_HEIGHT * 0.1,
+  },
+  illustration: {
+    width: SCREEN_WIDTH * 0.7,
+    height: '100%',
+    zIndex: 1,
+  },
+  contentZone: {
+    height: SCREEN_HEIGHT * 0.42,
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  textBlock: {
+    width: '100%',
+  },
+  title: {
+    fontSize: 32,
+    fontFamily: 'Poppins-Bold',
+    color: Colors.white,
+    marginBottom: 8,
+  },
+  description: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    color: Colors.white,
+    maxWidth: '85%',
+    marginBottom: 16,
+  },
+});

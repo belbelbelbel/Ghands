@@ -94,8 +94,8 @@ export default function WalletScreen() {
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: 20,
-          paddingTop: 16,
-          paddingBottom: 16,
+          paddingTop: 12,
+          paddingBottom: 12,
         }}
       >
         <TouchableOpacity
@@ -114,7 +114,7 @@ export default function WalletScreen() {
         </TouchableOpacity>
         <Text
           style={{
-            fontSize: 24,
+            fontSize: 20,
             fontFamily: 'Poppins-Bold',
             color: Colors.textPrimary,
           }}
@@ -153,8 +153,8 @@ export default function WalletScreen() {
           style={{
             backgroundColor: 'rgba(18, 18, 18, 1)', // Dark grey/black
             borderRadius: BorderRadius.xl,
-            padding: 20,
-            marginBottom: 20,
+            padding: 16,
+            marginBottom: 16,
             position: 'relative',
           }}
         >
@@ -182,18 +182,18 @@ export default function WalletScreen() {
             <View style={{ flex: 1 }}>
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: 12,
                   fontFamily: 'Poppins-Medium',
                   color: Colors.white,
                   opacity: 0.9,
-                  marginBottom: 6,
+                  marginBottom: 4,
                 }}
               >
                 Current balance
               </Text>
               <Text
                 style={{
-                  fontSize: 26,
+                  fontSize: 22,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.white,
                 }}
@@ -207,9 +207,9 @@ export default function WalletScreen() {
             {/* Green circular icon with currency symbol */}
             <View
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
+                width: 32,
+                height: 32,
+                borderRadius: 16,
                 backgroundColor: Colors.accent,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -217,7 +217,7 @@ export default function WalletScreen() {
             >
               <Text
                 style={{
-                  fontSize: 18,
+                  fontSize: 16,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.white,
                 }}
@@ -243,21 +243,21 @@ export default function WalletScreen() {
               flex: 1,
               backgroundColor: Colors.accent, // Bright lime green
               borderRadius: BorderRadius.default,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
+              paddingVertical: 10,
+              paddingHorizontal: 14,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
             }}
             activeOpacity={0.8}
           >
-            <Plus size={20} color={Colors.white} />
+            <Plus size={18} color={Colors.white} />
             <Text
               style={{
-                fontSize: 16,
+                fontSize: 14,
                 fontFamily: 'Poppins-SemiBold',
                 color: Colors.white,
-                marginLeft: 8,
+                marginLeft: 6,
               }}
             >
               Add Funds
@@ -271,8 +271,8 @@ export default function WalletScreen() {
               flex: 1,
               backgroundColor: 'rgba(18, 18, 18, 1)', // Dark grey/black
               borderRadius: BorderRadius.default,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
+              paddingVertical: 10,
+              paddingHorizontal: 14,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
@@ -281,15 +281,15 @@ export default function WalletScreen() {
           >
             <Text
               style={{
-                fontSize: 16,
+                fontSize: 14,
                 fontFamily: 'Poppins-SemiBold',
                 color: Colors.white,
-                marginRight: 8,
+                marginRight: 6,
               }}
             >
               Pay
             </Text>
-            <ArrowRight size={20} color={Colors.white} />
+            <ArrowRight size={18} color={Colors.white} />
           </TouchableOpacity>
         </View>
 
@@ -305,7 +305,7 @@ export default function WalletScreen() {
           >
             <Text
               style={{
-                fontSize: 18,
+                fontSize: 16,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
               }}
@@ -341,8 +341,8 @@ export default function WalletScreen() {
               style={{
                 backgroundColor: Colors.white,
                 borderRadius: BorderRadius.xl,
-                padding: 14,
-                marginBottom: 10,
+                padding: 12,
+                marginBottom: 8,
                 borderWidth: 1,
                 borderColor: Colors.border,
               }}
@@ -380,20 +380,20 @@ export default function WalletScreen() {
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      fontSize: 14,
+                      fontSize: 13,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.textPrimary,
-                      marginBottom: 3,
+                      marginBottom: 2,
                     }}
                   >
                     {transaction.serviceName}
                   </Text>
                   <Text
                     style={{
-                      fontSize: 12,
+                      fontSize: 11,
                       fontFamily: 'Poppins-Medium',
                       color: Colors.textSecondaryDark,
-                      marginBottom: 3,
+                      marginBottom: 2,
                     }}
                   >
                     {transaction.serviceDescription}
@@ -428,7 +428,7 @@ export default function WalletScreen() {
                   </Text>
                   <Text
                     style={{
-                      fontSize: 16,
+                      fontSize: 14,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.textPrimary,
                     }}

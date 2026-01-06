@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
 import * as Location from 'expo-location';
 import { useUserLocation } from '@/hooks/useUserLocation';
+import { locationService, authService } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { Colors, Spacing } from '@/lib/designSystem';
 import { useToast } from '@/hooks/useToast';
@@ -65,21 +66,22 @@ export default function LocationPermissionScreen() {
 
       const { latitude, longitude } = location.coords;
 
-      // Try to get address from coordinates
-      let address: string;
-      try {
-        // For now, use a simple format. In production, use reverse geocoding API
-        address = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-        
-        // Try to get a more readable address (you can integrate Google Maps Geocoding API here)
-        // For demo, we'll use coordinates
-        address = `Current Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-      } catch (error) {
-        address = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+      // Get address from API (reverse geocoding)
+      const locationDetails = await locationService.getCurrentLocation(latitude, longitude);
+      
+      // Always save to local storage first (works without sign-in)
+      await setLocation(locationDetails.formattedAddress);
+      
+      // Try to save to API if user is signed in (optional)
+      const userId = await authService.getUserId();
+      if (userId) {
+        try {
+          await locationService.saveUserLocation(userId, { placeId: locationDetails.placeId });
+        } catch (apiError: any) {
+          // API save failed, but local save succeeded - log warning but don't fail
+          console.warn('Failed to save location to API, but saved locally:', apiError.message);
+        }
       }
-
-      // Save location
-      await setLocation(address);
       
       showSuccess('Location saved successfully!');
       

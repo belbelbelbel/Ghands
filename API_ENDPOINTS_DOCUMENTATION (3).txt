@@ -1,0 +1,781 @@
+================================================================================
+                    API ENDPOINTS DOCUMENTATION
+                    Backend API for Frontend Integration
+================================================================================
+
+BASE URL:https://bamibuildit-backend-v1.onrender.com
+
+All responses follow this format:
+  Success: { "data": {...} }
+  Error: { "error": "Error message" }
+
+================================================================================
+                        1. USER AUTHENTICATION ENDPOINTS
+================================================================================
+
+1.1 USER SIGNUP
+----------------
+Method: POST
+Endpoint: /api/user/signup
+Description: Register a new user account
+
+Request Body (JSON):
+{
+  "firstName": "John",              // Required, string
+  "lastName": "Doe",                // Required, string
+  "userName": "johndoe",            // Required, string
+  "gender": "male",                 // Required, "male" or "female" (lowercase)
+  "email": "john@example.com",      // Required, valid email
+  "phoneNumber": "12345678901",     // Optional, exactly 11 characters
+  "password": "password123"         // Required, minimum 6 characters
+}
+
+Response (Success):
+{
+  "data": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john@example.com",
+    "token": "jwt-token-here"       // Save this token for authenticated requests
+  }
+}
+
+Response (Error):
+{
+  "error": "User already Exists. Sign In instead."
+}
+
+HOW TO USE:
+- Call this when user clicks "Sign Up" button
+- Store the returned token in localStorage/sessionStorage
+- Include this token in Authorization header for protected routes
+- Display error message if signup fails
+- Redirect to login or home page on success
+
+
+1.2 COMPANY SIGNUP
+------------------
+Method: POST
+Endpoint: /api/user/company-signup
+Description: Register a new company account
+
+Request Body (JSON):
+{
+  "companyName": "ABC Services Ltd",        // Required, string
+  "companyPhoneNumber": "12345678901",      // Required, exactly 11 characters
+  "companyEmail": "contact@abc.com",        // Required, valid email
+  "companyPassword": "password123"          // Required, minimum 6 characters
+}
+
+Response (Success):
+{
+  "data": {
+    "id": 1,
+    "companyName": "ABC Services Ltd",
+    "companyPhoneNumber": "12345678901",
+    "companyEmail": "contact@abc.com",
+    "token": "jwt-token-here"
+  }
+}
+
+Response (Error):
+{
+  "error": "Company already Exists. Sign In instead."
+}
+
+HOW TO USE:
+- Similar to user signup, but for company accounts
+- Use when company wants to register on the platform
+- Store token for company authentication
+
+
+================================================================================
+                        2. LOCATION ENDPOINTS
+================================================================================
+
+2.1 SEARCH LOCATIONS (Autocomplete)
+------------------------------------
+Method: GET
+Endpoint: /api/user/location/search?query=Lagos
+Description: Search for locations using Google Places API autocomplete
+             Use this for location search input field with type-ahead functionality
+
+Query Parameters:
+  query: string (required, minimum 2 characters)
+
+Example Request:
+  GET /api/user/location/search?query=Lagos
+
+Response (Success):
+{
+  "data": [
+    {
+      "placeId": "ChIJ...",                    // Unique place identifier - SAVE THIS!
+      "placeName": "Gowon Estate",             // Main location name - Display this
+      "fullAddress": "Gowon Estate, Lagos, Nigeria",  // Full address - Show in dropdown
+      "address": "Lagos, Nigeria",             // Secondary text - Show below placeName
+      "mainText": "Gowon Estate",              // Alternative format
+      "secondaryText": "Lagos, Nigeria"        // Alternative format
+    },
+    // ... more results
+  ]
+}
+
+Response (Error):
+{
+  "error": "Query parameter is required"
+}
+
+HOW TO USE:
+- Call this as user types in location search field (debounce for 300-500ms)
+- Display results in dropdown/autocomplete list
+- Show "placeName" as main text and "fullAddress" as subtitle
+- When user selects a location, SAVE the "placeId" - you'll need it later!
+- Use "placeId" for getting full details or saving user location
+
+
+2.2 GET LOCATION DETAILS
+-------------------------
+Method: GET
+Endpoint: /api/user/location/details?placeId=ChIJ...
+Description: Get full location details including coordinates from a placeId
+             Use this after user selects a location from search results
+
+Query Parameters:
+  placeId: string (required) - The placeId from search results
+
+Example Request:
+  GET /api/user/location/details?placeId=ChIJN1t_tTlzOlQRz5bHo7jSkMA
+
+Response (Success):
+{
+  "data": {
+    "placeId": "ChIJ...",
+    "formattedAddress": "123 Main Street, Lagos, Nigeria",  // Full formatted address
+    "latitude": 6.5244,                     // Use for maps/markers
+    "longitude": 3.3792,                    // Use for maps/markers
+    "city": "Lagos",
+    "state": "Lagos State",
+    "country": "Nigeria",
+    "address": "123 Main Street, Lagos, Nigeria"
+  }
+}
+
+HOW TO USE:
+- Call this when user clicks on a location from search results
+- Use the coordinates (latitude, longitude) to show on map
+- Display formattedAddress in the location display component
+- Store all these details if you need to save the location
+
+
+2.3 GET CURRENT LOCATION ADDRESS (GPS)
+---------------------------------------
+Method: GET
+Endpoint: /api/user/location/current?latitude=6.5244&longitude=3.3792
+Description: Convert GPS coordinates to address (Reverse Geocoding)
+             Use this when user clicks "Use my current location" button
+
+Query Parameters:
+  latitude: number (required, -90 to 90)
+  longitude: number (required, -180 to 180)
+
+Example Request:
+  GET /api/user/location/current?latitude=6.5244&longitude=3.3792
+
+Response (Success):
+{
+  "data": {
+    "placeName": "Lagos",                    // City or location name
+    "fullAddress": "123 Main Street, Lagos, Nigeria",
+    "placeId": "ChIJ...",                    // Save this for later use
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "city": "Lagos",
+    "state": "Lagos State",
+    "country": "Nigeria",
+    "address": "123 Main Street, Lagos, Nigeria"
+  }
+}
+
+HOW TO USE:
+- Call this when user grants location permission and you get GPS coordinates
+- Pass the latitude/longitude from navigator.geolocation API
+- Display the returned address to confirm with user
+- Use the placeId to save location if user confirms
+
+
+2.4 SAVE/UPDATE USER LOCATION
+------------------------------
+Method: POST
+Endpoint: /api/user/update-location
+Description: Save or update user's location in their profile
+             Use this after user confirms their location selection
+
+Request Body (JSON) - Option 1: Using placeId (Recommended):
+{
+  "userId": 1,                              // Required - user ID from auth token
+  "placeId": "ChIJ..."                      // placeId from search or current location
+}
+
+Request Body (JSON) - Option 2: Using GPS coordinates:
+{
+  "userId": 1,                              // Required
+  "latitude": 6.5244,                       // GPS latitude
+  "longitude": 3.3792                       // GPS longitude
+}
+
+Response (Success):
+{
+  "data": {
+    "message": "Location updated successfully",
+    "location": {
+      "placeId": "ChIJ...",
+      "formattedAddress": "123 Main Street, Lagos, Nigeria",
+      "latitude": 6.5244,
+      "longitude": 3.3792,
+      "city": "Lagos",
+      "state": "Lagos State",
+      "country": "Nigeria"
+    }
+  }
+}
+
+HOW TO USE:
+- Call this when user confirms their location (clicks "Save" or "Okay")
+- Use placeId method if available (more accurate)
+- Use GPS coordinates method if only coordinates are available
+- Store the saved location data in your app state
+- This location will be used as default for service requests
+
+
+2.5 GET USER'S SAVED LOCATION
+------------------------------
+Method: GET
+Endpoint: /api/user/location?userId=1
+Description: Get user's saved location from their profile
+             Use this to pre-fill location in forms or display current location
+
+Query Parameters:
+  userId: number (required)
+
+Example Request:
+  GET /api/user/location?userId=1
+
+Response (Success):
+{
+  "data": {
+    "placeId": "ChIJ...",
+    "placeName": "Lagos",
+    "fullAddress": "123 Main Street, Lagos, Nigeria",
+    "address": "123 Main Street, Lagos, Nigeria",
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "city": "Lagos",
+    "state": "Lagos State",
+    "country": "Nigeria"
+  }
+}
+
+Response (Error):
+{
+  "error": "User location not set"
+}
+
+HOW TO USE:
+- Call this when loading user profile or service request form
+- Pre-fill location fields if location exists
+- Show "Location not set" message if error returned
+- Use to display user's current location in profile page
+
+
+================================================================================
+                    3. SERVICE REQUEST ENDPOINTS (BOOKING FLOW)
+================================================================================
+
+3.1 GET ALL CATEGORIES
+----------------------
+Method: GET
+Endpoint: /api/request-service/categories
+Description: Get all available service categories with provider counts
+             Use this to display the category list in "Request Service" screen
+
+Example Request:
+  GET /api/request-service/categories
+
+Response (Success):
+{
+  "data": [
+    {
+      "name": "plumbing",                    // Use this as categoryName when creating request
+      "displayName": "Plumbing",             // Display this in UI
+      "description": "Get plumbing repairs and installations from anywhere around the lagos",
+      "providerCount": 245,                  // Display number of providers
+      "icon": undefined                      // Icon identifier (if available)
+    },
+    {
+      "name": "electrical",
+      "displayName": "Electrical",
+      "description": "Professional electrical services and repairs",
+      "providerCount": 189
+    }
+    // ... more categories
+  ]
+}
+
+HOW TO USE:
+- Call this on component mount of "Request Service" screen
+- Map through categories and display each with icon, displayName, description, providerCount
+- Store the "name" field - you'll need it when creating service request
+- Show provider count as "245 providers" text
+- When user selects a category, save the "name" value for next step
+
+
+3.2 SEARCH CATEGORIES
+---------------------
+Method: GET
+Endpoint: /api/request-service/categories/search?query=plumb
+Description: Search categories by name or description
+             Use this for category search/filter functionality
+
+Query Parameters:
+  query: string (required, minimum 2 characters)
+
+Example Request:
+  GET /api/request-service/categories/search?query=plumb
+
+Response (Success):
+{
+  "data": [
+    {
+      "name": "plumbing",
+      "displayName": "Plumbing",
+      "description": "Get plumbing repairs...",
+      "providerCount": 245
+    }
+  ]
+}
+
+HOW TO USE:
+- Call this as user types in category search field (debounce 300ms)
+- Filter categories list based on results
+- Same format as get all categories, just filtered
+
+
+3.3 CREATE SERVICE REQUEST (Step 1: Select Category)
+-----------------------------------------------------
+Method: POST
+Endpoint: /api/request-service/requests
+Description: Create a new service request - FIRST STEP of booking flow
+             User has selected a category, now create the request
+
+Request Body (JSON):
+{
+  "userId": 1,                              // Required - from auth token
+  "categoryName": "plumbing",               // Required - from category selection (use "name" field)
+  "jobTitle": "Kitchen faucet repair",      // Optional - can be empty string
+  "description": "The faucet is leaking",   // Optional - can be empty string
+  "comment": "Additional notes"             // Optional
+}
+
+Response (Success):
+{
+  "data": {
+    "requestId": 5,                         // IMPORTANT: Save this for next steps!
+    "categoryName": "plumbing",
+    "status": "pending",
+    "message": "Service request created successfully"
+  }
+}
+
+HOW TO USE:
+- Call this when user clicks "Add details →" button after selecting category
+- Use categoryName from the selected category object
+- SAVE the returned "requestId" - you'll need it for steps 2 and 3!
+- Navigate to "Job Details" screen after success
+- Pass requestId to next screen (via navigation params or state management)
+
+
+3.4 UPDATE JOB DETAILS (Step 2: Job Details)
+---------------------------------------------
+Method: PUT
+Endpoint: /api/request-service/requests/:requestId/details
+Description: Update service request with job title, description, and location
+             SECOND STEP of booking flow
+
+URL Parameters:
+  requestId: number (required) - The requestId from step 1
+
+Request Body (JSON):
+{
+  "userId": 1,                              // Required
+  "jobTitle": "Kitchen faucet repair",      // Required, min 3, max 200 characters
+  "description": "The kitchen faucet has been leaking for 2 days. Water drips continuously from the base.",  // Required, min 10, max 500 characters
+  "comment": "Please bring replacement parts",  // Optional, max 1000 characters
+  "location": {                             // Optional - if not provided, uses user's saved location
+    "placeId": "ChIJ...",                   // Recommended: use placeId from location search
+    "address": "123 Main Street",
+    "formattedAddress": "123 Main Street, Lagos, Nigeria",
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "city": "Lagos",
+    "state": "Lagos State",
+    "country": "Nigeria"
+  }
+}
+
+Response (Success):
+{
+  "data": {
+    "requestId": 5,
+    "jobTitle": "Kitchen faucet repair",
+    "description": "The kitchen faucet has been leaking...",
+    "location": "123 Main Street, Lagos, Nigeria",
+    "locationVerifiedAt": "2024-12-18T10:30:00.000Z",
+    "message": "Job details updated successfully"
+  }
+}
+
+HOW TO USE:
+- Call this when user clicks "Next →" button in Job Details screen
+- Replace :requestId in URL with the requestId from step 1
+- If user didn't change location, you can omit "location" field - it will use user's saved location
+- If user changed location, include full location object from location search
+- Show character count for description (max 500) and comment (max 1000)
+- Navigate to "Date & Time" screen after success
+- Continue passing requestId to next step
+
+
+3.5 UPDATE DATE & TIME (Step 3: Date & Time)
+---------------------------------------------
+Method: PUT
+Endpoint: /api/request-service/requests/:requestId/date-time
+Description: Update service request with scheduled date and time
+             THIRD AND FINAL STEP of booking flow
+
+URL Parameters:
+  requestId: number (required) - The requestId from step 1
+
+Request Body (JSON):
+{
+  "userId": 1,                              // Required
+  "scheduledDate": "2024-12-18",            // Required, ISO date string (YYYY-MM-DD)
+  "scheduledTime": "10:00 AM"               // Required, format: "HH:MM AM/PM" (e.g., "10:00 AM", "02:30 PM")
+}
+
+Response (Success):
+{
+  "data": {
+    "requestId": 5,
+    "scheduledDate": "2024-12-18T00:00:00.000Z",
+    "scheduledTime": "10:00 AM",
+    "message": "Date and time updated successfully"
+  }
+}
+
+HOW TO USE:
+- Call this when user clicks "Next →" or "Confirm" button in Date & Time screen
+- Replace :requestId in URL with the requestId from step 1
+- Format date as YYYY-MM-DD (JavaScript: date.toISOString().split('T')[0])
+- Format time as "HH:MM AM/PM" (e.g., "09:00 AM", "02:30 PM")
+- Validate date is not in the past
+- After success, show confirmation screen or redirect to requests list
+- Request is now complete and in "pending" status
+
+
+3.6 GET SERVICE REQUEST DETAILS
+--------------------------------
+Method: GET
+Endpoint: /api/request-service/requests/:requestId
+Description: Get full details of a service request
+             Use this to display request details in a detail view
+
+URL Parameters:
+  requestId: number (required)
+
+Query Parameters (optional):
+  userId: number - If provided, ensures user owns the request
+
+Example Request:
+  GET /api/request-service/requests/5?userId=1
+
+Response (Success):
+{
+  "data": {
+    "id": 5,
+    "categoryName": "plumbing",
+    "jobTitle": "Kitchen faucet repair",
+    "description": "The kitchen faucet has been leaking...",
+    "comment": "Please bring replacement parts",
+    "location": {
+      "formattedAddress": "123 Main Street, Lagos, Nigeria",
+      "address": "123 Main Street",
+      "city": "Lagos",
+      "state": "Lagos State",
+      "country": "Nigeria",
+      "latitude": 6.5244,
+      "longitude": 3.3792,
+      "locationVerifiedAt": "2024-12-18T10:30:00.000Z"
+    },
+    "scheduledDate": "2024-12-18T00:00:00.000Z",
+    "scheduledTime": "10:00 AM",
+    "status": "pending",
+    "createdAt": "2024-12-18T09:00:00.000Z",
+    "updatedAt": "2024-12-18T10:35:00.000Z"
+  }
+}
+
+HOW TO USE:
+- Call this when user clicks on a request to view details
+- Replace :requestId in URL
+- Display all fields in a detailed view
+- Use location coordinates to show on map
+- Show status badge with appropriate color
+- Format dates and times for display
+
+
+3.7 GET USER'S SERVICE REQUESTS
+--------------------------------
+Method: GET
+Endpoint: /api/request-service/requests?userId=1&status=pending
+Description: Get all service requests for a user, optionally filtered by status
+             Use this to display user's requests list
+
+Query Parameters:
+  userId: number (required)
+  status: string (optional) - "pending" | "accepted" | "in_progress" | "completed" | "cancelled"
+
+Example Requests:
+  GET /api/request-service/requests?userId=1
+  GET /api/request-service/requests?userId=1&status=pending
+
+Response (Success):
+{
+  "data": [
+    {
+      "id": 5,
+      "categoryName": "plumbing",
+      "jobTitle": "Kitchen faucet repair",
+      "description": "The kitchen faucet has been leaking...",
+      "location": "123 Main Street, Lagos, Nigeria",
+      "scheduledDate": "2024-12-18T00:00:00.000Z",
+      "scheduledTime": "10:00 AM",
+      "status": "pending",
+      "createdAt": "2024-12-18T09:00:00.000Z"
+    }
+    // ... more requests
+  ]
+}
+
+HOW TO USE:
+- Call this to load user's requests list on mount
+- Use status filter to show requests by status (e.g., "My Pending Requests")
+- Display in a list/card format
+- Show category, job title, location, date/time, and status
+- Make each item clickable to navigate to request details
+- Sort by createdAt (newest first) - already sorted by backend
+
+
+3.8 CANCEL SERVICE REQUEST
+--------------------------
+Method: DELETE
+Endpoint: /api/request-service/requests/:requestId
+Description: Cancel a service request
+             Use this when user clicks "Cancel request" button
+
+URL Parameters:
+  requestId: number (required)
+
+Request Body (JSON):
+{
+  "userId": 1                               // Required - to verify ownership
+}
+
+Response (Success):
+{
+  "data": {
+    "requestId": 5,
+    "status": "cancelled",
+    "message": "Service request cancelled successfully"
+  }
+}
+
+Response (Error):
+{
+  "error": "Service request is already cancelled"
+}
+
+HOW TO USE:
+- Call this when user confirms cancellation
+- Replace :requestId in URL
+- Show confirmation dialog before calling
+- After success, update UI (remove from list or update status)
+- Refresh requests list or navigate back
+
+
+================================================================================
+                              IMPORTANT NOTES FOR FRONTEND
+================================================================================
+
+1. AUTHENTICATION:
+   - Store JWT token from signup/login in localStorage or secure storage
+   - Include token in Authorization header: "Authorization: Bearer <token>"
+   - If using userId in requests, get it from token payload or user context
+
+2. ERROR HANDLING:
+   - Always check for "error" field in response
+   - Display user-friendly error messages
+   - Handle network errors (no internet, timeout, etc.)
+   - Show loading states during API calls
+
+3. BOOKING FLOW SEQUENCE:
+   Step 1: GET categories → User selects → POST /requests (save requestId)
+   Step 2: Fill job details → PUT /requests/:requestId/details (use saved requestId)
+   Step 3: Select date/time → PUT /requests/:requestId/date-time (use saved requestId)
+   
+   IMPORTANT: Always save the requestId from step 1 and use it in steps 2 and 3!
+
+4. LOCATION FLOW:
+   - Search locations → User selects → Get placeId
+   - Use placeId to save location or get full details
+   - Save user location once, reuse for future requests
+   - Use GPS coordinates if user grants permission
+
+5. DATE/TIME FORMATTING:
+   - Date: Use ISO format (YYYY-MM-DD) or Date object
+   - Time: Format as "HH:MM AM/PM" (e.g., "10:00 AM", "02:30 PM")
+   - Display dates in user's locale format
+
+6. STATUS BADGES:
+   - pending: Yellow/Orange
+   - accepted: Blue
+   - in_progress: Purple
+   - completed: Green
+   - cancelled: Red/Gray
+
+7. CORS:
+   - Backend is configured to accept requests from allowed origins
+   - Make sure your frontend domain is in CORS_ALLOWED_ORIGINS env variable
+
+8. BASE URL:
+   - Development: http://localhost:3000/api
+   - Production: https://your-domain.com/api
+   - Use environment variables for API base URL
+
+================================================================================
+                              EXAMPLE FRONTEND FLOW
+================================================================================
+
+BOOKING FLOW EXAMPLE (React/React Native):
+-------------------------------------------
+
+// Step 1: Get Categories
+const categories = await fetch('/api/request-service/categories').then(r => r.json());
+setCategories(categories.data);
+
+// User selects category
+const selectedCategory = { name: "plumbing", displayName: "Plumbing" };
+
+// Create Request
+const createResponse = await fetch('/api/request-service/requests', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: currentUser.id,
+    categoryName: selectedCategory.name
+  })
+});
+const { data } = await createResponse.json();
+const requestId = data.requestId;  // SAVE THIS!
+
+// Step 2: Update Job Details
+await fetch(`/api/request-service/requests/${requestId}/details`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: currentUser.id,
+    jobTitle: "Kitchen faucet repair",
+    description: "The faucet is leaking...",
+    location: selectedLocation  // from location search
+  })
+});
+
+// Step 3: Update Date & Time
+await fetch(`/api/request-service/requests/${requestId}/date-time`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: currentUser.id,
+    scheduledDate: "2024-12-18",
+    scheduledTime: "10:00 AM"
+  })
+});
+
+
+LOCATION FLOW EXAMPLE:
+----------------------
+
+// Search locations as user types
+const searchLocations = async (query) => {
+  const response = await fetch(`/api/user/location/search?query=${query}`);
+  const { data } = await response.json();
+  return data;  // Array of location predictions
+};
+
+// User selects location
+const selectedPlaceId = "ChIJ...";
+
+// Get full details
+const detailsResponse = await fetch(`/api/user/location/details?placeId=${selectedPlaceId}`);
+const { data: locationDetails } = await detailsResponse.json();
+
+// Save user location
+await fetch('/api/user/update-location', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: currentUser.id,
+    placeId: selectedPlaceId
+  })
+});
+
+
+COMPLETE USER REGISTRATION FLOW:
+---------------------------------
+
+// 1. User fills signup form
+const signupResponse = await fetch('/api/user/signup', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    firstName: "John",
+    lastName: "Doe",
+    userName: "johndoe",
+    gender: "male",
+    email: "john@example.com",
+    phoneNumber: "12345678901",
+    password: "password123"
+  })
+});
+
+const { data: userData } = await signupResponse.json();
+const token = userData.token;
+localStorage.setItem('token', token);  // Save token
+localStorage.setItem('userId', userData.id);  // Save user ID
+
+// 2. User sets location (optional but recommended)
+// ... location search flow ...
+await fetch('/api/user/update-location', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: userData.id,
+    placeId: selectedPlaceId
+  })
+});
+
+// Now user can create service requests!
+
+================================================================================
+                              END OF DOCUMENTATION
+================================================================================
+

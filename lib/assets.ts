@@ -10,23 +10,23 @@ export const ONBOARDING_SLIDES: SlideData[] = [
   {
     id: 'map',
     title: 'Find Trusted Experts Near You',
-    description: 'Get help anywhere, anytime. Connect instantly with nearby professionals.',
+    description: 'Get help anywhere, anytime. Connect instantly with nearby professional',
     icon: 'location',
-    image: require('../assets/premium/map-hero.png')
+    image: require('../assets/images/onboarding1.png')
   },
   {
     id: 'tracking',
     title: 'Fast Response, Real-Time Track',
     description: 'Track your provider in real-time and get updates on arrival.',
     icon: 'tracking',
-    image: require('../assets/premium/pay-3d.png')
+    image: require('../assets/images/onboarding2.png')
   },
   {
     id: 'connect',
-    title: 'Book with Confidence',
-    description: 'Verified professionals, transparent pricing, and quick support to keep you moving.',
+    title: 'Safe Payments',
+    description: 'Pay for rendered services securely through our in-app wallet.',
     icon: 'booking',
-    image: require('../assets/premium/connect-hero.png')
+    image: require('../assets/images/onboarding3.png')
   }
 ];
 

@@ -12,7 +12,7 @@ export default {
     ios: {
       icon: './assets/images/icon.png',
       supportsTablet: true,
-      bundleIdentifier: 'com.bendee.GHands',
+      bundleIdentifier: 'com.demo.temp.yourapp',
       config: {
         googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAJNN3NAbytlRW498oZHDcsc-lA1fPKDp0',
       },

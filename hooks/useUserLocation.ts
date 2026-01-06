@@ -1,44 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { locationService, authService, SavedLocation } from '@/services/api';
 
-const createStorage = () => {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    return {
-      getItem: async (key: string) => {
-        try {
-          return window.localStorage.getItem(key);
-        } catch {
-          return null;
-        }
-      },
-      setItem: async (key: string, value: string) => {
-        try {
-          window.localStorage.setItem(key, value);
-        } catch {
-        }
-      },
-      removeItem: async (key: string) => {
-        try {
-          window.localStorage.removeItem(key);
-        } catch {
-        }
-      },
-    };
-  }
-
-  const storage: Record<string, string> = {};
-  return {
-    getItem: async (key: string) => storage[key] || null,
-    setItem: async (key: string, value: string) => {
-      storage[key] = value;
-    },
-    removeItem: async (key: string) => {
-      delete storage[key];
-    },
-  };
-};
-
-const storage = createStorage();
 const USER_LOCATION_STORAGE_KEY = '@app:user_location';
+const USER_LOCATION_PLACE_ID_KEY = '@app:user_location_place_id';
 
 interface UseUserLocationReturn {
   location: string | null;
@@ -46,6 +11,7 @@ interface UseUserLocationReturn {
   setLocation: (value: string) => Promise<void>;
   clearLocation: () => Promise<void>;
   refreshLocation: () => Promise<void>;
+  loadSavedLocation: () => Promise<void>;
 }
 
 export function useUserLocation(): UseUserLocationReturn {
@@ -53,23 +19,44 @@ export function useUserLocation(): UseUserLocationReturn {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadStoredLocation = async () => {
-      try {
-        const storedLocation = await storage.getItem(USER_LOCATION_STORAGE_KEY);
-        setLocationState(storedLocation);
-      } catch (error) {
-        console.error('Error loading stored location:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    loadSavedLocation();
+  }, []);
 
-    loadStoredLocation();
+  const loadSavedLocation = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      // Try to load from API first
+      const userId = await authService.getUserId();
+      if (userId) {
+        try {
+          const savedLocation = await locationService.getUserLocation(userId);
+          if (savedLocation) {
+            await AsyncStorage.setItem(USER_LOCATION_STORAGE_KEY, savedLocation.fullAddress);
+            await AsyncStorage.setItem(USER_LOCATION_PLACE_ID_KEY, savedLocation.placeId);
+            setLocationState(savedLocation.fullAddress);
+            setIsLoading(false);
+            return;
+          }
+        } catch (error) {
+          // Location not set in API, fallback to local storage
+          console.log('No saved location in API, using local storage');
+        }
+      }
+
+      // Fallback to local storage
+      const storedLocation = await AsyncStorage.getItem(USER_LOCATION_STORAGE_KEY);
+      setLocationState(storedLocation);
+    } catch (error) {
+      console.error('Error loading stored location:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const setLocation = useCallback(async (value: string) => {
     try {
-      await storage.setItem(USER_LOCATION_STORAGE_KEY, value);
+      await AsyncStorage.setItem(USER_LOCATION_STORAGE_KEY, value);
       setLocationState(value);
     } catch (error) {
       console.error('Error saving location:', error);
@@ -78,7 +65,7 @@ export function useUserLocation(): UseUserLocationReturn {
 
   const clearLocation = useCallback(async () => {
     try {
-      await storage.removeItem(USER_LOCATION_STORAGE_KEY);
+      await AsyncStorage.multiRemove([USER_LOCATION_STORAGE_KEY, USER_LOCATION_PLACE_ID_KEY]);
       setLocationState(null);
     } catch (error) {
       console.error('Error clearing location:', error);
@@ -86,16 +73,8 @@ export function useUserLocation(): UseUserLocationReturn {
   }, []);
 
   const refreshLocation = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const storedLocation = await storage.getItem(USER_LOCATION_STORAGE_KEY);
-      setLocationState(storedLocation);
-    } catch (error) {
-      console.error('Error refreshing location:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    await loadSavedLocation();
+  }, [loadSavedLocation]);
 
   return {
     location,
@@ -103,7 +82,6 @@ export function useUserLocation(): UseUserLocationReturn {
     setLocation,
     clearLocation,
     refreshLocation,
+    loadSavedLocation,
   };
 }
-
-

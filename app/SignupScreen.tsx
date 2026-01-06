@@ -1,9 +1,10 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
-import { Lock, Mail, Phone } from 'lucide-react-native';
+import { Lock, Mail } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from '../components/Toast';
 import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
@@ -14,7 +15,6 @@ export default function SignupScreen() {
   const router = useRouter();
   const { toast, showError, hideToast } = useToast();
   const [email, setEmail] = useState('');
-  const [fax, setFax] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -35,9 +35,20 @@ export default function SignupScreen() {
       return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showError('Please enter a valid email address');
+      return;
+    }
+
     try {
+      // TODO: API integration will be added after backend discussion
+      // For now, mark profile as incomplete and navigate
+      await AsyncStorage.setItem('@ghands:profile_complete', 'false');
+      
       // After successful signup, navigate directly to main app
-      // Location and profile setup can be done later when needed
+      // Profile completion will be prompted when needed
       router.replace('/(tabs)/home');
     } catch (error) {
       showError('Signup failed. Please try again.');
@@ -81,24 +92,15 @@ export default function SignupScreen() {
           Sign Up
         </Text>
 
-        {/* Company Email Input */}
+        {/* Email Input */}
         <InputField
-          placeholder="Company email"
+          placeholder="Email"
           icon={<Mail size={20} color={'white'}/>}
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
           iconPosition="left"
-        />
-
-        {/* Company Fax Input */}
-        <InputField
-          placeholder="+234 Company fax"
-          icon={<Phone size={20} color={'white'}/>}
-          keyboardType="phone-pad"
-          value={fax}
-          onChangeText={setFax}
-          iconPosition="right"
+          autoCapitalize="none"
         />
 
         {/* Password Input */}

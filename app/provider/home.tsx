@@ -471,7 +471,7 @@ export default function ProviderHomeScreen() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>Job Completion Rate</Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/AnalyticsScreen' as any)} activeOpacity={0.7}>
                   <Text style={{ fontSize: 11, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
                     View full analytics <ArrowRight size={11} color={Colors.accent} />
                   </Text>

@@ -1,10 +1,10 @@
+import FilterTransactionsModal from '@/components/FilterTransactionsModal';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, CheckCircle, Filter, Search, XCircle } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, Clock, Filter, Receipt, Search, XCircle } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Button } from '@/components/ui/Button';
 
 interface Transaction {
   id: string;
@@ -68,6 +68,7 @@ export default function ActivityScreen() {
   const router = useRouter();
   const [selectedTab, setSelectedTab] = useState<'completed' | 'pending' | 'failed'>('completed');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   const totalSpent = 12847.50;
   const totalTransactions = 28;
@@ -98,22 +99,7 @@ export default function ActivityScreen() {
           providerName: transaction.serviceName,
         },
       } as any);
-    } else {
-      // Failed - show details
-      router.push({
-        pathname: '/PaymentPendingScreen',
-        params: {
-          transactionId: transaction.id,
-          amount: transaction.amount.toString(),
-          providerName: transaction.serviceName,
-        },
-      } as any);
     }
-  };
-
-  const handleRetry = (transaction: Transaction) => {
-    // Handle retry payment
-    router.push('/PaymentMethodsScreen' as any);
   };
 
   return (
@@ -125,7 +111,7 @@ export default function ActivityScreen() {
           alignItems: 'center',
           paddingHorizontal: 20,
           paddingTop: 16,
-          paddingBottom: 16,
+          paddingBottom: 12,
         }}
       >
         <TouchableOpacity
@@ -143,7 +129,7 @@ export default function ActivityScreen() {
         </TouchableOpacity>
         <Text
           style={{
-            fontSize: 24,
+            fontSize: 20,
             fontFamily: 'Poppins-Bold',
             color: Colors.textPrimary,
             flex: 1,
@@ -165,7 +151,8 @@ export default function ActivityScreen() {
           style={{
             backgroundColor: Colors.white,
             borderRadius: BorderRadius.xl,
-            padding: 20,
+            padding: 16,
+            marginTop: 16,
             marginBottom: 20,
             borderWidth: 1,
             borderColor: Colors.border,
@@ -183,7 +170,7 @@ export default function ActivityScreen() {
           </Text>
           <Text
             style={{
-              fontSize: 32,
+              fontSize: 28,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
               marginBottom: 4,
@@ -327,6 +314,7 @@ export default function ActivityScreen() {
             <Search size={20} color={Colors.white} />
           </TouchableOpacity>
           <TouchableOpacity
+            onPress={() => setShowFilterModal(true)}
             style={{
               width: 48,
               height: 48,
@@ -347,7 +335,7 @@ export default function ActivityScreen() {
         <View
           style={{
             flexDirection: 'row',
-            marginBottom: 20,
+            marginBottom: 16,
             borderBottomWidth: 1,
             borderBottomColor: Colors.border,
           }}
@@ -367,8 +355,8 @@ export default function ActivityScreen() {
             >
               <Text
                 style={{
-                  fontSize: 16,
-                  fontFamily: selectedTab === tab ? 'Poppins-Bold' : 'Poppins-Medium',
+                  fontSize: 14,
+                  fontFamily: selectedTab === tab ? 'Poppins-SemiBold' : 'Poppins-Regular',
                   color: selectedTab === tab ? Colors.textPrimary : Colors.textSecondaryDark,
                   textTransform: 'capitalize',
                 }}
@@ -387,7 +375,7 @@ export default function ActivityScreen() {
               style={{
                 backgroundColor: Colors.white,
                 borderRadius: BorderRadius.xl,
-                padding: 16,
+                padding: 14,
                 borderWidth: 1,
                 borderColor: Colors.border,
               }}
@@ -413,14 +401,7 @@ export default function ActivityScreen() {
                   {transaction.status === 'completed' ? (
                     <CheckCircle size={20} color={Colors.textSecondaryDark} />
                   ) : transaction.status === 'pending' ? (
-                    <View
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: 10,
-                        backgroundColor: '#F59E0B',
-                      }}
-                    />
+                    <Clock size={20} color="#F59E0B" />
                   ) : (
                     <XCircle size={20} color="#EF4444" />
                   )}
@@ -430,7 +411,7 @@ export default function ActivityScreen() {
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      fontSize: 16,
+                      fontSize: 15,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.textPrimary,
                       marginBottom: 4,
@@ -440,7 +421,7 @@ export default function ActivityScreen() {
                   </Text>
                   <Text
                     style={{
-                      fontSize: 14,
+                      fontSize: 13,
                       fontFamily: 'Poppins-Regular',
                       color: Colors.textSecondaryDark,
                       marginBottom: 4,
@@ -506,15 +487,39 @@ export default function ActivityScreen() {
                 <TouchableOpacity
                   onPress={() => handleViewDetails(transaction)}
                   style={{
-                    backgroundColor: '#DCFCE7',
-                    borderRadius: BorderRadius.default,
-                    paddingVertical: 12,
+                    backgroundColor: Colors.white,
+                    borderRadius: 8,
+                    paddingVertical: 8,
                     paddingHorizontal: 16,
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderWidth: 1,
+                    borderWidth: 1.5,
                     borderColor: Colors.accent,
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Receipt size={16} color={Colors.accent} style={{ marginRight: 6 }} />
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.accent,
+                    }}
+                  >
+                    View Receipt
+                  </Text>
+                </TouchableOpacity>
+              ) : transaction.status === 'pending' ? (
+                <TouchableOpacity
+                  onPress={() => handleViewDetails(transaction)}
+                  style={{
+                    backgroundColor: Colors.accent,
+                    borderRadius: 8,
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                   activeOpacity={0.7}
                 >
@@ -522,68 +527,27 @@ export default function ActivityScreen() {
                     style={{
                       fontSize: 14,
                       fontFamily: 'Poppins-SemiBold',
-                      color: Colors.accent,
-                      marginLeft: 8,
+                      color: Colors.white,
                     }}
                   >
-                    View Receipt
+                    View details
                   </Text>
                 </TouchableOpacity>
-              ) : transaction.status === 'pending' ? (
-                <Button
-                  title="View details"
-                  onPress={() => handleViewDetails(transaction)}
-                  variant="primary"
-                  size="medium"
-                  fullWidth
-                />
-              ) : (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    gap: 12,
-                  }}
-                >
-                  <Button
-                    title="View details"
-                    onPress={() => handleViewDetails(transaction)}
-                    variant="primary"
-                    size="medium"
-                    style={{ flex: 1 }}
-                  />
-                  <TouchableOpacity
-                    onPress={() => handleRetry(transaction)}
-                    style={{
-                      flex: 1,
-                      backgroundColor: Colors.white,
-                      borderRadius: BorderRadius.default,
-                      paddingVertical: 12,
-                      paddingHorizontal: 16,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderWidth: 1,
-                      borderColor: Colors.border,
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontFamily: 'Poppins-SemiBold',
-                        color: Colors.textPrimary,
-                      }}
-                    >
-                      Retry
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+              ) : null}
             </View>
           ))}
         </View>
       </ScrollView>
+
+      {/* Filter Modal */}
+      <FilterTransactionsModal
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApply={(filters) => {
+          // Handle filter application
+          console.log('Applied filters:', filters);
+        }}
+      />
     </SafeAreaWrapper>
   );
 }
-

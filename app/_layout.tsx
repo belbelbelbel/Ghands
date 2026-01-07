@@ -131,6 +131,15 @@ export default function RootLayout() {
         <Stack.Screen name="ProviderProfileSetupScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderUploadDocumentsScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderVerifyIdentityScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="SettingsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="LegalAboutScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="TermsOfServiceScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="PrivacyPolicyScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="AboutGHandsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="AnalyticsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="SecurityScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="CreatePINScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ProviderActivityScreen" options={{ headerShown: false }} />
         </Stack>
       </QueryProvider>
     </ErrorBoundary>

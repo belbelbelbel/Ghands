@@ -1,8 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { Button } from '@/components/ui/Button';
-import { BorderRadius, Colors } from '@/lib/designSystem';
+import { Colors } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
-import { ArrowRight, Bell, CheckCircle, Plus, User } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Bell, CheckCircle, Clock, Plus, Receipt } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -110,7 +109,7 @@ export default function WalletScreen() {
           }}
           activeOpacity={0.7}
         >
-          <User size={20} color={Colors.textPrimary} />
+          <ArrowLeft size={20} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text
           style={{
@@ -151,81 +150,78 @@ export default function WalletScreen() {
         {/* Current Balance Card - BLACK BACKGROUND */}
         <View
           style={{
-            backgroundColor: 'rgba(18, 18, 18, 1)', // Dark grey/black
-            borderRadius: BorderRadius.xl,
-            padding: 16,
-            marginBottom: 16,
+            backgroundColor: 'rgba(18, 18, 18, 1)',
+            borderRadius: 12,
+            padding: 20,
+            marginTop: 20,
+            marginBottom: 20,
             position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          {/* Wallet ID at top */}
+          {/* Wallet Icon */}
+          <View
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: Colors.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 20,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.white,
+              }}
+            >
+              ₦
+            </Text>
+          </View>
+
+          {/* Wallet ID */}
           <Text
             style={{
-              fontSize: 11,
-              fontFamily: 'Poppins-Medium',
+              fontSize: 12,
+              fontFamily: 'Poppins-Regular',
               color: Colors.white,
-              opacity: 0.8,
-              marginBottom: 10,
+              opacity: 0.7,
+              marginBottom: 8,
             }}
           >
             Id: {walletId}
           </Text>
 
-          {/* Balance Info */}
-          <View
+          {/* Current Balance */}
+          <Text
             style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
+              fontSize: 13,
+              fontFamily: 'Poppins-Regular',
+              color: Colors.white,
+              opacity: 0.8,
+              marginBottom: 8,
             }}
           >
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontFamily: 'Poppins-Medium',
-                  color: Colors.white,
-                  opacity: 0.9,
-                  marginBottom: 4,
-                }}
-              >
-                Current balance
-              </Text>
-              <Text
-                style={{
-                  fontSize: 22,
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.white,
-                }}
-              >
-                ₦{balance.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </Text>
-            </View>
-            {/* Green circular icon with currency symbol */}
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: Colors.accent,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.white,
-                }}
-              >
-                ₦
-              </Text>
-            </View>
-          </View>
+            Current balance
+          </Text>
+          <Text
+            style={{
+              fontSize: 28,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.white,
+              marginBottom: 16,
+            }}
+          >
+            ₦{balance.toLocaleString('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </Text>
         </View>
 
         {/* Action Buttons */}
@@ -233,7 +229,7 @@ export default function WalletScreen() {
           style={{
             flexDirection: 'row',
             gap: 12,
-            marginBottom: 32,
+            marginBottom: 24,
           }}
         >
           {/* Add Funds - BRIGHT LIME GREEN */}
@@ -241,8 +237,8 @@ export default function WalletScreen() {
             onPress={handleAddFunds}
             style={{
               flex: 1,
-              backgroundColor: Colors.accent, // Bright lime green
-              borderRadius: BorderRadius.default,
+              backgroundColor: Colors.accent,
+              borderRadius: 8,
               paddingVertical: 10,
               paddingHorizontal: 14,
               flexDirection: 'row',
@@ -269,8 +265,8 @@ export default function WalletScreen() {
             onPress={handlePay}
             style={{
               flex: 1,
-              backgroundColor: 'rgba(18, 18, 18, 1)', // Dark grey/black
-              borderRadius: BorderRadius.default,
+              backgroundColor: 'rgba(18, 18, 18, 1)',
+              borderRadius: 8,
               paddingVertical: 10,
               paddingHorizontal: 14,
               flexDirection: 'row',
@@ -294,7 +290,7 @@ export default function WalletScreen() {
         </View>
 
         {/* Recent Activity Section */}
-        <View style={{ marginTop: 8, marginBottom: 12 }}>
+        <View style={{ marginTop: 8 }}>
           <View
             style={{
               flexDirection: 'row',
@@ -340,7 +336,7 @@ export default function WalletScreen() {
               key={transaction.id}
               style={{
                 backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
+                borderRadius: 12,
                 padding: 12,
                 marginBottom: 8,
                 borderWidth: 1,
@@ -366,14 +362,11 @@ export default function WalletScreen() {
                     marginRight: 12,
                   }}
                 >
-                  <CheckCircle
-                    size={20}
-                    color={
-                      transaction.status === 'completed'
-                        ? Colors.accent
-                        : Colors.textSecondaryDark
-                    }
-                  />
+                  {transaction.status === 'completed' ? (
+                    <CheckCircle size={20} color={Colors.accent} />
+                  ) : (
+                    <Clock size={20} color="#F59E0B" />
+                  )}
                 </View>
 
                 {/* Service Info */}
@@ -411,21 +404,25 @@ export default function WalletScreen() {
 
                 {/* Status and Amount on right */}
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text
+                  <View
                     style={{
-                      fontSize: 12,
-                      fontFamily: 'Poppins-SemiBold',
-                      color:
-                        transaction.status === 'pending'
-                          ? '#F97316' // Light orange
-                          : Colors.accent, // Green
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                      backgroundColor: transaction.status === 'pending' ? '#FEF3C7' : '#D1FAE5',
                       marginBottom: 6,
                     }}
                   >
-                    {transaction.status === 'pending'
-                      ? 'Pending'
-                      : 'Completed'}
-                  </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: transaction.status === 'pending' ? '#D97706' : '#059669',
+                      }}
+                    >
+                      {transaction.status === 'pending' ? 'Pending' : 'Completed'}
+                    </Text>
+                  </View>
                   <Text
                     style={{
                       fontSize: 14,
@@ -443,37 +440,45 @@ export default function WalletScreen() {
 
               {/* Action Button at bottom */}
               {transaction.status === 'pending' ? (
-                <Button
-                  title="View details"
+                <TouchableOpacity
                   onPress={() => handleViewDetails(transaction)}
-                  variant="primary"
-                  size="medium"
-                  fullWidth
-                />
+                  style={{
+                    backgroundColor: Colors.accent,
+                    borderRadius: 8,
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.white,
+                    }}
+                  >
+                    View details
+                  </Text>
+                </TouchableOpacity>
               ) : (
                 <TouchableOpacity
                   onPress={() => handleViewReceipt(transaction)}
                   style={{
                     backgroundColor: Colors.white,
-                    borderRadius: BorderRadius.default,
-                    padding: 12,
+                    borderRadius: 8,
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderWidth: 1,
-                    borderColor: Colors.border,
+                    borderWidth: 1.5,
+                    borderColor: Colors.accent,
                   }}
                   activeOpacity={0.7}
                 >
-                  <View
-                    style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: 4,
-                      backgroundColor: Colors.accent,
-                      marginRight: 8,
-                    }}
-                  />
+                  <Receipt size={16} color={Colors.accent} style={{ marginRight: 6 }} />
                   <Text
                     style={{
                       fontSize: 14,

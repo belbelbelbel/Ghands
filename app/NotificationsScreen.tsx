@@ -254,6 +254,7 @@ export default function NotificationsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 20,
+            paddingTop: 24,
             paddingBottom: 100,
           }}
         >

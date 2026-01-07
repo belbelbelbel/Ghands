@@ -1,14 +1,15 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { ArrowRight, FileText, Upload, X } from 'lucide-react-native';
+import { ArrowRight, Upload, X } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View, Image, Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 interface UploadedFile {
-  id: string;
+  uri: string;
   name: string;
-  size: string;
+  size?: number;
 }
 
 export default function ProviderUploadDocumentsScreen() {
@@ -17,18 +18,40 @@ export default function ProviderUploadDocumentsScreen() {
   const [taxDocument, setTaxDocument] = useState<UploadedFile | null>(null);
   const [certification, setCertification] = useState<string>('');
 
-  const handleUpload = (type: 'license' | 'tax') => {
-    // Simulate file upload
-    const mockFile: UploadedFile = {
-      id: Date.now().toString(),
-      name: 'Upload Representative ID',
-      size: '101kb',
-    };
-    
-    if (type === 'license') {
-      setBusinessLicense(mockFile);
-    } else {
-      setTaxDocument(mockFile);
+  const handleUpload = async (type: 'license' | 'tax') => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        const fileName = asset.uri.split('/').pop() || 'document.jpg';
+        const fileSize = asset.fileSize ? `${(asset.fileSize / 1024).toFixed(0)}kb` : undefined;
+        
+        const file: UploadedFile = {
+          uri: asset.uri,
+          name: fileName,
+          size: asset.fileSize,
+        };
+        
+        if (type === 'license') {
+          setBusinessLicense(file);
+        } else {
+          setTaxDocument(file);
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
 
@@ -41,7 +64,7 @@ export default function ProviderUploadDocumentsScreen() {
   };
 
   const handleContinue = () => {
-    router.push('/provider/VerifyIdentityScreen');
+    router.push('/ProviderVerifyIdentityScreen' as any);
   };
 
   return (
@@ -60,30 +83,41 @@ export default function ProviderUploadDocumentsScreen() {
           <Text className="text-base text-black mb-3" style={{ fontFamily: 'Poppins-SemiBold' }}>
             Business License
           </Text>
-          <TouchableOpacity 
-            onPress={() => handleUpload('license')}
-            className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl py-12 items-center justify-center mb-3"
-          >
-            <Upload size={32} color="#9CA3AF" />
-            <Text className="text-gray-500 text-base mt-2" style={{ fontFamily: 'Poppins-Medium' }}>
-              Tap to upload
-            </Text>
-          </TouchableOpacity>
-          {businessLicense && (
+          {!businessLicense ? (
+            <TouchableOpacity 
+              onPress={() => handleUpload('license')}
+              className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl py-12 items-center justify-center"
+              activeOpacity={0.7}
+            >
+              <Upload size={32} color="#9CA3AF" />
+              <Text className="text-gray-500 text-base mt-2" style={{ fontFamily: 'Poppins-Medium' }}>
+                Tap to upload
+              </Text>
+            </TouchableOpacity>
+          ) : (
             <View className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex-row items-center">
-              <FileText size={20} color="#6A9B00" />
-              <View className="flex-1 ml-3">
-                <Text className="text-black text-sm" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                  {businessLicense.name}
-                </Text>
-                <View className="flex-row items-center mt-1">
-                  <View className="bg-blue-500 h-1 rounded-full" style={{ width: '60%' }} />
-                  <Text className="text-gray-500 text-xs ml-2" style={{ fontFamily: 'Poppins-Medium' }}>
-                    {businessLicense.size}
-                  </Text>
-                </View>
+              <View className="w-12 h-12 rounded-lg overflow-hidden mr-3">
+                <Image 
+                  source={{ uri: businessLicense.uri }} 
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
               </View>
-              <TouchableOpacity onPress={() => handleRemoveFile('license')}>
+              <View className="flex-1">
+                <Text className="text-black text-sm" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                  {businessLicense.name.length > 30 ? businessLicense.name.substring(0, 30) + '...' : businessLicense.name}
+                </Text>
+                {businessLicense.size && (
+                  <Text className="text-gray-500 text-xs mt-1" style={{ fontFamily: 'Poppins-Medium' }}>
+                    {(businessLicense.size / 1024).toFixed(0)}kb
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity 
+                onPress={() => handleRemoveFile('license')}
+                className="ml-2"
+                activeOpacity={0.7}
+              >
                 <X size={20} color="#666666" />
               </TouchableOpacity>
             </View>
@@ -94,30 +128,41 @@ export default function ProviderUploadDocumentsScreen() {
           <Text className="text-base text-black mb-3" style={{ fontFamily: 'Poppins-SemiBold' }}>
             Tax Document
           </Text>
-          <TouchableOpacity 
-            onPress={() => handleUpload('tax')}
-            className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl py-12 items-center justify-center mb-3"
-          >
-            <Upload size={32} color="#9CA3AF" />
-            <Text className="text-gray-500 text-base mt-2" style={{ fontFamily: 'Poppins-Medium' }}>
-              Tap to upload
-            </Text>
-          </TouchableOpacity>
-          {taxDocument && (
+          {!taxDocument ? (
+            <TouchableOpacity 
+              onPress={() => handleUpload('tax')}
+              className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl py-12 items-center justify-center"
+              activeOpacity={0.7}
+            >
+              <Upload size={32} color="#9CA3AF" />
+              <Text className="text-gray-500 text-base mt-2" style={{ fontFamily: 'Poppins-Medium' }}>
+                Tap to upload
+              </Text>
+            </TouchableOpacity>
+          ) : (
             <View className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex-row items-center">
-              <FileText size={20} color="#6A9B00" />
-              <View className="flex-1 ml-3">
-                <Text className="text-black text-sm" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                  {taxDocument.name}
-                </Text>
-                <View className="flex-row items-center mt-1">
-                  <View className="bg-blue-500 h-1 rounded-full" style={{ width: '60%' }} />
-                  <Text className="text-gray-500 text-xs ml-2" style={{ fontFamily: 'Poppins-Medium' }}>
-                    {taxDocument.size}
-                  </Text>
-                </View>
+              <View className="w-12 h-12 rounded-lg overflow-hidden mr-3">
+                <Image 
+                  source={{ uri: taxDocument.uri }} 
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
               </View>
-              <TouchableOpacity onPress={() => handleRemoveFile('tax')}>
+              <View className="flex-1">
+                <Text className="text-black text-sm" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                  {taxDocument.name.length > 30 ? taxDocument.name.substring(0, 30) + '...' : taxDocument.name}
+                </Text>
+                {taxDocument.size && (
+                  <Text className="text-gray-500 text-xs mt-1" style={{ fontFamily: 'Poppins-Medium' }}>
+                    {(taxDocument.size / 1024).toFixed(0)}kb
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity 
+                onPress={() => handleRemoveFile('tax')}
+                className="ml-2"
+                activeOpacity={0.7}
+              >
                 <X size={20} color="#666666" />
               </TouchableOpacity>
             </View>
@@ -128,11 +173,20 @@ export default function ProviderUploadDocumentsScreen() {
           <Text className="text-base text-black mb-3" style={{ fontFamily: 'Poppins-SemiBold' }}>
             License or certification
           </Text>
-          <View className="bg-gray-100 rounded-xl px-4 py-3">
-            <Text className="text-gray-500 text-base" style={{ fontFamily: 'Poppins-Medium' }}>
-              Enter certification details
-            </Text>
-          </View>
+          <TextInput
+            placeholder="Enter certification details"
+            value={certification}
+            onChangeText={setCertification}
+            multiline
+            numberOfLines={4}
+            className="bg-gray-100 rounded-xl px-4 py-3 text-black text-base"
+            placeholderTextColor="#666666"
+            style={{ 
+              fontFamily: 'Poppins-Medium',
+              textAlignVertical: 'top',
+              minHeight: 100,
+            }}
+          />
         </View>
 
         <TouchableOpacity

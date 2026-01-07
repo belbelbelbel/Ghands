@@ -83,7 +83,7 @@ export default function ProviderReceiptScreen() {
           </TouchableOpacity>
           <Text
             style={{
-              fontSize: 20,
+              fontSize: 18,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
               flex: 1,
@@ -97,7 +97,7 @@ export default function ProviderReceiptScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 20,
+            paddingTop: 16,
             paddingBottom: 100,
           }}
         >
@@ -106,30 +106,30 @@ export default function ProviderReceiptScreen() {
             style={{
               backgroundColor: Colors.white,
               borderRadius: BorderRadius.xl,
-              padding: 20,
-              marginBottom: 20,
+              padding: 16,
+              marginBottom: 16,
               borderWidth: 1,
               borderColor: Colors.border,
             }}
           >
             {/* Receipt Header */}
-            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
               <View
                 style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
                   backgroundColor: Colors.accent,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginBottom: 12,
+                  marginBottom: 10,
                 }}
               >
-                <FileText size={32} color={Colors.white} />
+                <FileText size={28} color={Colors.white} />
               </View>
               <Text
                 style={{
-                  fontSize: 18,
+                  fontSize: 16,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.textPrimary,
                   marginBottom: 4,
@@ -149,7 +149,7 @@ export default function ProviderReceiptScreen() {
             </View>
 
             {/* Job Details */}
-            <View style={{ marginBottom: 20 }}>
+            <View style={{ marginBottom: 16 }}>
               <Text
                 style={{
                   fontSize: 14,
@@ -234,13 +234,13 @@ export default function ProviderReceiptScreen() {
             </View>
 
             {/* Cost Breakdown */}
-            <View style={{ marginBottom: 20 }}>
+            <View style={{ marginBottom: 16 }}>
               <Text
                 style={{
                   fontSize: 14,
                   fontFamily: 'Poppins-SemiBold',
                   color: Colors.textPrimary,
-                  marginBottom: 12,
+                  marginBottom: 10,
                 }}
               >
                 Cost Breakdown
@@ -384,7 +384,7 @@ export default function ProviderReceiptScreen() {
                 backgroundColor: Colors.successLight,
                 borderRadius: BorderRadius.default,
                 padding: 12,
-                marginBottom: 20,
+                marginBottom: 16,
               }}
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -411,11 +411,10 @@ export default function ProviderReceiptScreen() {
           </View>
 
           {/* Action Buttons */}
-          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
+          <View style={{ gap: 12, marginBottom: 20 }}>
             <TouchableOpacity
               onPress={handleDownloadReceipt}
               style={{
-                flex: 1,
                 backgroundColor: Colors.accent,
                 borderRadius: BorderRadius.xl,
                 paddingVertical: 12,
@@ -441,7 +440,6 @@ export default function ProviderReceiptScreen() {
             <TouchableOpacity
               onPress={handleShareReceipt}
               style={{
-                flex: 1,
                 backgroundColor: Colors.white,
                 borderRadius: BorderRadius.xl,
                 paddingVertical: 12,

@@ -40,9 +40,10 @@ export default function SelectAccountTypeScreen() {
   };
 
 
-  const handleSkip = () => {
-    router.push('/main');
-  };
+  // Skip button removed - users must select account type
+  // const handleSkip = () => {
+  //   router.push('/main');
+  // };
 
   const interpolatedBackgroundColor = backgroundFade.interpolate({
     inputRange: [0, 1],
@@ -99,7 +100,7 @@ export default function SelectAccountTypeScreen() {
               title="Individual Client"
               subtitle="Personal service requests"
               tags={["Established", "Licensed", "Certified"]}
-              onPress={() => handleCardPress('consumer')}
+              onPress={() => handleCardPress('client')}
             />
 
             <AccountTypeCard

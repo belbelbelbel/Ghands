@@ -50,7 +50,7 @@ export default function ProviderOtpScreen() {
   const handleConfirm = () => {
     const code = otp.join('');
     if (code.length === 4) {
-      router.push('/provider/ProfileSetupScreen');
+      router.push('/ProviderProfileSetupScreen' as any);
     }
   };
 

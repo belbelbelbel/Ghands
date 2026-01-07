@@ -3,7 +3,7 @@ import { useAuthRole } from '@/hooks/useAuth';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
-import { ArrowRight, Bell, ChevronRight, CreditCard, HelpCircle, MapPin, Share2, Star, Trash2, User, Wallet } from 'lucide-react-native';
+import { ArrowRight, Bell, ChevronRight, CreditCard, HelpCircle, MapPin, Settings, Share2, Star, Trash2, User, Wallet } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Alert, Image, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
 
@@ -101,7 +101,20 @@ const ProfileScreen = () => {
           backgroundColor: Colors.white,
         }}
       >
-        <View style={{ flex: 1 }} />
+        <View style={{ flex: 1, alignItems: 'flex-start' }}>
+          <TouchableOpacity
+            onPress={() => router.push('../SettingsScreen' as any)}
+            style={{
+              width: 40,
+              height: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            activeOpacity={0.7}
+          >
+            <Settings size={22} color={Colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
         <Text
           style={{
             fontSize: 20,

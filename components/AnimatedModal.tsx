@@ -136,8 +136,8 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
     paddingHorizontal: Spacing.lg,
-    maxHeight: '90%',
-    minHeight: '50%',
+    maxHeight: '95%',
+    minHeight: '75%',
     shadowColor: Colors.shadow,
     shadowOffset: {
       width: 0,

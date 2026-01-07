@@ -1,4 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ChevronRight, HelpCircle, MapPin, User } from 'lucide-react-native';
 import React from 'react';
@@ -12,7 +13,6 @@ const accountCards = [
     icon: User,
     iconColor: '#666',
     iconBgColor: '#F5F5F5',
-    onPress: () => {}
   },
   {
     id: '2',
@@ -21,7 +21,6 @@ const accountCards = [
     icon: MapPin,
     iconColor: '#6A9B00',
     iconBgColor: '#EEFFD9',
-    onPress: () => {}
   }
 ];
 
@@ -38,14 +37,12 @@ export default function AccountInformationScreen() {
 
   return (
     <SafeAreaWrapper backgroundColor="#F9FAFB">
-      <View className='flex-row items-center px-4 py-3 bg-white border-b border-gray-100' style={{ paddingTop: 20 }}>
+      {/* Header */}
+      <View className="flex-row items-center px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
-          <Text className='text-black text-2xl'>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#000000" />
         </TouchableOpacity>
-        <Text 
-          className='text-xl font-bold text-black flex-1 text-center' 
-          style={{ fontFamily: 'Poppins-Bold' }}
-        >
+        <Text className="text-xl font-bold text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
           Account Information
         </Text>
         <View style={{ width: 24 }} />

@@ -8,6 +8,7 @@ import {
   Copy,
   Edit,
   Image as ImageIcon,
+  Settings,
   Plus,
   Share2,
   Star,
@@ -93,6 +94,18 @@ export default function ProviderProfileScreen() {
             borderBottomColor: Colors.border,
           }}
         >
+          <TouchableOpacity
+            onPress={() => router.push('/SettingsScreen' as any)}
+            style={{
+              width: 40,
+              height: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            activeOpacity={0.7}
+          >
+            <Settings size={24} color={Colors.textPrimary} />
+          </TouchableOpacity>
           <Text
             style={{
               fontSize: 20,
@@ -531,6 +544,7 @@ export default function ProviderProfileScreen() {
                   alignItems: 'center',
                 }}
                 activeOpacity={0.7}
+                onPress={() => router.push('/AnalyticsScreen' as any)}
               >
                 <Text
                   style={{

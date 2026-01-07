@@ -38,19 +38,15 @@ export default function PaymentMethodsScreen() {
 
   return (
     <SafeAreaWrapper>
-      <View style={{ paddingTop: 20, paddingHorizontal: 16, paddingBottom: 12 }}>
-        <View className="flex-row items-center justify-between mb-4">
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
-          </TouchableOpacity>
-          <Text 
-            className="text-xl font-bold text-black" 
-            style={{ fontFamily: 'Poppins-Bold' }}
-          >
-            Payment methods
-          </Text>
-          <View style={{ width: 24 }} />
-        </View>
+      {/* Header */}
+      <View className="flex-row items-center px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
+        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
+          <Ionicons name="arrow-back" size={24} color="#000000" />
+        </TouchableOpacity>
+        <Text className="text-xl font-bold text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
+          Payment methods
+        </Text>
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView 

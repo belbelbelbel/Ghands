@@ -16,7 +16,7 @@ export default function ProviderResetPasswordScreen() {
     if (newPassword !== confirmPassword) {
       return;
     }
-    router.push('/provider/SignInScreen');
+    router.push('/ProviderSignInScreen' as any);
   };
 
   const isFormValid = newPassword.trim() && confirmPassword.trim() && newPassword === confirmPassword;

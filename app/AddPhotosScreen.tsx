@@ -3,11 +3,12 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
+import { Colors } from '@/lib/designSystem';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, Camera, Plus, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 const IMAGE_SIZE = (screenWidth - 48) / 3 - 8;
@@ -380,37 +381,67 @@ export default function AddPhotosScreen() {
 
 
       {/* Finding Providers Modal */}
-      <AnimatedModal
+      <Modal
         visible={isFindingProviders}
-        onClose={() => {}}
-        animationType="slide"
-        dismissible={false}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {}}
       >
-        <View className="px-2 items-center">
-          <Animated.View
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <View
             style={{
-              width: 76,
-              height: 76,
-              borderRadius: 38,
-              backgroundColor: '#E6F4D7',
+              backgroundColor: Colors.white,
+              borderRadius: 20,
+              padding: 32,
               alignItems: 'center',
-              justifyContent: 'center',
-              transform: [{ rotate: spin }],
+              minWidth: 280,
+              marginHorizontal: 40,
             }}
           >
-            <Image source={require('../assets/images/plumbericon2.png')} style={{ width: 42, height: 42, resizeMode: 'contain' }} />
-          </Animated.View>
-          <Text className="mt-5 text-lg text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
-            Finding providers…
-          </Text>
-          <Text
-            className="mt-2 text-sm text-gray-500 text-center"
-            style={{ fontFamily: 'Poppins-Medium' }}
-          >
-            Sit tight while we match you with trusted professionals nearby.
-          </Text>
+            <Animated.View
+              style={{
+                width: 76,
+                height: 76,
+                borderRadius: 38,
+                backgroundColor: '#E6F4D7',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transform: [{ rotate: spin }],
+              }}
+            >
+              <Image source={require('../assets/images/plumbericon2.png')} style={{ width: 42, height: 42, resizeMode: 'contain' }} />
+            </Animated.View>
+            <Text
+              style={{
+                marginTop: 20,
+                fontSize: 18,
+                fontFamily: 'Poppins-SemiBold',
+                color: Colors.textPrimary,
+              }}
+            >
+              Finding providers…
+            </Text>
+            <Text
+              style={{
+                marginTop: 8,
+                fontSize: 14,
+                fontFamily: 'Poppins-Medium',
+                color: Colors.textSecondaryDark,
+                textAlign: 'center',
+              }}
+            >
+              Sit tight while we match you with trusted professionals nearby.
+            </Text>
+          </View>
         </View>
-      </AnimatedModal>
+      </Modal>
 
       <Toast
         message={toast.message}

@@ -39,70 +39,70 @@ const GUIDE_STEPS: GuideStep[] = [
     title: 'Home Screen',
     description:
       'Choose a service category that matches what you need, or use the search bar to find it quickly.',
-    image: require('@/assets/mockups 2/Home screen.png'),
+    image: require('@/assets/mockups/home screen.png'),
   },
   {
     id: 2,
     title: 'Request Service',
     description:
       "You'll see a list of available services. Select the one you need, or change it if you want something different.",
-    image: require('@/assets/mockups 2/Request service.png'),
+    image: require('@/assets/mockups/Request service screen.png'),
   },
   {
     id: 3,
-    title: 'Add Details',
+    title: 'Job Details',
     description:
       'Type a short description of the job and confirm your location. This helps the app find qualified providers close to you.',
-    image: require('@/assets/mockups 2/Add details.png'),
+    image: require('@/assets/mockups/job details.png'),
   },
   {
     id: 4,
     title: 'Set Date & Time',
     description:
       'Pick a convenient date and time for the inspection. When ready, tap "Find Providers" to start the matchmaking process.',
-    image: require('@/assets/mockups 2/Set date & time.png'),
+    image: require('@/assets/mockups/date & time .png'),
   },
   {
     id: 5,
     title: 'Add Pictures',
     description:
       'You can take or upload pictures of the issue. This helps providers understand the problem and give accurate quotes.',
-    image: require('@/assets/mockups 2/Add pictures.png'),
+    image: require('@/assets/mockups/add photos.png'),
   },
   {
     id: 6,
     title: 'Select Providers',
     description:
       'Matched providers will appear on the map. Select at least one and up to three providers to request inspections from.',
-    image: require('@/assets/mockups 2/Select providers.png'),
+    image: require('@/assets/mockups/select provider.png'),
   },
   {
     id: 7,
-    title: 'Quotation',
+    title: 'Review Quotes',
     description:
       "Once providers review your request, they'll send in their quotations. You can compare prices, service details, and timelines before making your choice.",
-    image: require('@/assets/mockups 2/Quotation.png'),
+    image: require('@/assets/mockups/Review quotes.png'),
   },
   {
     id: 8,
     title: 'Payment Pending',
     description:
       'After accepting a quotation, your payment will be processed. The payment is held safely in escrow until the job is completed.',
-    image: require('@/assets/mockups 2/Payment pending.png'),
+    image: require('@/assets/mockups/Pending payment.png'),
   },
   {
     id: 9,
-    title: 'Booking Successful',
+    title: 'Booking Complete',
     description:
       "You'll see a confirmation message showing your booking was successful, along with a job progress tracker. You can manage your booking from the Jobs section.",
-    image: require('@/assets/mockups 2/Booking successful.png'),
+    image: require('@/assets/mockups/booking complete.png'),
   },
   {
     id: 10,
     title: 'Wallet Dashboard',
     description:
       'Manage your wallet balance, view transaction history, and top up funds when needed. All payments are secure and transparent.',
-    image: require('@/assets/mockups 2/Wallet dashboard.png'),
+    image: require('@/assets/mockups/Wallet dashboard.png'),
   },
 ];
 

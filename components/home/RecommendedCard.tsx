@@ -1,16 +1,22 @@
 import React from 'react';
-import { Image, ImageSourcePropType, Text, View } from 'react-native';
+import { Image, ImageSourcePropType, Text, TouchableOpacity, View } from 'react-native';
 
 export type RecommendedService = {
   id: string;
   title: string;
   subtitle: string;
   image: ImageSourcePropType;
+  categoryId?: string;
+  onPress?: () => void;
 };
 
-const RecommendedCardComponent = ({ title, subtitle, image }: RecommendedService) => {
+const RecommendedCardComponent = ({ title, subtitle, image, onPress }: RecommendedService) => {
   return (
-    <View className="w-48 mr-4">
+    <TouchableOpacity
+      className="w-48 mr-4"
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
       <View className="h-32 rounded-2xl overflow-hidden mb-3 bg-gray-100">
         <Image source={image} resizeMode="cover" className="w-full h-full" />
       </View>
@@ -26,7 +32,7 @@ const RecommendedCardComponent = ({ title, subtitle, image }: RecommendedService
       >
         {subtitle}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 };
 

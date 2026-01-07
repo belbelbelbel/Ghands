@@ -410,6 +410,14 @@ const HomeScreen = React.memo(() => {
                 <RecommendedCard
                   key={service.id}
                   {...service}
+                  onPress={() => {
+                    if (service.categoryId) {
+                      router.push({
+                        pathname: '/(tabs)/categories',
+                        params: { selectedCategoryId: service.categoryId },
+                      });
+                    }
+                  }}
                 />
               ))}
             </ScrollView>

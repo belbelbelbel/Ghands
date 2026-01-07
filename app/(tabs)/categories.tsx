@@ -157,19 +157,21 @@ export default function CategoryPage() {
 
   useEffect(() => {
     if (params.selectedCategoryId) {
+      setHasNavigatedFromHome(true);
       setIsToggle(params.selectedCategoryId);
       const scrollTimer = setTimeout(() => {
         const categoryIndex = categoryArrays.findIndex(
           (cat) => cat.id === params.selectedCategoryId
         );
         if (categoryIndex !== -1 && scrollViewRef.current) {
-          const scrollPosition = categoryIndex * 110;
+          // Calculate scroll position more accurately
+          const scrollPosition = categoryIndex * 130; // Adjusted for better positioning
           scrollViewRef.current.scrollTo({
             y: scrollPosition,
             animated: true,
           });
         }
-      }, 300);
+      }, 400);
       return () => clearTimeout(scrollTimer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

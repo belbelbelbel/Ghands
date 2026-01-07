@@ -47,19 +47,22 @@ export const recommendedServices: RecommendedService[] = [
     id: 'rec-1',
     title: 'Painting',
     subtitle: 'Because you booked plumbing',
-    image: require('../../assets/images/paintericon2.png')
+    image: require('../../assets/images/paintericon2.png'),
+    categoryId: 'painter'
   },
   {
     id: 'rec-2',
     title: 'Plumbing',
     subtitle: 'Because you booked plumbing',
-    image: require('../../assets/images/plumbericon2.png')
+    image: require('../../assets/images/plumbericon2.png'),
+    categoryId: 'plumber'
   },
   {
     id: 'rec-3',
     title: 'Painting',
     subtitle: 'Because you booked plumbing',
-    image: require('../../assets/images/paintericon.png')
+    image: require('../../assets/images/paintericon.png'),
+    categoryId: 'painter'
   }
 ];
 

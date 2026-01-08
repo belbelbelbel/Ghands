@@ -12,7 +12,15 @@ import * as Location from 'expo-location';
 
 export default function LocationSearchScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ next?: string }>();
+  const params = useLocalSearchParams<{ 
+    next?: string;
+    serviceType?: string;
+    selectedDateTime?: string;
+    selectedDate?: string;
+    selectedTime?: string;
+    photoCount?: string;
+    location?: string;
+  }>();
   const next = params?.next;
   const { location, setLocation } = useUserLocation();
   const { toast, showError, showSuccess, hideToast } = useToast();
@@ -88,6 +96,19 @@ export default function LocationSearchScreen() {
       setTimeout(() => {
         if (next === 'ProfileSetupScreen') {
           router.replace('/ProfileSetupScreen');
+        } else if (next === 'ServiceMapScreen') {
+          // Navigate back to ServiceMapScreen with all booking params preserved
+          router.replace({
+            pathname: '/ServiceMapScreen' as any,
+            params: {
+              serviceType: params.serviceType,
+              selectedDateTime: params.selectedDateTime,
+              selectedDate: params.selectedDate,
+              selectedTime: params.selectedTime,
+              photoCount: params.photoCount,
+              location: searchQuery.trim(), // Updated location
+            },
+          } as any);
         } else {
           router.back();
         }

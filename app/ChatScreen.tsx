@@ -1,10 +1,11 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, FileText, Image as ImageIcon, Mic, Phone, User } from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
+import { ArrowLeft, FileText, Image as ImageIcon, Mic, Phone, Send, User } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Text,
@@ -12,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { haptics } from '@/hooks/useHaptics';
 
 interface Message {
   id: string;
@@ -21,21 +23,31 @@ interface Message {
   time: string;
 }
 
-const MOCK_MESSAGES: Message[] = [
+const INITIAL_MESSAGES: Message[] = [
   {
     id: '1',
-    text: 'Hello, Please can someone explain how to use plugins?',
+    text: 'Hello, I need help with my plumbing issue',
     sender: 'user',
-    timestamp: '2:10pm',
+    timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     time: '2:10pm',
   },
   {
     id: '2',
-    text: 'Sure, You can locate the plugins icon by first clicking on the icon beside the text icon and then navigate to plugins...',
+    text: 'Sure, I can help! Could you describe the issue in more detail?',
     sender: 'provider',
-    timestamp: '2:35pm',
-    time: '2:35pm',
+    timestamp: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+    time: '2:15pm',
   },
+];
+
+// Auto-response messages for demo
+const AUTO_RESPONSES = [
+  "Thank you for your message! I'll get back to you shortly.",
+  "I understand. Let me help you with that.",
+  "That's a great question. Here's what I recommend...",
+  "I see what you mean. Let me explain...",
+  "Perfect! I can definitely help with that.",
+  "Thanks for the details. Here's what we can do...",
 ];
 
 export default function ChatScreen() {
@@ -43,16 +55,65 @@ export default function ChatScreen() {
   const params = useLocalSearchParams<{ providerName?: string; providerId?: string; clientName?: string }>();
   const providerName = params.providerName || 'AquaFix Solutions';
   const clientName = params.clientName || 'Client';
+  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [message, setMessage] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
   // Determine if this is provider view (has clientName) or user view
   const isProviderView = !!params.clientName;
 
+  // Format time helper
+  const formatTime = (date: Date): string => {
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const period = hours >= 12 ? 'pm' : 'am';
+    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')}${period}`;
+  };
+
+  // Simulate auto-response for demo
+  useEffect(() => {
+    // Only auto-respond if last message is from user and it's not provider view
+    if (messages.length > 0 && !isProviderView) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.sender === 'user') {
+        const timeout = setTimeout(() => {
+          const randomResponse = AUTO_RESPONSES[Math.floor(Math.random() * AUTO_RESPONSES.length)];
+          const newMessage: Message = {
+            id: `response-${Date.now()}`,
+            text: randomResponse,
+            sender: 'provider',
+            timestamp: new Date().toISOString(),
+            time: formatTime(new Date()),
+          };
+          setMessages((prev) => [...prev, newMessage]);
+          haptics.light();
+        }, 2000); // 2 second delay for realistic feel
+
+        return () => clearTimeout(timeout);
+      }
+    }
+  }, [messages, isProviderView]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  }, [messages]);
+
   const handleSend = () => {
     if (message.trim()) {
-      // Handle send message
+      const newMessage: Message = {
+        id: `msg-${Date.now()}`,
+        text: message.trim(),
+        sender: isProviderView ? 'provider' : 'user',
+        timestamp: new Date().toISOString(),
+        time: formatTime(new Date()),
+      };
+      setMessages((prev) => [...prev, newMessage]);
       setMessage('');
+      haptics.selection();
     }
   };
 
@@ -74,19 +135,16 @@ export default function ChatScreen() {
       >
         {/* Avatar on left for provider messages, right for user messages */}
         {isFromProvider && (
-          <View
+          <Image
+            source={require('../assets/images/plumbericon2.png')}
             style={{
               width: 32,
               height: 32,
               borderRadius: 16,
-              backgroundColor: Colors.black,
-              alignItems: 'center',
-              justifyContent: 'center',
               marginRight: 8,
             }}
-          >
-            <User size={16} color={Colors.white} />
-          </View>
+            resizeMode="cover"
+          />
         )}
 
         <View
@@ -111,7 +169,7 @@ export default function ChatScreen() {
           {/* Message Bubble */}
           <View
             style={{
-              backgroundColor: Colors.backgroundGray,
+              backgroundColor: isFromClient ? Colors.accent : Colors.backgroundGray,
               borderRadius: 12,
               paddingHorizontal: 14,
               paddingVertical: 10,
@@ -121,7 +179,7 @@ export default function ChatScreen() {
               style={{
                 fontSize: 14,
                 fontFamily: 'Poppins-Regular',
-                color: Colors.textPrimary,
+                color: isFromClient ? Colors.white : Colors.textPrimary,
               }}
             >
               {item.text}
@@ -131,19 +189,16 @@ export default function ChatScreen() {
 
         {/* Avatar on right for user messages */}
         {isFromClient && (
-          <View
+          <Image
+            source={require('../assets/images/userimg.jpg')}
             style={{
               width: 32,
               height: 32,
               borderRadius: 16,
-              backgroundColor: Colors.black,
-              alignItems: 'center',
-              justifyContent: 'center',
               marginLeft: 8,
             }}
-          >
-            <User size={16} color={Colors.white} />
-          </View>
+            resizeMode="cover"
+          />
         )}
       </View>
     );
@@ -170,7 +225,13 @@ export default function ChatScreen() {
             backgroundColor: Colors.white,
           }}
         >
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+          <TouchableOpacity 
+            onPress={() => {
+              haptics.light();
+              router.back();
+            }} 
+            activeOpacity={0.7}
+          >
             <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
           <Text
@@ -184,7 +245,13 @@ export default function ChatScreen() {
           >
             {isProviderView ? clientName : providerName}
           </Text>
-          <TouchableOpacity activeOpacity={0.7}>
+          <TouchableOpacity 
+            onPress={() => {
+              haptics.light();
+              // Phone call action
+            }} 
+            activeOpacity={0.7}
+          >
             <Phone size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
@@ -192,7 +259,7 @@ export default function ChatScreen() {
         {/* Messages Area */}
         <FlatList
           ref={flatListRef}
-          data={MOCK_MESSAGES}
+          data={messages}
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
@@ -204,7 +271,10 @@ export default function ChatScreen() {
         {isProviderView && (
           <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
             <TouchableOpacity
-              onPress={() => router.push('/SendQuotationScreen' as any)}
+              onPress={() => {
+                haptics.light();
+                router.push('/SendQuotationScreen' as any);
+              }}
               style={{
                 backgroundColor: '#E0F2FE',
                 borderRadius: 12,
@@ -269,24 +339,49 @@ export default function ChatScreen() {
               placeholderTextColor={Colors.textSecondaryDark}
               multiline
               maxLength={500}
+              onSubmitEditing={handleSend}
+              returnKeyType="send"
             />
-            <TouchableOpacity activeOpacity={0.7} style={{ marginRight: 12 }}>
+            <TouchableOpacity 
+              onPress={() => {
+                haptics.light();
+                // Image picker action
+              }}
+              activeOpacity={0.7} 
+              style={{ marginRight: 12 }}
+            >
               <ImageIcon size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleSend}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: Colors.accent,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Mic size={18} color={Colors.white} />
-            </TouchableOpacity>
+            {message.trim() ? (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={handleSend}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: Colors.accent,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Send size={18} color={Colors.white} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: Colors.accent,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Mic size={18} color={Colors.white} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>

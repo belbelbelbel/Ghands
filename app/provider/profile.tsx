@@ -415,17 +415,22 @@ export default function ProviderProfileScreen() {
               </TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              {[1, 2, 3].map((index) => (
-                <View
+              {[
+                require('../../assets/images/jobcardimg.png'),
+                require('../../assets/images/guideimg.jpg'),
+                require('../../assets/images/onboarding1.png'),
+              ].map((imageSource, index) => (
+                <Image
                   key={index}
+                  source={imageSource}
                   style={{
                     flex: 1,
                     aspectRatio: 1,
                     borderRadius: BorderRadius.default,
-                    backgroundColor: Colors.backgroundGray,
                     borderWidth: 1,
                     borderColor: Colors.border,
                   }}
+                  resizeMode="cover"
                 />
               ))}
             </View>

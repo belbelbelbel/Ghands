@@ -21,11 +21,28 @@ interface PhotoItem {
 
 export default function AddPhotosScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ selectedDateTime?: string; selectedDate?: string; selectedTime?: string }>();
+  const params = useLocalSearchParams<{ 
+    selectedDateTime?: string; 
+    selectedDate?: string; 
+    selectedTime?: string;
+    serviceType?: string;
+    location?: string;
+    photoCount?: string;
+    preserveData?: string;
+  }>();
   const { toast, showError, showWarning, hideToast } = useToast();
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [isFindingProviders, setIsFindingProviders] = useState(false);
+  
+  // Restore photo count from params if editing
+  useEffect(() => {
+    if (params.preserveData === 'true' && params.photoCount) {
+      const count = parseInt(params.photoCount, 10);
+      // You can restore selected photos count here if needed
+      // For now, we just ensure the count is preserved
+    }
+  }, [params]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -192,7 +209,7 @@ export default function AddPhotosScreen() {
 
     findingTimeoutRef.current = setTimeout(() => {
       setIsFindingProviders(false);
-      // Pass photo count as param for summary
+      // Pass ALL booking params to ServiceMapScreen
       router.replace({
         pathname: '/ServiceMapScreen' as any,
         params: {
@@ -200,6 +217,8 @@ export default function AddPhotosScreen() {
           selectedDate: params.selectedDate,
           selectedTime: params.selectedTime,
           photoCount: selectedPhotos.size.toString(),
+          serviceType: params.serviceType, // Preserve service type
+          location: params.location, // Preserve location
         },
       } as any);
     }, 1800);

@@ -4,7 +4,7 @@ import BookingSummaryModal, { BookingSummaryData } from '@/components/BookingSum
 import { haptics } from '@/hooks/useHaptics';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import * as Location from 'expo-location';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
@@ -77,6 +77,7 @@ const ServiceMapScreen = () => {
     selectedTime?: string;
     photoCount?: string;
     serviceType?: string;
+    location?: string;
   }>();
   const { location: savedLocation } = useUserLocation();
   const [selectedCategory, setSelectedCategory] = useState<ProviderCategory>('All');
@@ -85,10 +86,47 @@ const ServiceMapScreen = () => {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [serviceLocation, setServiceLocation] = useState<string>(savedLocation || '');
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  
+  // Booking data state - synced with params
+  const [bookingData, setBookingData] = useState<{
+    serviceType?: string;
+    dateTime?: string;
+    date?: string;
+    time?: string;
+    photoCount?: number;
+    location?: string;
+  }>({
+    serviceType: params.serviceType,
+    dateTime: params.selectedDateTime,
+    date: params.selectedDate,
+    time: params.selectedTime,
+    photoCount: params.photoCount ? parseInt(params.photoCount, 10) : 0,
+    location: params.location,
+  });
+
+  // Update booking data when params change (after editing)
+  useFocusEffect(
+    useCallback(() => {
+      // Sync booking data with params whenever screen comes into focus
+      setBookingData((prev) => ({
+        serviceType: params.serviceType || prev.serviceType,
+        dateTime: params.selectedDateTime || prev.dateTime,
+        date: params.selectedDate || prev.date,
+        time: params.selectedTime || prev.time,
+        photoCount: params.photoCount ? parseInt(params.photoCount, 10) : prev.photoCount || 0,
+        location: params.location || prev.location,
+      }));
+      
+      // Update service location if location param was updated
+      if (params.location) {
+        setServiceLocation(params.location);
+      }
+    }, [params.serviceType, params.selectedDateTime, params.selectedDate, params.selectedTime, params.photoCount, params.location])
+  );
 
   // Update serviceLocation when savedLocation changes
   useEffect(() => {
-    if (savedLocation) {
+    if (savedLocation && !serviceLocation) {
       setServiceLocation(savedLocation);
     }
   }, [savedLocation]);
@@ -198,12 +236,12 @@ const ServiceMapScreen = () => {
             params: {
               // Pass current booking data so it can be restored
               preserveData: 'true',
-              serviceType: bookingData.serviceType,
+              serviceType: bookingData.serviceType || params.serviceType,
               selectedDateTime: bookingData.dateTime || params.selectedDateTime,
               selectedDate: bookingData.date || params.selectedDate,
               selectedTime: bookingData.time || params.selectedTime,
               photoCount: bookingData.photoCount?.toString() || params.photoCount,
-              location: bookingData.location,
+              location: bookingData.location || serviceLocation,
             },
           } as any);
         }}
@@ -217,7 +255,7 @@ const ServiceMapScreen = () => {
               selectedTime: bookingData.time || params.selectedTime,
               serviceType: bookingData.serviceType || params.serviceType,
               photoCount: bookingData.photoCount?.toString() || params.photoCount,
-              location: bookingData.location,
+              location: bookingData.location || serviceLocation,
               preserveData: 'true',
             },
           } as any);
@@ -234,6 +272,7 @@ const ServiceMapScreen = () => {
               selectedDate: bookingData.date || params.selectedDate,
               selectedTime: bookingData.time || params.selectedTime,
               photoCount: bookingData.photoCount?.toString() || params.photoCount,
+              location: bookingData.location || serviceLocation,
             },
           } as any);
         }}
@@ -246,7 +285,7 @@ const ServiceMapScreen = () => {
               selectedDate: bookingData.date || params.selectedDate,
               selectedTime: bookingData.time || params.selectedTime,
               serviceType: bookingData.serviceType || params.serviceType,
-              location: bookingData.location,
+              location: bookingData.location || serviceLocation,
               photoCount: bookingData.photoCount?.toString() || params.photoCount,
               preserveData: 'true',
             },
@@ -255,14 +294,15 @@ const ServiceMapScreen = () => {
         onEditProviders={(bookingData) => {
           // Stay on current screen, just close modal to allow editing
           // Selected providers are already in state, so user can modify them
+          setShowSummaryModal(false);
         }}
         data={{
-          serviceType: params.serviceType || 'Plumbing Service',
-          dateTime: params.selectedDateTime,
-          date: params.selectedDate,
-          time: params.selectedTime,
-          location: serviceLocation || savedLocation || 'Location not set',
-          photoCount: params.photoCount ? parseInt(params.photoCount, 10) : 0,
+          serviceType: bookingData.serviceType || params.serviceType || 'Plumbing Service',
+          dateTime: bookingData.dateTime || params.selectedDateTime,
+          date: bookingData.date || params.selectedDate,
+          time: bookingData.time || params.selectedTime,
+          location: serviceLocation || bookingData.location || savedLocation || 'Location not set',
+          photoCount: bookingData.photoCount || (params.photoCount ? parseInt(params.photoCount, 10) : 0),
           selectedProviders: selectedProviders.map((p) => ({
             id: p.id,
             name: p.name,

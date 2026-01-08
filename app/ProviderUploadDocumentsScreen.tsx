@@ -64,7 +64,7 @@ export default function ProviderUploadDocumentsScreen() {
   };
 
   const handleContinue = () => {
-    router.push('/ProviderVerifyIdentityScreen' as any);
+    router.push('/ProviderLinkBankAccountScreen' as any);
   };
 
   return (

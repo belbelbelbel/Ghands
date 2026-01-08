@@ -166,19 +166,15 @@ const ProfileScreen = () => {
         >
           {/* Profile Picture */}
           <View style={{ marginRight: 16 }}>
-            <View
+            <Image
+              source={require('../../assets/images/userimg.jpg')}
               style={{
                 width: 80,
                 height: 80,
                 borderRadius: 40,
-                backgroundColor: Colors.backgroundGray,
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
               }}
-            >
-              <User size={40} color={Colors.textSecondaryDark} />
-            </View>
+              resizeMode="cover"
+            />
           </View>
 
           {/* User Info */}

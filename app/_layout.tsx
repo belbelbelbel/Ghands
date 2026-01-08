@@ -130,6 +130,7 @@ export default function RootLayout() {
         <Stack.Screen name="ProviderResetPasswordScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderProfileSetupScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderUploadDocumentsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ProviderLinkBankAccountScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderVerifyIdentityScreen" options={{ headerShown: false }} />
         <Stack.Screen name="SettingsScreen" options={{ headerShown: false }} />
         <Stack.Screen name="LegalAboutScreen" options={{ headerShown: false }} />

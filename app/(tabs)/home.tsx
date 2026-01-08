@@ -32,7 +32,7 @@ const CategoryItem = React.memo(({
       key={category.id}
       onPress={handlePress}
       className="rounded-2xl bg-gray-100 px-3 py-2 items-center"
-      style={{ width: '24%', marginBottom: 16 }}
+      style={{ width: 84, marginRight: 12 }}
       activeOpacity={0.8}
     >
       <View className="w-22 h-22 rounded-2xl items-center  justify-center mb-2 border-0">
@@ -113,7 +113,7 @@ const HomeScreen = React.memo(() => {
 
   const filteredCategories = useMemo(() => {
     if (!searchQuery.trim()) {
-      return homeScreenCategories.slice(0, 4);
+      return homeScreenCategories;
     }
     const query = searchQuery.toLowerCase().trim();
     const filtered = homeScreenCategories.filter(
@@ -122,7 +122,7 @@ const HomeScreen = React.memo(() => {
         category.id.toLowerCase().includes(query)
     );
     // If no results found, show all categories instead of empty
-    return filtered.length > 0 ? filtered.slice(0, 4) : homeScreenCategories.slice(0, 4);
+    return filtered.length > 0 ? filtered : homeScreenCategories;
   }, [searchQuery]);
 
   const handleNotificationPress = useCallback(() => {
@@ -252,19 +252,24 @@ const HomeScreen = React.memo(() => {
               </TouchableOpacity>
             </View>
 
-            <View className="flex-row flex-wrap justify-between">
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingRight: 16 }}
+              style={{ marginTop: 5, marginBottom: 20 }}
+            >
               {isLoadingCategories ? (
                 <>
-                  <View style={{ width: '24%', marginBottom: 16 }}>
+                  <View style={{ width: 80, marginRight: 12 }}>
                     <CategorySkeleton />
                   </View>
-                  <View style={{ width: '24%', marginBottom: 16 }}>
+                  <View style={{ width: 80, marginRight: 12 }}>
                     <CategorySkeleton />
                   </View>
-                  <View style={{ width: '24%', marginBottom: 16 }}>
+                  <View style={{ width: 80, marginRight: 12 }}>
                     <CategorySkeleton />
                   </View>
-                  <View style={{ width: '24%', marginBottom: 16 }}>
+                  <View style={{ width: 80, marginRight: 12 }}>
                     <CategorySkeleton />
                   </View>
                 </>
@@ -277,7 +282,7 @@ const HomeScreen = React.memo(() => {
                   />
                 ))
               )}
-            </View>
+            </ScrollView>
           </View>
           <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
             <View

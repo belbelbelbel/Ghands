@@ -1,7 +1,9 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { Colors } from '@/lib/designSystem';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import { Send } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -11,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { haptics } from '@/hooks/useHaptics';
 
 interface Message {
   id: string;
@@ -20,32 +23,93 @@ interface Message {
   time: string;
 }
 
-const MOCK_MESSAGES: Message[] = [
+const INITIAL_MESSAGES: Message[] = [
   {
     id: '1',
-    text: 'Hello, Please can someone explain how to use plugins?',
+    text: 'Hello, I need help with my account',
     sender: 'user',
-    timestamp: '2:10pm',
+    timestamp: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
     time: '2:10pm',
   },
   {
     id: '2',
-    text: 'Sure, You can locate the plugins icon by first clicking on the icon beside the text icon and then navigate to plugins...',
+    text: 'Hello! I\'m here to help. What specific issue are you experiencing with your account?',
     sender: 'support',
-    timestamp: '2:35pm',
-    time: '2:35pm',
+    timestamp: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
+    time: '2:12pm',
   },
+];
+
+// Auto-response messages for support chat demo
+const SUPPORT_RESPONSES = [
+  "I understand your concern. Let me help you with that right away.",
+  "Thank you for reaching out! I'm looking into this for you.",
+  "I see the issue. Here's what we can do to resolve it...",
+  "That's a common question. Let me explain...",
+  "I'm here to help! Can you provide a bit more detail?",
+  "Thank you for your patience. I'm working on finding a solution for you.",
+  "I understand. Let me transfer this to our technical team.",
+  "Great question! Here's how we can handle this...",
 ];
 
 export default function LiveChatScreen() {
   const router = useRouter();
+  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [message, setMessage] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
+  // Format time helper
+  const formatTime = (date: Date): string => {
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const period = hours >= 12 ? 'pm' : 'am';
+    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')}${period}`;
+  };
+
+  // Simulate auto-response for demo
+  useEffect(() => {
+    // Auto-respond if last message is from user
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.sender === 'user') {
+        const timeout = setTimeout(() => {
+          const randomResponse = SUPPORT_RESPONSES[Math.floor(Math.random() * SUPPORT_RESPONSES.length)];
+          const newMessage: Message = {
+            id: `response-${Date.now()}`,
+            text: randomResponse,
+            sender: 'support',
+            timestamp: new Date().toISOString(),
+            time: formatTime(new Date()),
+          };
+          setMessages((prev) => [...prev, newMessage]);
+          haptics.light();
+        }, 2000); // 2 second delay for realistic feel
+
+        return () => clearTimeout(timeout);
+      }
+    }
+  }, [messages]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  }, [messages]);
+
   const handleSend = () => {
     if (message.trim()) {
-      // Handle send message
+      const newMessage: Message = {
+        id: `msg-${Date.now()}`,
+        text: message.trim(),
+        sender: 'user',
+        timestamp: new Date().toISOString(),
+        time: formatTime(new Date()),
+      };
+      setMessages((prev) => [...prev, newMessage]);
       setMessage('');
+      haptics.selection();
     }
   };
 
@@ -67,8 +131,19 @@ export default function LiveChatScreen() {
           </Text>
           <View className="flex-row items-start">
             {!isUser && <View style={{ width: 0 }} />}
-            <View className={`rounded-2xl px-4 py-3 ${isUser ? 'bg-gray-200' : 'bg-gray-200'}`}>
-              <Text className="text-sm text-gray-900" style={{ fontFamily: 'Poppins-Regular' }}>
+            <View 
+              className="rounded-2xl px-4 py-3"
+              style={{
+                backgroundColor: isUser ? Colors.accent : Colors.backgroundGray,
+              }}
+            >
+              <Text 
+                className="text-sm"
+                style={{ 
+                  fontFamily: 'Poppins-Regular',
+                  color: isUser ? Colors.white : Colors.textPrimary,
+                }}
+              >
                 {item.text}
               </Text>
             </View>
@@ -93,7 +168,13 @@ export default function LiveChatScreen() {
       >
         {/* Header */}
         <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85}>
+          <TouchableOpacity 
+            onPress={() => {
+              haptics.light();
+              router.back();
+            }} 
+            activeOpacity={0.85}
+          >
             <Ionicons name="arrow-back" size={24} color="#000000" />
           </TouchableOpacity>
           <Text className="text-lg text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
@@ -105,7 +186,7 @@ export default function LiveChatScreen() {
         {/* Messages Area */}
         <FlatList
           ref={flatListRef}
-          data={MOCK_MESSAGES}
+          data={messages}
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
@@ -125,15 +206,32 @@ export default function LiveChatScreen() {
               placeholderTextColor="#9CA3AF"
               multiline
               maxLength={500}
+              onSubmitEditing={handleSend}
+              returnKeyType="send"
             />
-            <TouchableOpacity activeOpacity={0.85} className="mr-3">
+            <TouchableOpacity 
+              onPress={() => {
+                haptics.light();
+                // Image picker action
+              }}
+              activeOpacity={0.85} 
+              className="mr-3"
+            >
               <Ionicons name="image-outline" size={24} color="#000000" />
             </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.85} onPress={handleSend}>
-              <View className="w-10 h-10 rounded-full bg-[#6A9B00] items-center justify-center">
-                <Ionicons name="mic" size={20} color="white" />
-              </View>
-            </TouchableOpacity>
+            {message.trim() ? (
+              <TouchableOpacity activeOpacity={0.85} onPress={handleSend}>
+                <View className="w-10 h-10 rounded-full bg-[#6A9B00] items-center justify-center">
+                  <Send size={18} color="white" />
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity activeOpacity={0.85}>
+                <View className="w-10 h-10 rounded-full bg-[#6A9B00] items-center justify-center">
+                  <Ionicons name="mic" size={20} color="white" />
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>

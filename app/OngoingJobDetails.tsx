@@ -1,6 +1,7 @@
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
+import { analytics } from '@/services/analytics';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -53,6 +54,7 @@ const PROVIDERS = [
     id: 'provider-1',
     name: "Mike's Plumbing",
     role: 'Professional Plumber',
+    image: require('../assets/images/plumbericon2.png'),
     status: 'Quote submitted',
     statusColor: '#DCFCE7',
     statusTextColor: '#166534',
@@ -68,6 +70,7 @@ const PROVIDERS = [
     id: 'provider-2',
     name: "Mike's Plumbing",
     role: 'Professional Plumber',
+    image: require('../assets/images/plumbericon.png'),
     status: 'Inspecting',
     statusColor: '#FEF9C3',
     statusTextColor: '#92400E',
@@ -83,6 +86,7 @@ const PROVIDERS = [
     id: 'provider-3',
     name: "Mike's Plumbing",
     role: 'Professional Plumber',
+    image: require('../assets/images/plumbericon2.png'),
     status: 'Inspecting',
     statusColor: '#FEF9C3',
     statusTextColor: '#92400E',
@@ -356,6 +360,7 @@ export default function OngoingJobDetails() {
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => {
+              haptics.light();
               router.push({
                 pathname: '/ProviderDetailScreen',
                 params: {
@@ -366,7 +371,16 @@ export default function OngoingJobDetails() {
             }}
             style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
           >
-            <View className="w-12 h-12 rounded-full bg-[#E5E7EB] mr-4" />
+            <Image
+              source={provider.image}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                marginRight: 16,
+              }}
+              resizeMode="cover"
+            />
             <View className="flex-1">
               <Text className="text-base text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
                 {provider.name}
@@ -380,6 +394,7 @@ export default function OngoingJobDetails() {
             activeOpacity={0.85}
             className="mr-2"
             onPress={() => {
+              haptics.light();
               router.push({
                 pathname: '/ChatScreen',
                 params: {
@@ -456,8 +471,15 @@ export default function OngoingJobDetails() {
     <SafeAreaWrapper>
       <View className="flex-1 px-4" style={{ paddingTop: 20 }}>
         <View className="flex-row items-center mb-6">
-          <TouchableOpacity onPress={() => router.back()} className="mr-3" activeOpacity={0.85}>
-            <Text className="text-lg">←</Text>
+          <TouchableOpacity 
+            onPress={() => {
+              haptics.light();
+              router.back();
+            }} 
+            style={{ marginRight: 12, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }} 
+            activeOpacity={0.85}
+          >
+            <Ionicons name="arrow-back" size={24} color="#000000" />
           </TouchableOpacity>
           <Text className="text-xl text-black" style={{ fontFamily: 'Poppins-Bold' }}>
             {activeTab === 'Updates' ? 'Updates' : 'Quotations'}
@@ -470,7 +492,10 @@ export default function OngoingJobDetails() {
             return (
               <TouchableOpacity
                 key={tab}
-                onPress={() => setActiveTab(tab)}
+                onPress={() => {
+                  haptics.selection();
+                  setActiveTab(tab);
+                }}
                 className="mr-6 pb-2"
                 activeOpacity={0.85}
               >
@@ -527,6 +552,7 @@ export default function OngoingJobDetails() {
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => {
+                      haptics.light();
                       router.push({
                         pathname: '/ProviderDetailScreen',
                         params: {

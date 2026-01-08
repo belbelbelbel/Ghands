@@ -1,5 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { haptics } from '@/hooks/useHaptics';
@@ -27,9 +27,22 @@ const PM_HOURS = ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00',
 
 export default function DateTimeScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    selectedDate?: string;
+    selectedTime?: string;
+    serviceType?: string;
+    photoCount?: string;
+    location?: string;
+  }>();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(() => {
+    // Restore selected date from params if editing
+    if (params.selectedDate) {
+      return new Date(params.selectedDate);
+    }
+    return null;
+  });
+  const [selectedTime, setSelectedTime] = useState<string | null>(params.selectedTime || null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -99,16 +112,19 @@ export default function DateTimeScreen() {
     if (!selectedDate || !selectedTime) {
       return;
     }
-    // Navigate directly to next screen - confirmation will be shown in summary
+    // Navigate directly to next screen - preserve all booking params
     router.replace({
       pathname: '../AddPhotosScreen' as any,
       params: {
         selectedDateTime: formattedDateTime,
         selectedDate: selectedDate?.toISOString(),
         selectedTime: selectedTime || '',
+        serviceType: params.serviceType, // Preserve service type
+        location: params.location, // Preserve location
+        photoCount: params.photoCount, // Preserve photo count if editing
       },
     });
-  }, [selectedDate, selectedTime, formattedDateTime, router]);
+  }, [selectedDate, selectedTime, formattedDateTime, router, params]);
 
   const handleCancel = useCallback(() => {
     router.back();

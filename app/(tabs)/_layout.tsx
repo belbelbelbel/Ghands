@@ -160,12 +160,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="jobs"
+        name="discover"
         options={{
-          title: 'Jobs',
-          tabBarLabel: 'Jobs',
+          title: 'Discover',
+          tabBarLabel: 'Discover',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedIcon iconName="assignment" color={color} focused={focused} />
+            <AnimatedIcon iconName="explore" color={color} focused={focused} />
           ),
         }}
       />
@@ -179,12 +179,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="discover"
+        name="jobs"
         options={{
-          title: 'Discover',
-          tabBarLabel: 'Discover',
+          title: 'Jobs',
+          tabBarLabel: 'Jobs',
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedIcon iconName="explore" color={color} focused={focused} />
+            <AnimatedIcon iconName="assignment" color={color} focused={focused} />
           ),
         }}
       />

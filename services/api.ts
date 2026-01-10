@@ -50,21 +50,22 @@ class ApiClient {
         if (token && this.isValidToken(token)) {
           // Ensure headers is a plain object, not Headers instance
           const existingHeaders = config.headers || {};
-          const headersObj = existingHeaders instanceof Headers 
+          const headersObj: Record<string, string> = existingHeaders instanceof Headers 
             ? Object.fromEntries(existingHeaders.entries())
-            : { ...existingHeaders };
+            : { ...(existingHeaders as Record<string, string>) };
           
           // Add Bearer token while preserving existing headers (especially Content-Type)
+          const contentType = headersObj['Content-Type'] || headersObj['content-type'] || 'application/json';
           config.headers = {
             ...headersObj,
-            'Content-Type': headersObj['Content-Type'] || headersObj['content-type'] || 'application/json',
+            'Content-Type': contentType,
             Authorization: `Bearer ${token}`,
-          };
+          } as HeadersInit;
           
           if (__DEV__) {
             console.log('🔐 ========== BEARER TOKEN ADDED ==========');
             console.log('🔐 Authorization Header: Bearer [token]');
-            console.log('🔐 Content-Type Header:', config.headers['Content-Type']);
+            console.log('🔐 Content-Type Header:', contentType);
             console.log('🔐 Token Length:', token.length);
             console.log('🔐 Token Preview:', token.substring(0, 30) + '...');
             console.log('🔐 All Headers:', JSON.stringify(config.headers, null, 2));
@@ -1302,10 +1303,9 @@ export interface UserLoginResponse {
 }
 
 export interface CompanySignupPayload {
-  companyName: string;
-  companyPhoneNumber: string; // Exactly 11 characters
-  companyEmail: string;
-  companyPassword: string; // Minimum 6 characters
+  email: string; // Required, valid email
+  phoneNumber: string; // Required, exactly 11 characters (number as string)
+  password: string; // Required, minimum 6 characters
 }
 
 export interface CompanySignupResponse {
@@ -1481,21 +1481,29 @@ export const authService = {
   },
 
   /**
-   * Company Signup
-   * POST /api/user/company-signup
+   * Company Signup (uses provider endpoint)
+   * POST /api/provider/signup
+   * Only accepts: email, phoneNumber, password
    */
   companySignup: async (payload: CompanySignupPayload): Promise<CompanySignupResponse> => {
     try {
       if (__DEV__) {
         console.log('🔵 ========== COMPANY SIGNUP REQUEST ==========');
-        console.log('🔵 Endpoint: POST /api/user/company-signup');
-        console.log('🔵 Payload:', JSON.stringify({ ...payload, companyPassword: '***' }, null, 2));
+        console.log('🔵 Endpoint: POST /api/provider/signup');
+        console.log('🔵 Payload (email, phoneNumber, password only):', JSON.stringify({ ...payload, password: '***' }, null, 2));
         console.log('🔵 =============================================');
       }
 
+      // Send only email, phoneNumber, password as per backend requirements
+      const signupPayload = {
+        email: payload.email.trim().toLowerCase(),
+        phoneNumber: payload.phoneNumber.trim(),
+        password: payload.password,
+      };
+
       const response = await apiClient.post<any>(
-        '/api/user/company-signup',
-        payload,
+        '/api/provider/signup',
+        signupPayload,
         { skipAuth: true }
       );
 
@@ -1564,19 +1572,25 @@ export const authService = {
       });
       console.log('🔍 ====================================================');
 
-      // Save token only if it exists
+      // Save token as bearer token - CRITICAL for subsequent API calls
       if (token) {
         await apiClient.setAuthToken(token);
         if (__DEV__) {
-          console.log('✅ Company token saved successfully');
+          console.log('✅ ========== COMPANY TOKEN SAVED AS BEARER TOKEN ==========');
+          console.log('✅ Token saved successfully:', token.substring(0, 30) + '...');
+          console.log('✅ Token length:', token.length);
+          console.log('✅ This token will be used as Bearer token for all authenticated requests');
+          console.log('✅ ===========================================================');
         }
       } else {
         if (__DEV__) {
-          console.warn('⚠️ ========== TOKEN NOT FOUND IN COMPANY SIGNUP RESPONSE ==========');
-          console.warn('⚠️ Backend is not returning a token in the company signup response.');
-          console.warn('⚠️ Response structure:', JSON.stringify(response, null, 2));
-          console.warn('⚠️ ================================================================');
+          console.error('❌ ========== TOKEN NOT FOUND IN COMPANY SIGNUP RESPONSE ==========');
+          console.error('❌ Backend is not returning a token in the company signup response.');
+          console.error('❌ Response structure:', JSON.stringify(response, null, 2));
+          console.error('❌ This will cause authentication errors on subsequent API calls.');
+          console.error('❌ ================================================================');
         }
+        throw new Error('Signup failed: No token received from server. Cannot proceed with authentication.');
       }
 
       // Save company ID separately for provider endpoints (from response body or token)
@@ -1613,11 +1627,11 @@ export const authService = {
 
       // Return the company data with ID from response body or token
       return {
-        id: finalCompanyId || companyId || (token ? extractUserIdFromToken(token) : undefined),
-        companyName: companyData?.companyName || payload.companyName,
-        companyEmail: companyData?.companyEmail || payload.companyEmail,
-        companyPhoneNumber: companyData?.companyPhoneNumber || payload.companyPhoneNumber,
-        token: token || '', // Return empty string if token not found
+        id: finalCompanyId || companyId || (token ? extractUserIdFromToken(token) : undefined) || 0,
+        companyName: companyData?.companyName || companyData?.name || payload.email.split('@')[0] || 'Company',
+        companyEmail: companyData?.companyEmail || companyData?.email || payload.email,
+        companyPhoneNumber: companyData?.companyPhoneNumber || companyData?.phoneNumber || payload.phoneNumber,
+        token: token, // Token is guaranteed to exist (we throw error if not found)
       };
     } catch (error: any) {
       if (__DEV__) {
@@ -2100,11 +2114,20 @@ export const serviceRequestService = {
     payload: UpdateJobDetailsPayload
   ): Promise<UpdateJobDetailsResponse> => {
     try {
-      const response = await apiClient.put<{ data: UpdateJobDetailsResponse }>(
+      const response = await apiClient.put<any>(
         `/api/request-service/requests/${requestId}/details`,
         payload
       );
-      return response.data;
+      
+      // Handle nested response structures
+      const responseData = response.data?.data || response.data || response;
+      
+      // Ensure nearbyProviders is always an array if present
+      if (responseData.nearbyProviders && !Array.isArray(responseData.nearbyProviders)) {
+        responseData.nearbyProviders = [];
+      }
+      
+      return responseData;
     } catch (error) {
       console.error('Error updating job details:', error);
       throw error;
@@ -2120,11 +2143,15 @@ export const serviceRequestService = {
     payload: UpdateDateTimePayload
   ): Promise<UpdateDateTimeResponse> => {
     try {
-      const response = await apiClient.put<{ data: UpdateDateTimeResponse }>(
+      const response = await apiClient.put<any>(
         `/api/request-service/requests/${requestId}/date-time`,
         payload
       );
-      return response.data;
+      
+      // Handle nested response structures
+      const responseData = response.data?.data || response.data || response;
+      
+      return responseData;
     } catch (error) {
       console.error('Error updating date/time:', error);
       throw error;
@@ -2138,10 +2165,19 @@ export const serviceRequestService = {
    */
   getRequestDetails: async (requestId: number): Promise<ServiceRequest> => {
     try {
-      const response = await apiClient.get<{ data: ServiceRequest }>(
+      const response = await apiClient.get<any>(
         `/api/request-service/requests/${requestId}`
       );
-      return response.data;
+      
+      // Handle nested response structures
+      const requestData = response.data?.data || response.data || response;
+      
+      // Ensure nearbyProviders is always an array if present
+      if (requestData && requestData.nearbyProviders && !Array.isArray(requestData.nearbyProviders)) {
+        requestData.nearbyProviders = [];
+      }
+      
+      return requestData;
     } catch (error) {
       console.error('Error getting request details:', error);
       throw error;
@@ -2160,8 +2196,28 @@ export const serviceRequestService = {
       const url = status
         ? `/api/request-service/requests?status=${status}`
         : `/api/request-service/requests`;
-      const response = await apiClient.get<{ data: ServiceRequest[] }>(url);
-      return response.data || [];
+      const response = await apiClient.get<any>(url);
+      
+      // Handle nested response structures
+      let requests: ServiceRequest[] = [];
+      
+      if (Array.isArray(response)) {
+        requests = response;
+      } else if (response?.data) {
+        if (Array.isArray(response.data)) {
+          requests = response.data;
+        } else if (Array.isArray(response.data.data)) {
+          requests = response.data.data;
+        }
+      }
+      
+      // Ensure nearbyProviders is always an array for each request
+      requests = requests.map((request: any) => ({
+        ...request,
+        nearbyProviders: Array.isArray(request.nearbyProviders) ? request.nearbyProviders : [],
+      }));
+      
+      return requests;
     } catch (error) {
       console.error('Error getting user requests:', error);
       throw error;
@@ -2212,30 +2268,23 @@ export const serviceRequestService = {
     minutesAway: number;
   }>> => {
     try {
-      const response = await apiClient.get<{ data: Array<{
-        provider: {
-          id: number;
-          name: string;
-          verified: boolean;
-          age: number;
-          phoneNumber: string;
-          email: string;
-          location: {
-            address: string;
-            city: string;
-            state: string;
-          };
-        };
-        acceptance: {
-          id: number;
-          acceptedAt: string;
-        };
-        distanceKm: number;
-        minutesAway: number;
-      }> }>(
+      const response = await apiClient.get<any>(
         `/api/request-service/requests/${requestId}/accepted-providers`
       );
-      return response.data || [];
+      
+      // Handle nested response structures
+      let providers: any[] = [];
+      if (Array.isArray(response)) {
+        providers = response;
+      } else if (response?.data) {
+        if (Array.isArray(response.data)) {
+          providers = response.data;
+        } else if (Array.isArray(response.data.data)) {
+          providers = response.data.data;
+        }
+      }
+      
+      return Array.isArray(providers) ? providers : [];
     } catch (error) {
       console.error('Error getting accepted providers:', error);
       throw error;
@@ -2262,21 +2311,20 @@ export const serviceRequestService = {
     message: string;
   }> => {
     try {
-      const response = await apiClient.post<{ data: {
-        requestId: number;
-        status: string;
-        provider: {
-          id: number;
-          name: string;
-          phoneNumber: string;
-          email: string;
-        };
-        message: string;
-      } }>(
+      const response = await apiClient.post<any>(
         `/api/request-service/requests/${requestId}/select-provider`,
         { providerId }
       );
-      return response.data;
+      
+      // Handle nested response structures
+      const responseData = response.data?.data || response.data || response;
+      
+      return {
+        requestId: responseData.requestId || requestId,
+        status: responseData.status || 'accepted',
+        provider: responseData.provider || {},
+        message: responseData.message || 'Provider selected successfully',
+      };
     } catch (error) {
       console.error('Error selecting provider:', error);
       throw error;
@@ -2504,22 +2552,145 @@ export const providerService = {
 
   /**
    * Provider Login
-   * POST /api/provider/login
+   * POST /api/provider/login (same endpoint pattern as signup)
    */
   login: async (payload: ProviderLoginPayload): Promise<ProviderLoginResponse> => {
     try {
-      const response = await apiClient.post<{ data: ProviderLoginResponse }>(
+      if (__DEV__) {
+        console.log('🔵 ========== PROVIDER LOGIN REQUEST ==========');
+        console.log('🔵 Endpoint: POST /api/provider/login');
+        console.log('🔵 Payload:', JSON.stringify({ ...payload, password: '***' }, null, 2));
+        console.log('🔵 =============================================');
+      }
+
+      const response = await apiClient.post<any>(
         '/api/provider/login',
-        payload,
+        {
+          email: payload.email.trim().toLowerCase(),
+          password: payload.password,
+        },
         { skipAuth: true }
       );
-      const { token, ...providerData } = response.data;
-      await apiClient.setAuthToken(token);
-      if (response.data.id) {
-        await apiClient.setUserId(response.data.id);
+
+      // Log the FULL response structure (same as signup)
+      console.log('📥 ========== PROVIDER LOGIN RESPONSE ==========');
+      console.log('📥 Full Response:', JSON.stringify(response, null, 2));
+      console.log('📥 Response Type:', typeof response);
+      console.log('📥 Response Keys:', Object.keys(response || {}));
+      
+      if (response?.data) {
+        console.log('📥 Response.data Keys:', Object.keys(response.data));
+        if (response.data?.data) {
+          console.log('📥 Response.data.data Keys:', Object.keys(response.data.data));
+        }
       }
-      return response.data;
-    } catch (error) {
+
+      // Extract token from various possible locations (same as signup)
+      const token = 
+        response?.data?.data?.token || 
+        response?.data?.token || 
+        response?.token ||
+        (response as any)?.accessToken ||
+        (response as any)?.authToken;
+
+      // Extract provider/company data
+      const providerData = response?.data?.data || response?.data || response;
+      const providerId = 
+        providerData?.id || 
+        providerData?.companyId ||
+        (response as any)?.id ||
+        response?.data?.id;
+
+      console.log('🔍 ========== PROVIDER LOGIN DATA EXTRACTION ==========');
+      console.log('🔍 Token Extraction:', {
+        'response.data.data.token': response?.data?.data?.token ? `✅ Found` : '❌ Not found',
+        'response.data.token': response?.data?.token ? `✅ Found` : '❌ Not found',
+        'response.token': response?.token ? `✅ Found` : '❌ Not found',
+        'finalToken': token ? `✅ Found (length: ${token?.length})` : '❌ NOT FOUND',
+      });
+      console.log('🔍 Provider ID Extraction:', {
+        'response.data.data.id': response?.data?.data?.id ? `✅ Found: ${response.data.data.id}` : '❌ Not found',
+        'response.data.id': response?.data?.id ? `✅ Found: ${response.data.id}` : '❌ Not found',
+        'finalProviderId': providerId ? `✅ Found: ${providerId}` : '❌ NOT FOUND',
+      });
+      console.log('🔍 ====================================================');
+
+      // Save token as bearer token - CRITICAL for subsequent API calls
+      if (token) {
+        await apiClient.setAuthToken(token);
+        if (__DEV__) {
+          console.log('✅ ========== PROVIDER TOKEN SAVED AS BEARER TOKEN ==========');
+          console.log('✅ Token saved successfully:', token.substring(0, 30) + '...');
+          console.log('✅ Token length:', token.length);
+          console.log('✅ This token will be used as Bearer token for all authenticated requests');
+          console.log('✅ ===========================================================');
+        }
+      } else {
+        if (__DEV__) {
+          console.error('❌ ========== TOKEN NOT FOUND IN PROVIDER LOGIN RESPONSE ==========');
+          console.error('❌ Backend is not returning a token in the provider login response.');
+          console.error('❌ Response structure:', JSON.stringify(response, null, 2));
+          console.error('❌ This will cause authentication errors on subsequent API calls.');
+          console.error('❌ ================================================================');
+        }
+        throw new Error('Login failed: No token received from server. Cannot proceed with authentication.');
+      }
+
+      // Save company/provider ID (same as signup - CRITICAL!)
+      let finalProviderId: number | undefined = undefined;
+      
+      if (providerId) {
+        // Use provider ID from response body (preferred)
+        finalProviderId = typeof providerId === 'number' ? providerId : parseInt(providerId.toString(), 10);
+        // Save to COMPANY_ID_KEY (same as signup)
+        await AsyncStorage.setItem(COMPANY_ID_KEY, finalProviderId.toString());
+        if (__DEV__) {
+          console.log('✅ Provider/Company ID saved to COMPANY_ID_KEY:', finalProviderId);
+        }
+      } else if (token) {
+        // If no provider ID in response, try to extract from token
+        const extractedUserId = extractUserIdFromToken(token);
+        if (extractedUserId) {
+          finalProviderId = extractedUserId;
+          await AsyncStorage.setItem(COMPANY_ID_KEY, finalProviderId.toString());
+          if (__DEV__) {
+            console.log('✅ Provider ID extracted from token and saved:', finalProviderId);
+          }
+        } else {
+          if (__DEV__) {
+            console.warn('⚠️ Provider ID not found in response or token. Some features may not work.');
+            console.warn('⚠️ Response structure:', JSON.stringify(response, null, 2));
+          }
+        }
+      }
+      
+      // Also save to USER_ID_KEY for backward compatibility (but provider endpoints should use COMPANY_ID_KEY)
+      if (finalProviderId) {
+        await apiClient.setUserId(finalProviderId);
+      }
+
+      // Return provider data
+      return {
+        id: finalProviderId || providerId || (token ? extractUserIdFromToken(token) : undefined) || 0,
+        name: providerData?.name || providerData?.companyName || '',
+        email: providerData?.email || providerData?.companyEmail || payload.email,
+        phoneNumber: providerData?.phoneNumber || providerData?.companyPhoneNumber,
+        verified: providerData?.verified || false,
+        age: providerData?.age || 0,
+        latitude: providerData?.latitude,
+        longitude: providerData?.longitude,
+        formattedAddress: providerData?.formattedAddress,
+        token: token, // Token is guaranteed to exist (we throw error if not found)
+        message: providerData?.message || 'Login successful',
+      };
+    } catch (error: any) {
+      if (__DEV__) {
+        console.error('❌ ========== PROVIDER LOGIN ERROR ==========');
+        console.error('❌ Error Message:', error.message);
+        console.error('❌ Status:', error.status);
+        console.error('❌ Error Details:', JSON.stringify(error.details, null, 2));
+        console.error('❌ ==========================================');
+      }
       console.error('Error during provider login:', error);
       throw error;
     }
@@ -2531,11 +2702,20 @@ export const providerService = {
    */
   getProvider: async (providerId: number): Promise<Provider> => {
     try {
-      const response = await apiClient.get<{ data: Provider }>(
+      const response = await apiClient.get<any>(
         `/api/provider/${providerId}`,
         { skipAuth: true }
       );
-      return response.data;
+      
+      // Handle nested response structures
+      const providerData = response.data?.data || response.data || response;
+      
+      // Ensure categories is always an array if present
+      if (providerData && providerData.categories && !Array.isArray(providerData.categories)) {
+        providerData.categories = [];
+      }
+      
+      return providerData;
     } catch (error) {
       console.error('Error getting provider:', error);
       throw error;
@@ -2651,17 +2831,30 @@ export const providerService = {
 
   /**
    * Add service categories to provider
-   * POST /api/provider/:providerId/categories
+   * POST /api/provider/categories (NO providerId in URL - extracted from Bearer token)
+   * Provider ID is automatically extracted from the Bearer token by the backend
    */
   addCategories: async (
-    providerId: number,
     categories: string[]
   ): Promise<{ providerId: number; categories: string[]; message: string }> => {
     try {
+      if (__DEV__) {
+        console.log('🔵 ========== ADD CATEGORIES REQUEST ==========');
+        console.log('🔵 Endpoint: POST /api/provider/categories');
+        console.log('🔵 Provider ID will be extracted from Bearer token automatically');
+        console.log('🔵 Categories:', categories);
+        console.log('🔵 ============================================');
+      }
+
       const response = await apiClient.post<{ data: { providerId: number; categories: string[]; message: string } }>(
-        `/api/provider/${providerId}/categories`,
+        `/api/provider/categories`, // NO providerId in URL - backend extracts from token (like location endpoint)
         { categories }
       );
+      
+      if (__DEV__) {
+        console.log('✅ Categories added successfully:', response.data);
+      }
+      
       return response.data;
     } catch (error) {
       console.error('Error adding categories:', error);
@@ -2675,11 +2868,24 @@ export const providerService = {
    */
   getServices: async (providerId: number): Promise<{ id: number; categoryName: string }[]> => {
     try {
-      const response = await apiClient.get<{ data: { id: number; categoryName: string }[] }>(
+      const response = await apiClient.get<any>(
         `/api/provider/${providerId}/services`,
         { skipAuth: true }
       );
-      return response.data || [];
+      
+      // Handle nested response structures
+      let services: any[] = [];
+      if (Array.isArray(response)) {
+        services = response;
+      } else if (response?.data) {
+        if (Array.isArray(response.data)) {
+          services = response.data;
+        } else if (Array.isArray(response.data.data)) {
+          services = response.data.data;
+        }
+      }
+      
+      return Array.isArray(services) ? services : [];
     } catch (error) {
       console.error('Error getting provider services:', error);
       throw error;
@@ -2697,42 +2903,125 @@ export const providerService = {
     maxDistanceKm: number = 50
   ): Promise<NearbyProvider[]> => {
     try {
-      const response = await apiClient.get<{ data: NearbyProvider[] }>(
+      if (__DEV__) {
+        console.log('🔵 ========== GET NEARBY PROVIDERS ==========');
+        console.log('🔵 Endpoint: GET /api/provider/nearby');
+        console.log('🔵 Category:', categoryName);
+        console.log('🔵 Location:', latitude, longitude);
+        console.log('🔵 Max Distance:', maxDistanceKm, 'km');
+        console.log('🔵 ===========================================');
+      }
+
+      const response = await apiClient.get<any>(
         `/api/provider/nearby?categoryName=${encodeURIComponent(categoryName)}&latitude=${latitude}&longitude=${longitude}&maxDistanceKm=${maxDistanceKm}`,
         { skipAuth: true }
       );
-      return response.data || [];
+
+      // Handle multiple possible response structures
+      let providers: NearbyProvider[] = [];
+      
+      if (Array.isArray(response)) {
+        // Response is directly an array
+        providers = response;
+      } else if (response?.data) {
+        // Response has data property
+        if (Array.isArray(response.data)) {
+          providers = response.data;
+        } else if (Array.isArray(response.data.data)) {
+          // Nested data.data structure
+          providers = response.data.data;
+        }
+      }
+      
+      if (__DEV__) {
+        console.log('✅ Nearby providers loaded:', providers.length);
+        console.log('✅ Response structure:', {
+          isArray: Array.isArray(response),
+          hasData: !!response?.data,
+          hasDataData: !!response?.data?.data,
+          providersCount: providers.length,
+        });
+        if (providers.length > 0) {
+          console.log('✅ First provider:', providers[0]);
+        }
+      }
+      
+      // Always return an array, never undefined or null
+      return Array.isArray(providers) ? providers : [];
     } catch (error) {
-      console.error('Error getting nearby providers:', error);
-      throw error;
+      console.error('❌ Error getting nearby providers:', error);
+      // Return empty array on error instead of throwing (so UI can show empty state)
+      if (__DEV__) {
+        console.warn('⚠️ Returning empty array due to error. Error details:', error);
+      }
+      return [];
     }
   },
 
   /**
    * Get available requests for provider
-   * GET /api/provider/:providerId/requests/available?maxDistanceKm=50
+   * GET /api/provider/requests/available?maxDistanceKm=50 (NO providerId in URL - extracted from Bearer token)
    */
   getAvailableRequests: async (
-    providerId: number,
     maxDistanceKm: number = 50
   ): Promise<AvailableRequest[]> => {
     try {
-      const response = await apiClient.get<{ data: AvailableRequest[] }>(
-        `/api/provider/${providerId}/requests/available?maxDistanceKm=${maxDistanceKm}`
+      if (__DEV__) {
+        console.log('🔵 ========== GET AVAILABLE REQUESTS ==========');
+        console.log('🔵 Endpoint: GET /api/provider/requests/available');
+        console.log('🔵 Provider ID will be extracted from Bearer token automatically');
+        console.log('🔵 Max Distance:', maxDistanceKm, 'km');
+        console.log('🔵 ============================================');
+      }
+
+      const response = await apiClient.get<any>(
+        `/api/provider/requests/available?maxDistanceKm=${maxDistanceKm}` // NO providerId in URL
       );
-      return response.data || [];
+      
+      // Handle multiple possible response structures
+      let requests: AvailableRequest[] = [];
+      
+      if (Array.isArray(response)) {
+        // Response is directly an array
+        requests = response;
+      } else if (response?.data) {
+        // Response has data property
+        if (Array.isArray(response.data)) {
+          requests = response.data;
+        } else if (Array.isArray(response.data.data)) {
+          // Nested data.data structure
+          requests = response.data.data;
+        }
+      }
+      
+      if (__DEV__) {
+        console.log('✅ Available requests loaded:', requests.length);
+        console.log('✅ Response structure:', {
+          isArray: Array.isArray(response),
+          hasData: !!response?.data,
+          hasDataData: !!response?.data?.data,
+          requestsCount: requests.length,
+        });
+      }
+      
+      // Always return an array, never undefined or null
+      return Array.isArray(requests) ? requests : [];
     } catch (error) {
       console.error('Error getting available requests:', error);
-      throw error;
+      // Return empty array on error instead of throwing (or throw based on your preference)
+      // For now, we'll return empty array so UI can handle empty state
+      if (__DEV__) {
+        console.warn('⚠️ Returning empty array due to error');
+      }
+      return [];
     }
   },
 
   /**
    * Accept service request
-   * POST /api/provider/:providerId/requests/:requestId/accept
+   * POST /api/provider/requests/:requestId/accept (NO providerId in URL - extracted from Bearer token)
    */
   acceptRequest: async (
-    providerId: number,
     requestId: number
   ): Promise<{
     requestId: number;
@@ -2742,6 +3031,14 @@ export const providerService = {
     message: string;
   }> => {
     try {
+      if (__DEV__) {
+        console.log('🔵 ========== ACCEPT REQUEST ==========');
+        console.log('🔵 Endpoint: POST /api/provider/requests/' + requestId + '/accept');
+        console.log('🔵 Provider ID will be extracted from Bearer token automatically');
+        console.log('🔵 Request ID:', requestId);
+        console.log('🔵 ====================================');
+      }
+
       const response = await apiClient.post<{
         data: {
           requestId: number;
@@ -2750,7 +3047,7 @@ export const providerService = {
           user: { id: number; firstName: string; lastName: string; phoneNumber: string; email: string };
           message: string;
         };
-      }>(`/api/provider/${providerId}/requests/${requestId}/accept`);
+      }>(`/api/provider/requests/${requestId}/accept`); // NO providerId, only requestId
       return response.data;
     } catch (error) {
       console.error('Error accepting request:', error);
@@ -2760,16 +3057,97 @@ export const providerService = {
 
   /**
    * Get provider accepted requests
-   * GET /api/provider/:providerId/requests/accepted
+   * GET /api/provider/requests/accepted (NO providerId in URL - extracted from Bearer token)
    */
-  getAcceptedRequests: async (providerId: number): Promise<ServiceRequest[]> => {
+  getAcceptedRequests: async (): Promise<ServiceRequest[]> => {
     try {
-      const response = await apiClient.get<{ data: ServiceRequest[] }>(
-        `/api/provider/${providerId}/requests/accepted`
+      if (__DEV__) {
+        console.log('🔵 ========== GET ACCEPTED REQUESTS ==========');
+        console.log('🔵 Endpoint: GET /api/provider/requests/accepted');
+        console.log('🔵 Provider ID will be extracted from Bearer token automatically');
+        console.log('🔵 ==========================================');
+      }
+
+      const response = await apiClient.get<any>(
+        `/api/provider/requests/accepted` // NO providerId in URL
       );
-      return response.data || [];
+      
+      // Handle multiple possible response structures
+      let requests: ServiceRequest[] = [];
+      
+      if (Array.isArray(response)) {
+        // Response is directly an array
+        requests = response;
+      } else if (response?.data) {
+        // Response has data property
+        if (Array.isArray(response.data)) {
+          requests = response.data;
+        } else if (Array.isArray(response.data.data)) {
+          // Nested data.data structure
+          requests = response.data.data;
+        }
+      }
+      
+      if (__DEV__) {
+        console.log('✅ Accepted requests loaded:', requests.length);
+        console.log('✅ Response structure:', {
+          isArray: Array.isArray(response),
+          hasData: !!response?.data,
+          hasDataData: !!response?.data?.data,
+          requestsCount: requests.length,
+        });
+      }
+      
+      // Always return an array, never undefined or null
+      return Array.isArray(requests) ? requests : [];
     } catch (error) {
       console.error('Error getting accepted requests:', error);
+      // Return empty array on error instead of throwing (or throw based on your preference)
+      // For now, we'll return empty array so UI can handle empty state
+      if (__DEV__) {
+        console.warn('⚠️ Returning empty array due to error');
+      }
+      return [];
+    }
+  },
+
+  /**
+   * Reject service request
+   * POST /api/provider/requests/:requestId/reject (NO providerId in URL - extracted from Bearer token)
+   */
+  rejectRequest: async (
+    requestId: number
+  ): Promise<{
+    requestId: number;
+    acceptanceId: number;
+    status: string;
+    message: string;
+  }> => {
+    try {
+      if (__DEV__) {
+        console.log('🔵 ========== REJECT REQUEST ==========');
+        console.log('🔵 Endpoint: POST /api/provider/requests/' + requestId + '/reject');
+        console.log('🔵 Provider ID will be extracted from Bearer token automatically');
+        console.log('🔵 Request ID:', requestId);
+        console.log('🔵 ====================================');
+      }
+
+      const response = await apiClient.post<{
+        data: {
+          requestId: number;
+          acceptanceId: number;
+          status: string;
+          message: string;
+        };
+      }>(`/api/provider/requests/${requestId}/reject`); // NO providerId, only requestId
+      
+      if (__DEV__) {
+        console.log('✅ Request rejected successfully:', response.data);
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting request:', error);
       throw error;
     }
   },

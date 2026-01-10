@@ -63,16 +63,15 @@ export default function ProviderJobDetailsScreen() {
     haptics.light();
 
     try {
-      const providerId = await apiClient.getUserId();
       const requestId = parseInt(params.requestId, 10);
 
-      if (!providerId) {
-        showError('Unable to identify your account. Please sign in again.');
-        setIsAccepting(false);
-        return;
+      // NO need to get providerId - backend extracts from Bearer token
+      if (__DEV__) {
+        console.log('🔄 Accepting request (provider ID from Bearer token)...');
+        console.log('🔄 Request ID:', requestId);
       }
 
-      await providerService.acceptRequest(providerId, requestId);
+      await providerService.acceptRequest(requestId); // REMOVE providerId
       
       haptics.success();
       showSuccess('Request accepted successfully! Waiting for client confirmation.');
@@ -98,21 +97,23 @@ export default function ProviderJobDetailsScreen() {
     haptics.light();
 
     try {
-      const providerId = await apiClient.getUserId();
       const requestId = parseInt(params.requestId, 10);
 
-      if (!providerId) {
-        showError('Unable to identify your account. Please sign in again.');
-        setIsRejecting(false);
-        return;
+      // NO need to get providerId - backend extracts from Bearer token
+      if (__DEV__) {
+        console.log('🔄 Rejecting request (provider ID from Bearer token)...');
+        console.log('🔄 Request ID:', requestId);
       }
 
-      // TODO: Implement reject endpoint when available
-      // await providerService.rejectRequest(providerId, requestId);
+      await providerService.rejectRequest(requestId); // NO providerId needed - extracted from token
       
-      // For now, just navigate back
-      haptics.light();
-      router.back();
+      haptics.success();
+      showSuccess('Request rejected successfully');
+      
+      // Navigate back after a short delay
+      setTimeout(() => {
+        router.back();
+      }, 1500);
     } catch (error: any) {
       console.error('Error rejecting request:', error);
       haptics.error();

@@ -68,6 +68,31 @@ export const getErrorMessage = (error: ApiError | Error | any, defaultMessage: s
 const formatApiErrorMessage = (message: string): string => {
   if (!message) return 'Something went wrong. Please try again.';
 
+  // Handle "Provider already has categories" error - extract category names
+  if (message.includes('Provider already has the following categories:')) {
+    // Extract category names from the error message
+    const categoriesMatch = message.match(/categories:\s*([^.]+)/);
+    if (categoriesMatch && categoriesMatch[1]) {
+      const categoryNames = categoriesMatch[1].split(',').map(c => c.trim()).filter(c => c);
+      if (categoryNames.length > 0) {
+        // Format category names to be more readable
+        const formattedCategories = categoryNames
+          .map(cat => {
+            // Convert camelCase to readable format (e.g., "airConditioning" -> "Air Conditioning")
+            return cat
+              .replace(/([A-Z])/g, ' $1')
+              .replace(/^./, str => str.toUpperCase())
+              .trim();
+          })
+          .join(', ');
+        
+        return `Some categories are already added to your profile: ${formattedCategories}. Please select different categories or remove existing ones first.`;
+      }
+    }
+    // Fallback if we can't extract categories
+    return 'Some of these categories are already added to your profile. Please select different categories or remove existing ones first.';
+  }
+
   // Common API error patterns to make more user-friendly
   const errorMappings: { [key: string]: string } = {
     'User already Exists. Sign In instead.': 'An account with this email or phone number already exists. Please sign in instead.',
@@ -83,6 +108,7 @@ const formatApiErrorMessage = (message: string): string => {
     'Failed to fetch': 'Unable to connect to the server. Please check your internet connection and try again.',
     'TypeError: Network request failed': 'Unable to connect to the server. Please check your internet connection and try again.',
     'timeout': 'The request took too long. Please check your connection and try again.',
+    'Duplicate categories are not allowed': 'You have selected duplicate categories. Please select each category only once.',
   };
 
   // Check for exact matches first
@@ -174,7 +200,10 @@ export const getSpecificErrorMessage = (error: ApiError | Error | any, context: 
     'get_location': 'Failed to load location. Please try again.',
     'search_location': 'Location search is temporarily unavailable. Please enter your location manually.',
     'provider_profile_setup': 'Failed to complete profile setup. Please try again.',
-    'add_categories': 'Failed to save categories. Please try again.',
+    'add_categories': 'Failed to save categories. Some categories may already be added to your profile. Please select different categories or try again.',
+    'accept_request': 'Failed to accept request. Please try again.',
+    'reject_request': 'Failed to reject request. Please try again.',
+    'get_request_details': 'Failed to load request details. Please try again.',
   };
 
   const defaultMessage = defaultMessages[context] || 'Something went wrong. Please try again.';

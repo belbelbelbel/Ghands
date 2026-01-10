@@ -1,6 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useAuthRole } from '@/hooks/useAuth';
+import { haptics } from '@/hooks/useHaptics';
 import { useRouter } from 'expo-router';
 import {
   ArrowRight,
@@ -279,6 +280,7 @@ export default function ProviderProfileScreen() {
                   alignItems: 'center',
                 }}
                 activeOpacity={0.7}
+                onPress={() => router.push('/ProviderProfileSetupScreen' as any)}
               >
                 <Edit size={16} color={Colors.accent} style={{ marginRight: 4 }} />
                 <Text
@@ -359,6 +361,10 @@ export default function ProviderProfileScreen() {
                   justifyContent: 'center',
                 }}
                 activeOpacity={0.7}
+                onPress={() => {
+                  haptics.light();
+                  router.push('/ProviderProfileSetupScreen' as any);
+                }}
               >
                 <Plus size={20} color={Colors.white} />
               </TouchableOpacity>
@@ -501,6 +507,10 @@ export default function ProviderProfileScreen() {
                 alignSelf: 'flex-start',
               }}
               activeOpacity={0.7}
+              onPress={() => {
+                haptics.light();
+                router.push('/ProviderUploadDocumentsScreen' as any);
+              }}
             >
               <Plus size={18} color={Colors.accent} style={{ marginRight: 6 }} />
               <Text

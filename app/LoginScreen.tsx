@@ -1,16 +1,16 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { haptics } from '@/hooks/useHaptics';
+import { authService } from '@/services/api';
 import { useRouter } from 'expo-router';
 import { Lock, Mail } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import Toast from '../components/Toast';
 import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import { SocialButton } from '../components/SocialButton';
+import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
-import { authService } from '@/services/api';
-import { haptics } from '@/hooks/useHaptics';
 
 export default function LoginScreen() {
   const router = useRouter();

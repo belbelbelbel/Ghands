@@ -125,7 +125,7 @@ export default function ProviderHomeScreen() {
       }
 
       // If no company name, try to get provider name from API
-      const providerId = await apiClient.getUserId();
+      const providerId = await apiClient.getCompanyId(); // Use getCompanyId() for providers
       if (providerId) {
         try {
           const provider = await providerService.getProvider(providerId);
@@ -181,23 +181,25 @@ export default function ProviderHomeScreen() {
   const loadAvailableRequests = useCallback(async () => {
     setIsLoadingPending(true);
     try {
-      const providerId = await apiClient.getUserId();
-      
-      if (!providerId) {
-        if (__DEV__) {
-          console.warn('⚠️ No provider ID found, cannot load available requests');
-        }
-        setPendingJobs([]);
-        return;
+      // NO need to get providerId - backend extracts from Bearer token
+      if (__DEV__) {
+        console.log('🔄 Loading available requests (provider ID from Bearer token)...');
       }
 
-      const requests = await providerService.getAvailableRequests(providerId, 50);
+      const requests = await providerService.getAvailableRequests(50);
+      
+      // Ensure requests is always an array
+      const requestsArray = Array.isArray(requests) ? requests : [];
       
       if (__DEV__) {
-        console.log('✅ Available requests loaded:', requests.length);
+        console.log('✅ Available requests loaded:', requestsArray.length);
       }
       
-      const jobCards = requests.map((req) => mapRequestToJobCard(req, false));
+      // Map to job cards only if we have valid requests
+      const jobCards = requestsArray.length > 0 
+        ? requestsArray.map((req) => mapRequestToJobCard(req, false))
+        : [];
+      
       setPendingJobs(jobCards);
     } catch (error: any) {
       console.error('Error loading available requests:', error);
@@ -213,24 +215,25 @@ export default function ProviderHomeScreen() {
   const loadAcceptedRequests = useCallback(async () => {
     setIsLoadingActive(true);
     try {
-      const providerId = await apiClient.getUserId();
-      
-      if (!providerId) {
-        if (__DEV__) {
-          console.warn('⚠️ No provider ID found, cannot load accepted requests');
-        }
-        setActiveJobs([]);
-        setHasActiveJobs(false);
-        return;
+      // NO need to get providerId - backend extracts from Bearer token
+      if (__DEV__) {
+        console.log('🔄 Loading accepted requests (provider ID from Bearer token)...');
       }
 
-      const requests = await providerService.getAcceptedRequests(providerId);
+      const requests = await providerService.getAcceptedRequests();
+      
+      // Ensure requests is always an array
+      const requestsArray = Array.isArray(requests) ? requests : [];
       
       if (__DEV__) {
-        console.log('✅ Accepted requests loaded:', requests.length);
+        console.log('✅ Accepted requests loaded:', requestsArray.length);
       }
       
-      const jobCards = requests.map((req) => mapRequestToJobCard(req, true));
+      // Map to job cards only if we have valid requests
+      const jobCards = requestsArray.length > 0
+        ? requestsArray.map((req) => mapRequestToJobCard(req, true))
+        : [];
+      
       setActiveJobs(jobCards);
       setHasActiveJobs(jobCards.length > 0);
     } catch (error: any) {
@@ -392,13 +395,13 @@ export default function ProviderHomeScreen() {
               
               haptics.light();
               try {
-                const providerId = await apiClient.getUserId();
-                if (!providerId) {
-                  showError('Unable to identify your account. Please sign in again.');
-                  return;
+                // NO need to get providerId - backend extracts from Bearer token
+                if (__DEV__) {
+                  console.log('🔄 Accepting request (provider ID from Bearer token)...');
+                  console.log('🔄 Request ID:', job.requestId);
                 }
 
-                await providerService.acceptRequest(providerId, job.requestId);
+                await providerService.acceptRequest(job.requestId); // REMOVE providerId
                 haptics.success();
                 showSuccess('Request accepted! Waiting for client confirmation.');
                 
@@ -587,6 +590,11 @@ export default function ProviderHomeScreen() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
+              onPress={() => {
+                haptics.light();
+                router.push('/ProviderProfileSetupScreen' as any);
+              }}
+              activeOpacity={0.7}
             >
               <Plus size={16} color={Colors.white} />
               <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: Colors.white, marginLeft: 6 }}>
@@ -603,6 +611,12 @@ export default function ProviderHomeScreen() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
+              onPress={() => {
+                haptics.light();
+                // Share referral link or navigate to referral screen
+                router.push('/provider/profile' as any);
+              }}
+              activeOpacity={0.7}
             >
               <Users size={16} color={Colors.white} />
               <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: Colors.white, marginLeft: 6 }}>
@@ -618,7 +632,7 @@ export default function ProviderHomeScreen() {
               Loading active jobs...
             </Text>
           </View>
-        ) : hasActiveJobs && activeJobs.length > 0 && (
+        ) : Array.isArray(activeJobs) && activeJobs.length > 0 ? (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Active Jobs</Text>
@@ -630,6 +644,9 @@ export default function ProviderHomeScreen() {
             </View>
             {activeJobs.slice(0, 3).map((job) => renderJobCard(job, true))}
           </View>
+        ) : !isLoadingActive && (
+          // Empty state for active jobs will be shown below if no pending jobs either
+          null
         )}
 
         {isLoadingPending ? (
@@ -639,7 +656,7 @@ export default function ProviderHomeScreen() {
               Loading available requests...
             </Text>
           </View>
-        ) : pendingJobs.length > 0 && (
+        ) : Array.isArray(pendingJobs) && pendingJobs.length > 0 ? (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Available Requests</Text>
@@ -653,15 +670,27 @@ export default function ProviderHomeScreen() {
             </View>
             {pendingJobs.slice(0, 3).map((job) => renderJobCard(job, false))}
           </View>
-        )}
-
-        {!isLoadingPending && !isLoadingActive && pendingJobs.length === 0 && activeJobs.length === 0 && (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 40 }}>
-            <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 8 }}>
-              No requests available
+        ) : !isLoadingPending && !isLoadingActive && (
+          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 20 }}>
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 4 }}>
+              No available requests
             </Text>
             <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center' }}>
               New service requests will appear here when they match your categories and location.
+            </Text>
+          </View>
+        )}
+
+        {/* Show empty state only if both sections are empty and not loading */}
+        {!isLoadingPending && !isLoadingActive && 
+         Array.isArray(pendingJobs) && pendingJobs.length === 0 && 
+         Array.isArray(activeJobs) && activeJobs.length === 0 && (
+          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 20 }}>
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 4 }}>
+              No requests yet
+            </Text>
+            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', maxWidth: 280 }}>
+              Make sure you've set your location and service categories to see nearby requests.
             </Text>
           </View>
         )}
@@ -680,6 +709,11 @@ export default function ProviderHomeScreen() {
                 borderColor: Colors.border,
                 overflow: 'hidden',
               }}
+              onPress={() => {
+                haptics.light();
+                router.push('/UserGuideScreen' as any);
+              }}
+              activeOpacity={0.7}
             >
               <View
                 style={{
@@ -711,6 +745,11 @@ export default function ProviderHomeScreen() {
                 borderColor: Colors.border,
                 overflow: 'hidden',
               }}
+              onPress={() => {
+                haptics.light();
+                router.push('/SupportScreen' as any);
+              }}
+              activeOpacity={0.7}
             >
               <View
                 style={{

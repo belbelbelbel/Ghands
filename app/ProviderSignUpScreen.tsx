@@ -1,29 +1,28 @@
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useAuthRole } from '@/hooks/useAuth';
+import { haptics } from '@/hooks/useHaptics';
+import { authService } from '@/services/api';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import { Lock, Mail, Phone } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import { SocialButton } from '../components/SocialButton';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
-import { authService, providerService } from '@/services/api';
-import { useAuthRole } from '@/hooks/useAuth';
-import { haptics } from '@/hooks/useHaptics';
-import { getSpecificErrorMessage } from '@/utils/errorMessages';
 
 export default function ProviderSignUpScreen() {
   const router = useRouter();
   const { toast, showError, showSuccess, hideToast } = useToast();
   const { setRole } = useAuthRole();
   
-  // Company signup fields
-  const [companyName, setCompanyName] = useState('');
+  // Company signup fields (only email, phoneNumber, password required by backend)
   const [companyEmail, setCompanyEmail] = useState('');
-  const [companyFax, setCompanyFax] = useState(''); // Fax field (using phone number field)
+  const [companyFax, setCompanyFax] = useState(''); // Phone number field
   const [companyPassword, setCompanyPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -78,28 +77,32 @@ export default function ProviderSignUpScreen() {
     haptics.light();
 
     try {
-      // Auto-generate company name from email if not provided
-      const finalCompanyName = companyName.trim() || companyEmail.split('@')[0] || 'Company';
-
+      // Only send email, phoneNumber, password as required by backend
       const signupPayload = {
-        companyName: finalCompanyName,
-        companyEmail: companyEmail.trim().toLowerCase(),
-        companyPhoneNumber: companyFax.trim(), // Using fax as phone number for API
-        companyPassword: companyPassword.trim(),
+        email: companyEmail.trim().toLowerCase(),
+        phoneNumber: companyFax.trim(), // Phone number (11 digits)
+        password: companyPassword.trim(),
       };
 
       if (__DEV__) {
-        console.log('📤 Company Signup:', JSON.stringify({ ...signupPayload, companyPassword: '***' }, null, 2));
+        console.log('📤 Company Signup (email, phoneNumber, password only):', JSON.stringify({ ...signupPayload, password: '***' }, null, 2));
       }
 
       const response = await authService.companySignup(signupPayload);
       
-      // Token is already saved by authService.companySignup
+      // Token is already saved as Bearer token by authService.companySignup
+      if (__DEV__) {
+        console.log('✅ Signup successful - Token saved as Bearer token');
+        console.log('✅ Company ID:', response.id);
+        console.log('✅ Email:', response.companyEmail);
+      }
+      
       // Set role to provider
       await setRole('provider');
       
       // Save company info
-      await AsyncStorage.setItem('@ghands:company_name', finalCompanyName);
+      const companyName = companyEmail.split('@')[0] || 'Company';
+      await AsyncStorage.setItem('@ghands:company_name', companyName);
       await AsyncStorage.setItem('@ghands:company_email', companyEmail.trim());
       await AsyncStorage.setItem('@ghands:company_phone', companyFax.trim());
       
@@ -114,7 +117,7 @@ export default function ProviderSignUpScreen() {
       console.error('Company signup error:', error);
       haptics.error();
       
-      const errorMessage = getSpecificErrorMessage(error);
+      const errorMessage = getSpecificErrorMessage(error, 'company_signup');
       showError(errorMessage);
     } finally {
       setIsLoading(false);

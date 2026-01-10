@@ -20,6 +20,8 @@ interface PhotoItem {
 export default function AddPhotosScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ 
+    requestId?: string;
+    categoryName?: string; // Add categoryName support
     selectedDateTime?: string; 
     selectedDate?: string; 
     selectedTime?: string;
@@ -211,11 +213,12 @@ export default function AddPhotosScreen() {
       router.replace({
         pathname: '/ServiceMapScreen' as any,
         params: {
+          categoryName: params.categoryName, // Pass categoryName (primary)
+          serviceType: params.serviceType || params.categoryName, // Use categoryName as fallback
           selectedDateTime: params.selectedDateTime,
           selectedDate: params.selectedDate,
           selectedTime: params.selectedTime,
           photoCount: selectedPhotos.size.toString(),
-          serviceType: params.serviceType, // Preserve service type
           location: params.location, // Preserve location
         },
       } as any);

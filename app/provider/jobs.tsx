@@ -122,23 +122,25 @@ export default function ProviderJobsScreen() {
   const loadAcceptedRequests = useCallback(async () => {
     setIsLoading(true);
     try {
-      const providerId = await apiClient.getUserId();
-      
-      if (!providerId) {
-        if (__DEV__) {
-          console.warn('⚠️ No provider ID found, cannot load accepted requests');
-        }
-        setAllJobs([]);
-        return;
+      // NO need to get providerId - backend extracts from Bearer token
+      if (__DEV__) {
+        console.log('🔄 Loading accepted requests (provider ID from Bearer token)...');
       }
 
-      const requests = await providerService.getAcceptedRequests(providerId);
+      const requests = await providerService.getAcceptedRequests();
+      
+      // Ensure requests is always an array
+      const requestsArray = Array.isArray(requests) ? requests : [];
       
       if (__DEV__) {
-        console.log('✅ Accepted requests loaded:', requests.length);
+        console.log('✅ Accepted requests loaded:', requestsArray.length);
       }
       
-      const jobItems = requests.map((req) => mapRequestToJobItem(req));
+      // Map to job items only if we have valid requests
+      const jobItems = requestsArray.length > 0
+        ? requestsArray.map((req) => mapRequestToJobItem(req))
+        : [];
+      
       setAllJobs(jobItems);
     } catch (error: any) {
       console.error('Error loading accepted requests:', error);
@@ -167,7 +169,9 @@ export default function ProviderJobsScreen() {
   }, [loadAcceptedRequests]);
 
   const getJobsForTab = () => {
-    return allJobs.filter((job) => job.status === activeTab);
+    // Ensure allJobs is always an array
+    const jobsArray = Array.isArray(allJobs) ? allJobs : [];
+    return jobsArray.filter((job) => job.status === activeTab);
   };
 
   const renderJobCard = (job: JobItem) => (

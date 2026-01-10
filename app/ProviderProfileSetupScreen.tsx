@@ -331,14 +331,14 @@ export default function ProviderProfileSetupScreen() {
         return;
       }
 
-      // Add categories
+      // Add categories (provider ID extracted from Bearer token automatically)
       try {
         if (__DEV__) {
           console.log('🔄 Attempting to add categories...');
-          console.log('🔄 Provider ID:', providerId);
+          console.log('🔄 Provider ID will be extracted from Bearer token automatically');
           console.log('🔄 Categories:', selectedCategories);
         }
-        await providerService.addCategories(providerId, selectedCategories);
+        await providerService.addCategories(selectedCategories); // NO providerId needed - extracted from token
         if (__DEV__) {
           console.log('✅ Provider categories added:', selectedCategories);
         }
@@ -355,8 +355,34 @@ export default function ProviderProfileSetupScreen() {
             fullError: JSON.stringify(categoriesError, null, 2),
           });
         }
-        // Show specific error message from API
-        const errorMessage = getSpecificErrorMessage(categoriesError, 'add_categories');
+        
+        // Extract error message with better handling for "already has categories" case
+        let errorMessage = getSpecificErrorMessage(categoriesError, 'add_categories');
+        
+        // If the error mentions categories already added, extract and format them nicely
+        const errorText = categoriesError?.message || categoriesError?.details?.data?.error || errorMessage;
+        if (errorText && errorText.includes('Provider already has the following categories:')) {
+          // Extract category names from error message
+          const categoriesMatch = errorText.match(/categories:\s*([^.]+)/);
+          if (categoriesMatch && categoriesMatch[1]) {
+            const categoryNames = categoriesMatch[1].split(',').map((c: string) => c.trim()).filter((c: string) => c);
+            if (categoryNames.length > 0) {
+              // Format category names to be more readable
+              const formattedCategories = categoryNames
+                .map((cat: string) => {
+                  // Convert camelCase to readable format (e.g., "airConditioning" -> "Air Conditioning")
+                  return cat
+                    .replace(/([A-Z])/g, ' $1')
+                    .replace(/^./, (str: string) => str.toUpperCase())
+                    .trim();
+                })
+                .join(', ');
+              
+              errorMessage = `Some categories are already added to your profile: ${formattedCategories}. Please select different categories or remove existing ones first.`;
+            }
+          }
+        }
+        
         showError(errorMessage);
         setIsSaving(false);
         return;

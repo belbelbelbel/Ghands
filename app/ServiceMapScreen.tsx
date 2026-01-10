@@ -10,6 +10,7 @@ import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-na
 import { Button } from '@/components/ui/Button';
 import { providerService, locationService } from '@/services/api';
 import { getCategoryIcon } from '@/utils/categoryIcons';
+import { normalizeCategoryName, isValidCategoryName } from '@/utils/categoryMapping';
 import { useToast } from '@/hooks/useToast';
 import Toast from '@/components/Toast';
 const MAX_SELECTION = 3;
@@ -166,12 +167,27 @@ const ServiceMapScreen = () => {
       // Reset error state
       setProviderError(null);
       
+      if (__DEV__) {
+        console.log('🔵 ========== LOAD PROVIDERS DEBUG ==========');
+        console.log('🔵 params.categoryName:', params.categoryName);
+        console.log('🔵 params.serviceType:', params.serviceType);
+        console.log('🔵 Final categoryName:', categoryName);
+        console.log('🔵 serviceLocationCoords:', serviceLocationCoords);
+        console.log('🔵 ===========================================');
+      }
+      
       if (!categoryName || !serviceLocationCoords) {
         // Don't show dummy data - show empty state instead
         setProviders([]);
         if (!categoryName) {
+          if (__DEV__) {
+            console.warn('⚠️ No category name provided!');
+          }
           setProviderError('Please select a service category');
         } else if (!serviceLocationCoords) {
+          if (__DEV__) {
+            console.warn('⚠️ No service location coordinates!');
+          }
           setProviderError('Please set your service location');
         }
         return;
@@ -179,11 +195,32 @@ const ServiceMapScreen = () => {
 
       setIsLoadingProviders(true);
       try {
-        // Normalize category name (e.g., "Plumbing Service" -> "plumbing")
-        const normalizedCategory = categoryName
-          .toLowerCase()
-          .replace(/\s+service$/, '')
-          .replace(/\s+/g, '');
+        // Normalize category name using mapping function
+        // This converts display names like "Plumber", "Plumbing Service" to API format like "plumbing"
+        const normalizedCategory = normalizeCategoryName(categoryName);
+        const isValid = isValidCategoryName(categoryName);
+        
+        if (__DEV__) {
+          console.log('🔵 ========== CATEGORY NORMALIZATION ==========');
+          console.log('🔵 Original categoryName:', categoryName);
+          console.log('🔵 Normalized category:', normalizedCategory);
+          console.log('🔵 Is valid category:', isValid);
+          console.log('🔵 Location:', {
+            latitude: serviceLocationCoords.latitude,
+            longitude: serviceLocationCoords.longitude,
+          });
+          console.log('🔵 ===========================================');
+        }
+
+        if (!normalizedCategory) {
+          const errorMsg = `Invalid category name: "${categoryName}". Please select a valid service category.`;
+          if (__DEV__) {
+            console.error('❌ Invalid category:', categoryName);
+          }
+          setProviderError(errorMsg);
+          setProviders([]);
+          return;
+        }
 
         const nearbyProviders = await providerService.getNearbyProviders(
           normalizedCategory,
@@ -192,14 +229,45 @@ const ServiceMapScreen = () => {
           50 // maxDistanceKm
         );
 
+        // Ensure nearbyProviders is always an array
+        const providersArray = Array.isArray(nearbyProviders) ? nearbyProviders : [];
+        
+        if (__DEV__) {
+          console.log('✅ ========== PROVIDERS RECEIVED ==========');
+          console.log('✅ Providers count:', providersArray.length);
+          console.log('✅ Normalized category sent to API:', normalizedCategory);
+          console.log('✅ Location sent to API:', {
+            latitude: serviceLocationCoords.latitude,
+            longitude: serviceLocationCoords.longitude,
+          });
+          if (providersArray.length > 0) {
+            console.log('✅ First provider:', providersArray[0]);
+          } else {
+            console.warn('⚠️ No providers returned from API');
+            console.warn('⚠️ This could mean:');
+            console.warn('   1. No providers registered for this category');
+            console.warn('   2. No providers within 50km radius');
+            console.warn('   3. Category name mismatch with backend');
+            console.warn('   4. Backend error (check network tab)');
+          }
+          console.log('✅ ===========================================');
+        }
+
+        // Only map if we have valid providers
+        if (providersArray.length === 0) {
+          setProviders([]);
+          setProviderError(`No providers found nearby for "${categoryName}". Try expanding your search radius or selecting a different service category.`);
+          return;
+        }
+
         // Map API NearbyProvider to ServiceProvider format
-        const mappedProviders: ServiceProvider[] = nearbyProviders.map((provider, index) => {
+        const mappedProviders: ServiceProvider[] = providersArray.map((provider, index) => {
           // Get icon for category
           const IconComponent = getCategoryIcon(normalizedCategory, categoryName, '');
           const categoryDisplayName = categoryName.split(' ')[0]; // "Plumbing Service" -> "Plumber"
           
           // Calculate approximate provider coordinates based on distance and angle
-          // This is an approximation since API doesn't return exact coordinates
+          // API doesn't return exact coordinates, so we distribute providers around service location
           const angle = (index * 45) * (Math.PI / 180); // Distribute providers around service location
           const distanceInDegrees = provider.distanceKm / 111; // Rough conversion: 1km ≈ 0.009 degrees
           
@@ -213,7 +281,7 @@ const ServiceMapScreen = () => {
               ? `${(provider.distanceKm * 1000).toFixed(0)} m away`
               : `${provider.distanceKm.toFixed(1)} km away`,
             availability: provider.verified ? 'Available' : 'Busy',
-            image: require('../assets/images/plumbericon2.png'), // Default icon
+            image: require('../assets/images/plumbericon2.png'), // Default icon - could use getCategoryIcon result
             coords: {
               latitude: serviceLocationCoords.latitude + (Math.cos(angle) * distanceInDegrees),
               longitude: serviceLocationCoords.longitude + (Math.sin(angle) * distanceInDegrees),
@@ -221,26 +289,34 @@ const ServiceMapScreen = () => {
           };
         });
 
-        if (mappedProviders.length === 0) {
-          setProviderError('No providers found nearby for this service');
-        } else {
-          setProviderError(null);
+        if (__DEV__) {
+          console.log('✅ Mapped providers:', mappedProviders.length);
         }
+
         setProviders(mappedProviders);
+        setProviderError(null);
       } catch (error: any) {
-        console.error('Error loading nearby providers:', error);
+        console.error('❌ ========== ERROR LOADING PROVIDERS ==========');
+        console.error('❌ Error:', error);
+        console.error('❌ Error message:', error?.message);
+        console.error('❌ Error status:', error?.status);
+        console.error('❌ Error details:', error?.details);
+        console.error('❌ Category used:', categoryName);
+        console.error('❌ Normalized category:', normalizeCategoryName(categoryName));
+        console.error('❌ Location:', serviceLocationCoords);
+        console.error('❌ ===========================================');
+        
         setProviders([]);
         
-        // Extract error message
+        // Extract error message with more context
         const errorMessage = error?.message || error?.details?.data?.error || 'Failed to load providers';
-        setProviderError(errorMessage);
+        const fullErrorMessage = `Unable to find providers at the moment. ${errorMessage}`;
         
-        // Only use dummy data in development mode
-        if (__DEV__ && SAMPLE_PROVIDERS.length > 0) {
-          console.warn('⚠️ Using dummy providers for development testing');
-          setProviders(SAMPLE_PROVIDERS);
-          setProviderError(null);
+        if (__DEV__) {
+          console.error('❌ Full error message:', fullErrorMessage);
         }
+        
+        setProviderError(fullErrorMessage);
       } finally {
         setIsLoadingProviders(false);
       }
@@ -319,14 +395,16 @@ const ServiceMapScreen = () => {
             </View>
             <Text
               style={{
-                fontSize: 18,
-                fontFamily: 'Poppins-SemiBold',
+                fontSize: 20,
+                fontFamily: 'Poppins-Bold',
                 color: '#111827',
                 marginBottom: 8,
                 textAlign: 'center',
               }}
             >
-              {providerError.includes('No providers') ? 'No Providers Found' : 'Unable to Load Providers'}
+              {providerError.includes('No providers') || providerError.includes('No providers found') 
+                ? 'No Providers Available Right Now' 
+                : 'Unable to Load Providers'}
             </Text>
             <Text
               style={{
@@ -334,18 +412,35 @@ const ServiceMapScreen = () => {
                 fontFamily: 'Poppins-Regular',
                 color: '#6B7280',
                 textAlign: 'center',
-                marginBottom: 24,
+                marginBottom: 8,
                 lineHeight: 20,
+                maxWidth: 300,
               }}
             >
-              {providerError.includes('No providers')
-                ? 'We couldn\'t find any providers nearby for this service. Try adjusting your location or selecting a different service category.'
+              {providerError.includes('No providers') || providerError.includes('No providers found')
+                ? 'We couldn\'t find any providers in your area for this service at the moment. Don\'t worry - our team is working on expanding our network!'
                 : providerError.includes('location')
-                ? 'Please set your service location to find nearby providers.'
+                ? 'Please set your service location to find nearby providers. We\'ll show you all available service professionals in that area.'
                 : providerError.includes('category')
-                ? 'Please select a service category to find providers.'
-                : 'Something went wrong while loading providers. Please try again.'}
+                ? 'Please select a service category to continue. We have providers available for various services!'
+                : 'We\'re having trouble loading providers right now. Please try again in a moment.'}
             </Text>
+            {providerError.includes('No providers') && (
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontFamily: 'Poppins-Regular',
+                  color: '#9CA3AF',
+                  textAlign: 'center',
+                  marginBottom: 24,
+                  lineHeight: 18,
+                  maxWidth: 280,
+                  fontStyle: 'italic',
+                }}
+              >
+                💡 Tip: Try adjusting your search location or check back later as new providers join our platform daily!
+              </Text>
+            )}
             <TouchableOpacity
               onPress={() => {
                 // Retry loading providers
@@ -394,8 +489,8 @@ const ServiceMapScreen = () => {
             </View>
             <Text
               style={{
-                fontSize: 18,
-                fontFamily: 'Poppins-SemiBold',
+                fontSize: 20,
+                fontFamily: 'Poppins-Bold',
                 color: '#111827',
                 marginBottom: 8,
                 textAlign: 'center',
@@ -409,10 +504,26 @@ const ServiceMapScreen = () => {
                 fontFamily: 'Poppins-Regular',
                 color: '#6B7280',
                 textAlign: 'center',
+                marginBottom: 8,
                 lineHeight: 20,
+                maxWidth: 300,
               }}
             >
-              We couldn't find any providers nearby for this service. Try adjusting your location or selecting a different service category.
+              We couldn't find any providers nearby for this service. Don't worry - new providers join our platform regularly!
+            </Text>
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: 'Poppins-Regular',
+                color: '#9CA3AF',
+                textAlign: 'center',
+                marginBottom: 24,
+                lineHeight: 18,
+                maxWidth: 280,
+                fontStyle: 'italic',
+              }}
+            >
+              💡 Try adjusting your location or selecting a different service category.
             </Text>
           </View>
         ) : (

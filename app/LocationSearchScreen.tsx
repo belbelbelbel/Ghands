@@ -17,6 +17,7 @@ export default function LocationSearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ 
     next?: string;
+    categoryName?: string; // Add categoryName support
     serviceType?: string;
     selectedDateTime?: string;
     selectedDate?: string;
@@ -589,7 +590,8 @@ export default function LocationSearchScreen() {
       router.replace({
         pathname: '/ServiceMapScreen' as any,
         params: {
-          serviceType: params.serviceType,
+          categoryName: params.categoryName, // Pass categoryName (primary)
+          serviceType: params.serviceType || params.categoryName, // Use categoryName as fallback
           selectedDateTime: params.selectedDateTime,
           selectedDate: params.selectedDate,
           selectedTime: params.selectedTime,

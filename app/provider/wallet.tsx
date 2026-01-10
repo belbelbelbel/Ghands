@@ -213,6 +213,7 @@ export default function ProviderWalletScreen() {
               justifyContent: 'center',
             }}
             activeOpacity={0.7}
+            onPress={() => router.push('/ProviderLinkBankAccountScreen' as any)}
           >
             <TrendingUp size={18} color={Colors.white} style={{ marginRight: 8 }} />
             <Text

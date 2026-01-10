@@ -9,12 +9,15 @@ import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import { SocialButton } from '../components/SocialButton';
 import { useToast } from '../hooks/useToast';
+import { authService } from '@/services/api';
+import { haptics } from '@/hooks/useHaptics';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { toast, showError, hideToast } = useToast();
+  const { toast, showError, showSuccess, hideToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
     // Basic validation
@@ -23,12 +26,77 @@ export default function LoginScreen() {
       return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showError('Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
+    haptics.light();
+
     try {
-      // After successful login, navigate directly to main app
-      // Location and profile setup can be done later when needed
-      router.replace('/(tabs)/home');
-    } catch (error) {
-      showError('Login failed. Please check your credentials and try again.');
+      const response = await authService.userLogin({
+        email: email.trim(),
+        password: password.trim(),
+      });
+      
+      // Token is already saved by authService.userLogin
+      haptics.success();
+      showSuccess('Login successful!');
+      
+      // Navigate to home after successful login
+      setTimeout(() => {
+        router.replace('/(tabs)/home');
+      }, 1000);
+    } catch (error: any) {
+      console.error('Login error:', error);
+      haptics.error();
+      
+      // Extract error message from API response
+      // API returns errors as: { "data": { "error": "..." }, "success": false }
+      let errorMessage = 'Login failed. Please check your credentials and try again.';
+      
+      // Check if it's a server error (HTML response or 500 error)
+      if (error.message && (
+        error.message.includes('Server error') || 
+        error.message.includes('Internal Server Error') ||
+        error.status === 500
+      )) {
+        errorMessage = 'Server error: The login service is temporarily unavailable. Please try again in a few moments.';
+      }
+      // Check nested data.error first (actual API format)
+      else if (error.details?.data?.error) {
+        errorMessage = error.details.data.error;
+      } else if (error.details?.error) {
+        errorMessage = error.details.error;
+      } else if (error.message && error.message !== 'Failed' && error.message !== 'Request failed' && !error.message.includes('<!DOCTYPE')) {
+        errorMessage = error.message;
+      } else if (error.error) {
+        errorMessage = error.error;
+      } else if (error.details) {
+        if (typeof error.details === 'string') {
+          errorMessage = error.details;
+        } else if (error.details.message) {
+          errorMessage = error.details.message;
+        }
+      }
+      
+      // Log full error for debugging
+      if (__DEV__) {
+        console.log('🔴 ========== FULL LOGIN ERROR ==========');
+        console.log('🔴 Error Message:', error.message);
+        console.log('🔴 Error Details:', JSON.stringify(error.details, null, 2));
+        console.log('🔴 Status:', error.status);
+        console.log('🔴 Extracted Message:', errorMessage);
+        console.log('🔴 Email Sent:', email.trim());
+        console.log('🔴 ========================================');
+      }
+      
+      showError(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -69,14 +137,15 @@ export default function LoginScreen() {
           Login
         </Text>
 
-        {/* Company Email Input */}
+        {/* Email Input */}
         <InputField
-          placeholder="Company email"
+          placeholder="Email"
           icon={<Mail size={20} color={'white'}/>}
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
           iconPosition="left"
+          autoCapitalize="none"
         />
 
         {/* Password Input */}
@@ -106,7 +175,12 @@ export default function LoginScreen() {
 
         {/* Login Button */}
         <View style={{ marginTop: 8, marginBottom: 24 }}>
-          <AuthButton title="Login" onPress={handleLogin} />
+          <AuthButton 
+            title="Login" 
+            onPress={handleLogin}
+            loading={isLoading}
+            disabled={isLoading}
+          />
         </View>
 
         {/* Signup Link */}

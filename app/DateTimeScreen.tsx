@@ -1,9 +1,13 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import Toast from '@/components/Toast';
+import { haptics } from '@/hooks/useHaptics';
+import { useToast } from '@/hooks/useToast';
+import { apiClient, serviceRequestService } from '@/services/api';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { haptics } from '@/hooks/useHaptics';
-import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const MONTHS = [
   'January',
@@ -28,12 +32,15 @@ const PM_HOURS = ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00',
 export default function DateTimeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
+    requestId?: string;
+    categoryName?: string;
     selectedDate?: string;
     selectedTime?: string;
     serviceType?: string;
     photoCount?: string;
     location?: string;
   }>();
+  const { toast, showError, showSuccess, hideToast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => {
     // Restore selected date from params if editing
@@ -43,6 +50,7 @@ export default function DateTimeScreen() {
     return null;
   });
   const [selectedTime, setSelectedTime] = useState<string | null>(params.selectedTime || null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -105,26 +113,136 @@ export default function DateTimeScreen() {
   }, [fadeAnim, slideAnim]);
 
   const handleBack = useCallback(() => {
+    haptics.light();
     router.back();
   }, [router]);
 
-  const handleNext = useCallback(() => {
+  // Format date as YYYY-MM-DD
+  const formatDateForAPI = useCallback((date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  // Format time as "HH:MM AM/PM"
+  const formatTimeForAPI = useCallback((time: string): string => {
+    const [hours, minutes] = time.split(':');
+    const hourNum = parseInt(hours, 10);
+    
+    // Determine if it's AM or PM
+    const isAM = AM_HOURS.includes(time);
+    const isPM = PM_HOURS.includes(time);
+    
+    let displayHour: number;
+    let period: string;
+    
+    if (isAM) {
+      if (hourNum === 12) {
+        displayHour = 12;
+        period = 'PM';
+      } else {
+        displayHour = hourNum;
+        period = 'AM';
+      }
+    } else if (isPM) {
+      displayHour = hourNum;
+      period = 'PM';
+    } else {
+      // Fallback
+      const isAMHour = hourNum < 12;
+      displayHour = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
+      period = isAMHour ? 'AM' : 'PM';
+    }
+    
+    return `${displayHour}:${minutes} ${period}`;
+  }, []);
+
+  const handleNext = useCallback(async () => {
     if (!selectedDate || !selectedTime) {
+      showError('Please select both date and time');
+      haptics.error();
       return;
     }
-    // Navigate directly to next screen - preserve all booking params
-    router.replace({
-      pathname: '../AddPhotosScreen' as any,
-      params: {
-        selectedDateTime: formattedDateTime,
-        selectedDate: selectedDate?.toISOString(),
-        selectedTime: selectedTime || '',
-        serviceType: params.serviceType, // Preserve service type
-        location: params.location, // Preserve location
-        photoCount: params.photoCount, // Preserve photo count if editing
-      },
-    });
-  }, [selectedDate, selectedTime, formattedDateTime, router, params]);
+
+    // Validate date is not in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDateOnly = new Date(selectedDate);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    
+    if (selectedDateOnly < today) {
+      showError('Please select a date in the future');
+      haptics.error();
+      return;
+    }
+
+    if (!params.requestId) {
+      showError('Request ID is missing. Please go back and try again.');
+      haptics.error();
+      return;
+    }
+
+    setIsUpdating(true);
+    haptics.light();
+
+    try {
+      const userId = await apiClient.getUserId();
+      
+      if (!userId) {
+        showError('Unable to identify your account. Please sign out and sign in again.');
+        haptics.error();
+        setIsUpdating(false);
+        return;
+      }
+
+      const requestId = parseInt(params.requestId, 10);
+      if (isNaN(requestId)) {
+        showError('Invalid request ID');
+        haptics.error();
+        setIsUpdating(false);
+        return;
+      }
+
+      // Format date and time for API
+      const scheduledDate = formatDateForAPI(selectedDate);
+      const scheduledTime = formatTimeForAPI(selectedTime);
+
+      // Update date/time (Step 3)
+      // userId is automatically extracted from token, don't send it
+      await serviceRequestService.updateDateTime(requestId, {
+        scheduledDate,
+        scheduledTime,
+      });
+
+      showSuccess('Date and time updated!');
+      haptics.success();
+
+      // Navigate to AddPhotosScreen with requestId
+      setTimeout(() => {
+        router.replace({
+          pathname: '../AddPhotosScreen' as any,
+          params: {
+            requestId: params.requestId,
+            categoryName: params.categoryName,
+            selectedDateTime: formattedDateTime,
+            selectedDate: selectedDate?.toISOString(),
+            selectedTime: selectedTime || '',
+            serviceType: params.serviceType,
+            location: params.location,
+            photoCount: params.photoCount,
+          },
+        } as any);
+      }, 1000);
+    } catch (error: any) {
+      console.error('Error updating date/time:', error);
+      const errorMessage = getSpecificErrorMessage(error, 'update_date_time');
+      showError(errorMessage);
+      haptics.error();
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [selectedDate, selectedTime, formattedDateTime, params, router, showError, showSuccess, formatDateForAPI, formatTimeForAPI]);
 
   const handleCancel = useCallback(() => {
     router.back();
@@ -407,22 +525,36 @@ export default function DateTimeScreen() {
         <View className="px-4 pb-5 gap-3">
           <TouchableOpacity
             onPress={handleNext}
-            disabled={!canProceed}
-            activeOpacity={canProceed ? 0.85 : 1}
+            disabled={!canProceed || isUpdating}
+            activeOpacity={canProceed && !isUpdating ? 0.85 : 1}
             className={`rounded-xl py-4 items-center justify-center flex-row ${
-              canProceed ? 'bg-black' : 'bg-gray-200'
+              canProceed && !isUpdating ? 'bg-black' : 'bg-gray-200'
             }`}
             style={{
-              opacity: canProceed ? 1 : 0.6,
+              opacity: canProceed && !isUpdating ? 1 : 0.6,
             }}
           >
-            <Text
-              className={`text-base mr-2 ${canProceed ? 'text-white' : 'text-gray-400'}`}
-              style={{ fontFamily: 'Poppins-SemiBold' }}
-            >
-              Next
-            </Text>
-            <ArrowRight size={18} color={canProceed ? '#FFFFFF' : '#9CA3AF'} />
+            {isUpdating ? (
+              <>
+                <ActivityIndicator size="small" color="#D7FF6B" style={{ marginRight: 8 }} />
+                <Text
+                  className="text-base text-[#D7FF6B]"
+                  style={{ fontFamily: 'Poppins-SemiBold' }}
+                >
+                  Updating...
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text
+                  className={`text-base mr-2 ${canProceed ? 'text-[#D7FF6B]' : 'text-gray-400'}`}
+                  style={{ fontFamily: 'Poppins-SemiBold' }}
+                >
+                  Next
+                </Text>
+                <ArrowRight size={18} color={canProceed ? '#D7FF6B' : '#9CA3AF'} />
+              </>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -437,6 +569,12 @@ export default function DateTimeScreen() {
         </View>
       </Animated.View>
 
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onClose={hideToast}
+      />
     </SafeAreaWrapper>
   );
 }

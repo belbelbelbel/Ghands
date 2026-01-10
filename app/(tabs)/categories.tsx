@@ -5,15 +5,15 @@ import { useToast } from '@/hooks/useToast';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Search, X } from 'lucide-react-native';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { serviceCategories } from '../../data/serviceCategories';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { serviceRequestService, ServiceCategory, apiClient } from '@/services/api';
+import { getCategoryIcon } from '@/utils/categoryIcons';
+import { haptics } from '@/hooks/useHaptics';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { extractUserIdFromToken } from '@/utils/tokenUtils';
 
-interface CategoryData {
-  id: string;
-  name: string;
-  description: string;
-  providerNum: string;
+interface CategoryData extends ServiceCategory {
   IconComponent: React.ComponentType;
 }
 
@@ -24,70 +24,98 @@ export default function CategoryPage() {
   const [isToggle, setIsToggle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [categories, setCategories] = useState<CategoryData[]>([]);
   const [hasNavigatedFromHome, setHasNavigatedFromHome] = useState(false);
+  const [isCreatingRequest, setIsCreatingRequest] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const searchInputRef = useRef<TextInput>(null);
   const categoryRefs = useRef<{ [key: string]: number }>({});
-  const categoryArrays: CategoryData[] = [
-    {
-      id: 'plumber',
-      name: 'Plumber',
-      description: 'Professional plumbing services for all your water and pipe needs',
-      providerNum: '245 providers',
-      IconComponent: serviceCategories[0].icon
-    },
-    {
-      id: 'electrician',
-      name: 'Electrician',
-      description: 'Expert electrical repairs, installations and maintenance services',
-      providerNum: '189 providers',
-      IconComponent: serviceCategories[1].icon
-    },
-    {
-      id: 'carpenter',
-      name: 'Carpenter',
-      description: 'Custom woodwork, furniture repairs and carpentry solutions',
-      providerNum: '156 providers',
-      IconComponent: serviceCategories[2].icon
-    },
-    {
-      id: 'cleaning',
-      name: 'Cleaning',
-      description: 'Professional house cleaning and maintenance services',
-      providerNum: '298 providers',
-      IconComponent: serviceCategories[3].icon
-    },
-    {
-      id: 'mechanic',
-      name: 'Mechanic',
-      description: 'Auto repair and maintenance services for all vehicle types',
-      providerNum: '134 providers',
-      IconComponent: serviceCategories[4].icon
-    },
-    {
-      id: 'painter',
-      name: 'Painter',
-      description: 'Interior and exterior painting services for homes and offices',
-      providerNum: '201 providers',
-      IconComponent: serviceCategories[5].icon
-    },
-    {
-      id: 'gardener',
-      name: 'Gardener',
-      description: 'Landscaping, lawn care and garden maintenance services',
-      providerNum: '167 providers',
-      IconComponent: serviceCategories[6].icon
-    },
-    {
-      id: 'tailor',
-      name: 'Tailor',
-      description: 'Custom clothing alterations and tailoring services',
-      providerNum: '89 providers',
-      IconComponent: serviceCategories[7].icon
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch categories from API on mount
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    setIsLoading(true);
+    try {
+      const apiCategories = await serviceRequestService.getCategories();
+      
+      // Ensure apiCategories is an array
+      if (!Array.isArray(apiCategories)) {
+        console.error('Categories API returned non-array:', apiCategories);
+        showError('Invalid categories data. Please try again.');
+        setCategories([]);
+        return;
+      }
+      
+      const categoriesWithIcons: CategoryData[] = apiCategories.map((cat) => ({
+        ...cat,
+        IconComponent: getCategoryIcon(cat.name, cat.displayName, cat.description),
+      }));
+      setCategories(categoriesWithIcons);
+    } catch (error: any) {
+      console.error('Error loading categories:', error);
+      const errorMessage = getSpecificErrorMessage(error, 'get_categories');
+      showError(errorMessage);
+      // Keep empty array on error
+      setCategories([]);
+    } finally {
+      setIsLoading(false);
     }
-  ];
-  const handleToggle = (id: string) => {
-    setIsToggle((prev) => (prev === id ? "" : id));
+  };
+
+  // Debounced category search
+  useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If query is too short, show all categories
+    if (searchQuery.trim().length < 2) {
+      // Reload all categories if we had searched before
+      if (categories.length === 0 && !isLoading) {
+        loadCategories();
+      }
+      return;
+    }
+
+    // Set searching state
+    setIsSearching(true);
+
+    // Debounce search by 400ms
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await serviceRequestService.searchCategories(searchQuery.trim());
+        const categoriesWithIcons: CategoryData[] = results.map((cat) => ({
+          ...cat,
+          IconComponent: getCategoryIcon(cat.name, cat.displayName, cat.description),
+        }));
+        setCategories(categoriesWithIcons);
+        setIsSearching(false);
+      } catch (error: any) {
+        console.error('Error searching categories:', error);
+        const errorMessage = getSpecificErrorMessage(error, 'search_categories');
+        showError(errorMessage);
+        setCategories([]);
+        setIsSearching(false);
+      }
+    }, 400);
+
+    // Cleanup
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  const handleToggle = (name: string) => {
+    haptics.light();
+    setIsToggle((prev) => (prev === name ? "" : name));
   };
 
   const handleSearchQueryChange = (text: string) => {
@@ -97,23 +125,19 @@ export default function CategoryPage() {
   const handleClearSearch = () => {
     setSearchQuery('');
     setIsToggle('');
+    // Reload all categories
+    loadCategories();
   };
 
   const filteredCategories = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return categoryArrays;
-    }
-    const query = searchQuery.toLowerCase().trim();
-    return categoryArrays.filter(
-      (category) =>
-        category.name.toLowerCase().includes(query) ||
-        category.description.toLowerCase().includes(query)
-    );
-  }, [searchQuery, categoryArrays]);
+    // If we have search query, categories are already filtered by API
+    // But we can do additional client-side filtering if needed
+    return categories;
+  }, [categories]);
 
   // Track if we're coming from navigation vs tab
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       // When screen comes into focus, check if we have searchQuery param
       // If not, we're coming from tab navigation, so clear the flag
       if (!params.searchQuery && !params.selectedCategoryId) {
@@ -131,15 +155,16 @@ export default function CategoryPage() {
       const scrollTimer = setTimeout(() => {
         searchInputRef.current?.focus();
         const query = searchQueryValue.toLowerCase().trim();
-        const firstMatch = categoryArrays.find(
+        const firstMatch = categories.find(
           (category) =>
+            category.displayName.toLowerCase().includes(query) ||
             category.name.toLowerCase().includes(query) ||
             category.description.toLowerCase().includes(query)
         );
         if (firstMatch && scrollViewRef.current) {
-          setIsToggle(firstMatch.id);
-          const categoryIndex = categoryArrays.findIndex(
-            (cat) => cat.id === firstMatch.id
+          setIsToggle(firstMatch.name);
+          const categoryIndex = categories.findIndex(
+            (cat) => cat.name === firstMatch.name
           );
           if (categoryIndex !== -1) {
             const scrollPosition = categoryIndex * 110;
@@ -153,39 +178,208 @@ export default function CategoryPage() {
 
       return () => clearTimeout(scrollTimer);
     }
-  }, [params.searchQuery]);
+  }, [params.searchQuery, categories]);
 
+  // Scroll to selected category when navigating from home
   useEffect(() => {
-    if (params.selectedCategoryId) {
+    if (params.selectedCategoryId && categories.length > 0 && !isLoading) {
       setHasNavigatedFromHome(true);
-      setIsToggle(params.selectedCategoryId);
-      const scrollTimer = setTimeout(() => {
-        const categoryIndex = categoryArrays.findIndex(
-          (cat) => cat.id === params.selectedCategoryId
-        );
-        if (categoryIndex !== -1 && scrollViewRef.current) {
-          // Calculate scroll position more accurately
-          const scrollPosition = categoryIndex * 130; // Adjusted for better positioning
+      
+      // Normalize the selectedCategoryId for matching
+      const normalizedSelectedId = params.selectedCategoryId.toLowerCase().trim();
+      
+      // Find category by name, displayName, or id (home screen might pass id)
+      const category = categories.find(
+        (cat) => {
+          const catName = cat.name?.toLowerCase().trim() || '';
+          const catDisplayName = cat.displayName?.toLowerCase().trim() || '';
+          const catId = (cat as any).id?.toLowerCase().trim() || '';
+          
+          return catName === normalizedSelectedId || 
+                 catDisplayName === normalizedSelectedId ||
+                 catId === normalizedSelectedId ||
+                 catName.includes(normalizedSelectedId) ||
+                 catDisplayName.includes(normalizedSelectedId);
+        }
+      );
+      
+      if (category) {
+        setIsToggle(category.name);
+        
+        // Wait for layout to complete, then scroll with proper positioning
+        // Use multiple attempts to ensure layout is measured
+        let attemptCount = 0;
+        const maxAttempts = 8; // Increased attempts
+        
+        const scrollTimer = setInterval(() => {
+          attemptCount++;
+          
+          // Use the actual layout position from categoryRefs if available
+          const layoutPosition = categoryRefs.current[category.name];
+          
+          if (layoutPosition !== undefined && scrollViewRef.current) {
+            // Get viewport height to ensure category is visible
+            // Scroll with enough offset to keep category in view
+            // Offset should account for header, search bar, and some padding
+            const headerAndSearchHeight = 180; // Header + search bar + safe area + padding
+            const cardHeight = 80; // Approximate card height
+            const viewportPadding = 100; // Extra padding to ensure category is well within viewport
+            
+            // Calculate scroll position to ensure category is visible
+            // Use generous padding to position category well within viewport
+            const targetScrollPosition = Math.max(
+              0, 
+              layoutPosition - headerAndSearchHeight + viewportPadding
+            );
+            
+            scrollViewRef.current.scrollTo({
+              y: targetScrollPosition,
+              animated: true,
+            });
+            
+            // Double-check after animation completes
+            setTimeout(() => {
+              if (scrollViewRef.current) {
+                const finalPosition = categoryRefs.current[category.name];
+                if (finalPosition !== undefined) {
+                  const currentScrollY = (scrollViewRef.current as any).contentOffset?.y || 0;
+                  const viewportHeight = (scrollViewRef.current as any).layout?.height || 600;
+                  
+                  // Check if category is visible in viewport with generous margins
+                  const categoryTop = finalPosition;
+                  const categoryBottom = categoryTop + cardHeight;
+                  const viewportTop = currentScrollY + headerAndSearchHeight;
+                  const viewportBottom = currentScrollY + viewportHeight - 50; // Leave 50px margin at bottom
+                  
+                  // If category is not fully visible with margins, adjust scroll
+                  if (categoryTop < viewportTop || categoryBottom > viewportBottom) {
+                    // Use more generous padding to ensure visibility
+                    const adjustedPosition = Math.max(
+                      0,
+                      categoryTop - headerAndSearchHeight + (viewportPadding + 30)
+                    );
+                    scrollViewRef.current.scrollTo({
+                      y: adjustedPosition,
+                      animated: true,
+                    });
+                  }
+                }
+              }
+            }, 400); // Wait for first scroll animation to complete
+            
+            clearInterval(scrollTimer);
+          } else if (attemptCount >= maxAttempts && scrollViewRef.current) {
+            // Fallback: calculate position based on index after max attempts
+            const categoryIndex = categories.findIndex(
+              (cat) => cat.name === category.name
+            );
+            if (categoryIndex !== -1) {
+              // More accurate calculation with proper offset
+              const headerAndSearchHeight = 180;
+              const cardHeight = 80;
+              const cardMargin = 16;
+              const viewportPadding = 100;
+              const scrollPosition = Math.max(
+                0,
+                headerAndSearchHeight + (categoryIndex * (cardHeight + cardMargin)) - viewportPadding
+              );
+              
           scrollViewRef.current.scrollTo({
             y: scrollPosition,
             animated: true,
           });
         }
-      }, 400);
-      return () => clearTimeout(scrollTimer);
+            clearInterval(scrollTimer);
+          }
+        }, 150); // Check every 150ms (faster checks)
+        
+        // Cleanup after 2.5 seconds max
+        const cleanupTimer = setTimeout(() => {
+          clearInterval(scrollTimer);
+        }, 2500);
+        
+        return () => {
+          clearInterval(scrollTimer);
+          clearTimeout(cleanupTimer);
+        };
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.selectedCategoryId]);
+  }, [params.selectedCategoryId, categories, isLoading]);
 
   const searchBarStyle = useMemo(() => ({ height: 50 }), []);
-  const handleNextJobsScreen = () => {
+  
+  const handleNextJobsScreen = async () => {
     if (isToggle !== "") {
-      routes.push('/JobDetailsScreen' as any)
+      haptics.light();
+      setIsCreatingRequest(true);
+      
+      try {
+        let userId = await apiClient.getUserId();
+        
+        // If user ID is not stored, try to get it from token
+        if (!userId) {
+          const token = await apiClient.getAuthTokenPublic();
+          if (token) {
+            const extractedUserId = extractUserIdFromToken(token);
+            if (extractedUserId) {
+              userId = extractedUserId;
+              await apiClient.setUserId(userId);
+              if (__DEV__) {
+                console.log('✅ User ID extracted from token and saved:', userId);
+              }
+            } else {
+              if (__DEV__) {
+                console.warn('⚠️ Could not extract user ID from token. Token format might be different.');
+              }
+            }
+          } else {
+            if (__DEV__) {
+              console.warn('⚠️ No auth token found');
+            }
+          }
+        }
+        
+        if (!userId) {
+          showError('Unable to identify your account. Please sign out and sign in again.');
+          haptics.error();
+          setIsCreatingRequest(false);
+          return;
+        }
+
+        // Create service request (Step 1)
+        // Only send categoryName - jobTitle and description will be added in JobDetailsScreen
+        const response = await serviceRequestService.createRequest({
+          userId,
+          categoryName: isToggle,
+          // Don't send jobTitle or description - they're optional and backend rejects empty strings
+        });
+
+        // Validate response has requestId
+        if (!response || !response.requestId) {
+          throw new Error('Invalid response: requestId not found');
+        }
+
+        // Navigate to JobDetailsScreen with requestId
+        routes.push({
+          pathname: '/JobDetailsScreen' as any,
+          params: {
+            requestId: response.requestId.toString(),
+            categoryName: isToggle,
+          },
+        } as any);
+      } catch (error: any) {
+        console.error('Error creating service request:', error);
+        const errorMessage = getSpecificErrorMessage(error, 'create_request');
+        showError(errorMessage);
+        haptics.error();
+      } finally {
+        setIsCreatingRequest(false);
+      }
+    } else {
+      showError('Please choose a category');
+      haptics.error();
     }
-    else {
-      showError('Please choose a category')
-    }
-  }
+  };
 
   const isFromNavigation = !!params.selectedCategoryId || hasNavigatedFromHome;
 
@@ -195,7 +389,10 @@ export default function CategoryPage() {
           {isFromNavigation ? (
             <View className=' flex flex-row px-3 items-center mb-6 gap-20'>
               <TouchableOpacity
-                onPress={() => routes.back()}
+                onPress={() => {
+                  haptics.light();
+                  routes.back();
+                }}
                 className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
               >
                 <ArrowLeft size={20} color="#111827" />
@@ -241,15 +438,46 @@ export default function CategoryPage() {
                   <X size={18} color="#666" />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity className="w-10 h-10 bg-[#000] rounded-lg items-center justify-center ml-2">
+              <TouchableOpacity 
+                className="w-10 h-10 bg-[#000] rounded-lg items-center justify-center ml-2"
+                disabled={isSearching}
+              >
+                {isSearching ? (
+                  <ActivityIndicator size="small" color="#9bd719ff" />
+                ) : (
                 <Search size={18} color="#9bd719ff" />
+                )}
               </TouchableOpacity>
             </View>
           </View>
           <ScrollView
             ref={scrollViewRef}
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={true}
             contentContainerStyle={{ paddingBottom: 40 }}
+            scrollEnabled={true}
+            onContentSizeChange={() => {
+              // When content size changes, re-check if we need to scroll to selected category
+              if (params.selectedCategoryId && categories.length > 0) {
+                const category = categories.find(
+                  (cat) => 
+                    cat.name === params.selectedCategoryId || 
+                    cat.name?.toLowerCase() === params.selectedCategoryId.toLowerCase()
+                );
+                if (category && categoryRefs.current[category.name] !== undefined) {
+                  setTimeout(() => {
+                    const layoutY = categoryRefs.current[category.name];
+                    if (layoutY !== undefined && scrollViewRef.current) {
+                      const headerAndSearchHeight = 180;
+                      const viewportPadding = 100;
+                      scrollViewRef.current.scrollTo({
+                        y: Math.max(0, layoutY - headerAndSearchHeight + viewportPadding),
+                        animated: true,
+                      });
+                    }
+                  }, 100);
+                }
+              }
+            }}
           >
             <Text className='text-xl pb-2' style={{
               fontFamily: 'Poppins-Bold'
@@ -259,7 +487,7 @@ export default function CategoryPage() {
               alignItems: 'center',
               position: "relative"
             }}>
-              {isLoading ? (
+              {isLoading || isSearching ? (
                 <>
                   <CategorySkeleton />
                   <CategorySkeleton />
@@ -275,28 +503,79 @@ export default function CategoryPage() {
                     No results found
                   </Text>
                   <Text className="text-gray-500 text-sm text-center" style={{ fontFamily: 'Poppins-Regular' }}>
-                    We couldn't find any categories matching "{searchQuery}"
+                    {searchQuery.trim() 
+                      ? `We couldn't find any categories matching "${searchQuery}"`
+                      : 'No categories available. Please try again later.'}
                   </Text>
                   <Text className="text-gray-400 text-xs text-center mt-2" style={{ fontFamily: 'Poppins-Regular' }}>
-                    Try searching with different keywords
+                    {searchQuery.trim() ? 'Try searching with different keywords' : 'Pull down to refresh'}
                   </Text>
                 </View>
               ) : (
                 filteredCategories.map((category, index) => (
                   <TouchableOpacity
-                    onPress={() => handleToggle(category.id)}
-                    key={category.id}
+                    onPress={() => handleToggle(category.name)}
+                    key={category.name}
                     onLayout={(event) => {
-                      categoryRefs.current[category.id] = event.nativeEvent.layout.y;
+                      // Store the absolute Y position of the category
+                      const { y, height } = event.nativeEvent.layout;
+                      categoryRefs.current[category.name] = y;
+                      
+                      // If this is the selected category and we're navigating from home, scroll to it
+                      if (params.selectedCategoryId && 
+                          (category.name === params.selectedCategoryId || 
+                           category.name?.toLowerCase() === params.selectedCategoryId.toLowerCase())) {
+                        // Use requestAnimationFrame to ensure layout is complete
+                        requestAnimationFrame(() => {
+                          setTimeout(() => {
+                            if (scrollViewRef.current) {
+                              // Calculate proper scroll position to ensure category is visible
+                              // Use larger offset to ensure category stays in view
+                              const headerAndSearchHeight = 180; // Header + search bar + safe area + padding
+                              const viewportPadding = 100; // Extra padding to ensure category is well within viewport
+                              
+                              // Position category in upper-middle of viewport with generous padding
+                              const targetScrollPosition = Math.max(
+                                0,
+                                y - headerAndSearchHeight + viewportPadding
+                              );
+                              
+                              scrollViewRef.current.scrollTo({
+                                y: targetScrollPosition,
+                                animated: true,
+                              });
+                              
+                              // Verify and re-adjust after scroll animation completes
+                              setTimeout(() => {
+                                if (scrollViewRef.current) {
+                                  // Re-check position and adjust if category is not visible
+                                  const currentY = categoryRefs.current[category.name];
+                                  if (currentY !== undefined) {
+                                    // Use even more generous padding on second attempt
+                                    const adjustedPosition = Math.max(
+                                      0,
+                                      currentY - headerAndSearchHeight + (viewportPadding + 20)
+                                    );
+                                    scrollViewRef.current.scrollTo({
+                                      y: adjustedPosition,
+                                      animated: true,
+                                    });
+                                  }
+                                }
+                              }, 600); // After scroll animation completes
+                            }
+                          }, 200); // Delay for layout stability
+                        });
+                      }
                     }}
                     style={{
                       width: '100%',
-                      backgroundColor: isToggle === category.id ? '#F0FDF4' : '#ffffff',
+                      backgroundColor: isToggle === category.name ? '#F0FDF4' : '#ffffff',
                       borderRadius: 16,
                       padding: 12,
                       marginBottom: 16,
-                      borderWidth: isToggle === category.id ? 2 : 1,
-                      borderColor: isToggle === category.id ? '#6A9B00' : '#e5e5e5',
+                      borderWidth: isToggle === category.name ? 2 : 1,
+                      borderColor: isToggle === category.name ? '#6A9B00' : '#e5e5e5',
                       flexDirection: 'row',
                       alignItems: 'center'
                     }}
@@ -306,7 +585,7 @@ export default function CategoryPage() {
                       backgroundColor: 'transparent',
                       borderRadius: 12,
                       borderWidth: 1,
-                      borderColor: isToggle === category.id ? '#6A9B00' : '#e5e5e5',
+                      borderColor: isToggle === category.name ? '#6A9B00' : '#e5e5e5',
                       padding: 16,
                       marginRight: 16,
                       alignItems: 'center',
@@ -322,16 +601,18 @@ export default function CategoryPage() {
                         fontSize: 16,
                         fontWeight: '600',
                         color: '#1a1a1a',
-                        marginBottom: 6
+                        marginBottom: 6,
+                        fontFamily: 'Poppins-SemiBold'
                       }}>
-                        {category.name}
+                        {category.displayName}
                       </Text>
                       <Text style={{
                         fontSize: 12,
                         width: '80%',
                         color: '#666666',
                         lineHeight: 16,
-                        marginBottom: 4
+                        marginBottom: 4,
+                        fontFamily: 'Poppins-Regular'
                       }}>
                         {category.description}
                       </Text>
@@ -343,13 +624,15 @@ export default function CategoryPage() {
                         <Text style={{
                           fontSize: 11,
                           fontWeight: '500',
+                          fontFamily: 'Poppins-Medium',
+                          color: '#666666'
                         }}>
-                          {category.providerNum}
+                          {category.providerCount} {category.providerCount === 1 ? 'provider' : 'providers'}
                         </Text>
                       </View>
-                      <TouchableOpacity className='absolute right-2' onPress={() => handleToggle(category.id)}
+                      <TouchableOpacity className='absolute right-2' onPress={() => handleToggle(category.name)}
                       >
-                        <View className={`h-6 w-6 border-0 rounded-full ${isToggle === category.id ? "bg-black" : "bg-transparent"
+                        <View className={`h-6 w-6 border-0 rounded-full ${isToggle === category.name ? "bg-black" : "bg-transparent"
                           }`} >
                         </View>
                       </TouchableOpacity>
@@ -360,18 +643,29 @@ export default function CategoryPage() {
             </View>
           </ScrollView>
           <TouchableOpacity
-            disabled={!isToggle}
-            className={`bg-black mt-10 mb-16 flex items-center justify-center mx-auto w-[90%] h-14 rounded-xl ${!isToggle ? 'bg-gray-400' : 'bg-black'}`}
+            disabled={!isToggle || isCreatingRequest}
+            className={`bg-black mt-10 mb-16 flex items-center justify-center mx-auto w-[90%] h-14 rounded-xl ${!isToggle || isCreatingRequest ? 'bg-gray-400' : 'bg-black'}`}
             onPress={handleNextJobsScreen}
-            activeOpacity={!isToggle ? 0.5 : 0.85}
+            activeOpacity={!isToggle || isCreatingRequest ? 0.5 : 0.85}
           >
             <View className='flex flex-row items-center gap-3'>
+              {isCreatingRequest ? (
+                <>
+                  <ActivityIndicator size="small" color="#D7FF6B" />
+                  <Text className='text-[#D7FF6B]' style={{
+                    fontFamily: 'Poppins-Bold'
+                  }}>Creating...</Text>
+                </>
+              ) : (
+                <>
               <Text className='text-[#D7FF6B]' style={{
                 fontFamily: 'Poppins-Bold'
               }}>Add Details</Text>
               <Text>
                 <Ionicons name='arrow-forward' size={18} color={'#D7FF6B'} />
               </Text>
+                </>
+              )}
             </View>
           </TouchableOpacity>
         <Toast

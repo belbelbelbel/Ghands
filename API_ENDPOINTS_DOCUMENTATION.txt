@@ -1,0 +1,1928 @@
+================================================================================
+                    API ENDPOINTS DOCUMENTATION
+                    Backend API for Frontend Integration
+================================================================================
+
+BASE URL:https://bamibuildit-backend-v1.onrender.com
+
+All responses follow this format:
+  Success: { "data": {...} }
+  Error: { "error": "Error message" }
+
+================================================================================
+                        AUTHENTICATION REQUIREMENTS
+================================================================================
+
+Most endpoints require authentication using JWT tokens. After login/signup, you will
+receive a token that must be included in the Authorization header for protected endpoints.
+
+Authentication Header Format:
+  Authorization: Bearer <your-token-here>
+
+Protected Endpoints (require Authorization header):
+  - All service request endpoints (section 3)
+  - User location management endpoints (section 2.4, 2.5)
+  - All other endpoints marked with [PROTECTED]
+
+Public Endpoints (no authentication required):
+  - User signup/login (section 1)
+  - Category listing/search (section 3.1, 3.2)
+  - Location search (section 2.1, 2.2, 2.3)
+  - Provider nearby search (section 4.7)
+
+IMPORTANT:
+- User ID is automatically extracted from the authentication token
+- You DO NOT need to pass userId in request body or query parameters
+- If you receive "User not authenticated" error, check your Authorization header
+- Token expires based on your system's token expiration settings
+
+================================================================================
+                        1. USER AUTHENTICATION ENDPOINTS
+================================================================================
+
+1.1 USER SIGNUP
+----------------
+Method: POST
+Endpoint: /api/user/signup
+Description: Register a new user account
+
+Request Body (JSON):
+{
+  "firstName": "John",              // Required, string
+  "lastName": "Doe",                // Required, string
+  "userName": "johndoe",            // Required, string
+  "gender": "male",                 // Required, "male" or "female" (lowercase)
+  "email": "john@example.com",      // Required, valid email
+  "phoneNumber": "12345678901",     // Optional, exactly 11 characters
+  "password": "password123"         // Required, minimum 6 characters
+}
+
+Response (Success):
+{
+  "data": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john@example.com",
+    "token": "jwt-token-here"       // Save this token for authenticated requests
+  }
+}
+
+Response (Error):
+{
+  "error": "User already Exists. Sign In instead."
+}
+
+HOW TO USE:
+- Call this when user clicks "Sign Up" button
+- Store the returned token in localStorage/sessionStorage
+- Include this token in Authorization header for protected routes
+- Display error message if signup fails
+- Redirect to login or home page on success
+
+
+1.2 COMPANY SIGNUP
+------------------
+Method: POST
+Endpoint: /api/user/company-signup
+Description: Register a new company account
+
+Request Body (JSON):
+{
+  "companyName": "ABC Services Ltd",        // Required, string
+  "companyPhoneNumber": "12345678901",      // Required, exactly 11 characters
+  "companyEmail": "contact@abc.com",        // Required, valid email
+  "companyPassword": "password123"          // Required, minimum 6 characters
+}
+
+Response (Success):
+{
+  "data": {
+    "id": 1,
+    "companyName": "ABC Services Ltd",
+    "companyPhoneNumber": "12345678901",
+    "companyEmail": "contact@abc.com",
+    "token": "jwt-token-here"
+  }
+}
+
+Response (Error):
+{
+  "error": "Company already Exists. Sign In instead."
+}
+
+HOW TO USE:
+- Similar to user signup, but for company accounts
+- Use when company wants to register on the platform
+- Store token for company authentication
+
+
+================================================================================
+                        2. LOCATION ENDPOINTS
+================================================================================
+
+2.1 SEARCH LOCATIONS (Autocomplete)
+------------------------------------
+Method: GET
+Endpoint: /api/user/location/search?query=Lagos
+Description: Search for locations using Google Places API autocomplete
+             Use this for location search input field with type-ahead functionality
+
+Query Parameters:
+  query: string (required, minimum 2 characters)
+
+Example Request:
+  GET /api/user/location/search?query=Lagos
+
+Response (Success):
+{
+  "data": [
+    {
+      "placeId": "ChIJ...",                    // Unique place identifier - SAVE THIS!
+      "placeName": "Gowon Estate",             // Main location name - Display this
+      "fullAddress": "Gowon Estate, Lagos, Nigeria",  // Full address - Show in dropdown
+      "address": "Lagos, Nigeria",             // Secondary text - Show below placeName
+      "mainText": "Gowon Estate",              // Alternative format
+      "secondaryText": "Lagos, Nigeria"        // Alternative format
+    },
+    // ... more results
+  ]
+}
+
+Response (Error):
+{
+  "error": "Query parameter is required"
+}
+
+HOW TO USE:
+- Call this as user types in location search field (debounce for 300-500ms)
+- Display results in dropdown/autocomplete list
+- Show "placeName" as main text and "fullAddress" as subtitle
+- When user selects a location, SAVE the "placeId" - you'll need it later!
+- Use "placeId" for getting full details or saving user location
+
+
+2.2 GET LOCATION DETAILS
+-------------------------
+Method: GET
+Endpoint: /api/user/location/details?placeId=ChIJ...
+Description: Get full location details including coordinates from a placeId
+             Use this after user selects a location from search results
+
+Query Parameters:
+  placeId: string (required) - The placeId from search results
+
+Example Request:
+  GET /api/user/location/details?placeId=ChIJN1t_tTlzOlQRz5bHo7jSkMA
+
+Response (Success):
+{
+  "data": {
+    "placeId": "ChIJ...",
+    "formattedAddress": "123 Main Street, Lagos, Nigeria",  // Full formatted address
+    "latitude": 6.5244,                     // Use for maps/markers
+    "longitude": 3.3792,                    // Use for maps/markers
+    "city": "Lagos",
+    "state": "Lagos State",
+    "country": "Nigeria",
+    "address": "123 Main Street, Lagos, Nigeria"
+  }
+}
+
+HOW TO USE:
+- Call this when user clicks on a location from search results
+- Use the coordinates (latitude, longitude) to show on map
+- Display formattedAddress in the location display component
+- Store all these details if you need to save the location
+
+
+2.3 GET CURRENT LOCATION ADDRESS (GPS)
+---------------------------------------
+Method: GET
+Endpoint: /api/user/location/current?latitude=6.5244&longitude=3.3792
+Description: Convert GPS coordinates to address (Reverse Geocoding)
+             Use this when user clicks "Use my current location" button
+
+Query Parameters:
+  latitude: number (required, -90 to 90)
+  longitude: number (required, -180 to 180)
+
+Example Request:
+  GET /api/user/location/current?latitude=6.5244&longitude=3.3792
+
+Response (Success):
+{
+  "data": {
+    "placeName": "Lagos",                    // City or location name
+    "fullAddress": "123 Main Street, Lagos, Nigeria",
+    "placeId": "ChIJ...",                    // Save this for later use
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "city": "Lagos",
+    "state": "Lagos State",
+    "country": "Nigeria",
+    "address": "123 Main Street, Lagos, Nigeria"
+  }
+}
+
+HOW TO USE:
+- Call this when user grants location permission and you get GPS coordinates
+- Pass the latitude/longitude from navigator.geolocation API
+- Display the returned address to confirm with user
+- Use the placeId to save location if user confirms
+
+
+2.4 SAVE/UPDATE USER LOCATION [PROTECTED]
+------------------------------------------
+Method: POST
+Endpoint: /api/user/update-location
+Description: Save or update user's location in their profile
+             Use this after user confirms their location selection
+             Requires authentication - user ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Request Body (JSON) - Option 1: Using placeId (Recommended):
+{
+  "placeId": "ChIJ..."                      // Required - placeId from search or current location
+}
+
+Request Body (JSON) - Option 2: Using GPS coordinates:
+{
+  "latitude": 6.5244,                       // Required - GPS latitude
+  "longitude": 3.3792                       // Required - GPS longitude
+}
+
+Response (Success):
+{
+  "data": {
+    "message": "Location updated successfully",
+    "location": {
+      "placeId": "ChIJ...",
+      "formattedAddress": "123 Main Street, Lagos, Nigeria",
+      "latitude": 6.5244,
+      "longitude": 3.3792,
+      "city": "Lagos",
+      "state": "Lagos State",
+      "country": "Nigeria"
+    }
+  }
+}
+
+HOW TO USE:
+- Call this when user confirms their location (clicks "Save" or "Okay")
+- Include Authorization header: Authorization: Bearer <token>
+- Use placeId method if available (more accurate)
+- Use GPS coordinates method if only coordinates are available
+- User ID is automatically extracted from token - no need to pass it
+- Store the saved location data in your app state
+- This location will be used as default for service requests
+
+
+2.5 GET USER'S SAVED LOCATION [PROTECTED]
+-----------------------------------------
+Method: GET
+Endpoint: /api/user/location
+Description: Get user's saved location from their profile
+             Use this to pre-fill location in forms or display current location
+             Requires authentication - user ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Example Request:
+  GET /api/user/location
+  Headers: Authorization: Bearer <your-token-here>
+
+Response (Success):
+{
+  "data": {
+    "placeId": "ChIJ...",
+    "placeName": "Lagos",
+    "fullAddress": "123 Main Street, Lagos, Nigeria",
+    "address": "123 Main Street, Lagos, Nigeria",
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "city": "Lagos",
+    "state": "Lagos State",
+    "country": "Nigeria"
+  }
+}
+
+Response (Error):
+{
+  "error": "User location not set"
+}
+
+HOW TO USE:
+- Call this when loading user profile or service request form
+- Include Authorization header: Authorization: Bearer <token>
+- User ID is automatically extracted from token - no query parameters needed
+- Pre-fill location fields if location exists
+- Show "Location not set" message if error returned
+- Use to display user's current location in profile page
+
+
+================================================================================
+                    3. SERVICE REQUEST ENDPOINTS (BOOKING FLOW)
+================================================================================
+
+3.1 GET ALL CATEGORIES
+----------------------
+Method: GET
+Endpoint: /api/request-service/categories
+Description: Get all available service categories with LIVE provider counts
+             Returns all 38 categories from the Category model with real-time provider counts
+             Use this to display the category list in "Request Service" screen
+
+Example Request:
+  GET /api/request-service/categories
+
+Response (Success):
+{
+  "data": [
+    {
+      "name": "plumbing",                    // Use this as categoryName when creating request
+      "displayName": "Plumbing",             // Display this in UI
+      "description": "Get plumbing repairs and installations from anywhere around Lagos",
+      "providerCount": 5,                    // LIVE count - actual verified providers for this category
+      "icon": undefined                      // Icon identifier (if available)
+    },
+    {
+      "name": "electrical",
+      "displayName": "Electrical",
+      "description": "Professional electrical services and repairs",
+      "providerCount": 3                     // LIVE count from database
+    },
+    {
+      "name": "carpentry",
+      "displayName": "Carpentry",
+      "description": "Expert carpentry and woodworking services",
+      "providerCount": 2
+    }
+    // ... all 38 categories sorted alphabetically
+  ]
+}
+
+IMPORTANT NOTES:
+- Provider counts are LIVE data from the database (not mock data)
+- Only counts verified and active providers
+- Categories are sorted alphabetically by displayName
+- All 38 categories from the Category model are always returned
+- Categories with 0 providers will show providerCount: 0
+
+HOW TO USE:
+- Call this on component mount of "Request Service" screen
+- Map through categories and display each with icon, displayName, description, providerCount
+- Store the "name" field - you'll need it when creating service request
+- Show provider count as "5 providers" text (or "No providers" if 0)
+- When user selects a category, save the "name" value for next step
+- Provider counts update automatically as providers register
+
+
+3.2 SEARCH CATEGORIES
+---------------------
+Method: GET
+Endpoint: /api/request-service/categories/search?query=plumb
+Description: Search categories by name or description
+             Use this for category search/filter functionality
+
+Query Parameters:
+  query: string (required, minimum 2 characters)
+
+Example Request:
+  GET /api/request-service/categories/search?query=plumb
+
+Response (Success):
+{
+  "data": [
+    {
+      "name": "plumbing",
+      "displayName": "Plumbing",
+      "description": "Get plumbing repairs...",
+      "providerCount": 245
+    }
+  ]
+}
+
+HOW TO USE:
+- Call this as user types in category search field (debounce 300ms)
+- Filter categories list based on results
+- Same format as get all categories, just filtered
+
+
+3.3 CREATE SERVICE REQUEST (Step 1: Select Category) [PROTECTED]
+----------------------------------------------------------------
+Method: POST
+Endpoint: /api/request-service/requests
+Description: Create a new service request - FIRST STEP of booking flow
+             User has selected a category, now create the request
+             Requires authentication - user ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Request Body (JSON):
+{
+  "categoryName": "plumbing",               // Required - MUST be a valid category from section 3.1
+  "jobTitle": "Kitchen faucet repair",      // Optional - can be empty string
+  "description": "The faucet is leaking",   // Optional - can be empty string
+  "comment": "Additional notes"             // Optional
+}
+
+Response (Success):
+{
+  "data": {
+    "requestId": 5,                         // IMPORTANT: Save this for next steps!
+    "categoryName": "plumbing",
+    "status": "pending",
+    "message": "Service request created successfully"
+  }
+}
+
+Response (Error - Invalid Category):
+{
+  "error": "Invalid category name: invalidCategory. Category must be selected from the available category list."
+}
+
+IMPORTANT:
+- categoryName MUST be one of the valid category names from section 3.1
+- Valid categories include: plumbing, electrical, carpentry, painting, masonry, tiling, 
+  flooring, roofing, fencing, landscaping, welding, airConditioning, generatorRepair,
+  aluminumFabrication, glassWork, gardening, pestControl, cleaning, fridgeRepair,
+  waterTreatment, popCeiling, cctvInstallation, security, gateFabrication,
+  boreholeDrilling, scaffolding, poolConstruction, solarInstallation, upholstery,
+  doorInstallation, windowInstallation, interlockingPaving, metalWork, wasteDisposal,
+  waterProofing, pestFumigation, applianceRepair, curtainInstallation, blindsInstallation,
+  glassInstallation, insulation, mechanicRepair
+
+HOW TO USE:
+- Call this when user clicks "Add details →" button after selecting category
+- Include Authorization header: Authorization: Bearer <token>
+- Use categoryName from the selected category object
+- SAVE the returned "requestId" - you'll need it for steps 2 and 3!
+- Navigate to "Job Details" screen after success
+- Pass requestId to next screen (via navigation params or state management)
+
+
+3.4 UPDATE JOB DETAILS (Step 2: Job Details) [PROTECTED]
+--------------------------------------------------------
+Method: PUT
+Endpoint: /api/request-service/requests/:requestId/details
+Description: Update service request with job title, description, and location
+             SECOND STEP of booking flow
+             Requires authentication - user ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+URL Parameters:
+  requestId: number (required) - The requestId from step 1
+
+Request Body (JSON):
+{
+  "jobTitle": "Kitchen faucet repair",      // Required, min 3, max 200 characters
+  "description": "The kitchen faucet has been leaking for 2 days. Water drips continuously from the base.",  // Required, min 10, max 500 characters
+  "images": ["url1.jpg", "url2.jpg"],       // Optional - array of image URLs
+  "comment": "Please bring replacement parts",  // Optional, max 1000 characters
+  "location": {                             // Optional - if not provided, uses user's saved location
+    "placeId": "ChIJ...",                   // Recommended: use placeId from location search
+    "address": "123 Main Street",
+    "formattedAddress": "123 Main Street, Lagos, Nigeria",
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "city": "Lagos",
+    "state": "Lagos State",
+    "country": "Nigeria"
+  }
+}
+
+Response (Success):
+{
+  "data": {
+    "requestId": 5,
+    "jobTitle": "Kitchen faucet repair",
+    "description": "The kitchen faucet has been leaking...",
+    "location": "123 Main Street, Lagos, Nigeria",
+    "locationVerifiedAt": "2024-12-18T10:30:00.000Z",
+    "nearbyProviders": [
+      {
+        "id": 1,
+        "name": "John Doe",
+        "verified": true,
+        "age": 35,
+        "phoneNumber": "12345678901",
+        "location": {
+          "address": "456 Service Road, Lagos, Nigeria",
+          "city": "Lagos",
+          "state": "Lagos State"
+        },
+        "distanceKm": 2.5,
+        "minutesAway": 5
+      }
+      // ... more providers sorted by distance
+    ],
+    "message": "Job details updated successfully"
+  }
+}
+
+NOTE: nearbyProviders array is only included when:
+- Request has location data (latitude and longitude)
+- Request status is "pending"
+- Providers are found within 50km radius
+
+HOW TO USE:
+- Call this when user clicks "Next →" button in Job Details screen
+- Include Authorization header: Authorization: Bearer <token>
+- Replace :requestId in URL with the requestId from step 1
+- If user didn't change location, you can omit "location" field - it will use user's saved location
+- If user changed location, include full location object from location search
+- Optional: Include "images" array to save images to user profile
+- Show character count for description (max 500) and comment (max 1000)
+- Navigate to "Date & Time" screen after success
+- Continue passing requestId to next step
+
+
+3.5 UPDATE DATE & TIME (Step 3: Date & Time) [PROTECTED]
+--------------------------------------------------------
+Method: PUT
+Endpoint: /api/request-service/requests/:requestId/date-time
+Description: Update service request with scheduled date and time
+             THIRD AND FINAL STEP of booking flow
+             Requires authentication - user ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+URL Parameters:
+  requestId: number (required) - The requestId from step 1
+
+Request Body (JSON):
+{
+  "scheduledDate": "2024-12-18",            // Required, ISO date string (YYYY-MM-DD)
+  "scheduledTime": "10:00 AM"               // Required, format: "HH:MM AM/PM" (e.g., "10:00 AM", "02:30 PM")
+}
+
+Response (Success):
+{
+  "data": {
+    "requestId": 5,
+    "scheduledDate": "2024-12-18T00:00:00.000Z",
+    "scheduledTime": "10:00 AM",
+    "message": "Date and time updated successfully"
+  }
+}
+
+HOW TO USE:
+- Call this when user clicks "Next →" or "Confirm" button in Date & Time screen
+- Include Authorization header: Authorization: Bearer <token>
+- Replace :requestId in URL with the requestId from step 1
+- Format date as YYYY-MM-DD (JavaScript: date.toISOString().split('T')[0])
+- Format time as "HH:MM AM/PM" (e.g., "09:00 AM", "02:30 PM")
+- Validate date is not in the past
+- After success, show confirmation screen or redirect to requests list
+- Request is now complete and in "pending" status
+
+
+3.6 GET SERVICE REQUEST DETAILS [PROTECTED]
+-------------------------------------------
+Method: GET
+Endpoint: /api/request-service/requests/:requestId
+Description: Get full details of a service request
+             Use this to display request details in a detail view
+             Requires authentication - user ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+URL Parameters:
+  requestId: number (required)
+
+Example Request:
+  GET /api/request-service/requests/5
+  Headers: Authorization: Bearer <your-token-here>
+
+Response (Success):
+{
+  "data": {
+    "id": 5,
+    "categoryName": "plumbing",
+    "jobTitle": "Kitchen faucet repair",
+    "description": "The kitchen faucet has been leaking...",
+    "comment": "Please bring replacement parts",
+    "location": {
+      "formattedAddress": "123 Main Street, Lagos, Nigeria",
+      "address": "123 Main Street",
+      "city": "Lagos",
+      "state": "Lagos State",
+      "country": "Nigeria",
+      "latitude": 6.5244,
+      "longitude": 3.3792,
+      "locationVerifiedAt": "2024-12-18T10:30:00.000Z"
+    },
+    "scheduledDate": "2024-12-18T00:00:00.000Z",
+    "scheduledTime": "10:00 AM",
+    "status": "pending",
+    "nearbyProviders": [
+      {
+        "id": 1,
+        "name": "John Doe",
+        "verified": true,
+        "age": 35,
+        "phoneNumber": "12345678901",
+        "location": {
+          "address": "456 Service Road, Lagos, Nigeria",
+          "city": "Lagos",
+          "state": "Lagos State"
+        },
+        "distanceKm": 2.5,
+        "minutesAway": 5
+      }
+      // ... more providers sorted by distance (closest first)
+    ],
+    "createdAt": "2024-12-18T09:00:00.000Z",
+    "updatedAt": "2024-12-18T10:35:00.000Z"
+  }
+}
+
+NOTE: nearbyProviders array is only included when:
+- Request has location data (latitude and longitude)
+- Request status is "pending"
+- Providers are found within 50km radius
+- Array is empty if no providers found or request is not pending
+
+HOW TO USE:
+- Call this when user clicks on a request to view details
+- Include Authorization header: Authorization: Bearer <token>
+- Replace :requestId in URL
+- Display all fields in a detailed view
+- Use location coordinates to show on map
+- Show status badge with appropriate color
+- Format dates and times for display
+- nearbyProviders array shows available providers if request is pending
+
+
+3.7 GET USER'S SERVICE REQUESTS [PROTECTED]
+-------------------------------------------
+Method: GET
+Endpoint: /api/request-service/requests?status=pending
+Description: Get all service requests for a user, optionally filtered by status
+             Use this to display user's requests list
+             Requires authentication - user ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Query Parameters:
+  status: string (optional) - "pending" | "accepted" | "in_progress" | "completed" | "cancelled"
+
+Example Requests:
+  GET /api/request-service/requests
+  GET /api/request-service/requests?status=pending
+  Headers: Authorization: Bearer <your-token-here>
+
+Response (Success):
+{
+  "data": [
+    {
+      "id": 5,
+      "categoryName": "plumbing",
+      "jobTitle": "Kitchen faucet repair",
+      "description": "The kitchen faucet has been leaking...",
+      "location": "123 Main Street, Lagos, Nigeria",
+      "scheduledDate": "2024-12-18T00:00:00.000Z",
+      "scheduledTime": "10:00 AM",
+      "status": "pending",
+      "createdAt": "2024-12-18T09:00:00.000Z"
+    }
+    // ... more requests
+  ]
+}
+
+HOW TO USE:
+- Call this to load user's requests list on mount
+- Include Authorization header: Authorization: Bearer <token>
+- Use status filter to show requests by status (e.g., "My Pending Requests")
+- Display in a list/card format
+- Show category, job title, location, date/time, and status
+- Make each item clickable to navigate to request details
+- Sort by createdAt (newest first) - already sorted by backend
+
+
+3.8 CANCEL SERVICE REQUEST [PROTECTED]
+--------------------------------------
+Method: DELETE
+Endpoint: /api/request-service/requests/:requestId
+Description: Cancel a service request
+             Use this when user clicks "Cancel request" button
+             Requires authentication - user ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+URL Parameters:
+  requestId: number (required)
+
+Request Body (JSON):
+  No body required - user ID is extracted from authentication token
+
+Response (Success):
+{
+  "data": {
+    "requestId": 5,
+    "status": "cancelled",
+    "message": "Service request cancelled successfully"
+  }
+}
+
+Response (Error):
+{
+  "error": "Service request is already cancelled"
+}
+
+HOW TO USE:
+- Call this when user confirms cancellation
+- Include Authorization header: Authorization: Bearer <token>
+- Replace :requestId in URL
+- No request body required - user ID is extracted from token
+- Show confirmation dialog before calling
+- After success, update UI (remove from list or update status)
+- Refresh requests list or navigate back
+
+
+3.9 GET ACCEPTED PROVIDERS FOR REQUEST [PROTECTED]
+--------------------------------------------------
+Method: GET
+Endpoint: /api/request-service/requests/:requestId/accepted-providers
+Description: Get all providers who have accepted a service request
+             Use this to show user all providers who accepted, so they can pick one
+             Requires authentication - user ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+URL Parameters:
+  requestId: number (required)
+
+Example Request:
+  GET /api/request-service/requests/5/accepted-providers
+  Headers: Authorization: Bearer <your-token-here>
+
+Response (Success):
+{
+  "data": [
+    {
+      "provider": {
+        "id": 1,
+        "name": "John Doe",
+        "verified": true,
+        "age": 35,
+        "phoneNumber": "12345678901",
+        "email": "john@provider.com",
+        "location": {
+          "address": "456 Service Road, Lagos, Nigeria",
+          "city": "Lagos",
+          "state": "Lagos State"
+        }
+      },
+      "acceptance": {
+        "id": 10,
+        "acceptedAt": "2024-12-18T10:00:00.000Z"
+      },
+      "distanceKm": 2.5,
+      "minutesAway": 5
+    },
+    {
+      "provider": {
+        "id": 2,
+        "name": "Jane Smith",
+        "verified": true,
+        "age": 28,
+        "phoneNumber": "98765432109",
+        "email": "jane@provider.com",
+        "location": {
+          "address": "789 Helper Street, Lagos, Nigeria",
+          "city": "Lagos",
+          "state": "Lagos State"
+        }
+      },
+      "acceptance": {
+        "id": 11,
+        "acceptedAt": "2024-12-18T10:05:00.000Z"
+      },
+      "distanceKm": 5.2,
+      "minutesAway": 10
+    }
+    // ... more providers sorted by distance (closest first)
+  ]
+}
+
+Response (Error):
+{
+  "error": "Service request not found"
+}
+
+HOW TO USE:
+- Call this after providers have accepted the request
+- Include Authorization header: Authorization: Bearer <token>
+- Show user all providers who accepted their request
+- Display provider info, distance, and estimated time
+- Sort providers by distance (already sorted by backend)
+- User can then select one provider using section 3.10
+
+
+3.10 SELECT PROVIDER FOR REQUEST [PROTECTED]
+--------------------------------------------
+Method: POST
+Endpoint: /api/request-service/requests/:requestId/select-provider
+Description: User selects a provider from those who accepted the request
+             This finalizes the request assignment - changes status from "pending" to "accepted"
+             Only providers who accepted can be selected
+             Requires authentication - user ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+URL Parameters:
+  requestId: number (required)
+
+Request Body (JSON):
+{
+  "providerId": 1                           // Required - must be one of the providers who accepted
+}
+
+Example Request:
+  POST /api/request-service/requests/5/select-provider
+
+Response (Success):
+{
+  "data": {
+    "requestId": 5,
+    "status": "accepted",
+    "provider": {
+      "id": 1,
+      "name": "John Doe",
+      "phoneNumber": "12345678901",
+      "email": "john@provider.com"
+    },
+    "message": "Provider selected successfully. Request has been assigned."
+  }
+}
+
+Response (Error):
+{
+  "error": "This provider has not accepted this request"
+}
+
+OR
+
+{
+  "error": "This request is no longer available for selection"
+}
+
+OR
+
+{
+  "error": "Unauthorized: This request does not belong to you"
+}
+
+HOW TO USE:
+- Call this when user clicks "Select Provider" button
+- Include Authorization header: Authorization: Bearer <token>
+- providerId must be one of the providers from section 3.9 (who accepted)
+- After selection, request status changes to "accepted"
+- Selected provider's contact info is now available
+- Other providers who accepted are automatically rejected
+- User and provider can now communicate directly
+
+
+================================================================================
+                        4. PROVIDER ENDPOINTS
+================================================================================
+
+4.1 PROVIDER SIGNUP
+-------------------
+Method: POST
+Endpoint: /api/provider/signup
+Description: Register a new provider account (service professional)
+             Providers are individuals who offer services in various categories
+
+Request Body (JSON):
+{
+  "name": "John Doe",                    // Required, string, min 2, max 100 characters
+  "email": "john@provider.com",          // Required, valid email
+  "password": "password123",             // Required, minimum 6 characters
+  "phoneNumber": "12345678901",          // Optional, exactly 11 characters
+  "age": 30,                             // Required, integer, min 18, max 100
+  "verified": false,                     // Optional, boolean (default: false)
+  "location": {                          // Optional - can be added later
+    "placeId": "ChIJ...",
+    "address": "123 Main Street",
+    "formattedAddress": "123 Main Street, Lagos, Nigeria",
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "city": "Lagos",
+    "state": "Lagos State",
+    "country": "Nigeria"
+  },
+  "categories": ["plumbing", "electrical"]  // Optional - MUST be valid categories from section 3.1
+}
+
+Response (Error - Invalid Categories):
+{
+  "error": "Invalid category names: invalidCategory. Categories must be selected from the available category list."
+}
+
+IMPORTANT:
+- Categories must be valid category names from section 3.1
+- Categories are validated before provider is created
+- Invalid categories will cause signup to fail
+
+Response (Success):
+{
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@provider.com",
+    "phoneNumber": "12345678901",
+    "verified": false,
+    "age": 30,
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "formattedAddress": "123 Main Street, Lagos, Nigeria",
+    "token": "jwt-token-here",           // Save this token for authenticated requests
+    "message": "Provider registered successfully"
+  }
+}
+
+Response (Error):
+{
+  "error": "Provider with this email already exists"
+}
+
+HOW TO USE:
+- Call this when a service professional wants to register
+- Store the returned token for provider authentication
+- Provider can add location and categories later if not provided during signup
+- Verification status starts as false (admin can verify later)
+
+
+4.2 PROVIDER LOGIN
+------------------
+Method: POST
+Endpoint: /api/provider/login
+Description: Login for provider accounts
+
+Request Body (JSON):
+{
+  "email": "john@provider.com",          // Required, valid email
+  "password": "password123"              // Required
+}
+
+Response (Success):
+{
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@provider.com",
+    "phoneNumber": "12345678901",
+    "verified": true,
+    "age": 30,
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "formattedAddress": "123 Main Street, Lagos, Nigeria",
+    "token": "jwt-token-here",
+    "message": "Login successful"
+  }
+}
+
+Response (Error):
+{
+  "error": "Invalid email or password"
+}
+
+HOW TO USE:
+- Similar to user login, but for providers
+- Store token for provider session
+- Use token for provider-specific endpoints
+
+
+4.3 GET PROVIDER DETAILS
+------------------------
+Method: GET
+Endpoint: /api/provider/:providerId
+Description: Get provider profile information including their service categories
+
+URL Parameters:
+  providerId: number (required)
+
+Example Request:
+  GET /api/provider/1
+
+Response (Success):
+{
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@provider.com",
+    "phoneNumber": "12345678901",
+    "verified": true,
+    "age": 30,
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "formattedAddress": "123 Main Street, Lagos, Nigeria",
+    "address": "123 Main Street",
+    "city": "Lagos",
+    "state": "Lagos State",
+    "country": "Nigeria",
+    "isActive": true,
+    "categories": ["plumbing", "electrical"]  // Service categories provider offers
+  }
+}
+
+Response (Error):
+{
+  "error": "Provider not found"
+}
+
+HOW TO USE:
+- Call this to display provider profile
+- Use to show provider information to users
+- Categories array shows what services provider can offer
+
+
+4.4 UPDATE PROVIDER LOCATION
+-----------------------------
+Method: PUT
+Endpoint: /api/provider/:providerId/location
+Description: Update provider's current location
+             Provider can simply provide placeId, address, or coordinates
+             All location details will be automatically fetched and saved
+             Important: Providers need location to see nearby requests
+AJE USE ONLY ADDRESS
+URL Parameters:
+  providerId: number (required)
+
+Request Body (JSON) - Option 1: Using placeId (Recommended - Most Accurate):
+{
+  "placeId": "ChIJ..."                   // Required - placeId from location search (section 2.1)
+}
+
+Request Body (JSON) - Option 2: Using Address String:
+{
+  "address": "123 Main Street, Lagos, Nigeria"  // Required - full address string
+}
+
+Request Body (JSON) - Option 3: Using GPS Coordinates:
+{
+  "latitude": 6.5244,                    // Required
+  "longitude": 3.3792                    // Required
+}
+
+Response (Success):
+{
+  "data": {
+    "providerId": 1,
+    "location": {
+      "placeId": "ChIJ...",
+      "latitude": 6.5244,
+      "longitude": 3.3792,
+      "formattedAddress": "123 Main Street, Lagos, Nigeria",
+      "address": "123 Main Street, Lagos, Nigeria",
+      "city": "Lagos",
+      "state": "Lagos State",
+      "country": "Nigeria"
+    },
+    "message": "Location updated successfully"
+  }
+}
+
+Response (Error - Invalid Address):
+{
+  "error": "Failed to geocode address: Google Geocoding API error: ZERO_RESULTS - Address not found"
+}
+
+HOW TO USE:
+- SIMPLEST: Provider just provides placeId from location search (recommended)
+  * Use GET /api/user/location/search?query=... to search
+  * User selects location and gets placeId
+  * Provider sends placeId in this endpoint
+  * All details (lat, lng, city, state, etc.) are automatically fetched and saved
+  
+- ALTERNATIVE: Provider provides address string
+  * Provider types their address (e.g., "123 Main Street, Lagos")
+  * System automatically geocodes it and fetches all location details
+  * All details are saved automatically
+  
+- GPS OPTION: Provider provides coordinates
+  * If provider grants location permission and has GPS coordinates
+  * System reverse geocodes coordinates to get address details
+  * All details are saved automatically
+
+IMPORTANT:
+- Provider only needs to provide ONE of: placeId, address, or coordinates
+- All other location fields (latitude, longitude, city, state, country, formattedAddress) 
+  are automatically fetched from Google APIs and saved
+- Provider location is used to calculate distance to service requests
+- Update location regularly so providers see relevant nearby requests
+
+
+4.5 ADD SERVICE CATEGORIES TO PROVIDER
+---------------------------------------
+Method: POST
+Endpoint: /api/provider/:providerId/categories
+Description: Add service categories that the provider can offer
+             Providers can offer multiple categories (e.g., plumbing AND electrical)
+
+URL Parameters:
+  providerId: number (required)
+
+Request Body (JSON):
+{
+  "categories": ["plumbing", "electrical", "carpentry"]  // Required, array of category names (min 1)
+                                                          // MUST be valid categories from section 3.1
+}
+
+Response (Success):
+{
+  "data": {
+    "providerId": 1,
+    "categories": ["plumbing", "electrical", "carpentry"],
+    "message": "Categories added successfully"
+  }
+}
+
+Response (Error - Invalid Categories):
+{
+  "error": "Invalid category names: invalidCategory, anotherInvalid. Categories must be selected from the available category list."
+}
+
+Response (Error - Duplicate Categories):
+{
+  "error": "Duplicate categories are not allowed"
+}
+
+Response (Error - Already Has Categories):
+{
+  "error": "Provider already has the following categories: plumbing, electrical. Please remove existing categories before adding new ones, or select different categories."
+}
+
+Response (Error - Provider Not Found):
+{
+  "error": "Provider not found"
+}
+
+IMPORTANT VALIDATION:
+- All category names MUST be valid categories from section 3.1
+- Duplicate categories in the same request are not allowed
+- Provider cannot add categories they already have
+- Categories are validated against the Category model before saving
+- Only verified and active providers are counted in provider counts
+
+HOW TO USE:
+- Call this when provider wants to add service categories
+- Category names must match exactly the "name" field from section 3.1 categories
+- Provider will see requests for all categories they've registered for
+- To add more categories later, call this endpoint again with new categories
+- To replace categories, first remove existing ones (if endpoint exists) or contact support
+
+
+4.6 GET PROVIDER SERVICES/CATEGORIES
+-------------------------------------
+Method: GET
+Endpoint: /api/provider/:providerId/services
+Description: Get all service categories a provider offers
+
+URL Parameters:
+  providerId: number (required)
+
+Example Request:
+  GET /api/provider/1/services
+
+Response (Success):
+{
+  "data": [
+    {
+      "id": 1,
+      "categoryName": "plumbing"
+    },
+    {
+      "id": 2,
+      "categoryName": "electrical"
+    }
+  ]
+}
+
+HOW TO USE:
+- Call this to display which services a provider offers
+- Use to show provider's specialties in their profile
+
+
+4.7 GET NEARBY PROVIDERS (PUBLIC)
+----------------------------------
+Method: GET
+Endpoint: /api/provider/nearby
+Description: Get providers near a location for a specific service category
+             This is a public endpoint - no authentication required
+             Use this to show available providers to users (similar to Uber)
+
+Query Parameters:
+  categoryName: string (required) - e.g., "plumbing", "electrical"
+  latitude: number (required) - Location latitude (-90 to 90)
+  longitude: number (required) - Location longitude (-180 to 180)
+  maxDistanceKm: number (optional) - Maximum distance in kilometers (default: 50)
+
+Example Request:
+  GET /api/provider/nearby?categoryName=plumbing&latitude=6.5244&longitude=3.3792&maxDistanceKm=50
+
+Response (Success):
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "John Doe",
+      "verified": true,
+      "age": 35,
+      "phoneNumber": "12345678901",
+      "location": {
+        "address": "456 Service Road, Lagos, Nigeria",
+        "city": "Lagos",
+        "state": "Lagos State"
+      },
+      "distanceKm": 2.5,                 // Distance in kilometers (rounded to 1 decimal)
+      "minutesAway": 5                    // Estimated minutes away (based on 30km/h average)
+    },
+    {
+      "id": 2,
+      "name": "Jane Smith",
+      "verified": true,
+      "age": 28,
+      "phoneNumber": "98765432109",
+      "location": {
+        "address": "789 Helper Street, Lagos, Nigeria",
+        "city": "Lagos",
+        "state": "Lagos State"
+      },
+      "distanceKm": 5.2,
+      "minutesAway": 10
+    }
+    // ... more providers sorted by distance (closest first)
+  ]
+}
+
+Response (Error):
+{
+  "error": "categoryName, latitude, and longitude are required"
+}
+
+HOW TO USE:
+- Call this to show users available providers for their request
+- Results are sorted by distance (closest providers first)
+- Only shows verified and active providers
+- Display distanceKm and minutesAway to users (like Uber)
+- Use when user is viewing their service request details
+- Also returned automatically in service request details (section 3.6)
+
+
+4.8 GET AVAILABLE REQUESTS FOR PROVIDER
+---------------------------------------
+Method: GET
+Endpoint: /api/provider/:providerId/requests/available
+Description: Get all pending service requests that a provider can accept
+             Shows requests in provider's registered categories, within distance radius
+             Sorted by distance (closest first)
+
+URL Parameters:
+  providerId: number (required)
+
+Query Parameters:
+  maxDistanceKm: number (optional) - Maximum distance in kilometers (default: 50)
+
+Example Request:
+  GET /api/provider/1/requests/available?maxDistanceKm=50
+
+Response (Success):
+{
+  "data": [
+    {
+      "id": 5,
+      "categoryName": "plumbing",
+      "jobTitle": "Kitchen faucet repair",
+      "description": "The faucet is leaking",
+      "location": {
+        "formattedAddress": "123 Main Street, Lagos, Nigeria",
+        "city": "Lagos",
+        "state": "Lagos State",
+        "latitude": 6.5244,
+        "longitude": 3.3792
+      },
+      "scheduledDate": "2024-12-18T00:00:00.000Z",
+      "scheduledTime": "10:00 AM",
+      "status": "pending",
+      "user": {
+        "id": 2,
+        "firstName": "Jane",
+        "lastName": "User",
+        "phoneNumber": "09876543210",
+        "email": "jane@user.com"
+      },
+      "distanceKm": 2.5,                 // Distance from provider to request location
+      "minutesAway": 5,                   // Estimated travel time
+      "createdAt": "2024-12-18T09:00:00.000Z"
+    }
+    // ... more requests sorted by distance
+  ]
+}
+
+Response (Error):
+{
+  "error": "Provider location not set"
+}
+
+HOW TO USE:
+- Call this to show provider available jobs they can accept
+- Only shows requests in categories provider has registered for
+- Only shows requests within maxDistanceKm radius
+- Display distance and estimated travel time to help provider decide
+- Provider should update their location regularly for accurate results
+
+
+4.9 ACCEPT SERVICE REQUEST
+--------------------------
+Method: POST
+Endpoint: /api/provider/:providerId/requests/:requestId/accept
+Description: Provider accepts a service request
+             Creates an acceptance record - request stays "pending" until user picks a provider
+             Multiple providers can accept the same request, user will see all and pick one
+
+URL Parameters:
+  providerId: number (required)
+  requestId: number (required)
+
+Example Request:
+  POST /api/provider/1/requests/5/accept
+
+Response (Success):
+{
+  "data": {
+    "requestId": 5,
+    "acceptanceId": 10,
+    "status": "accepted",
+    "requestStatus": "pending",
+    "message": "Request accepted successfully. Waiting for user to select a provider."
+  }
+}
+
+NOTE: 
+- Request status remains "pending" until user selects a provider
+- Multiple providers can accept the same request
+- User will see all accepted providers and can pick one
+
+Response (Error):
+{
+  "error": "Provider does not offer this service category"
+}
+
+OR
+
+{
+  "error": "Service request is not available for acceptance"
+}
+
+OR
+
+{
+  "error": "You have already accepted this request"
+}
+
+HOW TO USE:
+- Call this when provider clicks "Accept Request" button
+- Provider must offer the service category of the request
+- Request must be in "pending" status
+- Creates an acceptance record - request status stays "pending"
+- Multiple providers can accept the same request
+- User will see all accepted providers and can pick one later
+
+
+4.9.1 REJECT SERVICE REQUEST
+-----------------------------
+Method: POST
+Endpoint: /api/provider/:providerId/requests/:requestId/reject
+Description: Provider rejects a service request
+             Records the rejection so provider won't see this request again
+
+URL Parameters:
+  providerId: number (required)
+  requestId: number (required)
+
+Example Request:
+  POST /api/provider/1/requests/5/reject
+
+Response (Success):
+{
+  "data": {
+    "requestId": 5,
+    "acceptanceId": 11,
+    "status": "rejected",
+    "message": "Request rejected successfully"
+  }
+}
+
+Response (Error):
+{
+  "error": "Service request not found"
+}
+
+OR
+
+{
+  "error": "You have already rejected this request"
+}
+
+HOW TO USE:
+- Call this when provider clicks "Reject Request" button
+- Records the rejection - provider won't see this request in available requests again
+- Request status remains "pending" for other providers
+
+
+4.10 GET PROVIDER ACCEPTED REQUESTS
+------------------------------------
+Method: GET
+Endpoint: /api/provider/:providerId/requests/accepted
+Description: Get all requests that provider has accepted
+             Includes accepted, in_progress, and completed requests
+
+URL Parameters:
+  providerId: number (required)
+
+Example Request:
+  GET /api/provider/1/requests/accepted
+
+Response (Success):
+{
+  "data": [
+    {
+      "id": 5,
+      "categoryName": "plumbing",
+      "jobTitle": "Kitchen faucet repair",
+      "description": "The faucet is leaking",
+      "location": {
+        "formattedAddress": "123 Main Street, Lagos, Nigeria",
+        "city": "Lagos",
+        "state": "Lagos State"
+      },
+      "scheduledDate": "2024-12-18T00:00:00.000Z",
+      "scheduledTime": "10:00 AM",
+      "status": "accepted",               // or "in_progress" or "completed"
+      "user": {
+        "id": 2,
+        "firstName": "Jane",
+        "lastName": "User",
+        "phoneNumber": "09876543210",
+        "email": "jane@user.com"
+      },
+      "createdAt": "2024-12-18T09:00:00.000Z",
+      "updatedAt": "2024-12-18T10:00:00.000Z"
+    }
+    // ... more requests
+  ]
+}
+
+HOW TO USE:
+- Call this to show provider their accepted/completed jobs
+- Display in provider's dashboard or job history
+- Filter by status if needed on frontend
+- Show user contact info for communication
+
+
+================================================================================
+                              IMPORTANT NOTES FOR FRONTEND
+================================================================================
+
+1. AUTHENTICATION:
+   - Store JWT token from signup/login in localStorage or secure storage
+   - Include token in Authorization header for ALL protected endpoints: "Authorization: Bearer <token>"
+   - User ID is automatically extracted from the token - DO NOT pass userId in request body or query
+   - If authentication fails, you'll receive: { "error": "User not authenticated" }
+   - Protected endpoints are marked with [PROTECTED] in this documentation
+
+2. ERROR HANDLING:
+   - Always check for "error" field in response
+   - Display user-friendly error messages
+   - Handle network errors (no internet, timeout, etc.)
+   - Show loading states during API calls
+
+3. BOOKING FLOW SEQUENCE:
+   Step 1: GET categories → User selects → POST /requests (save requestId)
+   Step 2: Fill job details → PUT /requests/:requestId/details (use saved requestId)
+   Step 3: Select date/time → PUT /requests/:requestId/date-time (use saved requestId)
+   
+   IMPORTANT: Always save the requestId from step 1 and use it in steps 2 and 3!
+
+4. LOCATION FLOW:
+   - Search locations → User selects → Get placeId
+   - Use placeId to save location or get full details
+   - Save user location once, reuse for future requests
+   - Use GPS coordinates if user grants permission
+
+5. DATE/TIME FORMATTING:
+   - Date: Use ISO format (YYYY-MM-DD) or Date object
+   - Time: Format as "HH:MM AM/PM" (e.g., "10:00 AM", "02:30 PM")
+   - Display dates in user's locale format
+
+6. STATUS BADGES:
+   - pending: Yellow/Orange
+   - accepted: Blue
+   - in_progress: Purple
+   - completed: Green
+   - cancelled: Red/Gray
+
+7. PROVIDER FEATURES:
+   - Providers are individuals who offer services (not companies)
+   - Providers must set location to see nearby requests
+   - Providers can offer multiple service categories
+   - Categories MUST be selected from the valid Category model list (38 categories)
+   - Category validation ensures data integrity - invalid categories are rejected
+   - Providers cannot add duplicate categories
+   - Providers cannot add categories they already have
+   - Distance calculation uses Haversine formula (accurate for short-medium distances)
+   - Minutes away estimation assumes 30km/h average travel speed
+   - Only verified and active providers are shown to users
+   - Providers see requests within 50km radius by default (configurable)
+
+8. NEARBY PROVIDERS:
+   - Automatically included in service request details when:
+     * Request has location data (latitude/longitude)
+     * Request status is "pending"
+   - Providers sorted by distance (closest first)
+   - Shows distance in kilometers and estimated minutes away
+   - Empty array if no providers found or request not pending
+   - Can also query manually using section 4.7 endpoint
+
+9. CORS:
+   - Backend is configured to accept requests from allowed origins
+   - Make sure your frontend domain is in CORS_ALLOWED_ORIGINS env variable
+
+10. BASE URL:
+   - Development: http://localhost:3000/api
+   - Production: https://your-domain.com/api
+   - Use environment variables for API base URL
+
+11. CATEGORY VALIDATION:
+   - All category names are validated against the Category model
+   - There are 38 valid categories total
+   - Invalid category names will be rejected with clear error messages
+   - Categories must match exactly the "name" field from GET /api/request-service/categories
+   - Validation happens at:
+     * Request validation level (Joi)
+     * Service level (before database operations)
+   - This ensures data integrity and prevents invalid categories from being saved
+
+   VALID CATEGORY NAMES (38 total):
+   - plumbing, electrical, carpentry, painting, masonry, tiling, flooring, roofing
+   - fencing, landscaping, welding, airConditioning, generatorRepair
+   - aluminumFabrication, glassWork, gardening, pestControl, cleaning
+   - fridgeRepair, waterTreatment, popCeiling, cctvInstallation, security
+   - gateFabrication, boreholeDrilling, scaffolding, poolConstruction
+   - solarInstallation, upholstery, doorInstallation, windowInstallation
+   - interlockingPaving, metalWork, wasteDisposal, waterProofing
+   - pestFumigation, applianceRepair, curtainInstallation, blindsInstallation
+   - glassInstallation, insulation, mechanicRepair
+
+12. LIVE DATA:
+   - Provider counts in categories are LIVE from the database
+   - Counts update automatically as providers register and add categories
+   - Only verified and active providers are counted
+   - Categories with 0 providers will show providerCount: 0
+   - All 38 categories are always returned, regardless of provider count
+
+================================================================================
+                              EXAMPLE FRONTEND FLOW
+================================================================================
+
+BOOKING FLOW EXAMPLE (React/React Native):
+-------------------------------------------
+
+// Step 1: Get Categories
+const categories = await fetch('/api/request-service/categories').then(r => r.json());
+setCategories(categories.data);
+
+// User selects category
+const selectedCategory = { name: "plumbing", displayName: "Plumbing" };
+
+// Get token from storage (saved after login/signup)
+const token = localStorage.getItem('token');
+
+// Create Request
+// IMPORTANT: categoryName must be a valid category from the categories list
+// User ID is automatically extracted from the authentication token
+const createResponse = await fetch('/api/request-service/requests', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`  // Required for authentication
+  },
+  body: JSON.stringify({
+    categoryName: selectedCategory.name  // Must match a valid category name
+  })
+});
+// Note: Will fail if categoryName is not a valid category or token is invalid
+const { data } = await createResponse.json();
+const requestId = data.requestId;  // SAVE THIS!
+
+// Step 2: Update Job Details
+await fetch(`/api/request-service/requests/${requestId}/details`, {
+  method: 'PUT',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`  // Required
+  },
+  body: JSON.stringify({
+    jobTitle: "Kitchen faucet repair",
+    description: "The faucet is leaking...",
+    images: ["url1.jpg", "url2.jpg"],  // Optional - array of image URLs
+    location: selectedLocation  // from location search
+  })
+});
+
+// Step 3: Update Date & Time
+await fetch(`/api/request-service/requests/${requestId}/date-time`, {
+  method: 'PUT',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`  // Required
+  },
+  body: JSON.stringify({
+    scheduledDate: "2024-12-18",
+    scheduledTime: "10:00 AM"
+  })
+});
+
+
+LOCATION FLOW EXAMPLE:
+----------------------
+
+// Search locations as user types
+const searchLocations = async (query) => {
+  const response = await fetch(`/api/user/location/search?query=${query}`);
+  const { data } = await response.json();
+  return data;  // Array of location predictions
+};
+
+// User selects location
+const selectedPlaceId = "ChIJ...";
+
+// Get full details
+const detailsResponse = await fetch(`/api/user/location/details?placeId=${selectedPlaceId}`);
+const { data: locationDetails } = await detailsResponse.json();
+
+// Save user location (requires authentication)
+const token = localStorage.getItem('token');
+await fetch('/api/user/update-location', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`  // Required
+  },
+  body: JSON.stringify({
+    placeId: selectedPlaceId  // User ID is automatically extracted from token
+  })
+});
+
+
+COMPLETE USER REGISTRATION FLOW:
+---------------------------------
+
+// 1. User fills signup form
+const signupResponse = await fetch('/api/user/signup', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    firstName: "John",
+    lastName: "Doe",
+    userName: "johndoe",
+    gender: "male",
+    email: "john@example.com",
+    phoneNumber: "12345678901",
+    password: "password123"
+  })
+});
+
+const { data: userData } = await signupResponse.json();
+const token = userData.token;
+localStorage.setItem('token', token);  // Save token - use this for all authenticated requests
+
+// 2. User sets location (optional but recommended)
+// ... location search flow ...
+const token = userData.token;  // Token from signup response
+await fetch('/api/user/update-location', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`  // Required
+  },
+  body: JSON.stringify({
+    placeId: selectedPlaceId  // User ID is automatically extracted from token
+  })
+});
+
+// Now user can create service requests!
+
+
+PROVIDER REGISTRATION AND JOB FLOW EXAMPLE:
+--------------------------------------------
+
+// 1. Provider Signup
+const providerSignupResponse = await fetch('/api/provider/signup', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: "John Provider",
+    email: "john@provider.com",
+    password: "password123",
+    phoneNumber: "12345678901",
+    age: 35,
+    categories: ["plumbing", "electrical"]  // Services provider offers
+  })
+});
+
+const { data: providerData } = await providerSignupResponse.json();
+const providerToken = providerData.token;
+localStorage.setItem('providerToken', providerToken);
+localStorage.setItem('providerId', providerData.id);
+
+// Note: If categories were provided during signup, they are validated and saved automatically
+// Invalid categories will cause signup to fail with an error message
+
+// 2. Provider sets location (IMPORTANT - required to see nearby requests)
+await fetch(`/api/provider/${providerData.id}/location`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    placeId: selectedPlaceId,
+    latitude: 6.5244,
+    longitude: 3.3792,
+    formattedAddress: "123 Provider Street, Lagos, Nigeria",
+    city: "Lagos",
+    state: "Lagos State",
+    country: "Nigeria"
+  })
+});
+
+// 3. Provider can add more service categories later
+// IMPORTANT: Categories must be valid category names from GET /api/request-service/categories
+await fetch(`/api/provider/${providerData.id}/categories`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    categories: ["carpentry"]  // Must be valid category name from category list
+  })
+});
+// Note: Will fail if category is invalid, duplicate, or provider already has it
+
+// 4. Provider views available requests
+const availableRequests = await fetch(`/api/provider/${providerData.id}/requests/available?maxDistanceKm=50`)
+  .then(r => r.json());
+
+// availableRequests.data is an array of pending requests sorted by distance
+// Each request includes distanceKm and minutesAway
+
+// 5. Provider accepts a request
+await fetch(`/api/provider/${providerData.id}/requests/${requestId}/accept`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' }
+});
+
+// Request status changes from "pending" to "accepted"
+// Provider and user contact info is now available for communication
+
+// 6. Provider views their accepted/completed jobs
+const myJobs = await fetch(`/api/provider/${providerData.id}/requests/accepted`)
+  .then(r => r.json());
+
+// Shows all accepted, in_progress, and completed requests
+
+
+VIEWING NEARBY PROVIDERS EXAMPLE (For Users):
+----------------------------------------------
+
+// When user views their service request details, nearbyProviders are automatically included
+const token = localStorage.getItem('token');
+const requestDetails = await fetch(`/api/request-service/requests/${requestId}`, {
+  headers: {
+    'Authorization': `Bearer ${token}`  // Required
+  }
+})
+  .then(r => r.json());
+
+// requestDetails.data.nearbyProviders contains array of providers:
+// [
+//   {
+//     id: 1,
+//     name: "John Provider",
+//     verified: true,
+//     age: 35,
+//     phoneNumber: "12345678901",
+//     location: { address: "...", city: "...", state: "..." },
+//     distanceKm: 2.5,
+//     minutesAway: 5
+//   },
+//   // ... more providers sorted by distance
+// ]
+
+// Or manually query nearby providers
+const nearbyProviders = await fetch(
+  `/api/provider/nearby?categoryName=plumbing&latitude=6.5244&longitude=3.3792&maxDistanceKm=50`
+).then(r => r.json());
+
+// Display providers to user with distance and estimated time
+// Similar to Uber's driver selection screen
+
+
+SELECTING A PROVIDER EXAMPLE (For Users):
+------------------------------------------
+
+// 1. Get all providers who accepted the request
+const token = localStorage.getItem('token');
+const acceptedProvidersResponse = await fetch(
+  `/api/request-service/requests/${requestId}/accepted-providers`,
+  {
+    headers: {
+      'Authorization': `Bearer ${token}`  // Required
+    }
+  }
+);
+const { data: acceptedProviders } = await acceptedProvidersResponse.json();
+
+// acceptedProviders is an array of providers sorted by distance:
+// [
+//   {
+//     provider: { id: 1, name: "John Provider", ... },
+//     distanceKm: 2.5,
+//     minutesAway: 5
+//   },
+//   ...
+// ]
+
+// 2. User selects a provider
+const selectedProviderId = 1;  // User picks from the list
+await fetch(`/api/request-service/requests/${requestId}/select-provider`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`  // Required
+  },
+  body: JSON.stringify({
+    providerId: selectedProviderId  // Must be one of the providers who accepted
+  })
+});
+
+// Request status changes from "pending" to "accepted"
+// Selected provider's contact info is now available
+
+
+================================================================================
+                              AUTHENTICATION ERROR RESPONSES
+================================================================================
+
+All protected endpoints will return the following error if authentication fails:
+
+Response (Authentication Error):
+{
+  "success": false,
+  "message": "Failed",
+  "data": {
+    "error": "User not authenticated"
+  }
+}
+
+OR (if token is invalid/missing):
+
+{
+  "success": false,
+  "message": "Failed",
+  "data": {
+    "error": "No authorization token"
+  }
+}
+
+OR
+
+{
+  "success": false,
+  "message": "Failed",
+  "data": {
+    "error": "Invalid token"
+  }
+}
+
+HOW TO HANDLE:
+- Check if error message contains "authenticated" or "token"
+- Redirect user to login screen
+- Clear stored token: localStorage.removeItem('token')
+- Prompt user to login again
+
+================================================================================
+                              END OF DOCUMENTATION
+================================================================================
+

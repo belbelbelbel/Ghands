@@ -1,23 +1,31 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, ArrowRight, Clock, MapPin } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-
+import { ActivityIndicator, Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
 import { useToast } from '@/hooks/useToast';
 import { useUserLocation } from '@/hooks/useUserLocation';
+import { serviceRequestService, apiClient, locationService } from '@/services/api';
+import { haptics } from '@/hooks/useHaptics';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
 
 const MAX_DESCRIPTION_LENGTH = 500;
+const MIN_DESCRIPTION_LENGTH = 10;
+const MIN_JOB_TITLE_LENGTH = 3;
+const MAX_JOB_TITLE_LENGTH = 200;
 
 export default function JobDetailsScreen() {
   const router = useRouter();
-  const { location } = useUserLocation();
-  const { toast, showError, hideToast } = useToast();
+  const params = useLocalSearchParams<{ requestId?: string; categoryName?: string }>();
+  const { location, refreshLocation } = useUserLocation();
+  const { toast, showError, showSuccess, hideToast } = useToast();
   const [jobTitle, setJobTitle] = useState('');
   const [description, setDescription] = useState('');
   const [errors, setErrors] = useState<{ jobTitle?: string; description?: string }>({});
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [locationData, setLocationData] = useState<any>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -37,33 +45,209 @@ export default function JobDetailsScreen() {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
+  // Load location details if we have a saved location
+  const loadLocationDetails = useCallback(async () => {
+    try {
+      const userId = await apiClient.getUserId();
+      if (userId) {
+        const savedLocation = await locationService.getUserLocation(userId);
+        if (savedLocation) {
+          setLocationData({
+            placeId: savedLocation.placeId,
+            formattedAddress: savedLocation.fullAddress,
+            address: savedLocation.address,
+            city: savedLocation.city,
+            state: savedLocation.state,
+            country: savedLocation.country,
+            latitude: savedLocation.latitude,
+            longitude: savedLocation.longitude,
+          });
+          if (__DEV__) {
+            console.log('✅ Location loaded from API:', savedLocation.fullAddress);
+          }
+          return true; // Location found
+        }
+      }
+    } catch (error) {
+      // Location not set in API
+      if (__DEV__) {
+        console.log('No saved location in API');
+      }
+    }
+    return false; // Location not found
+  }, []);
+
+  // Load location on mount
+  useEffect(() => {
+    loadLocationDetails();
+  }, [loadLocationDetails]);
+
+  // Refresh location when screen comes into focus (e.g., returning from LocationSearchScreen)
+  useFocusEffect(
+    useCallback(() => {
+      // Refresh location when screen comes into focus
+      loadLocationDetails();
+    }, [loadLocationDetails])
+  );
+
   const handleBack = useCallback(() => {
+    haptics.light();
     router.back();
   }, [router]);
 
   const handleChangeLocation = useCallback(() => {
-    router.push('../LocationSearchScreen' as any);
-  }, [router]);
+    haptics.light();
+    router.push({
+      pathname: '/LocationSearchScreen' as any,
+      params: {
+        next: 'JobDetailsScreen',
+        requestId: params.requestId,
+        categoryName: params.categoryName,
+      },
+    } as any);
+  }, [router, params]);
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     const newErrors: { jobTitle?: string; description?: string } = {};
     
+    // Validation
     if (!jobTitle.trim()) {
       newErrors.jobTitle = 'Job title is required';
+    } else if (jobTitle.trim().length < MIN_JOB_TITLE_LENGTH) {
+      newErrors.jobTitle = `Job title must be at least ${MIN_JOB_TITLE_LENGTH} characters`;
+    } else if (jobTitle.trim().length > MAX_JOB_TITLE_LENGTH) {
+      newErrors.jobTitle = `Job title must be less than ${MAX_JOB_TITLE_LENGTH} characters`;
     }
+    
     if (!description.trim()) {
       newErrors.description = 'Description is required';
+    } else if (description.trim().length < MIN_DESCRIPTION_LENGTH) {
+      newErrors.description = `Description must be at least ${MIN_DESCRIPTION_LENGTH} characters`;
+    } else if (description.trim().length > MAX_DESCRIPTION_LENGTH) {
+      newErrors.description = `Description must be less than ${MAX_DESCRIPTION_LENGTH} characters`;
     }
     
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      showError('Please fill in all required fields');
+      showError('Please fill in all required fields correctly');
+      haptics.error();
+      return;
+    }
+
+    if (!params.requestId) {
+      showError('Request ID is missing. Please go back and try again.');
+      haptics.error();
       return;
     }
     
-    setErrors({});
-    router.push('../DateTimeScreen' as any);
-  }, [jobTitle, description, location, router, showError]);
+    setIsUpdating(true);
+    haptics.light();
+
+    try {
+      const userId = await apiClient.getUserId();
+      
+      if (!userId) {
+        showError('Unable to identify your account. Please sign out and sign in again.');
+        haptics.error();
+        setIsUpdating(false);
+        return;
+      }
+
+      const requestId = parseInt(params.requestId, 10);
+      if (isNaN(requestId)) {
+        showError('Invalid request ID');
+        haptics.error();
+        setIsUpdating(false);
+        return;
+      }
+
+      // Check if user has a saved location - backend requires it
+      // Try to load location if we don't have it yet
+      if (!locationData) {
+        // Try to get saved location one more time
+        const locationFound = await loadLocationDetails();
+        
+        if (!locationFound) {
+          // Still no location - check if we have location from hook (local storage)
+          if (location) {
+            // We have location text but not full details - API should use saved location
+            // Allow proceeding - backend will use user's saved location if available
+            if (__DEV__) {
+              console.log('⚠️ No location data in state, but have location text. Proceeding - backend will use saved location.');
+            }
+          } else {
+            // No location at all - redirect to location screen
+            showError('Please set your location first to continue with booking.');
+            haptics.error();
+            setTimeout(() => {
+              router.push({
+                pathname: '/LocationSearchScreen' as any,
+                params: {
+                  next: 'JobDetailsScreen',
+                  requestId: params.requestId,
+                  categoryName: params.categoryName,
+                },
+              } as any);
+            }, 1500);
+            setIsUpdating(false);
+            return;
+          }
+        }
+      }
+
+      // Prepare location data
+      // If we don't have locationData, don't send location in payload
+      // Backend will use user's saved location automatically
+      let locationPayload: any = undefined;
+      if (locationData) {
+        locationPayload = {
+          placeId: locationData.placeId,
+          address: locationData.address || locationData.formattedAddress?.split(',')[0],
+          formattedAddress: locationData.formattedAddress,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          city: locationData.city,
+          state: locationData.state,
+          country: locationData.country,
+        };
+      } else {
+        // No location data - backend should use user's saved location
+        // Don't send location payload, let backend handle it
+        if (__DEV__) {
+          console.log('ℹ️ No location data to send - backend will use user\'s saved location');
+        }
+      }
+
+      // Update job details (Step 2)
+      // userId is automatically extracted from token, don't send it
+      await serviceRequestService.updateJobDetails(requestId, {
+        jobTitle: jobTitle.trim(),
+        description: description.trim(),
+        location: locationPayload,
+      });
+
+      showSuccess('Job details updated!');
+      haptics.success();
+
+      // Navigate to DateTimeScreen with requestId
+      setTimeout(() => {
+        router.push({
+          pathname: '/DateTimeScreen' as any,
+          params: {
+            requestId: params.requestId,
+            categoryName: params.categoryName,
+          },
+        } as any);
+      }, 1000);
+    } catch (error: any) {
+      console.error('Error updating job details:', error);
+      const errorMessage = getSpecificErrorMessage(error, 'update_job_details');
+      showError(errorMessage);
+      haptics.error();
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [jobTitle, description, location, locationData, params, router, showError, showSuccess]);
 
   const handleJobTitleChange = useCallback((text: string) => {
     setJobTitle(text);
@@ -73,13 +257,29 @@ export default function JobDetailsScreen() {
   }, [errors.jobTitle]);
 
   const handleDescriptionChange = useCallback((text: string) => {
-    setDescription(text);
-    if (errors.description) {
-      setErrors((prev) => ({ ...prev, description: undefined }));
+    if (text.length <= MAX_DESCRIPTION_LENGTH) {
+      setDescription(text);
+      if (errors.description) {
+        setErrors((prev) => ({ ...prev, description: undefined }));
+      }
     }
   }, [errors.description]);
 
   const parsedLocation = useMemo(() => {
+    if (locationData?.formattedAddress) {
+      const parts = locationData.formattedAddress.split(',').map((p: string) => p.trim());
+      if (parts.length >= 2) {
+        return {
+          street: parts[0],
+          city: parts.slice(1).join(', '),
+        };
+      }
+      return {
+        street: locationData.formattedAddress,
+        city: '',
+      };
+    }
+
     if (!location) {
       return {
         street: 'No location set',
@@ -98,10 +298,15 @@ export default function JobDetailsScreen() {
       street: location,
       city: '',
     };
-  }, [location]);
+  }, [location, locationData]);
 
   const descriptionCount = description.length;
-  const canProceed = jobTitle.trim().length > 0 && description.trim().length > 0;
+  const canProceed = 
+    jobTitle.trim().length >= MIN_JOB_TITLE_LENGTH && 
+    jobTitle.trim().length <= MAX_JOB_TITLE_LENGTH &&
+    description.trim().length >= MIN_DESCRIPTION_LENGTH && 
+    description.trim().length <= MAX_DESCRIPTION_LENGTH &&
+    !isUpdating;
 
   const animatedStyles = useMemo(
     () => ({
@@ -188,6 +393,7 @@ export default function JobDetailsScreen() {
               }`}
               placeholderTextColor="#9CA3AF"
               style={{ fontFamily: 'Poppins-Medium' }}
+              maxLength={MAX_JOB_TITLE_LENGTH}
             />
             {errors.jobTitle ? (
               <Text className="text-xs text-[#EF4444] mt-1.5" style={{ fontFamily: 'Poppins-Medium' }}>
@@ -195,7 +401,7 @@ export default function JobDetailsScreen() {
               </Text>
             ) : (
               <Text className="text-xs text-gray-500 mt-1.5" style={{ fontFamily: 'Poppins-Regular' }}>
-                Be specific about what needs to be done.
+                Be specific about what needs to be done ({jobTitle.length}/{MAX_JOB_TITLE_LENGTH}).
               </Text>
             )}
           </View>
@@ -207,7 +413,7 @@ export default function JobDetailsScreen() {
             <TextInput
               value={description}
               onChangeText={handleDescriptionChange}
-              placeholder="Description"
+              placeholder="Describe the issue in detail..."
               multiline
               numberOfLines={6}
               maxLength={MAX_DESCRIPTION_LENGTH}
@@ -228,7 +434,7 @@ export default function JobDetailsScreen() {
                 </Text>
               ) : (
                 <Text className="text-xs text-gray-500" style={{ fontFamily: 'Poppins-Regular' }}>
-                  Describe the issue in detail.
+                  Describe the issue in detail (min {MIN_DESCRIPTION_LENGTH} characters).
                 </Text>
               )}
               <Text
@@ -253,13 +459,27 @@ export default function JobDetailsScreen() {
               opacity: canProceed ? 1 : 0.6,
             }}
           >
-            <Text
-              className={`text-base mr-2 ${canProceed ? 'text-[#D7FF6B]' : 'text-gray-400'}`}
-              style={{ fontFamily: 'Poppins-SemiBold' }}
-            >
-              Next
-            </Text>
-            <ArrowRight size={18} color={canProceed ? '#D7FF6B' : '#9CA3AF'} />
+            {isUpdating ? (
+              <>
+                <ActivityIndicator size="small" color="#D7FF6B" style={{ marginRight: 8 }} />
+                <Text
+                  className="text-base text-[#D7FF6B]"
+                  style={{ fontFamily: 'Poppins-SemiBold' }}
+                >
+                  Updating...
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text
+                  className={`text-base mr-2 ${canProceed ? 'text-[#D7FF6B]' : 'text-gray-400'}`}
+                  style={{ fontFamily: 'Poppins-SemiBold' }}
+                >
+                  Next
+                </Text>
+                <ArrowRight size={18} color={canProceed ? '#D7FF6B' : '#9CA3AF'} />
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -273,4 +493,3 @@ export default function JobDetailsScreen() {
     </SafeAreaWrapper>
   );
 }
-

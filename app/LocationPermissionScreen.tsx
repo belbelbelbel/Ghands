@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
 import * as Location from 'expo-location';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { locationService, authService } from '@/services/api';
+import { locationService, apiClient } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { Colors, Spacing } from '@/lib/designSystem';
 import { useToast } from '@/hooks/useToast';
@@ -59,10 +59,22 @@ export default function LocationPermissionScreen() {
       setIsGettingLocation(true);
       showSuccess('Location permission granted! Getting your location...');
 
-      // Get current location
+      // Get current location with highest accuracy and optimal settings
       const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+        accuracy: Location.Accuracy.Highest, // Most accurate GPS (within 10 meters)
+        maximumAge: 3000, // Accept location up to 3 seconds old (fresher data)
+        timeout: 20000, // Wait up to 20 seconds for accurate location
+        mayShowUserSettingsDialog: true, // Allow user to enable location services if disabled
       });
+      
+      // Log coordinates for debugging
+      if (__DEV__) {
+        console.log('📍 GPS Coordinates (Permission Screen):', {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy, // Accuracy in meters
+        });
+      }
 
       const { latitude, longitude } = location.coords;
 
@@ -73,13 +85,15 @@ export default function LocationPermissionScreen() {
       await setLocation(locationDetails.formattedAddress);
       
       // Try to save to API if user is signed in (optional)
-      const userId = await authService.getUserId();
+      const userId = await apiClient.getUserId();
       if (userId) {
         try {
           await locationService.saveUserLocation(userId, { placeId: locationDetails.placeId });
         } catch (apiError: any) {
           // API save failed, but local save succeeded - log warning but don't fail
-          console.warn('Failed to save location to API, but saved locally:', apiError.message);
+          if (__DEV__) {
+            console.warn('Failed to save location to API, but saved locally:', apiError.message);
+          }
         }
       }
       

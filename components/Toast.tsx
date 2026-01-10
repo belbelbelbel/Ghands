@@ -10,7 +10,7 @@ interface ToastProps {
   message: string;
   type?: ToastType;
   duration?: number;
-  onClose: () => void;
+  onClose?: () => void; // Optional - will use no-op function if not provided
   visible: boolean;
 }
 
@@ -42,6 +42,8 @@ const TOAST_CONFIG = {
 };
 
 export default function Toast({ message, type = 'info', duration = 3000, onClose, visible }: ToastProps) {
+  // Ensure onClose is always a function
+  const safeOnClose = onClose || (() => {});
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -86,7 +88,7 @@ export default function Toast({ message, type = 'info', duration = 3000, onClose
         useNativeDriver: true,
       }),
     ]).start(() => {
-      onClose();
+      safeOnClose();
     });
   };
 

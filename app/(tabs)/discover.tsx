@@ -219,44 +219,45 @@ export default function DiscoverScreen() {
   return (
     <SafeAreaWrapper>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Animated.View style={[animatedStyles, { flex: 1, paddingTop: 17 }]}>
+        <Animated.View style={[animatedStyles, { flex: 1, paddingTop: 20 }]}>
           {/* Hero Banner - Featured Deal/Provider */}
-          <View className="px-4 mb-6">
+          <View className="px-4 mb-5">
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={() => handleOfferPress('hero-offer')}
               style={{
                 backgroundColor: '#6A9B00',
-                borderRadius: 16,
-                padding: 24,
+                borderRadius: 20,
+                padding: 20,
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                elevation: 4,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 12,
+                elevation: 3,
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
                 <View
                   style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                    width: 52,
+                    height: 52,
+                    borderRadius: 26,
+                    backgroundColor: 'rgba(0, 0, 0, 0.15)',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 12,
+                    marginRight: 14,
                   }}
                 >
-                  <Ionicons name="sparkles" size={24} color="#FFFFFF" />
+                  <Ionicons name="sparkles" size={26} color="#FFFFFF" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      fontSize: 20,
+                      fontSize: 22,
                       fontFamily: 'Poppins-Bold',
                       color: '#000000',
-                      marginBottom: 4,
+                      marginBottom: 6,
+                      letterSpacing: -0.3,
                     }}
                   >
                     Featured Deal
@@ -265,7 +266,8 @@ export default function DiscoverScreen() {
                     style={{
                       fontSize: 14,
                       fontFamily: 'Poppins-Medium',
-                      color: 'rgba(0, 0, 0, 0.7)',
+                      color: 'rgba(0, 0, 0, 0.75)',
+                      lineHeight: 20,
                     }}
                   >
                     Get 30% off your first booking
@@ -275,17 +277,23 @@ export default function DiscoverScreen() {
               <View
                 style={{
                   backgroundColor: '#000000',
-                  borderRadius: 12,
-                  paddingVertical: 12,
-                  paddingHorizontal: 20,
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  paddingHorizontal: 24,
                   alignSelf: 'flex-start',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 3,
                 }}
               >
                 <Text
                   style={{
-                    fontSize: 14,
+                    fontSize: 15,
                     fontFamily: 'Poppins-SemiBold',
                     color: '#FFFFFF',
+                    letterSpacing: 0.2,
                   }}
                 >
                   Claim Offer →
@@ -295,13 +303,13 @@ export default function DiscoverScreen() {
           </View>
 
           {/* Trending Services */}
-          <View className="px-4 mb-6">
-            <View className="flex-row items-center justify-between mb-4">
+          <View className="px-4 mb-5">
+            <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
                 <TrendingUp size={20} color="#6A9B00" style={{ marginRight: 8 }} />
                 <Text
                   className="text-xl font-bold text-black"
-                  style={{ fontFamily: 'Poppins-Bold' }}
+                  style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
                 >
                   Trending Services
                 </Text>
@@ -319,35 +327,43 @@ export default function DiscoverScreen() {
                   activeOpacity={0.85}
                   style={{
                     width: 200,
-                    marginRight: 16,
-                    borderRadius: 20,
-                    padding: 20,
+                    marginRight: 14,
+                    borderRadius: 18,
+                    padding: 18,
+                    backgroundColor: '#FFFFFF',
                     borderWidth: 1,
                     borderColor: '#E5E7EB',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 4,
+                    elevation: 2,
                   }}
                 >
                   <View
                     style={{
-                      width: 72,
-                      height: 72,
+                      width: 60,
+                      height: 60,
                       borderRadius: 16,
+                      backgroundColor: '#F9FAFB',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginBottom: 16,
+                      marginBottom: 14,
                     }}
                   >
                     <Image
                       source={service.image}
-                      style={{ width: 56, height: 56 }}
+                      style={{ width: 46, height: 46 }}
                       resizeMode="contain"
                     />
                   </View>
                   <Text
                     style={{
-                      fontSize: 18,
+                      fontSize: 17,
                       fontFamily: 'Poppins-Bold',
                       color: '#000000',
                       marginBottom: 6,
+                      letterSpacing: -0.2,
                     }}
                   >
                     {service.title}
@@ -357,7 +373,8 @@ export default function DiscoverScreen() {
                       fontSize: 13,
                       fontFamily: 'Poppins-Medium',
                       color: '#6B7280',
-                      marginBottom: 12,
+                      marginBottom: 10,
+                      lineHeight: 18,
                     }}
                   >
                     {service.category}
@@ -365,21 +382,22 @@ export default function DiscoverScreen() {
                   <View
                     style={{
                       backgroundColor: '#FEF3C7',
-                      borderRadius: 8,
-                      paddingHorizontal: 10,
-                      paddingVertical: 6,
+                      borderRadius: 10,
+                      paddingHorizontal: 12,
+                      paddingVertical: 7,
                       flexDirection: 'row',
                       alignItems: 'center',
                       alignSelf: 'flex-start',
                     }}
                   >
-                    <Ionicons name="flame" size={16} color="#F59E0B" />
+                    <Ionicons name="flame" size={14} color="#F59E0B" />
                     <Text
                       style={{
                         fontSize: 12,
                         fontFamily: 'Poppins-SemiBold',
                         color: '#92400E',
-                        marginLeft: 6,
+                        marginLeft: 5,
+                        letterSpacing: 0.1,
                       }}
                     >
                       {service.bookings} bookings
@@ -391,11 +409,11 @@ export default function DiscoverScreen() {
           </View>
 
           {/* Featured Providers */}
-          <View className="px-4 mb-6">
-            <View className="flex-row items-center justify-between mb-4">
+          <View className="px-4 mb-5">
+            <View className="flex-row items-center justify-between mb-3">
               <Text
                 className="text-xl font-bold text-black"
-                style={{ fontFamily: 'Poppins-Bold' }}
+                style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
               >
                 Featured Providers
               </Text>
@@ -423,44 +441,47 @@ export default function DiscoverScreen() {
                   activeOpacity={0.8}
                   style={{
                     backgroundColor: '#FFFFFF',
-                    borderRadius: 16,
-                    padding: 16,
-                    marginBottom: index < featuredProviders.length - 1 ? 12 : 0,
+                    borderRadius: 18,
+                    padding: 18,
+                    marginBottom: index < featuredProviders.length - 1 ? 10 : 0,
                     borderWidth: 1,
                     borderColor: '#E5E7EB',
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 4,
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.06,
+                    shadowRadius: 6,
                     elevation: 2,
                   }}
                 >
                   <View className="flex-row items-center">
                     <View
                       style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 12,
-                        backgroundColor: '#F3F4F6',
+                        width: 68,
+                        height: 68,
+                        borderRadius: 14,
+                        backgroundColor: '#F9FAFB',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginRight: 12,
+                        marginRight: 14,
+                        borderWidth: 1,
+                        borderColor: '#F3F4F6',
                       }}
                     >
                       <Image
                         source={provider.image}
-                        style={{ width: 48, height: 48 }}
+                        style={{ width: 50, height: 50 }}
                         resizeMode="contain"
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <View className="flex-row items-center mb-1">
+                      <View className="flex-row items-center mb-2">
                         <Text
                           style={{
-                            fontSize: 16,
+                            fontSize: 17,
                             fontFamily: 'Poppins-SemiBold',
                             color: '#000000',
                             marginRight: 6,
+                            letterSpacing: -0.2,
                           }}
                         >
                           {provider.name}
@@ -471,60 +492,66 @@ export default function DiscoverScreen() {
                       </View>
                       <Text
                         style={{
-                          fontSize: 12,
+                          fontSize: 13,
                           fontFamily: 'Poppins-Medium',
                           color: '#6B7280',
-                          marginBottom: 6,
+                          marginBottom: 8,
+                          lineHeight: 18,
                         }}
                       >
                         {provider.category}
                       </Text>
-                      <View className="flex-row items-center">
-                        <Star size={14} color="#F59E0B" fill="#F59E0B" />
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontFamily: 'Poppins-Medium',
-                            color: '#000000',
-                            marginLeft: 4,
-                            marginRight: 12,
-                          }}
-                        >
-                          {provider.rating}
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontFamily: 'Poppins-Regular',
-                            color: '#6B7280',
-                            marginRight: 12,
-                          }}
-                        >
-                          ({provider.reviews} reviews)
-                        </Text>
-                        <MapPin size={12} color="#6B7280" />
+                      <View className="flex-row items-center flex-wrap">
+                        <View className="flex-row items-center mr-3">
+                          <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontFamily: 'Poppins-SemiBold',
+                              color: '#000000',
+                              marginLeft: 4,
+                            }}
+                          >
+                            {provider.rating}
+                          </Text>
+                        </View>
                         <Text
                           style={{
                             fontSize: 12,
                             fontFamily: 'Poppins-Regular',
                             color: '#6B7280',
-                            marginLeft: 4,
+                            marginRight: 10,
                           }}
                         >
-                          {provider.distance}
+                          ({provider.reviews})
                         </Text>
+                        <View className="flex-row items-center">
+                          <MapPin size={11} color="#6B7280" />
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontFamily: 'Poppins-Regular',
+                              color: '#6B7280',
+                              marginLeft: 3,
+                            }}
+                          >
+                            {provider.distance}
+                          </Text>
+                        </View>
                       </View>
                     </View>
                     {provider.badge && (
                       <View
                         style={{
                           backgroundColor: provider.badge === 'New' ? '#DBEAFE' : provider.badge === 'Top Rated' ? '#FEF3C7' : '#F3E8FF',
-                          borderRadius: 8,
-                          paddingHorizontal: 8,
-                          paddingVertical: 4,
+                          borderRadius: 10,
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
                           position: 'absolute',
-                          top: 12,
-                          right: 12,
+                          top: 14,
+                          right: 14,
+                          borderWidth: 1,
+                          borderColor: provider.badge === 'New' ? '#BFDBFE' : provider.badge === 'Top Rated' ? '#FDE68A' : '#E9D5FF',
                         }}
                       >
                         <Text
@@ -532,6 +559,7 @@ export default function DiscoverScreen() {
                             fontSize: 10,
                             fontFamily: 'Poppins-SemiBold',
                             color: provider.badge === 'New' ? '#1E40AF' : provider.badge === 'Top Rated' ? '#92400E' : '#6B21A8',
+                            letterSpacing: 0.2,
                           }}
                         >
                           {provider.badge}
@@ -545,11 +573,11 @@ export default function DiscoverScreen() {
           </View>
 
           {/* Special Offers */}
-          <View className="px-4 mb-6">
-            <View className="flex-row items-center justify-between mb-4">
+          <View className="px-4 mb-5">
+            <View className="flex-row items-center justify-between mb-3">
               <Text
                 className="text-xl font-bold text-black"
-                style={{ fontFamily: 'Poppins-Bold' }}
+                style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
               >
                 Special Offers
               </Text>
@@ -566,34 +594,36 @@ export default function DiscoverScreen() {
                   activeOpacity={0.9}
                   style={{
                     width: 280,
-                    marginRight: 12,
+                    marginRight: 14,
                     backgroundColor: '#000000',
-                    borderRadius: 16,
-                    padding: 20,
+                    borderRadius: 20,
+                    padding: 22,
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 8,
+                    shadowOffset: { width: 0, height: 3 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 10,
                     elevation: 4,
                   }}
                 >
-                  <View className="flex-row items-center justify-between mb-3">
-                    <View style={{ flex: 1 }}>
+                  <View className="flex-row items-center justify-between mb-4">
+                    <View style={{ flex: 1, marginRight: 12 }}>
                       <Text
                         style={{
-                          fontSize: 18,
+                          fontSize: 19,
                           fontFamily: 'Poppins-Bold',
                           color: '#FFFFFF',
-                          marginBottom: 4,
+                          marginBottom: 6,
+                          letterSpacing: -0.2,
                         }}
                       >
                         {offer.title}
                       </Text>
                       <Text
                         style={{
-                          fontSize: 12,
+                          fontSize: 13,
                           fontFamily: 'Poppins-Medium',
-                          color: 'rgba(255, 255, 255, 0.8)',
+                          color: 'rgba(255, 255, 255, 0.85)',
+                          lineHeight: 18,
                         }}
                       >
                         {offer.description}
@@ -601,17 +631,19 @@ export default function DiscoverScreen() {
                     </View>
                     <View
                       style={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: 12,
-                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        width: 64,
+                        height: 64,
+                        borderRadius: 14,
+                        backgroundColor: 'rgba(255, 255, 255, 0.12)',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        borderWidth: 1,
+                        borderColor: 'rgba(255, 255, 255, 0.15)',
                       }}
                     >
                       <Image
                         source={offer.image}
-                        style={{ width: 40, height: 40 }}
+                        style={{ width: 42, height: 42 }}
                         resizeMode="contain"
                       />
                     </View>
@@ -620,9 +652,14 @@ export default function DiscoverScreen() {
                     <View
                       style={{
                         backgroundColor: '#6A9B00',
-                        borderRadius: 8,
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
+                        borderRadius: 10,
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        shadowColor: '#6A9B00',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 4,
+                        elevation: 3,
                       }}
                     >
                       <Text
@@ -630,6 +667,7 @@ export default function DiscoverScreen() {
                           fontSize: 14,
                           fontFamily: 'Poppins-Bold',
                           color: '#000000',
+                          letterSpacing: 0.3,
                         }}
                       >
                         {offer.discount}
@@ -639,7 +677,8 @@ export default function DiscoverScreen() {
                       style={{
                         fontSize: 11,
                         fontFamily: 'Poppins-Medium',
-                        color: 'rgba(255, 255, 255, 0.7)',
+                        color: 'rgba(255, 255, 255, 0.75)',
+                        letterSpacing: 0.1,
                       }}
                     >
                       {offer.expiry}
@@ -651,11 +690,11 @@ export default function DiscoverScreen() {
           </View>
 
           {/* Service Tips */}
-          <View className="px-4 mb-6">
-            <View className="flex-row items-center justify-between mb-4">
+          <View className="px-4 mb-5">
+            <View className="flex-row items-center justify-between mb-3">
               <Text
                 className="text-xl font-bold text-black"
-                style={{ fontFamily: 'Poppins-Bold' }}
+                style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
               >
                 Service Tips
               </Text>
@@ -666,31 +705,39 @@ export default function DiscoverScreen() {
                 activeOpacity={0.8}
                 style={{
                   backgroundColor: '#F8FAFC',
-                  borderRadius: 12,
-                  padding: 16,
-                  marginBottom: index < serviceTips.length - 1 ? 12 : 0,
+                  borderRadius: 16,
+                  padding: 18,
+                  marginBottom: index < serviceTips.length - 1 ? 10 : 0,
                   borderWidth: 1,
                   borderColor: '#E2E8F0',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.03,
+                  shadowRadius: 3,
+                  elevation: 1,
                 }}
               >
-                <View className="flex-row items-start justify-between mb-2">
+                <View className="flex-row items-start justify-between">
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <Text
                       style={{
-                        fontSize: 16,
+                        fontSize: 17,
                         fontFamily: 'Poppins-SemiBold',
                         color: '#000000',
-                        marginBottom: 6,
+                        marginBottom: 8,
+                        letterSpacing: -0.2,
+                        lineHeight: 24,
                       }}
                     >
                       {tip.title}
                     </Text>
                     <Text
                       style={{
-                        fontSize: 12,
+                        fontSize: 13,
                         fontFamily: 'Poppins-Regular',
                         color: '#6B7280',
-                        marginBottom: 8,
+                        marginBottom: 10,
+                        lineHeight: 19,
                       }}
                     >
                       {tip.description}
@@ -699,17 +746,20 @@ export default function DiscoverScreen() {
                       <View
                         style={{
                           backgroundColor: '#EEF2FF',
-                          borderRadius: 6,
-                          paddingHorizontal: 8,
-                          paddingVertical: 4,
-                          marginRight: 8,
+                          borderRadius: 8,
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          marginRight: 10,
+                          borderWidth: 1,
+                          borderColor: '#E0E7FF',
                         }}
                       >
                         <Text
                           style={{
                             fontSize: 10,
-                            fontFamily: 'Poppins-Medium',
+                            fontFamily: 'Poppins-SemiBold',
                             color: '#4F46E5',
+                            letterSpacing: 0.2,
                           }}
                         >
                           {tip.category}
@@ -726,20 +776,20 @@ export default function DiscoverScreen() {
                       </Text>
                     </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" style={{ marginTop: 2 }} />
                 </View>
               </TouchableOpacity>
             ))}
           </View>
 
           {/* Nearby Popular Services */}
-          <View className="px-4 mb-10">
-            <View className="flex-row items-center justify-between mb-4">
+          <View className="px-4 mb-8">
+            <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
                 <MapPin size={20} color="#6A9B00" style={{ marginRight: 8 }} />
                 <Text
                   className="text-xl font-bold text-black"
-                  style={{ fontFamily: 'Poppins-Bold' }}
+                  style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
                 >
                   Popular Near You
                 </Text>
@@ -747,43 +797,50 @@ export default function DiscoverScreen() {
             </View>
             <View
               style={{
-                backgroundColor: '#F3F4F6',
-                borderRadius: 16,
-                padding: 20,
+                backgroundColor: '#F9FAFB',
+                borderRadius: 20,
+                padding: 24,
                 alignItems: 'center',
                 justifyContent: 'center',
-                minHeight: 200,
+                minHeight: 180,
+                borderWidth: 1,
+                borderColor: '#E5E7EB',
+                borderStyle: 'dashed',
               }}
             >
               <View
                 style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  backgroundColor: '#E5E7EB',
+                  width: 68,
+                  height: 68,
+                  borderRadius: 34,
+                  backgroundColor: '#F3F4F6',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginBottom: 12,
+                  marginBottom: 14,
+                  borderWidth: 2,
+                  borderColor: '#E5E7EB',
                 }}
               >
-                <MapPin size={32} color="#6B7280" />
+                <MapPin size={34} color="#9CA3AF" />
               </View>
               <Text
                 style={{
-                  fontSize: 16,
+                  fontSize: 17,
                   fontFamily: 'Poppins-SemiBold',
                   color: '#000000',
-                  marginBottom: 6,
+                  marginBottom: 8,
+                  letterSpacing: -0.2,
                 }}
               >
                 Map View Coming Soon
               </Text>
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   fontFamily: 'Poppins-Regular',
                   color: '#6B7280',
                   textAlign: 'center',
+                  lineHeight: 20,
                 }}
               >
                 Explore popular services in your area

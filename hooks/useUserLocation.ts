@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { locationService, authService, SavedLocation } from '@/services/api';
+import { locationService, SavedLocation, apiClient } from '@/services/api';
 
 const USER_LOCATION_STORAGE_KEY = '@app:user_location';
 const USER_LOCATION_PLACE_ID_KEY = '@app:user_location_place_id';
@@ -27,7 +27,7 @@ export function useUserLocation(): UseUserLocationReturn {
       setIsLoading(true);
       
       // Try to load from API first
-      const userId = await authService.getUserId();
+      const userId = await apiClient.getUserId();
       if (userId) {
         try {
           const savedLocation = await locationService.getUserLocation(userId);
@@ -40,7 +40,9 @@ export function useUserLocation(): UseUserLocationReturn {
           }
         } catch (error) {
           // Location not set in API, fallback to local storage
-          console.log('No saved location in API, using local storage');
+          if (__DEV__) {
+            console.log('No saved location in API, using local storage');
+          }
         }
       }
 

@@ -33,7 +33,8 @@ export default function SelectAccountTypeScreen() {
     // Persist chosen role for route guards
     setRole(nextRole);
     if (nextRole === 'provider') {
-      router.replace('/ProviderSignUpScreen');
+      // Navigate to provider type selection screen
+      router.push('/ProviderTypeSelectionScreen');
     } else {
       router.replace('/SignupScreen');
     }
@@ -71,6 +72,11 @@ export default function SelectAccountTypeScreen() {
                 borderRadius: 80,
                 alignItems: 'center',
                 justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
+                shadowRadius: 12,
+                elevation: 8,
               }}
             >
               <Users size={60} color={Colors.white} />

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ONBOARDING_STORAGE_KEY } from './useOnboarding';
+import { apiClient } from '@/services/api';
 
 export type UserRole = 'client' | 'provider' | null;
 
@@ -56,9 +57,18 @@ export function useAuthRole(): UseAuthRoleReturn {
 
   const logout = useCallback(async () => {
     try {
-      // Clear all auth data and onboarding status
-      await AsyncStorage.multiRemove([AUTH_ROLE_KEY, AUTH_TOKEN_KEY, ONBOARDING_STORAGE_KEY]);
+      // Clear all auth data using apiClient (includes token, refresh token, and user ID)
+      await apiClient.clearAuthTokens();
+      
+      // Clear role and onboarding status
+      await AsyncStorage.multiRemove([AUTH_ROLE_KEY, ONBOARDING_STORAGE_KEY]);
+      
       setRoleState(null);
+      
+      if (__DEV__) {
+        console.log('✅ Logout successful - All auth data cleared');
+      }
+      
       // Navigate to index which will check onboarding status and route appropriately
       // Since we cleared onboarding, it will route to /onboarding
       router.replace('/');

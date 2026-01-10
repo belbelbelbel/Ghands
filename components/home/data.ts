@@ -79,3 +79,35 @@ export const promoCodes: PromoCode[] = [
   }
 ];
 
+
+export interface QuickAction {
+  id: string;
+  title: string;
+  iconName: string;
+  color: string;
+  backgroundColor: string;
+  onPress?: () => void;
+}
+export const quickActions: QuickAction[] = [
+  {
+    id: 'emergency',
+    title: 'Emergency Service',
+    iconName: 'warning',
+    color: '#DC2626',
+    backgroundColor: '#F3F4F6',
+  },
+  {
+    id: 'book-again',
+    title: 'Book Again',
+    iconName: 'repeat',
+    color: '#000000',
+    backgroundColor: '#F3F4F6',
+  },
+  {
+    id: 'wallet',
+    title: 'My Wallet',
+    iconName: 'wallet',
+    color: '#000000',
+    backgroundColor: '#F3F4F6',
+  },
+];

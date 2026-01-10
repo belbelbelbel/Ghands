@@ -6,8 +6,12 @@ import { useUserLocation } from '@/hooks/useUserLocation';
 import * as Location from 'expo-location';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
+import { providerService, locationService } from '@/services/api';
+import { getCategoryIcon } from '@/utils/categoryIcons';
+import { useToast } from '@/hooks/useToast';
+import Toast from '@/components/Toast';
 const MAX_SELECTION = 3;
 
 const SAMPLE_PROVIDERS: ServiceProvider[] = [
@@ -78,14 +82,19 @@ const ServiceMapScreen = () => {
     photoCount?: string;
     serviceType?: string;
     location?: string;
+    categoryName?: string;
   }>();
   const { location: savedLocation } = useUserLocation();
+  const { toast, showError, hideToast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<ProviderCategory>('All');
   const [selectedProviders, setSelectedProviders] = useState<ServiceProvider[]>([]);
   const [showList, setShowList] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [serviceLocation, setServiceLocation] = useState<string>(savedLocation || '');
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [providers, setProviders] = useState<ServiceProvider[]>([]);
+  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
+  const [serviceLocationCoords, setServiceLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   
   // Booking data state - synced with params
   const [bookingData, setBookingData] = useState<{
@@ -130,6 +139,93 @@ const ServiceMapScreen = () => {
       setServiceLocation(savedLocation);
     }
   }, [savedLocation]);
+
+  // Get coordinates from service location
+  useEffect(() => {
+    const getLocationCoordinates = async () => {
+      // Priority: userLocation (most accurate for service location)
+      if (userLocation) {
+        setServiceLocationCoords(userLocation);
+        return;
+      }
+
+      // If we have a service location but no userLocation yet, wait for it
+      // The userLocation will be set by the GPS permission effect above
+    };
+
+    getLocationCoordinates();
+  }, [serviceLocation, savedLocation, userLocation]);
+
+  // Fetch nearby providers when we have category and coordinates
+  useEffect(() => {
+    const loadProviders = async () => {
+      const categoryName = params.categoryName || params.serviceType;
+      
+      if (!categoryName || !serviceLocationCoords) {
+        // Use dummy data if we don't have required info
+        setProviders(SAMPLE_PROVIDERS);
+        return;
+      }
+
+      setIsLoadingProviders(true);
+      try {
+        // Normalize category name (e.g., "Plumbing Service" -> "plumbing")
+        const normalizedCategory = categoryName
+          .toLowerCase()
+          .replace(/\s+service$/, '')
+          .replace(/\s+/g, '');
+
+        const nearbyProviders = await providerService.getNearbyProviders(
+          normalizedCategory,
+          serviceLocationCoords.latitude,
+          serviceLocationCoords.longitude,
+          50 // maxDistanceKm
+        );
+
+        // Map API NearbyProvider to ServiceProvider format
+        const mappedProviders: ServiceProvider[] = nearbyProviders.map((provider, index) => {
+          // Get icon for category
+          const IconComponent = getCategoryIcon(normalizedCategory, categoryName, '');
+          const categoryDisplayName = categoryName.split(' ')[0]; // "Plumbing Service" -> "Plumber"
+          
+          // Calculate approximate provider coordinates based on distance and angle
+          // This is an approximation since API doesn't return exact coordinates
+          const angle = (index * 45) * (Math.PI / 180); // Distribute providers around service location
+          const distanceInDegrees = provider.distanceKm / 111; // Rough conversion: 1km ≈ 0.009 degrees
+          
+          return {
+            id: `provider-${provider.id}`,
+            name: provider.name,
+            category: categoryDisplayName as ProviderCategory,
+            rating: 4.5, // Default rating (API doesn't provide this yet)
+            reviews: 0, // Default reviews (API doesn't provide this yet)
+            distance: provider.distanceKm < 1 
+              ? `${(provider.distanceKm * 1000).toFixed(0)} m away`
+              : `${provider.distanceKm.toFixed(1)} km away`,
+            availability: provider.verified ? 'Available' : 'Busy',
+            image: require('../assets/images/plumbericon2.png'), // Default icon
+            coords: {
+              latitude: serviceLocationCoords.latitude + (Math.cos(angle) * distanceInDegrees),
+              longitude: serviceLocationCoords.longitude + (Math.sin(angle) * distanceInDegrees),
+            },
+          };
+        });
+
+        setProviders(mappedProviders.length > 0 ? mappedProviders : SAMPLE_PROVIDERS);
+      } catch (error: any) {
+        console.error('Error loading nearby providers:', error);
+        // Fallback to dummy data on error
+        setProviders(SAMPLE_PROVIDERS);
+        if (__DEV__) {
+          console.log('Using dummy providers as fallback');
+        }
+      } finally {
+        setIsLoadingProviders(false);
+      }
+    };
+
+    loadProviders();
+  }, [params.categoryName, params.serviceType, serviceLocationCoords]);
 
   useEffect(() => {
     let isMounted = true;
@@ -177,19 +273,29 @@ const ServiceMapScreen = () => {
   return (
     <SafeAreaWrapper>
       <View className="flex-1">
-        <ServiceMap
-          providers={SAMPLE_PROVIDERS}
-          selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
-          selectedProviders={selectedProviders}
-          onProviderSelect={handleProviderSelect}
-          showList={showList}
-          onToggleList={() => setShowList((prev) => !prev)}
-          userLocation={userLocation}
-          serviceLocation={serviceLocation}
-          onServiceLocationChange={setServiceLocation}
-        />
+        {isLoadingProviders ? (
+          <View className="flex-1 items-center justify-center bg-white">
+            <ActivityIndicator size="large" color="#6A9B00" />
+            <Text className="mt-4 text-gray-600" style={{ fontFamily: 'Poppins-Medium' }}>
+              Finding nearby providers...
+            </Text>
+          </View>
+        ) : (
+          <ServiceMap
+            providers={providers}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            selectedProviders={selectedProviders}
+            onProviderSelect={handleProviderSelect}
+            showList={showList}
+            onToggleList={() => setShowList((prev) => !prev)}
+            userLocation={userLocation}
+            serviceLocation={serviceLocation}
+            onServiceLocationChange={setServiceLocation}
+          />
+        )}
       </View>
+      <Toast toast={toast} onHide={hideToast} />
       {selectedProviders.length > 0 && (
         <View className="bg-white border-t border-gray-100 px-4 py-4 shadow-[0px_-8px_24px_rgba(15,23,42,0.08)]">
           <Text className="text-sm text-gray-600 mb-2" style={{ fontFamily: 'Poppins-Medium' }}>

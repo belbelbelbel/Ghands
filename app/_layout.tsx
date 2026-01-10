@@ -77,6 +77,8 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="SelectAccountTypeScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ProviderTypeSelectionScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="IndividualProviderComingSoonScreen" options={{ headerShown: false }} />
         <Stack.Screen name="SignupScreen" options={{ headerShown: false }} />
         <Stack.Screen name="LoginScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ResetPassword" options={{ headerShown: false }} />

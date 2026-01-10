@@ -49,18 +49,132 @@ const Skeleton = ({ width = '100%', height = 20, borderRadius = 8, style }: Skel
   );
 };
 
-export const CategorySkeleton = () => (
-  <View className="mb-4 p-4 bg-white rounded-2xl border border-gray-200">
-    <View className="flex-row items-center">
-      <Skeleton width={64} height={64} borderRadius={12} />
-      <View className="flex-1 ml-4">
-        <Skeleton width="60%" height={16} borderRadius={8} style={{ marginBottom: 8 }} />
-        <Skeleton width="80%" height={12} borderRadius={8} style={{ marginBottom: 4 }} />
-        <Skeleton width="40%" height={12} borderRadius={8} />
+export const CategorySkeleton = () => {
+  const shimmerAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [shimmerAnim]);
+
+  const shimmerOpacity = shimmerAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0.4, 0.9, 0.4],
+  });
+
+  return (
+    <View
+      style={{
+        width: '100%',
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        padding: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#e5e5e5',
+        flexDirection: 'row',
+        alignItems: 'center',
+      }}
+    >
+      {/* Icon Container Skeleton */}
+      <Animated.View
+        style={{
+          backgroundColor: '#E5E7EB',
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: '#e5e5e5',
+          padding: 16,
+          marginRight: 16,
+          width: 72, // 40px icon + 32px padding (16*2)
+          height: 72,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: shimmerOpacity,
+        }}
+      >
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 8,
+            backgroundColor: '#D1D5DB',
+          }}
+        />
+      </Animated.View>
+
+      {/* Content Container */}
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+        }}
+      >
+        {/* Title Skeleton */}
+        <Animated.View
+          style={{
+            width: '60%',
+            height: 16,
+            borderRadius: 8,
+            backgroundColor: '#E5E7EB',
+            marginBottom: 6,
+            opacity: shimmerOpacity,
+          }}
+        />
+
+        {/* Description Skeleton */}
+        <Animated.View
+          style={{
+            width: '80%',
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: '#E5E7EB',
+            marginBottom: 4,
+            opacity: shimmerOpacity,
+          }}
+        />
+
+        {/* Provider Count Skeleton */}
+        <Animated.View
+          style={{
+            width: '40%',
+            height: 11,
+            borderRadius: 6,
+            backgroundColor: '#E5E7EB',
+            alignSelf: 'flex-start',
+            opacity: shimmerOpacity,
+          }}
+        />
+
+        {/* Radio Button Skeleton (absolute positioned) */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            right: 8,
+            top: '50%',
+            marginTop: -12,
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: '#E5E7EB',
+            opacity: shimmerOpacity,
+          }}
+        />
       </View>
     </View>
-  </View>
-);
+  );
+};
 
 export const JobCardSkeleton = () => (
   <View className="mb-4 p-5 bg-white rounded-2xl border border-gray-200">

@@ -1,6 +1,6 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
-import { Lock, Mail } from 'lucide-react-native';
+import { Lock, Mail, Phone } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -10,15 +10,28 @@ import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import { SocialButton } from '../components/SocialButton';
 import { useToast } from '../hooks/useToast';
+import { authService } from '@/services/api';
+import { haptics } from '@/hooks/useHaptics';
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { toast, showError, hideToast } = useToast();
+  const { toast, showError, showSuccess, hideToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Prevent duplicate submissions
 
   const handleSignup = async () => {
+    // Prevent duplicate submissions
+    if (isSubmitting || isLoading) {
+      if (__DEV__) {
+        console.warn('⚠️ Signup already in progress, ignoring duplicate call');
+      }
+      return;
+    }
+
     // Basic validation
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       showError('Please fill in all required fields');
@@ -42,16 +55,102 @@ export default function SignupScreen() {
       return;
     }
 
+    // Phone number validation (optional but if provided, must be exactly 11 characters)
+    if (phoneNumber.trim() && phoneNumber.trim().length !== 11) {
+      showError('Phone number must be exactly 11 characters');
+      return;
+    }
+
+    // Phone number should only contain digits
+    if (phoneNumber.trim() && !/^\d+$/.test(phoneNumber.trim())) {
+      showError('Phone number should only contain numbers');
+      return;
+    }
+
+    setIsLoading(true);
+    setIsSubmitting(true);
+    haptics.light();
+
     try {
-      // TODO: API integration will be added after backend discussion
-      // For now, mark profile as incomplete and navigate
+      // Build signup payload with only email, password, and phoneNumber
+      const signupPayload = {
+        email: email.trim().toLowerCase(), // Normalize email to lowercase
+        password: password.trim(),
+        ...(phoneNumber.trim() && phoneNumber.trim().length === 11 ? { phoneNumber: phoneNumber.trim() } : {}),
+      };
+
+      // Log what we're sending for debugging
+      if (__DEV__) {
+        console.log('📤 ========== SIGNUP SCREEN ==========');
+        console.log('📤 Email Input:', email);
+        console.log('📤 Email (trimmed/lowercase):', signupPayload.email);
+        console.log('📤 Phone Input:', phoneNumber);
+        console.log('📤 Phone (in payload):', signupPayload.phoneNumber || 'none');
+        console.log('📤 Full Payload:', JSON.stringify(signupPayload, null, 2));
+        console.log('📤 ====================================');
+      }
+
+      const response = await authService.userSignup(signupPayload);
+      
+      // Token is already saved by authService.userSignup
+      // Save email and phone for profile completion later
+      await AsyncStorage.setItem('@ghands:signup_email', email.trim());
+      if (phoneNumber.trim()) {
+        await AsyncStorage.setItem('@ghands:signup_phone', phoneNumber.trim());
+      }
+      
+      // Mark profile as incomplete (user needs to complete firstName, lastName, gender)
       await AsyncStorage.setItem('@ghands:profile_complete', 'false');
       
-      // After successful signup, navigate directly to main app
-      // Profile completion will be prompted when needed
-      router.replace('/(tabs)/home');
-    } catch (error) {
-      showError('Signup failed. Please try again.');
+      haptics.success();
+      showSuccess('Signup successful! Please complete your profile.');
+      
+      // Navigate to home - profile completion will be prompted when needed
+      setTimeout(() => {
+        router.replace('/(tabs)/home');
+      }, 1500);
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      haptics.error();
+      
+      // Extract error message from API response
+      // API returns errors as: { "data": { "error": "..." }, "success": false }
+      let errorMessage = 'Signup failed. Please try again.';
+      
+      // Check nested data.error first (actual API format)
+      if (error.details?.data?.error) {
+        errorMessage = error.details.data.error;
+      } else if (error.details?.error) {
+        errorMessage = error.details.error;
+      } else if (error.message && error.message !== 'Failed' && error.message !== 'Request failed') {
+        errorMessage = error.message;
+      } else if (error.error) {
+        errorMessage = error.error;
+      } else if (error.details) {
+        if (typeof error.details === 'string') {
+          errorMessage = error.details;
+        } else if (error.details.message) {
+          errorMessage = error.details.message;
+        }
+      }
+      
+      // Log full error for debugging
+      if (__DEV__) {
+        console.log('🔴 ========== FULL SIGNUP ERROR ==========');
+        console.log('🔴 Error Message:', error.message);
+        console.log('🔴 Error Details:', JSON.stringify(error.details, null, 2));
+        console.log('🔴 Status:', error.status);
+        console.log('🔴 Extracted Message:', errorMessage);
+        console.log('🔴 Email Sent:', email.trim().toLowerCase());
+        console.log('🔴 Phone Sent:', phoneNumber.trim() || 'none');
+        console.log('🔴 ========================================');
+      }
+      
+      // Show the error message from API (already professional)
+      showError(errorMessage);
+    } finally {
+      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -103,6 +202,21 @@ export default function SignupScreen() {
           autoCapitalize="none"
         />
 
+        {/* Phone Number Input */}
+        <InputField
+          placeholder="Phone Number (11 digits)"
+          icon={<Phone size={20} color={'white'}/>}
+          keyboardType="phone-pad"
+          value={phoneNumber}
+          onChangeText={(text) => {
+            // Only allow digits and limit to 11 characters
+            const cleaned = text.replace(/[^\d]/g, '').slice(0, 11);
+            setPhoneNumber(cleaned);
+          }}
+          iconPosition="left"
+          autoCapitalize="none"
+        />
+
         {/* Password Input */}
         <InputField
           placeholder="Password"
@@ -126,7 +240,12 @@ export default function SignupScreen() {
 
         {/* Sign Up Button */}
         <View style={{ marginTop: 8, marginBottom: 24 }}>
-          <AuthButton title="Sign Up" onPress={handleSignup} />
+          <AuthButton 
+            title="Sign Up" 
+            onPress={handleSignup}
+            loading={isLoading}
+            disabled={isLoading}
+          />
         </View>
 
         {/* Login Link */}

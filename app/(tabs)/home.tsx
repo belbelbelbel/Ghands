@@ -173,12 +173,18 @@ const HomeScreen = React.memo(() => {
         console.log('✅ Categories loaded from API (randomized):', limitedCategories.length);
       }
     } catch (error: any) {
-      // On error, keep dummy data (silent fail for better UX)
+      // On error, only use dummy data in development mode
       if (__DEV__) {
         console.error('Error loading categories from API:', error);
-        console.log('ℹ️ Using dummy categories as fallback');
+        console.log('ℹ️ Using dummy categories as fallback (development mode only)');
+        // Keep dummy data visible in dev mode for testing
+      } else {
+        // In production, clear categories on error to show empty state
+        setApiCategories([]);
+        if (__DEV__) {
+          console.error('Error loading categories from API:', error);
+        }
       }
-      // Don't show error to user - just use dummy data
     }
   };
 

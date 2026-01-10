@@ -1,44 +1,124 @@
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Lock, Mail, Phone } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import { SocialButton } from '../components/SocialButton';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
-
+import { authService, providerService } from '@/services/api';
+import { useAuthRole } from '@/hooks/useAuth';
+import { haptics } from '@/hooks/useHaptics';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
 
 export default function ProviderSignUpScreen() {
   const router = useRouter();
-  const { toast, showError, hideToast } = useToast();
-  const [email, setEmail] = useState('');
-  const [fax, setFax] = useState('');
-  const [password, setPassword] = useState('');
+  const { toast, showError, showSuccess, hideToast } = useToast();
+  const { setRole } = useAuthRole();
+  
+  // Company signup fields
+  const [companyName, setCompanyName] = useState('');
+  const [companyEmail, setCompanyEmail] = useState('');
+  const [companyFax, setCompanyFax] = useState(''); // Fax field (using phone number field)
+  const [companyPassword, setCompanyPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSignup = async () => {
-    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
+    // Prevent duplicate submissions
+    if (isSubmitting || isLoading) {
+      if (__DEV__) {
+        console.warn('⚠️ Signup already in progress, ignoring duplicate call');
+      }
+      return;
+    }
+
+    // Validation
+    if (!companyEmail.trim() || !companyFax.trim() || !companyPassword.trim() || !confirmPassword.trim()) {
       showError('Please fill in all required fields');
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (companyPassword !== confirmPassword) {
       showError('Passwords do not match');
       return;
     }
 
-    if (password.length < 6) {
+    if (companyPassword.length < 6) {
       showError('Password must be at least 6 characters');
       return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(companyEmail)) {
+      showError('Please enter a valid email address');
+      return;
+    }
+
+    // Fax/Phone number validation (must be exactly 11 characters)
+    if (companyFax.trim().length !== 11) {
+      showError('Company fax must be exactly 11 characters');
+      return;
+    }
+
+    // Fax should only contain digits
+    if (!/^\d+$/.test(companyFax.trim())) {
+      showError('Company fax should only contain numbers');
+      return;
+    }
+
+    setIsLoading(true);
+    setIsSubmitting(true);
+    haptics.light();
+
     try {
-      router.push('/ProviderOtpScreen');
-    } catch (error) {
-      showError('Signup failed. Please try again.');
+      // Auto-generate company name from email if not provided
+      const finalCompanyName = companyName.trim() || companyEmail.split('@')[0] || 'Company';
+
+      const signupPayload = {
+        companyName: finalCompanyName,
+        companyEmail: companyEmail.trim().toLowerCase(),
+        companyPhoneNumber: companyFax.trim(), // Using fax as phone number for API
+        companyPassword: companyPassword.trim(),
+      };
+
+      if (__DEV__) {
+        console.log('📤 Company Signup:', JSON.stringify({ ...signupPayload, companyPassword: '***' }, null, 2));
+      }
+
+      const response = await authService.companySignup(signupPayload);
+      
+      // Token is already saved by authService.companySignup
+      // Set role to provider
+      await setRole('provider');
+      
+      // Save company info
+      await AsyncStorage.setItem('@ghands:company_name', finalCompanyName);
+      await AsyncStorage.setItem('@ghands:company_email', companyEmail.trim());
+      await AsyncStorage.setItem('@ghands:company_phone', companyFax.trim());
+      
+      haptics.success();
+      showSuccess('Company registration successful!');
+      
+      // Navigate to profile setup (onboarding flow)
+      setTimeout(() => {
+        router.replace('/ProviderProfileSetupScreen');
+      }, 1500);
+    } catch (error: any) {
+      console.error('Company signup error:', error);
+      haptics.error();
+      
+      const errorMessage = getSpecificErrorMessage(error);
+      showError(errorMessage);
+    } finally {
+      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -56,20 +136,34 @@ export default function ProviderSignUpScreen() {
 
   return (
     <SafeAreaWrapper>
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}>
-        <Text className="text-3xl font-bold text-black mb-8" style={{
-          fontFamily: 'Poppins-ExtraBold',
-        }}>Sign Up</Text>
+      <ScrollView 
+        className="flex-1" 
+        contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Title */}
+        <Text 
+          className="text-3xl font-bold text-black mb-4" 
+          style={{
+            fontFamily: 'Poppins-ExtraBold',
+            letterSpacing: -0.5,
+          }}
+        >
+          Sign Up
+        </Text>
 
+        {/* Company Email */}
         <InputField
           placeholder="Company email"
           icon={<Mail size={20} color={'white'}/>}
           keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
+          value={companyEmail}
+          onChangeText={setCompanyEmail}
           iconPosition="left"
+          autoCapitalize="none"
         />
 
+        {/* Company Fax */}
         <View className="bg-gray-100 border-0 rounded-xl mb-4 px-4 py-3 flex-row items-center">
           <View className="w-12 h-12 mr-4 bg-[#6A9B00] border-black rounded-xl items-center justify-center">
             <Text className="text-white text-sm font-bold" style={{ fontFamily: 'Poppins-Bold' }}>+234</Text>
@@ -77,8 +171,12 @@ export default function ProviderSignUpScreen() {
           <TextInput
             placeholder="Company fax"
             keyboardType="phone-pad"
-            value={fax}
-            onChangeText={setFax}
+            value={companyFax}
+            onChangeText={(text) => {
+              // Only allow digits and limit to 11 characters
+              const cleaned = text.replace(/[^\d]/g, '').slice(0, 11);
+              setCompanyFax(cleaned);
+            }}
             className="flex-1 text-black text-base"
             placeholderTextColor="#666666"
             style={{ fontFamily: 'Poppins-Medium' }}
@@ -88,15 +186,17 @@ export default function ProviderSignUpScreen() {
           </View>
         </View>
 
+        {/* Password */}
         <InputField
           placeholder="Create password"
           icon={<Lock size={20} color={'white'}/>}
           secureTextEntry={true}
-          value={password}
-          onChangeText={setPassword}
+          value={companyPassword}
+          onChangeText={setCompanyPassword}
           iconPosition="right"
         />
 
+        {/* Confirm Password */}
         <InputField
           placeholder="Create password"
           icon={<Lock size={20} color={'white'}/>}
@@ -107,7 +207,12 @@ export default function ProviderSignUpScreen() {
         />
 
         <View className="mt-4">
-          <AuthButton title="Sign Up" onPress={handleSignup} />
+          <AuthButton 
+            title="Sign Up" 
+            onPress={handleSignup}
+            loading={isLoading}
+            disabled={isLoading}
+          />
         </View>
 
         <View className="items-center mb-8">

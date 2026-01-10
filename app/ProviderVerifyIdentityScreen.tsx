@@ -1,9 +1,11 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Building, Camera, CheckCircle, CreditCard, User } from 'lucide-react-native';
+import { Building, Camera, CheckCircle, CreditCard, User, FileText, Shield } from 'lucide-react-native';
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Colors } from '@/lib/designSystem';
+import { haptics } from '@/hooks/useHaptics';
 
 interface VerificationStep {
   id: string;
@@ -28,7 +30,7 @@ export default function ProviderVerifyIdentityScreen() {
       id: '2',
       title: 'Upload Corporate Tax Document',
       description: 'Verifies your business for regulatory purposes.',
-      icon: <Camera size={24} color="#666666" />,
+      icon: <FileText size={24} color="#666666" />,
       status: 'completed',
     },
     {
@@ -52,65 +54,171 @@ export default function ProviderVerifyIdentityScreen() {
   };
 
   return (
-    <SafeAreaWrapper>
-      <View style={{ paddingTop: 20, paddingHorizontal: 20 }}>
-        <TouchableOpacity onPress={() => router.back()} className="mb-6">
-          <Ionicons name="arrow-back" size={22} color="#000" />
-        </TouchableOpacity>
-      </View>
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-        <Text className="text-3xl font-bold text-black mb-4" style={{
-          fontFamily: 'Poppins-ExtraBold',
-        }}>Verify your Identity</Text>
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+      <View style={{ flex: 1, backgroundColor: Colors.backgroundLight }}>
+        {/* Header */}
+        <View style={{ paddingTop: 20, paddingHorizontal: 20, paddingBottom: 12 }}>
+          <TouchableOpacity 
+            onPress={() => {
+              haptics.light();
+              router.back();
+            }} 
+            style={{ marginBottom: 8 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
 
-        <Text className="text-base text-gray-600 mb-8" style={{
-          fontFamily: 'Poppins-Medium',
-        }}>
-          Complete these steps to start working and receive payments securely.
-        </Text>
+        <ScrollView 
+          className="flex-1" 
+          contentContainerStyle={{ 
+            paddingHorizontal: 20, 
+            paddingBottom: 40,
+            backgroundColor: Colors.white,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingTop: 24,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Title */}
+          <Text 
+            style={{
+              fontSize: 24,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.textPrimary,
+              marginBottom: 8,
+            }}
+          >
+            Verify you Identity
+          </Text>
 
-        {steps.map((step, index) => (
-          <View key={step.id} className="bg-white border border-gray-200 rounded-xl px-4 py-4 mb-4">
-            <View className="flex-row items-start">
-              <View className="w-12 h-12 bg-gray-100 rounded-xl items-center justify-center mr-4">
-                {step.icon}
-              </View>
-              <View className="flex-1">
-                <Text className="text-base text-black mb-1" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                  {step.title}
-                </Text>
-                <Text className="text-sm text-gray-600 mb-2" style={{ fontFamily: 'Poppins-Regular' }}>
-                  {step.description}
-                </Text>
-              </View>
-              <View
-                className={`px-3 py-1 rounded-full ${
-                  step.status === 'completed' ? 'bg-green-100' : 'bg-orange-100'
-                }`}
-              >
-                <Text
-                  className={`text-xs ${
-                    step.status === 'completed' ? 'text-green-700' : 'text-orange-700'
-                  }`}
-                  style={{ fontFamily: 'Poppins-SemiBold' }}
+          {/* Description */}
+          <Text 
+            style={{
+              fontSize: 15,
+              fontFamily: 'Poppins-Regular',
+              color: Colors.textSecondaryDark,
+              marginBottom: 32,
+              lineHeight: 22,
+            }}
+          >
+            Complete these steps to start working and receive payments securely.
+          </Text>
+
+          {/* Verification Steps */}
+          {steps.map((step, index) => (
+            <View 
+              key={step.id} 
+              style={{
+                backgroundColor: Colors.white,
+                borderWidth: 1,
+                borderColor: Colors.border,
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 12,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 2,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                {/* Icon */}
+                <View 
+                  style={{
+                    width: 48,
+                    height: 48,
+                    backgroundColor: Colors.backgroundGray,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 12,
+                  }}
                 >
-                  {step.status === 'completed' ? 'Completed' : 'Pending'}
-                </Text>
+                  {step.icon}
+                </View>
+
+                {/* Content */}
+                <View style={{ flex: 1 }}>
+                  <Text 
+                    style={{
+                      fontSize: 15,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.textPrimary,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {step.title}
+                  </Text>
+                  <Text 
+                    style={{
+                      fontSize: 13,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      marginBottom: 8,
+                      lineHeight: 18,
+                    }}
+                  >
+                    {step.description}
+                  </Text>
+                </View>
+
+                {/* Status Badge */}
+                <View
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 20,
+                    backgroundColor: step.status === 'completed' ? '#D1FAE5' : '#FEF3C7',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: step.status === 'completed' ? '#065F46' : '#92400E',
+                    }}
+                  >
+                    {step.status === 'completed' ? 'Completed' : 'Pending'}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
-        ))}
+          ))}
 
-        <TouchableOpacity
-          onPress={handleFinishSetup}
-          className="bg-[#6A9B00] rounded-xl py-4 px-6 mt-6"
-          activeOpacity={0.8}
-        >
-          <Text className="text-white text-lg font-semibold text-center" style={{ fontFamily: 'Poppins-SemiBold' }}>
-            Finish Setup
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+          {/* Finish Setup Button */}
+          <TouchableOpacity
+            onPress={() => {
+              haptics.success();
+              handleFinishSetup();
+            }}
+            style={{
+              backgroundColor: Colors.accent,
+              borderRadius: 12,
+              paddingVertical: 16,
+              paddingHorizontal: 24,
+              marginTop: 24,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            activeOpacity={0.8}
+          >
+            <Text 
+              style={{
+                fontSize: 16,
+                fontFamily: 'Poppins-SemiBold',
+                color: Colors.white,
+              }}
+            >
+              Finish Setup
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
     </SafeAreaWrapper>
   );
 }

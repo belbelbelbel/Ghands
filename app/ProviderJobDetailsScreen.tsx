@@ -1,13 +1,185 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, MessageCircle, Phone } from 'lucide-react-native';
-import React from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Image, ScrollView, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
+import { providerService, serviceRequestService, ServiceRequest, apiClient } from '@/services/api';
+import { useToast } from '@/hooks/useToast';
+import Toast from '@/components/Toast';
+import { haptics } from '@/hooks/useHaptics';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
+
+// Helper function to format date
+const formatDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  } catch {
+    return dateString;
+  }
+};
 
 export default function ProviderJobDetailsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ requestId?: string }>();
+  const { toast, showError, showSuccess, hideToast } = useToast();
+  const [request, setRequest] = useState<ServiceRequest | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+
+  // Load request details
+  useEffect(() => {
+    if (params.requestId) {
+      loadRequestDetails();
+    }
+  }, [params.requestId]);
+
+  const loadRequestDetails = async () => {
+    if (!params.requestId) return;
+    
+    setIsLoading(true);
+    try {
+      const requestId = parseInt(params.requestId, 10);
+      const requestDetails = await serviceRequestService.getRequestDetails(requestId);
+      setRequest(requestDetails);
+    } catch (error: any) {
+      console.error('Error loading request details:', error);
+      const errorMessage = getSpecificErrorMessage(error, 'get_request_details');
+      showError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAcceptRequest = async () => {
+    if (!params.requestId || isAccepting || isRejecting) return;
+
+    setIsAccepting(true);
+    haptics.light();
+
+    try {
+      const providerId = await apiClient.getUserId();
+      const requestId = parseInt(params.requestId, 10);
+
+      if (!providerId) {
+        showError('Unable to identify your account. Please sign in again.');
+        setIsAccepting(false);
+        return;
+      }
+
+      await providerService.acceptRequest(providerId, requestId);
+      
+      haptics.success();
+      showSuccess('Request accepted successfully! Waiting for client confirmation.');
+      
+      // Navigate back after a short delay
+      setTimeout(() => {
+        router.back();
+      }, 1500);
+    } catch (error: any) {
+      console.error('Error accepting request:', error);
+      haptics.error();
+      
+      const errorMessage = getSpecificErrorMessage(error, 'accept_request');
+      showError(errorMessage);
+      setIsAccepting(false);
+    }
+  };
+
+  const handleRejectRequest = async () => {
+    if (!params.requestId || isAccepting || isRejecting) return;
+
+    setIsRejecting(true);
+    haptics.light();
+
+    try {
+      const providerId = await apiClient.getUserId();
+      const requestId = parseInt(params.requestId, 10);
+
+      if (!providerId) {
+        showError('Unable to identify your account. Please sign in again.');
+        setIsRejecting(false);
+        return;
+      }
+
+      // TODO: Implement reject endpoint when available
+      // await providerService.rejectRequest(providerId, requestId);
+      
+      // For now, just navigate back
+      haptics.light();
+      router.back();
+    } catch (error: any) {
+      console.error('Error rejecting request:', error);
+      haptics.error();
+      
+      const errorMessage = getSpecificErrorMessage(error, 'reject_request');
+      showError(errorMessage);
+      setIsRejecting(false);
+    }
+  };
+
+  // Get user info from request
+  const user = request?.user || {};
+  const firstName = user.firstName || '';
+  const lastName = user.lastName || '';
+  const clientName = `${firstName} ${lastName}`.trim() || 'Client';
+  
+  // Get location info
+  const location = request?.location || {};
+  const locationAddress = location.formattedAddress || location.address || '';
+  const locationCity = location.city || '';
+  const locationState = location.state || '';
+  const fullLocation = locationAddress || `${locationCity}${locationCity && locationState ? ', ' : ''}${locationState}`.trim() || 'Location not specified';
+  
+  // Get scheduled date/time
+  const scheduledDate = request?.scheduledDate ? formatDate(request.scheduledDate) : '';
+  const scheduledTime = request?.scheduledTime || '';
+
+  if (isLoading) {
+    return (
+      <SafeAreaWrapper backgroundColor={Colors.white}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={Colors.accent} />
+          <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginTop: 16 }}>
+            Loading job details...
+          </Text>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
+
+  if (!request) {
+    return (
+      <SafeAreaWrapper backgroundColor={Colors.white}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
+          <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 8 }}>
+            Job not found
+          </Text>
+          <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 20 }}>
+            The job details could not be loaded. Please try again.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{
+              backgroundColor: Colors.accent,
+              paddingVertical: 12,
+              paddingHorizontal: 24,
+              borderRadius: BorderRadius.default,
+            }}
+          >
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+              Go Back
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.white}>
@@ -86,7 +258,7 @@ export default function ProviderJobDetailsScreen() {
                     marginBottom: 3,
                   }}
                 >
-                  Lawal Johnson
+                  {clientName}
                 </Text>
                 <Text
                   style={{
@@ -95,7 +267,7 @@ export default function ProviderJobDetailsScreen() {
                     color: Colors.textSecondaryDark,
                   }}
                 >
-                  Individual Client
+                  {user.email || 'Client'}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
@@ -193,15 +365,15 @@ export default function ProviderJobDetailsScreen() {
                 }}
               />
             </View>
-            <Text
-              style={{
-                fontSize: 15,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.textPrimary,
-              }}
-            >
-              House Cleaning
-            </Text>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.textPrimary,
+                }}
+              >
+                {request.categoryName || 'Service Request'}
+              </Text>
           </View>
 
           {/* Description Section */}
@@ -233,9 +405,7 @@ export default function ProviderJobDetailsScreen() {
                 lineHeight: 20,
               }}
             >
-              I need a thorough cleaning of my 3-bedroom apartment. This includes kitchen deep cleaning, bathroom
-              sanitization, living areas dusting and vacuuming, and bedroom organization. I have two cats, so please be
-              mindful of pet hair. The apartment is approximately 1,200 sq ft.
+              {request.description || request.jobTitle || 'No description provided.'}
             </Text>
           </View>
 
@@ -274,7 +444,7 @@ export default function ProviderJobDetailsScreen() {
                     marginBottom: 3,
                   }}
                 >
-                  Saturday October 20, 2024
+                  {scheduledDate || 'Date not scheduled'}
                 </Text>
                 <Text
                   style={{
@@ -310,7 +480,7 @@ export default function ProviderJobDetailsScreen() {
                   color: Colors.textPrimary,
                 }}
               >
-                From 10:00AM
+                {scheduledTime ? `From ${scheduledTime}` : 'Time not scheduled'}
               </Text>
             </View>
           </View>
@@ -415,7 +585,7 @@ export default function ProviderJobDetailsScreen() {
                     marginBottom: 3,
                   }}
                 >
-                  Downtown Apartment
+                  {locationCity || 'Service Location'}
                 </Text>
                 <Text
                   style={{
@@ -424,17 +594,9 @@ export default function ProviderJobDetailsScreen() {
                     color: Colors.textSecondaryDark,
                     marginBottom: 2,
                   }}
+                  numberOfLines={2}
                 >
-                  123 Main St. Apt 48,
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.textSecondaryDark,
-                  }}
-                >
-                  shomolu Estate
+                  {fullLocation}
                 </Text>
               </View>
             </View>
@@ -451,8 +613,8 @@ export default function ProviderJobDetailsScreen() {
                 style={{ flex: 1 }}
                 provider={PROVIDER_GOOGLE}
                 initialRegion={{
-                  latitude: 6.5244,
-                  longitude: 3.3792,
+                  latitude: location.latitude || 6.5244,
+                  longitude: location.longitude || 3.3792,
                   latitudeDelta: 0.05,
                   longitudeDelta: 0.05,
                 }}
@@ -483,53 +645,119 @@ export default function ProviderJobDetailsScreen() {
             elevation: 8,
           }}
         >
-          <TouchableOpacity
-            style={{
-              backgroundColor: Colors.accent,
-              paddingVertical: 12,
-              borderRadius: BorderRadius.default,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 10,
-            }}
-            onPress={() => router.push('/SendQuotationScreen' as any)}
-            activeOpacity={0.8}
-          >
-            <Text
+          {request.status === 'pending' ? (
+            <>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: Colors.accent,
+                  paddingVertical: 12,
+                  borderRadius: BorderRadius.default,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 10,
+                  flexDirection: 'row',
+                  opacity: isAccepting || isRejecting ? 0.6 : 1,
+                }}
+                onPress={handleAcceptRequest}
+                disabled={isAccepting || isRejecting}
+                activeOpacity={0.8}
+              >
+                {isAccepting ? (
+                  <>
+                    <ActivityIndicator size="small" color={Colors.white} style={{ marginRight: 8 }} />
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: Colors.white,
+                      }}
+                    >
+                      Accepting...
+                    </Text>
+                  </>
+                ) : (
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.white,
+                    }}
+                  >
+                    Accept Request
+                  </Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#FEE2E2',
+                  paddingVertical: 12,
+                  borderRadius: BorderRadius.default,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                  opacity: isAccepting || isRejecting ? 0.6 : 1,
+                }}
+                onPress={handleRejectRequest}
+                disabled={isAccepting || isRejecting}
+                activeOpacity={0.8}
+              >
+                {isRejecting ? (
+                  <>
+                    <ActivityIndicator size="small" color="#DC2626" style={{ marginRight: 8 }} />
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: '#DC2626',
+                      }}
+                    >
+                      Rejecting...
+                    </Text>
+                  </>
+                ) : (
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: '#DC2626',
+                    }}
+                  >
+                    Decline
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
               style={{
-                fontSize: 14,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.white,
+                backgroundColor: Colors.accent,
+                paddingVertical: 12,
+                borderRadius: BorderRadius.default,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
+              onPress={() => router.push('/SendQuotationScreen' as any)}
+              activeOpacity={0.8}
             >
-              Send Quotation
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              backgroundColor: '#FEE2E2',
-              paddingVertical: 12,
-              borderRadius: BorderRadius.default,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            onPress={() => {
-              // Handle decline
-            }}
-            activeOpacity={0.8}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                fontFamily: 'Poppins-SemiBold',
-                color: '#DC2626',
-              }}
-            >
-              Decline
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.white,
+                }}
+              >
+                Send Quotation
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onClose={hideToast}
+      />
     </SafeAreaWrapper>
   );
 }

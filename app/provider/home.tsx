@@ -4,8 +4,15 @@ import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, Users } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Image, ScrollView, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl } from 'react-native';
+import { providerService, AvailableRequest, ServiceRequest, apiClient } from '@/services/api';
+import { useToast } from '@/hooks/useToast';
+import Toast from '@/components/Toast';
+import { haptics } from '@/hooks/useHaptics';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface JobCard {
   id: string;
@@ -17,56 +24,249 @@ interface JobCard {
   status: 'in-progress' | 'pending';
   matchedTime?: string;
   images: any[];
+  requestId?: number;
+  distanceKm?: number;
+  minutesAway?: number;
 }
 
-const MOCK_ACTIVE_JOBS: JobCard[] = [
-  {
-    id: '1',
-    clientName: 'Lawal Johnson',
-    service: 'Kitchen pipe leak repair',
-    date: 'Oct 20, 2024',
-    time: '2:00 PM',
-    location: '123 Main St, Downtown',
-    status: 'in-progress',
-    images: [
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-    ],
-  },
-];
+// Helper function to format date
+const formatDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  } catch {
+    return dateString;
+  }
+};
 
-const MOCK_PENDING_JOBS: JobCard[] = [
-  {
-    id: '2',
-    clientName: 'Lawal Johnson',
-    service: 'Kitchen pipe leak repair',
-    date: 'Oct 20, 2024',
-    time: '2:00 PM',
-    location: '123 Main St, Downtown',
-    status: 'pending',
-    matchedTime: '24min. ago',
+// Helper function to format time ago
+const formatTimeAgo = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}min. ago`;
+    if (diffHours < 24) return `${diffHours}hr. ago`;
+    if (diffDays < 7) return `${diffDays}day${diffDays > 1 ? 's' : ''} ago`;
+    return formatDate(dateString);
+  } catch {
+    return '';
+  }
+};
+
+// Map API request to JobCard format
+const mapRequestToJobCard = (request: AvailableRequest | ServiceRequest, isActive: boolean = false): JobCard => {
+  const user = (request as any).user || {};
+  const firstName = user.firstName || '';
+  const lastName = user.lastName || '';
+  const clientName = `${firstName} ${lastName}`.trim() || 'Client';
+  
+  const location = request.location?.formattedAddress || 
+                   request.location?.address || 
+                   `${request.location?.city || ''}, ${request.location?.state || ''}`.trim() || 
+                   'Location not specified';
+  
+  const scheduledDate = request.scheduledDate ? formatDate(request.scheduledDate) : '';
+  const scheduledTime = request.scheduledTime || '';
+  const date = scheduledDate;
+  const time = scheduledTime;
+  
+  return {
+    id: request.id?.toString() || '',
+    clientName,
+    service: request.jobTitle || request.categoryName || 'Service Request',
+    date,
+    time,
+    location,
+    status: isActive ? 'in-progress' : 'pending',
+    matchedTime: isActive ? undefined : formatTimeAgo(request.createdAt || ''),
     images: [
       require('../../assets/images/jobcardimg.png'),
       require('../../assets/images/jobcardimg.png'),
       require('../../assets/images/jobcardimg.png'),
     ],
-  },
-];
+    requestId: request.id,
+    distanceKm: (request as AvailableRequest).distanceKm,
+    minutesAway: (request as AvailableRequest).minutesAway,
+  };
+};
 
 export default function ProviderHomeScreen() {
   const router = useRouter();
   const { location, refreshLocation } = useUserLocation();
+  const { toast, showError, showSuccess, hideToast } = useToast();
   const [isOnline, setIsOnline] = useState(true);
-  const [hasActiveJobs, setHasActiveJobs] = useState(true);
+  const [hasActiveJobs, setHasActiveJobs] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [pendingJobs, setPendingJobs] = useState<JobCard[]>([]);
+  const [activeJobs, setActiveJobs] = useState<JobCard[]>([]);
+  const [isLoadingPending, setIsLoadingPending] = useState(false);
+  const [isLoadingActive, setIsLoadingActive] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [providerName, setProviderName] = useState<string>('Guest');
+
+  // Load provider/company name
+  const loadProviderName = useCallback(async () => {
+    try {
+      // First, try to get company name from AsyncStorage (saved during signup)
+      const companyName = await AsyncStorage.getItem('@ghands:company_name');
+      if (companyName) {
+        setProviderName(companyName);
+        if (__DEV__) {
+          console.log('✅ Provider name loaded from storage:', companyName);
+        }
+        return;
+      }
+
+      // If no company name, try to get provider name from API
+      const providerId = await apiClient.getUserId();
+      if (providerId) {
+        try {
+          const provider = await providerService.getProvider(providerId);
+          if (provider?.name) {
+            setProviderName(provider.name);
+            // Also save to AsyncStorage for future use
+            await AsyncStorage.setItem('@ghands:company_name', provider.name);
+            if (__DEV__) {
+              console.log('✅ Provider name loaded from API:', provider.name);
+            }
+            return;
+          }
+        } catch (error) {
+          if (__DEV__) {
+            console.warn('⚠️ Could not load provider name from API');
+          }
+        }
+      }
+
+      // If still no name, check business name from profile setup
+      const businessName = await AsyncStorage.getItem('@ghands:business_name');
+      if (businessName) {
+        setProviderName(businessName);
+        if (__DEV__) {
+          console.log('✅ Business name loaded from storage:', businessName);
+        }
+        return;
+      }
+
+      // Default to "Guest" if no name found
+      setProviderName('Guest');
+      if (__DEV__) {
+        console.log('⚠️ No provider/company name found, using "Guest"');
+      }
+    } catch (error) {
+      console.error('Error loading provider name:', error);
+      setProviderName('Guest');
+    }
+  }, []);
+
+  // Load provider name on mount and when screen comes into focus
+  useEffect(() => {
+    loadProviderName();
+  }, [loadProviderName]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProviderName();
+    }, [loadProviderName])
+  );
+
+  // Load available requests (pending jobs)
+  const loadAvailableRequests = useCallback(async () => {
+    setIsLoadingPending(true);
+    try {
+      const providerId = await apiClient.getUserId();
+      
+      if (!providerId) {
+        if (__DEV__) {
+          console.warn('⚠️ No provider ID found, cannot load available requests');
+        }
+        setPendingJobs([]);
+        return;
+      }
+
+      const requests = await providerService.getAvailableRequests(providerId, 50);
+      
+      if (__DEV__) {
+        console.log('✅ Available requests loaded:', requests.length);
+      }
+      
+      const jobCards = requests.map((req) => mapRequestToJobCard(req, false));
+      setPendingJobs(jobCards);
+    } catch (error: any) {
+      console.error('Error loading available requests:', error);
+      const errorMessage = getSpecificErrorMessage(error, 'get_available_requests');
+      showError(errorMessage);
+      setPendingJobs([]);
+    } finally {
+      setIsLoadingPending(false);
+    }
+  }, [showError]);
+
+  // Load accepted requests (active jobs)
+  const loadAcceptedRequests = useCallback(async () => {
+    setIsLoadingActive(true);
+    try {
+      const providerId = await apiClient.getUserId();
+      
+      if (!providerId) {
+        if (__DEV__) {
+          console.warn('⚠️ No provider ID found, cannot load accepted requests');
+        }
+        setActiveJobs([]);
+        setHasActiveJobs(false);
+        return;
+      }
+
+      const requests = await providerService.getAcceptedRequests(providerId);
+      
+      if (__DEV__) {
+        console.log('✅ Accepted requests loaded:', requests.length);
+      }
+      
+      const jobCards = requests.map((req) => mapRequestToJobCard(req, true));
+      setActiveJobs(jobCards);
+      setHasActiveJobs(jobCards.length > 0);
+    } catch (error: any) {
+      console.error('Error loading accepted requests:', error);
+      const errorMessage = getSpecificErrorMessage(error, 'get_accepted_requests');
+      showError(errorMessage);
+      setActiveJobs([]);
+      setHasActiveJobs(false);
+    } finally {
+      setIsLoadingActive(false);
+    }
+  }, [showError]);
+
+  // Load data on mount and when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadAvailableRequests();
+      loadAcceptedRequests();
+    }, [loadAvailableRequests, loadAcceptedRequests])
+  );
 
   // Refresh location when modal closes
   useEffect(() => {
     if (!showLocationModal) {
       refreshLocation();
     }
-  }, [showLocationModal, refreshLocation]); 
+  }, [showLocationModal, refreshLocation]);
+
+  // Pull to refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    haptics.light();
+    await Promise.all([loadAvailableRequests(), loadAcceptedRequests()]);
+    setRefreshing(false);
+    haptics.success();
+  }, [loadAvailableRequests, loadAcceptedRequests]); 
 
   const renderJobCard = (job: JobCard, isActive: boolean) => (
     <View
@@ -179,16 +379,46 @@ export default function ProviderHomeScreen() {
               paddingVertical: 12,
               paddingHorizontal: 16,
               borderRadius: BorderRadius.default,
-              borderWidth: 1,
-              borderColor: Colors.errorBorder,
-              backgroundColor: Colors.errorLight,
+              backgroundColor: Colors.accent,
+              flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
             }}
+            onPress={async () => {
+              if (!job.requestId) {
+                showError('Invalid request ID');
+                return;
+              }
+              
+              haptics.light();
+              try {
+                const providerId = await apiClient.getUserId();
+                if (!providerId) {
+                  showError('Unable to identify your account. Please sign in again.');
+                  return;
+                }
+
+                await providerService.acceptRequest(providerId, job.requestId);
+                haptics.success();
+                showSuccess('Request accepted! Waiting for client confirmation.');
+                
+                // Refresh the list
+                setTimeout(() => {
+                  loadAvailableRequests();
+                  loadAcceptedRequests();
+                }, 1000);
+              } catch (error: any) {
+                console.error('Error accepting request:', error);
+                haptics.error();
+                const errorMessage = getSpecificErrorMessage(error, 'accept_request');
+                showError(errorMessage);
+              }
+            }}
           >
-            <Text style={{ color: Colors.error, fontFamily: 'Poppins-SemiBold', fontSize: 12 }}>
-              Decline
+            <Text style={{ color: Colors.textPrimary, fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
+              Accept Request
             </Text>
+            <ArrowRight size={14} color={Colors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity
             style={{
@@ -196,17 +426,25 @@ export default function ProviderHomeScreen() {
               paddingVertical: 12,
               paddingHorizontal: 16,
               borderRadius: BorderRadius.default,
-              backgroundColor: Colors.accent,
-              flexDirection: 'row',
+              borderWidth: 1,
+              borderColor: Colors.errorBorder,
+              backgroundColor: Colors.errorLight,
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            onPress={() => router.push('/ProviderJobDetailsScreen' as any)}
+            onPress={() => {
+              haptics.light();
+              router.push({
+                pathname: '/ProviderJobDetailsScreen',
+                params: {
+                  requestId: job.requestId?.toString() || job.id,
+                },
+              } as any);
+            }}
           >
-            <Text style={{ color: Colors.textPrimary, fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
-              View details
+            <Text style={{ color: Colors.error, fontFamily: 'Poppins-SemiBold', fontSize: 12 }}>
+              View Details
             </Text>
-            <ArrowRight size={14} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
       )}
@@ -220,6 +458,14 @@ export default function ProviderHomeScreen() {
         contentContainerStyle={{
           paddingBottom: 100,
         }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.accent}
+            colors={[Colors.accent]}
+          />
+        }
       >
         <View style={{ paddingHorizontal: 16, paddingTop: 17, paddingBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -275,7 +521,9 @@ export default function ProviderHomeScreen() {
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 16 }}>
-            <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>Welcome, Alex</Text>
+            <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
+              Welcome, {providerName}
+            </Text>
             {/* <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: '#000000' }}>Online</Text>
               <Switch
@@ -297,6 +545,11 @@ export default function ProviderHomeScreen() {
                 alignItems: 'center',
                 marginBottom: 16,
               }}
+              onPress={() => {
+                haptics.light();
+                router.push('/ProviderVerifyIdentityScreen' as any);
+              }}
+              activeOpacity={0.7}
             >
               <View
                 style={{
@@ -358,7 +611,14 @@ export default function ProviderHomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
-        {hasActiveJobs && MOCK_ACTIVE_JOBS.length > 0 && (
+        {isLoadingActive ? (
+          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 20 }}>
+            <ActivityIndicator size="small" color={Colors.accent} />
+            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 8 }}>
+              Loading active jobs...
+            </Text>
+          </View>
+        ) : hasActiveJobs && activeJobs.length > 0 && (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Active Jobs</Text>
@@ -368,21 +628,41 @@ export default function ProviderHomeScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-            {MOCK_ACTIVE_JOBS.map((job) => renderJobCard(job, true))}
+            {activeJobs.slice(0, 3).map((job) => renderJobCard(job, true))}
           </View>
         )}
 
-        {hasActiveJobs && MOCK_PENDING_JOBS.length > 0 && (
+        {isLoadingPending ? (
+          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 20 }}>
+            <ActivityIndicator size="small" color={Colors.accent} />
+            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 8 }}>
+              Loading available requests...
+            </Text>
+          </View>
+        ) : pendingJobs.length > 0 && (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Pending Requests</Text>
-              <TouchableOpacity onPress={() => router.push('/provider/jobs')}>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
-                  View all <ArrowRight size={12} color={Colors.accent} />
-                </Text>
-              </TouchableOpacity>
+              <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Available Requests</Text>
+              {pendingJobs.length > 3 && (
+                <TouchableOpacity onPress={() => router.push('/provider/jobs')}>
+                  <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
+                    View all <ArrowRight size={12} color={Colors.accent} />
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
-            {MOCK_PENDING_JOBS.map((job) => renderJobCard(job, false))}
+            {pendingJobs.slice(0, 3).map((job) => renderJobCard(job, false))}
+          </View>
+        )}
+
+        {!isLoadingPending && !isLoadingActive && pendingJobs.length === 0 && activeJobs.length === 0 && (
+          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 40 }}>
+            <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 8 }}>
+              No requests available
+            </Text>
+            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center' }}>
+              New service requests will appear here when they match your categories and location.
+            </Text>
           </View>
         )}
 
@@ -556,6 +836,12 @@ export default function ProviderHomeScreen() {
           setShowLocationModal(false);
           refreshLocation();
         }}
+      />
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onClose={hideToast}
       />
     </SafeAreaWrapper>
   );

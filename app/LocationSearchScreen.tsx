@@ -1,17 +1,17 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import Toast from '@/components/Toast';
+import { Button } from '@/components/ui/Button';
+import { haptics } from '@/hooks/useHaptics';
+import { useToast } from '@/hooks/useToast';
+import { useUserLocation } from '@/hooks/useUserLocation';
+import { BorderRadius, Colors } from '@/lib/designSystem';
+import { LocationSearchResult, apiClient, locationService } from '@/services/api';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, MapPin, Search, Send } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useUserLocation } from '@/hooks/useUserLocation';
-import { Button } from '@/components/ui/Button';
-import { Colors, BorderRadius } from '@/lib/designSystem';
-import { useToast } from '@/hooks/useToast';
-import Toast from '@/components/Toast';
-import * as Location from 'expo-location';
-import { locationService, LocationSearchResult, apiClient } from '@/services/api';
-import { haptics } from '@/hooks/useHaptics';
-import { getSpecificErrorMessage } from '@/utils/errorMessages';
 
 export default function LocationSearchScreen() {
   const router = useRouter();
@@ -30,6 +30,7 @@ export default function LocationSearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<LocationSearchResult[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<LocationSearchResult | null>(null);
+  const [selectedLocationDetails, setSelectedLocationDetails] = useState<{ latitude?: number; longitude?: number } | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -153,11 +154,37 @@ export default function LocationSearchScreen() {
     router.back();
   };
 
-  const handleSelectLocation = (result: LocationSearchResult) => {
+  const handleSelectLocation = async (result: LocationSearchResult) => {
     haptics.light();
     setSelectedLocation(result);
     setSearchQuery(result.fullAddress);
     setShowResults(false);
+    
+    // Get EXACT coordinates from API for precision
+    if (result.placeId && !result.placeId.startsWith('lat_')) {
+      try {
+        const locationDetails = await locationService.getLocationDetails(result.placeId);
+        setSelectedLocationDetails({
+          latitude: locationDetails.latitude,
+          longitude: locationDetails.longitude,
+        });
+        if (__DEV__) {
+          console.log('✅ Exact coordinates fetched from API:', {
+            placeId: result.placeId,
+            latitude: locationDetails.latitude,
+            longitude: locationDetails.longitude,
+            formattedAddress: locationDetails.formattedAddress,
+          });
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('⚠️ Could not fetch exact coordinates, will use placeId');
+        }
+        setSelectedLocationDetails(null);
+      }
+    } else {
+      setSelectedLocationDetails(null);
+    }
   };
 
   const handleUseCurrentLocation = async () => {
@@ -222,50 +249,75 @@ export default function LocationSearchScreen() {
         };
         
         setSelectedLocation(result);
+        // Store EXACT coordinates from API response
+        setSelectedLocationDetails({
+          latitude: locationDetails.latitude,
+          longitude: locationDetails.longitude,
+        });
         setSearchQuery(locationDetails.formattedAddress);
         setShowResults(false);
         
+        if (__DEV__) {
+          console.log('✅ Current location - exact coordinates stored:', {
+            latitude: locationDetails.latitude,
+            longitude: locationDetails.longitude,
+            formattedAddress: locationDetails.formattedAddress,
+          });
+        }
+        
         // Automatically save to backend if user is signed in
-        const userId = await apiClient.getUserId();
-        if (userId) {
-          try {
-            // Try to save using placeId first (more accurate)
-            if (locationDetails.placeId && !locationDetails.placeId.startsWith('lat_')) {
-              await locationService.saveUserLocation(userId, { 
-                placeId: locationDetails.placeId 
-              });
-            } else {
-              // If no placeId or it's a generated one, save using coordinates
-              await locationService.saveUserLocation(userId, {
-                latitude: locationDetails.latitude || latitude,
-                longitude: locationDetails.longitude || longitude,
-              });
-            }
-            // Also save locally
-            await setLocation(locationDetails.formattedAddress);
-            await refreshLocation();
-            if (__DEV__) {
-              console.log('✅ Current location saved to backend automatically');
-            }
-          } catch (saveError: any) {
-            // Log but don't fail - location is still selected
-            if (__DEV__) {
-              console.warn('⚠️ Could not save location to backend:', saveError);
-              console.warn('⚠️ Error details:', JSON.stringify(saveError, null, 2));
-            }
-            // Still save locally
-            await setLocation(locationDetails.formattedAddress);
-            // Show a subtle warning but don't block the user
-            if (saveError.message?.includes('not set') || saveError.message?.includes('400')) {
-              // This shouldn't happen, but if it does, we'll try again on confirm
+        // BUT: Skip auto-save for providers (they save via providerService.updateLocation in ProviderProfileSetupScreen)
+        const isProvider = next === 'provider-profile-setup';
+        
+        if (!isProvider) {
+          // Only auto-save for regular users, not providers
+          const userId = await apiClient.getUserId();
+          if (userId) {
+            try {
+              // Try to save using placeId first (more accurate)
+              if (locationDetails.placeId && !locationDetails.placeId.startsWith('lat_')) {
+                await locationService.saveUserLocation(userId, { 
+                  placeId: locationDetails.placeId 
+                });
+              } else {
+                // If no placeId or it's a generated one, save using coordinates
+                await locationService.saveUserLocation(userId, {
+                  latitude: locationDetails.latitude || latitude,
+                  longitude: locationDetails.longitude || longitude,
+                });
+              }
+              // Also save locally
+              await setLocation(locationDetails.formattedAddress);
+              await refreshLocation();
               if (__DEV__) {
-                console.warn('⚠️ Location save failed - will retry on confirm');
+                console.log('✅ Current location saved to backend automatically (user endpoint)');
+              }
+            } catch (saveError: any) {
+              // Log but don't fail - location is still selected
+              if (__DEV__) {
+                console.warn('⚠️ Could not save location to backend:', saveError);
+                console.warn('⚠️ Error details:', JSON.stringify(saveError, null, 2));
+              }
+              // Still save locally
+              await setLocation(locationDetails.formattedAddress);
+              // Show a subtle warning but don't block the user
+              if (saveError.message?.includes('not set') || saveError.message?.includes('400')) {
+                // This shouldn't happen, but if it does, we'll try again on confirm
+                if (__DEV__) {
+                  console.warn('⚠️ Location save failed - will retry on confirm');
+                }
               }
             }
+          } else {
+            // Save locally even if not signed in
+            await setLocation(locationDetails.formattedAddress);
           }
         } else {
-          // Save locally even if not signed in
+          // For providers: Only save locally, will be saved to provider endpoint in ProviderProfileSetupScreen
           await setLocation(locationDetails.formattedAddress);
+          if (__DEV__) {
+            console.log('✅ Provider location selected - will be saved via provider endpoint on Finish Setup');
+          }
         }
         
         showSuccess('Current location detected and saved!');
@@ -322,6 +374,32 @@ export default function LocationSearchScreen() {
     haptics.light();
 
     try {
+      // Check if this is a provider profile setup (providers don't use user location endpoint)
+      const isProvider = next === 'provider-profile-setup';
+      
+      if (isProvider) {
+        // For providers: Just save locally and navigate, location will be saved via providerService.updateLocation in ProviderProfileSetupScreen
+        if (selectedLocation?.fullAddress) {
+          await setLocation(selectedLocation.fullAddress);
+        } else if (searchQuery && typeof searchQuery === 'string') {
+          await setLocation(searchQuery.trim());
+        }
+        
+        if (__DEV__) {
+          console.log('✅ Provider location selected - will be saved via provider endpoint on Finish Setup');
+        }
+        
+        showSuccess('Location selected!');
+        haptics.success();
+        
+        setTimeout(() => {
+          handleNavigation();
+        }, 1000);
+        setIsSaving(false);
+        return;
+      }
+      
+      // For regular users: Save to user location endpoint
       const userId = await apiClient.getUserId();
       
       if (!userId) {
@@ -333,6 +411,7 @@ export default function LocationSearchScreen() {
         setTimeout(() => {
           handleNavigation();
         }, 1000);
+        setIsSaving(false);
         return;
       }
 
@@ -402,9 +481,109 @@ export default function LocationSearchScreen() {
     }
   };
 
-  const handleNavigation = () => {
+  const handleNavigation = async () => {
     if (next === 'ProfileSetupScreen') {
       router.replace('/ProfileSetupScreen');
+    } else if (next === 'provider-profile-setup') {
+      // Navigate back to ProviderProfileSetupScreen with EXACT location data from API
+      // Get address from selectedLocation or searchQuery - MUST be a non-empty string
+      let locationData: string = '';
+      
+      if (selectedLocation?.fullAddress && typeof selectedLocation.fullAddress === 'string' && selectedLocation.fullAddress.trim()) {
+        locationData = selectedLocation.fullAddress.trim();
+      } else if (selectedLocation?.address && typeof selectedLocation.address === 'string' && selectedLocation.address.trim()) {
+        locationData = selectedLocation.address.trim();
+      } else if (searchQuery && typeof searchQuery === 'string' && searchQuery.trim()) {
+        locationData = searchQuery.trim();
+      }
+      
+      // VALIDATE: Ensure we have a valid address string before proceeding
+      if (!locationData || locationData.length === 0) {
+        showError('Please select or enter a valid location address');
+        setIsSaving(false);
+        return;
+      }
+      
+      // Clean the address: remove extra whitespace, newlines, tabs, etc.
+      locationData = locationData.replace(/[\n\r\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+      
+      // Ensure address is still valid after cleaning
+      if (!locationData || locationData.length === 0) {
+        showError('Please select or enter a valid location address');
+        setIsSaving(false);
+        return;
+      }
+      
+      const placeIdData = selectedLocation?.placeId || null;
+      
+      // Get EXACT coordinates from API (use stored details or fetch if needed)
+      let exactLatitude: number | undefined;
+      let exactLongitude: number | undefined;
+      
+      // First, use stored location details if available (from handleSelectLocation)
+      if (selectedLocationDetails?.latitude && selectedLocationDetails?.longitude) {
+        exactLatitude = selectedLocationDetails.latitude;
+        exactLongitude = selectedLocationDetails.longitude;
+        if (__DEV__) {
+          console.log('✅ Using stored exact coordinates:', {
+            latitude: exactLatitude,
+            longitude: exactLongitude,
+          });
+        }
+      } else if (placeIdData && !placeIdData.startsWith('lat_')) {
+        // Fetch exact coordinates from API if not already stored
+        try {
+          const locationDetails = await locationService.getLocationDetails(placeIdData);
+          exactLatitude = locationDetails.latitude;
+          exactLongitude = locationDetails.longitude;
+          
+          if (__DEV__) {
+            console.log('✅ Exact coordinates fetched from API:', {
+              placeId: placeIdData,
+              latitude: exactLatitude,
+              longitude: exactLongitude,
+              formattedAddress: locationDetails.formattedAddress,
+            });
+          }
+        } catch (error) {
+          if (__DEV__) {
+            console.warn('⚠️ Could not get exact coordinates from API, using placeId only');
+          }
+        }
+      } else if (placeIdData && placeIdData.startsWith('lat_')) {
+        // Extract coordinates from generated placeId
+        const coordMatch = placeIdData.match(/lat_([\d.-]+)_([\d.-]+)/);
+        if (coordMatch && coordMatch[1] && coordMatch[2]) {
+          exactLatitude = parseFloat(coordMatch[1]);
+          exactLongitude = parseFloat(coordMatch[2]);
+          if (__DEV__) {
+            console.log('✅ Using coordinates from generated placeId:', {
+              latitude: exactLatitude,
+              longitude: exactLongitude,
+            });
+          }
+        }
+      }
+      
+      if (__DEV__) {
+        console.log('✅ ========== NAVIGATING TO PROVIDER PROFILE SETUP ==========');
+        console.log('✅ Location Data (cleaned):', locationData);
+        console.log('✅ Location Data Length:', locationData.length);
+        console.log('✅ Location Data Type:', typeof locationData);
+        console.log('✅ Place ID:', placeIdData);
+        console.log('✅ ===========================================================');
+      }
+      
+      router.replace({
+        pathname: '/ProviderProfileSetupScreen',
+        params: {
+          location: locationData, // NOW GUARANTEED TO BE A NON-EMPTY STRING
+          placeId: placeIdData || undefined,
+          formattedAddress: locationData, // Same as location (cleaned)
+          latitude: exactLatitude?.toString(),
+          longitude: exactLongitude?.toString(),
+        },
+      } as any);
     } else if (next === 'ServiceMapScreen') {
       // Navigate back to ServiceMapScreen with all booking params preserved
       router.replace({

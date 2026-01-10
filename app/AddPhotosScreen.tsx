@@ -1,12 +1,10 @@
-import AnimatedModal from '@/components/AnimatedModal';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
-import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { Colors } from '@/lib/designSystem';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, ArrowRight, Camera, Plus, X } from 'lucide-react-native';
+import { ArrowLeft, Camera, Plus, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 

@@ -2,8 +2,14 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Fonts, Spacing } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Calendar, MapPin } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Image, ScrollView, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl } from 'react-native';
+import { providerService, ServiceRequest, apiClient } from '@/services/api';
+import { useToast } from '@/hooks/useToast';
+import Toast from '@/components/Toast';
+import { haptics } from '@/hooks/useHaptics';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { useFocusEffect } from 'expo-router';
 
 type JobStatus = 'Ongoing' | 'Pending' | 'Completed';
 
@@ -18,121 +24,150 @@ interface JobItem {
   matchedTime?: string;
   completedTime?: string;
   images: any[];
+  requestId?: number;
 }
 
-const ONGOING_JOBS: JobItem[] = [
-  {
-    id: '1',
-    clientName: 'Lawal Johnson',
-    service: 'Kitchen pipe leak repair',
-    date: 'Oct 20, 2024',
-    time: '2:00 PM',
-    location: '123 Main St, Downtown',
-    status: 'Ongoing',
-    images: [
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-    ],
-  },
-];
+// Helper function to format date
+const formatDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  } catch {
+    return dateString;
+  }
+};
 
-const PENDING_JOBS: JobItem[] = [
-  {
-    id: '2',
-    clientName: 'Lawal Johnson',
-    service: 'Kitchen pipe leak repair',
-    date: 'Oct 20, 2024',
-    time: '2:00 PM',
-    location: '123 Main St, Downtown',
-    status: 'Pending',
-    matchedTime: '24min. ago',
-    images: [
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-    ],
-  },
-  {
-    id: '3',
-    clientName: 'Lawal Johnson',
-    service: 'Kitchen pipe leak repair',
-    date: 'Oct 20, 2024',
-    time: '2:00 PM',
-    location: '123 Main St, Downtown',
-    status: 'Pending',
-    matchedTime: '24min. ago',
-    images: [
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-    ],
-  },
-];
+// Helper function to format time ago
+const formatTimeAgo = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}min. ago`;
+    if (diffHours < 24) return `${diffHours}hr. ago`;
+    if (diffDays < 7) return `${diffDays}day${diffDays > 1 ? 's' : ''} ago`;
+    return formatDate(dateString);
+  } catch {
+    return '';
+  }
+};
 
-const COMPLETED_JOBS: JobItem[] = [
-  {
-    id: '4',
-    clientName: 'Lawal Johnson',
-    service: 'Kitchen pipe leak repair',
-    date: 'Oct 20, 2024',
-    time: '2:00 PM',
-    location: '123 Main St, Downtown',
-    status: 'Completed',
-    completedTime: '24min. ago',
+// Map API status to JobStatus
+const mapApiStatusToJobStatus = (apiStatus: string): JobStatus => {
+  switch (apiStatus?.toLowerCase()) {
+    case 'accepted':
+    case 'in_progress':
+      return 'Ongoing';
+    case 'pending':
+      return 'Pending';
+    case 'completed':
+      return 'Completed';
+    default:
+      return 'Pending';
+  }
+};
+
+// Map API request to JobItem format
+const mapRequestToJobItem = (request: ServiceRequest): JobItem => {
+  const user = request.user || {};
+  const firstName = user.firstName || '';
+  const lastName = user.lastName || '';
+  const clientName = `${firstName} ${lastName}`.trim() || 'Client';
+  
+  const location = request.location?.formattedAddress || 
+                   request.location?.address || 
+                   `${request.location?.city || ''}, ${request.location?.state || ''}`.trim() || 
+                   'Location not specified';
+  
+  const scheduledDate = request.scheduledDate ? formatDate(request.scheduledDate) : '';
+  const scheduledTime = request.scheduledTime || '';
+  
+  const status = mapApiStatusToJobStatus(request.status || 'pending');
+  
+  return {
+    id: request.id?.toString() || '',
+    clientName,
+    service: request.jobTitle || request.categoryName || 'Service Request',
+    date: scheduledDate,
+    time: scheduledTime,
+    location,
+    status,
+    matchedTime: status === 'Pending' ? formatTimeAgo(request.createdAt || '') : undefined,
+    completedTime: status === 'Completed' ? formatTimeAgo(request.updatedAt || request.createdAt || '') : undefined,
     images: [
       require('../../assets/images/jobcardimg.png'),
       require('../../assets/images/jobcardimg.png'),
       require('../../assets/images/jobcardimg.png'),
     ],
-  },
-  {
-    id: '5',
-    clientName: 'Lawal Johnson',
-    service: 'Kitchen pipe leak repair',
-    date: 'Oct 20, 2024',
-    time: '2:00 PM',
-    location: '123 Main St, Downtown',
-    status: 'Completed',
-    completedTime: '24min. ago',
-    images: [
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-    ],
-  },
-  {
-    id: '6',
-    clientName: 'Lawal Johnson',
-    service: 'Kitchen pipe leak repair',
-    date: 'Oct 20, 2024',
-    time: '2:00 PM',
-    location: '123 Main St, Downtown',
-    status: 'Completed',
-    completedTime: '24min. ago',
-    images: [
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-      require('../../assets/images/jobcardimg.png'),
-    ],
-  },
-];
+    requestId: request.id,
+  };
+};
+
 
 export default function ProviderJobsScreen() {
   const router = useRouter();
+  const { toast, showError, hideToast } = useToast();
   const [activeTab, setActiveTab] = useState<JobStatus>('Ongoing');
+  const [allJobs, setAllJobs] = useState<JobItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Load accepted requests from API
+  const loadAcceptedRequests = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const providerId = await apiClient.getUserId();
+      
+      if (!providerId) {
+        if (__DEV__) {
+          console.warn('⚠️ No provider ID found, cannot load accepted requests');
+        }
+        setAllJobs([]);
+        return;
+      }
+
+      const requests = await providerService.getAcceptedRequests(providerId);
+      
+      if (__DEV__) {
+        console.log('✅ Accepted requests loaded:', requests.length);
+      }
+      
+      const jobItems = requests.map((req) => mapRequestToJobItem(req));
+      setAllJobs(jobItems);
+    } catch (error: any) {
+      console.error('Error loading accepted requests:', error);
+      const errorMessage = getSpecificErrorMessage(error, 'get_accepted_requests');
+      showError(errorMessage);
+      setAllJobs([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [showError]);
+
+  // Load data on mount and when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadAcceptedRequests();
+    }, [loadAcceptedRequests])
+  );
+
+  // Pull to refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    haptics.light();
+    await loadAcceptedRequests();
+    setRefreshing(false);
+    haptics.success();
+  }, [loadAcceptedRequests]);
 
   const getJobsForTab = () => {
-    switch (activeTab) {
-      case 'Ongoing':
-        return ONGOING_JOBS;
-      case 'Pending':
-        return PENDING_JOBS;
-      case 'Completed':
-        return COMPLETED_JOBS;
-      default:
-        return [];
-    }
+    return allJobs.filter((job) => job.status === activeTab);
   };
 
   const renderJobCard = (job: JobItem) => (
@@ -196,24 +231,32 @@ export default function ProviderJobsScreen() {
       </View>
 
       {job.status === 'Ongoing' ? (
-        <TouchableOpacity
-          style={{
-            backgroundColor: Colors.black,
-            paddingVertical: 12,
-            paddingHorizontal: 16,
-            borderRadius: BorderRadius.default,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '100%',
-          }}
-          onPress={() => router.push('/ProviderUpdatesScreen' as any)}
-        >
-          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: Spacing.xs }}>
-            Check Updates
-          </Text>
-          <ArrowRight size={14} color={Colors.white} />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              backgroundColor: Colors.black,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderRadius: BorderRadius.default,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+            }}
+            onPress={() => {
+              haptics.light();
+              router.push({
+                pathname: '/ProviderJobDetailsScreen',
+                params: {
+                  requestId: job.requestId?.toString() || job.id,
+                },
+              } as any);
+            }}
+          >
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: Spacing.xs }}>
+              Check Updates
+            </Text>
+            <ArrowRight size={14} color={Colors.white} />
+          </TouchableOpacity>
       ) : job.status === 'Pending' ? (
         <View style={{ flexDirection: 'row', gap: Spacing.xs }}>
           <TouchableOpacity
@@ -244,7 +287,15 @@ export default function ProviderJobsScreen() {
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            onPress={() => router.push('/ProviderCompletedJobScreen' as any)}
+            onPress={() => {
+              haptics.light();
+              router.push({
+                pathname: '/ProviderJobDetailsScreen',
+                params: {
+                  requestId: job.requestId?.toString() || job.id,
+                },
+              } as any);
+            }}
           >
             <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginRight: Spacing.xs }}>
               View details
@@ -266,7 +317,15 @@ export default function ProviderJobsScreen() {
             alignItems: 'center',
             justifyContent: 'center',
           }}
-          onPress={() => router.push('/ProviderCompletedJobScreen' as any)}
+          onPress={() => {
+            haptics.light();
+            router.push({
+              pathname: '/ProviderJobDetailsScreen',
+              params: {
+                requestId: job.requestId?.toString() || job.id,
+              },
+            } as any);
+          }}
         >
           <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginRight: Spacing.xs }}>
             View details
@@ -349,8 +408,23 @@ export default function ProviderJobsScreen() {
             paddingHorizontal: Spacing.lg,
             paddingBottom: 100,
           }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors.accent}
+              colors={[Colors.accent]}
+            />
+          }
         >
-          {getJobsForTab().length > 0 ? (
+          {isLoading ? (
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
+              <ActivityIndicator size="large" color={Colors.accent} />
+              <Text style={{ ...Fonts.bodyMedium, color: Colors.textTertiary, marginTop: 16 }}>
+                Loading jobs...
+              </Text>
+            </View>
+          ) : getJobsForTab().length > 0 ? (
             getJobsForTab().map((job) => renderJobCard(job))
           ) : (
             <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
@@ -361,6 +435,12 @@ export default function ProviderJobsScreen() {
           )}
         </ScrollView>
       </View>
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onClose={hideToast}
+      />
     </SafeAreaWrapper>
   );
 }

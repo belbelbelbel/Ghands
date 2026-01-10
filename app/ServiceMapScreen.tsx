@@ -14,7 +14,8 @@ import { useToast } from '@/hooks/useToast';
 import Toast from '@/components/Toast';
 const MAX_SELECTION = 3;
 
-const SAMPLE_PROVIDERS: ServiceProvider[] = [
+// Dummy providers - only used in development mode for testing
+const SAMPLE_PROVIDERS: ServiceProvider[] = __DEV__ ? [
   {
     id: 'provider-1',
     name: "Mike's Plumbing",
@@ -70,7 +71,7 @@ const SAMPLE_PROVIDERS: ServiceProvider[] = [
     image: require('../assets/images/electricianicon.png'),
     coords: { latitude: 6.593, longitude: 3.3674 },
   },
-];
+] : [];
 
 
 const ServiceMapScreen = () => {
@@ -95,6 +96,7 @@ const ServiceMapScreen = () => {
   const [providers, setProviders] = useState<ServiceProvider[]>([]);
   const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   const [serviceLocationCoords, setServiceLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [providerError, setProviderError] = useState<string | null>(null);
   
   // Booking data state - synced with params
   const [bookingData, setBookingData] = useState<{
@@ -161,9 +163,17 @@ const ServiceMapScreen = () => {
     const loadProviders = async () => {
       const categoryName = params.categoryName || params.serviceType;
       
+      // Reset error state
+      setProviderError(null);
+      
       if (!categoryName || !serviceLocationCoords) {
-        // Use dummy data if we don't have required info
-        setProviders(SAMPLE_PROVIDERS);
+        // Don't show dummy data - show empty state instead
+        setProviders([]);
+        if (!categoryName) {
+          setProviderError('Please select a service category');
+        } else if (!serviceLocationCoords) {
+          setProviderError('Please set your service location');
+        }
         return;
       }
 
@@ -211,13 +221,25 @@ const ServiceMapScreen = () => {
           };
         });
 
-        setProviders(mappedProviders.length > 0 ? mappedProviders : SAMPLE_PROVIDERS);
+        if (mappedProviders.length === 0) {
+          setProviderError('No providers found nearby for this service');
+        } else {
+          setProviderError(null);
+        }
+        setProviders(mappedProviders);
       } catch (error: any) {
         console.error('Error loading nearby providers:', error);
-        // Fallback to dummy data on error
-        setProviders(SAMPLE_PROVIDERS);
-        if (__DEV__) {
-          console.log('Using dummy providers as fallback');
+        setProviders([]);
+        
+        // Extract error message
+        const errorMessage = error?.message || error?.details?.data?.error || 'Failed to load providers';
+        setProviderError(errorMessage);
+        
+        // Only use dummy data in development mode
+        if (__DEV__ && SAMPLE_PROVIDERS.length > 0) {
+          console.warn('⚠️ Using dummy providers for development testing');
+          setProviders(SAMPLE_PROVIDERS);
+          setProviderError(null);
         }
       } finally {
         setIsLoadingProviders(false);
@@ -278,6 +300,119 @@ const ServiceMapScreen = () => {
             <ActivityIndicator size="large" color="#6A9B00" />
             <Text className="mt-4 text-gray-600" style={{ fontFamily: 'Poppins-Medium' }}>
               Finding nearby providers...
+            </Text>
+          </View>
+        ) : providerError && providers.length === 0 ? (
+          <View className="flex-1 items-center justify-center bg-white px-6">
+            <View
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: '#F3F4F6',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <Text style={{ fontSize: 40 }}>📍</Text>
+            </View>
+            <Text
+              style={{
+                fontSize: 18,
+                fontFamily: 'Poppins-SemiBold',
+                color: '#111827',
+                marginBottom: 8,
+                textAlign: 'center',
+              }}
+            >
+              {providerError.includes('No providers') ? 'No Providers Found' : 'Unable to Load Providers'}
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: 'Poppins-Regular',
+                color: '#6B7280',
+                textAlign: 'center',
+                marginBottom: 24,
+                lineHeight: 20,
+              }}
+            >
+              {providerError.includes('No providers')
+                ? 'We couldn\'t find any providers nearby for this service. Try adjusting your location or selecting a different service category.'
+                : providerError.includes('location')
+                ? 'Please set your service location to find nearby providers.'
+                : providerError.includes('category')
+                ? 'Please select a service category to find providers.'
+                : 'Something went wrong while loading providers. Please try again.'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                // Retry loading providers
+                const categoryName = params.categoryName || params.serviceType;
+                if (categoryName && serviceLocationCoords) {
+                  setProviderError(null);
+                  setIsLoadingProviders(true);
+                  // Trigger reload by updating a dependency
+                  setServiceLocationCoords({ ...serviceLocationCoords });
+                } else if (!serviceLocationCoords) {
+                  router.push('/LocationSearchScreen' as any);
+                }
+              }}
+              style={{
+                backgroundColor: '#6A9B00',
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 12,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: '#FFFFFF',
+                }}
+              >
+                {!serviceLocationCoords ? 'Set Location' : 'Try Again'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : providers.length === 0 ? (
+          <View className="flex-1 items-center justify-center bg-white px-6">
+            <View
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: '#F3F4F6',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <Text style={{ fontSize: 40 }}>🔍</Text>
+            </View>
+            <Text
+              style={{
+                fontSize: 18,
+                fontFamily: 'Poppins-SemiBold',
+                color: '#111827',
+                marginBottom: 8,
+                textAlign: 'center',
+              }}
+            >
+              No Providers Found
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: 'Poppins-Regular',
+                color: '#6B7280',
+                textAlign: 'center',
+                lineHeight: 20,
+              }}
+            >
+              We couldn't find any providers nearby for this service. Try adjusting your location or selecting a different service category.
             </Text>
           </View>
         ) : (

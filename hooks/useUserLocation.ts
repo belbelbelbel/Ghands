@@ -26,8 +26,24 @@ export function useUserLocation(): UseUserLocationReturn {
     try {
       setIsLoading(true);
       
-      // Try to load from API first
+      // Check if user is a provider (providers have company ID, not user ID for location)
+      // Providers should NOT call user location endpoint - they use provider location endpoint
+      const companyId = await apiClient.getCompanyId();
       const userId = await apiClient.getUserId();
+      
+      // For providers: Skip API call to user location endpoint (providers use provider location endpoint)
+      if (companyId) {
+        // Provider: Only load from local storage, don't call user location API
+        const storedLocation = await AsyncStorage.getItem(USER_LOCATION_STORAGE_KEY);
+        setLocationState(storedLocation);
+        setIsLoading(false);
+        if (__DEV__) {
+          console.log('✅ Provider detected - skipping user location API call (will use provider endpoint)');
+        }
+        return;
+      }
+      
+      // Try to load from API first (only for regular users, not providers)
       if (userId) {
         try {
           const savedLocation = await locationService.getUserLocation(userId);

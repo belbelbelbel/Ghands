@@ -11,26 +11,88 @@ import { Lock, Mail } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-
+import { providerService } from '@/services/api';
+import { haptics } from '@/hooks/useHaptics';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ProviderSignInScreen() {
   const router = useRouter();
-  const { toast, showError, hideToast } = useToast();
+  const { toast, showError, showSuccess, hideToast } = useToast();
   const { setRole } = useAuthRole();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogin = async () => {
+    // Prevent duplicate submissions
+    if (isSubmitting || isLoading) {
+      if (__DEV__) {
+        console.warn('⚠️ Login already in progress, ignoring duplicate call');
+      }
+      return;
+    }
+
     if (!email.trim() || !password.trim()) {
       showError('Please fill in all required fields');
       return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      showError('Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
+    setIsSubmitting(true);
+    haptics.light();
+
     try {
-      setRole('provider');
-      router.replace('/provider/home');
-    } catch (error) {
-      showError('Login failed. Please check your credentials and try again.');
+      const loginPayload = {
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+      };
+
+      if (__DEV__) {
+        console.log('📤 Provider Login Request:', JSON.stringify({ ...loginPayload, password: '***' }, null, 2));
+      }
+
+      const response = await providerService.login(loginPayload);
+      
+      // Token is already saved by providerService.login
+      // Set role to provider
+      await setRole('provider');
+      
+      // Save provider info
+      if (response.id) {
+        await AsyncStorage.setItem('@ghands:provider_id', response.id.toString());
+      }
+      if (response.name) {
+        await AsyncStorage.setItem('@ghands:provider_name', response.name);
+      }
+      if (response.email) {
+        await AsyncStorage.setItem('@ghands:provider_email', response.email);
+      }
+      
+      haptics.success();
+      showSuccess('Login successful!');
+      
+      // Navigate to provider home
+      setTimeout(() => {
+        router.replace('/provider/home');
+      }, 1000);
+    } catch (error: any) {
+      console.error('Provider login error:', error);
+      haptics.error();
+      
+      const errorMessage = getSpecificErrorMessage(error);
+      showError(errorMessage);
+    } finally {
+      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -59,16 +121,17 @@ export default function ProviderSignInScreen() {
         }}>Sign In</Text>
 
         <InputField
-          placeholder="Company email"
+          placeholder="Email"
           icon={<Mail size={20} color={'white'}/>}
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
           iconPosition="left"
+          autoCapitalize="none"
         />
 
         <InputField
-          placeholder="Create password"
+          placeholder="Password"
           icon={<Lock size={20} color={'white'}/>}
           secureTextEntry={true}
           value={password}
@@ -85,7 +148,12 @@ export default function ProviderSignInScreen() {
         </View>
 
         <View className="mt-4">
-          <AuthButton title="Login" onPress={handleLogin} />
+          <AuthButton 
+            title="Login" 
+            onPress={handleLogin}
+            loading={isLoading}
+            disabled={isLoading}
+          />
         </View>
 
         <View className="items-center mb-8">

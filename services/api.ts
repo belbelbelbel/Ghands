@@ -5,6 +5,7 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://bamibuildit-bac
 const AUTH_TOKEN_KEY = '@ghands:auth_token';
 const REFRESH_TOKEN_KEY = '@ghands:refresh_token';
 const USER_ID_KEY = '@ghands:user_id';
+const COMPANY_ID_KEY = '@ghands:company_id'; // Company/Provider ID from company signup response
 
 // Import token utility
 import { extractUserIdFromToken } from '../utils/tokenUtils';
@@ -42,21 +43,50 @@ class ApiClient {
    * Setup default interceptors for authentication and error handling
    */
   private setupDefaultInterceptors() {
-    // Request interceptor: Add auth token
+    // Request interceptor: Add Bearer token to Authorization header
     this.addRequestInterceptor(async (config) => {
       if (!config.skipAuth) {
         const token = await this.getAuthToken();
         if (token && this.isValidToken(token)) {
+          // Ensure headers is a plain object, not Headers instance
+          const existingHeaders = config.headers || {};
+          const headersObj = existingHeaders instanceof Headers 
+            ? Object.fromEntries(existingHeaders.entries())
+            : { ...existingHeaders };
+          
+          // Add Bearer token while preserving existing headers (especially Content-Type)
           config.headers = {
-            ...config.headers,
+            ...headersObj,
+            'Content-Type': headersObj['Content-Type'] || headersObj['content-type'] || 'application/json',
             Authorization: `Bearer ${token}`,
           };
+          
+          if (__DEV__) {
+            console.log('🔐 ========== BEARER TOKEN ADDED ==========');
+            console.log('🔐 Authorization Header: Bearer [token]');
+            console.log('🔐 Content-Type Header:', config.headers['Content-Type']);
+            console.log('🔐 Token Length:', token.length);
+            console.log('🔐 Token Preview:', token.substring(0, 30) + '...');
+            console.log('🔐 All Headers:', JSON.stringify(config.headers, null, 2));
+            console.log('🔐 Skip Auth: false (token will be sent)');
+            console.log('🔐 ========================================');
+          }
         } else if (token && !this.isValidToken(token)) {
           // Token is corrupted, clear it
           if (__DEV__) {
             console.warn('⚠️ Corrupted token detected in request interceptor, clearing...');
           }
           await this.clearAuthTokens();
+        } else if (!token && !config.skipAuth) {
+          // No token found but auth is required
+          if (__DEV__) {
+            console.warn('⚠️ No token found but skipAuth is false - Bearer token will NOT be sent');
+            console.warn('⚠️ Request may fail with 401 Unauthorized');
+          }
+        }
+      } else if (config.skipAuth) {
+        if (__DEV__) {
+          console.log('🔓 Skip Auth: true - Bearer token will NOT be added');
         }
       }
       return config;
@@ -251,9 +281,52 @@ class ApiClient {
    */
   async clearAuthTokens(): Promise<void> {
     try {
-      await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_ID_KEY]);
+      await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_ID_KEY, COMPANY_ID_KEY]);
     } catch (error) {
       console.error('Error clearing auth tokens:', error);
+    }
+  }
+  
+  /**
+   * Get company/provider ID from company signup response
+   * This is the ID from the response body, not the generic user ID
+   */
+  async getCompanyId(): Promise<number | null> {
+    try {
+      // First, check if we have company ID in storage (from company signup response)
+      const companyId = await AsyncStorage.getItem(COMPANY_ID_KEY);
+      if (companyId) {
+        const parsed = parseInt(companyId, 10);
+        if (!isNaN(parsed)) {
+          if (__DEV__) {
+            console.log('✅ Company ID retrieved from storage (from signup response):', parsed);
+          }
+          return parsed;
+        }
+      }
+      
+      // If not found in storage, try to extract from token (fallback)
+      const token = await this.getAuthToken();
+      if (token && this.isValidToken(token)) {
+        const extractedUserId = extractUserIdFromToken(token);
+        if (extractedUserId) {
+          // Save it for future use
+          await AsyncStorage.setItem(COMPANY_ID_KEY, extractedUserId.toString());
+          if (__DEV__) {
+            console.log('✅ Company ID extracted from token and saved:', extractedUserId);
+          }
+          return extractedUserId;
+        }
+      }
+      
+      if (__DEV__) {
+        console.warn('⚠️ No company ID found in storage or token');
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting company ID:', error);
+      return null;
     }
   }
 
@@ -359,21 +432,74 @@ class ApiClient {
   ): Promise<T> {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        // Log fetch attempt for location endpoints
-        if (__DEV__ && (url.includes('/location/search') || url.includes('/location/current'))) {
-          console.log(`🌐 Fetch attempt ${attempt + 1}/${retries + 1}:`, url);
+        // Log fetch attempt for provider/location endpoints
+        if (__DEV__ && (
+          url.includes('/provider/') || 
+          url.includes('/location/') || 
+          url.includes('/update-location')
+        )) {
+          console.log(`🌐 ========== FETCH ATTEMPT ${attempt + 1}/${retries + 1} ==========`);
+          console.log(`🌐 Full URL:`, url);
+          console.log(`🌐 Method:`, config.method || 'GET');
+          console.log(`🌐 Headers:`, JSON.stringify(config.headers || {}, null, 2));
+          console.log(`🌐 Authorization:`, (config.headers as any)?.Authorization || (config.headers as any)?.authorization || '❌ MISSING');
+          console.log(`🌐 Content-Type:`, (config.headers as any)?.['Content-Type'] || (config.headers as any)?.['content-type'] || '❌ NOT SET');
+          console.log(`🌐 Body:`, config.body || 'NO BODY');
+          console.log(`🌐 Body Type:`, typeof config.body);
+          if (config.body) {
+            try {
+              const bodyParsed = typeof config.body === 'string' ? JSON.parse(config.body) : config.body;
+              console.log(`🌐 Body Parsed:`, JSON.stringify(bodyParsed, null, 2));
+              console.log(`🌐 Body Keys:`, Object.keys(bodyParsed || {}));
+              if (bodyParsed?.address) {
+                console.log(`🌐 Address in Body: ✅ "${bodyParsed.address}"`);
+                console.log(`🌐 Address Length:`, bodyParsed.address.length);
+              } else {
+                console.log(`🌐 Address in Body: ❌ NOT FOUND`);
+              }
+            } catch (e) {
+              console.log(`🌐 Body (raw - could not parse):`, config.body);
+            }
+          }
+          console.log(`🌐 ================================================`);
         }
         
         const response = await fetch(url, config);
         
-        // Log response for location endpoints
-        if (__DEV__ && (url.includes('/location/search') || url.includes('/location/current'))) {
+        // Log response for provider/location endpoints
+        if (__DEV__ && (
+          url.includes('/provider/') || 
+          url.includes('/location/') || 
+          url.includes('/update-location')
+        )) {
           console.log('📥 ========== FETCH RESPONSE ==========');
           console.log('📥 URL:', url);
           console.log('📥 Status:', response.status);
           console.log('📥 Status Text:', response.statusText);
           console.log('📥 OK:', response.ok);
-          console.log('📥 Headers:', Object.fromEntries(response.headers.entries()));
+          console.log('📥 Content-Type:', response.headers.get('content-type'));
+          console.log('📥 All Response Headers:', Object.fromEntries(response.headers.entries()));
+          
+          // Clone response to read body without consuming it
+          const responseClone = response.clone();
+          const contentType = response.headers.get('content-type') || '';
+          
+          if (contentType.includes('text/html')) {
+            // HTML response (usually 500 error)
+            responseClone.text().then(html => {
+              console.log('📥 Response Body (HTML - first 500 chars):', html.substring(0, 500));
+            }).catch(() => {});
+          } else if (contentType.includes('application/json')) {
+            // JSON response
+            responseClone.json().then(json => {
+              console.log('📥 Response Body (JSON):', JSON.stringify(json, null, 2));
+            }).catch(() => {});
+          } else {
+            responseClone.text().then(text => {
+              console.log('📥 Response Body (text - first 500 chars):', text.substring(0, 500));
+            }).catch(() => {});
+          }
+          
           console.log('📥 ====================================');
         }
         
@@ -381,7 +507,10 @@ class ApiClient {
         const statusCode = response.status;
         const isRetryable = DEFAULT_RETRY_OPTIONS.retryableStatusCodes?.includes(statusCode);
         
-        if (isRetryable && attempt < retries) {
+        // Don't retry 500 errors (server errors) - they're not network issues
+        const isServerError = statusCode >= 500 && statusCode < 600;
+        
+        if (isRetryable && !isServerError && attempt < retries) {
           const delay = retryDelay * Math.pow(2, attempt); // Exponential backoff
           await this.sleep(delay);
           continue;
@@ -392,82 +521,98 @@ class ApiClient {
         let errorMessage = `Request failed with status ${statusCode}`;
         let errorDetails: any = null;
         
+        // First, check if response is HTML (common for 500 errors)
         try {
-          // Clone response to read it without consuming the stream
           const responseClone = response.clone();
-          const errorData = await responseClone.json();
-          errorDetails = errorData;
+          const contentType = response.headers.get('content-type') || '';
+          const text = await responseClone.text();
           
-          // API documentation shows error format: { "error": "Error message" }
-          // But actual format seems to be: { "data": { "error": "..." }, "success": false }
-          // Check nested data.error first, then top-level error
-          if (errorData.data?.error) {
-            errorMessage = errorData.data.error;
-          } else if (errorData.error) {
-            errorMessage = errorData.error;
-          } else if (errorData.message) {
-            errorMessage = errorData.message;
-          } else if (errorData.errorMessage) {
-            errorMessage = errorData.errorMessage;
-          } else if (errorData.data?.message) {
-            errorMessage = errorData.data.message;
-          } else if (typeof errorData === 'string') {
-            errorMessage = errorData;
-          } else if (response.statusText && response.statusText !== 'OK') {
-            errorMessage = response.statusText;
-          }
-          
-          // Log for debugging
-          if (__DEV__) {
-            console.log('🔴 API Error Response (retry):', {
-              status: statusCode,
-              statusText: response.statusText,
-              fullErrorData: JSON.stringify(errorData, null, 2),
-              extractedMessage: errorMessage,
-            });
-          }
-        } catch (parseError) {
-          // If JSON parsing fails, try to get text
-          try {
-            const responseClone = response.clone();
-            const text = await responseClone.text();
+          // Check if response is HTML (server error page)
+          if (text && (
+            contentType.includes('text/html') ||
+            text.trim().startsWith('<!DOCTYPE') || 
+            text.trim().startsWith('<html') || 
+            text.trim().startsWith('<HTML')
+          )) {
+            // Extract error message from HTML if possible
+            const preMatch = text.match(/<pre[^>]*>(.*?)<\/pre>/is);
+            const titleMatch = text.match(/<title[^>]*>(.*?)<\/title>/is);
             
-            // Check if response is HTML (server error page)
-            if (text && (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html') || text.trim().startsWith('<HTML'))) {
-              // Extract error message from HTML if possible
-              const errorMatch = text.match(/<pre[^>]*>(.*?)<\/pre>/i) || 
-                                   text.match(/<title[^>]*>(.*?)<\/title>/i) ||
-                                   text.match(/Internal Server Error/i);
-              
-              if (errorMatch && errorMatch[1]) {
-                errorMessage = `Server error: ${errorMatch[1].trim()}`;
-              } else if (text.includes('Internal Server Error')) {
-                errorMessage = 'Server error: The server encountered an internal error. Please try again later or contact support.';
-              } else {
-                errorMessage = 'Server error: The server returned an unexpected response. Please try again later.';
-              }
-              
-              if (__DEV__) {
-                console.log('🔴 Server returned HTML error page (500 error)');
-                console.log('🔴 HTML Response (first 500 chars):', text.substring(0, 500));
-              }
-            } else if (text && text.length < 500) { // Only use text if it's reasonable length
-              // Try to parse as JSON if it looks like JSON
-              try {
-                const parsed = JSON.parse(text);
-                errorMessage = parsed.error || parsed.message || text;
-              } catch {
-                errorMessage = text;
-              }
+            if (preMatch && preMatch[1]) {
+              errorMessage = `Server error: ${preMatch[1].trim()}`;
+            } else if (titleMatch && titleMatch[1]) {
+              errorMessage = `Server error: ${titleMatch[1].trim()}`;
+            } else if (text.includes('Internal Server Error')) {
+              errorMessage = 'Server error: The server encountered an internal error. Please try again later or contact support.';
+            } else {
+              errorMessage = 'Server error: The server returned an unexpected response. Please try again later.';
+            }
+            
+            if (__DEV__) {
+              console.log('🔴 Server returned HTML error page (500 error)');
+              console.log('🔴 HTML Response (first 500 chars):', text.substring(0, 500));
+            }
+            
+            // Create error and throw immediately for server errors
+            const error = new Error(errorMessage) as any;
+            error.status = statusCode;
+            error.statusText = response.statusText;
+            error.details = { htmlResponse: text.substring(0, 500) };
+            error.originalError = { htmlResponse: text.substring(0, 500) };
+            throw error;
+          }
+          
+          // If not HTML, try to parse as JSON
+          try {
+            const errorData = JSON.parse(text);
+            errorDetails = errorData;
+            
+            // API documentation shows error format: { "error": "Error message" }
+            // But actual format seems to be: { "data": { "error": "..." }, "success": false }
+            // Check nested data.error first, then top-level error
+            if (errorData.data?.error) {
+              errorMessage = errorData.data.error;
+            } else if (errorData.error) {
+              errorMessage = errorData.error;
+            } else if (errorData.message) {
+              errorMessage = errorData.message;
+            } else if (errorData.errorMessage) {
+              errorMessage = errorData.errorMessage;
+            } else if (errorData.data?.message) {
+              errorMessage = errorData.data.message;
+            } else if (typeof errorData === 'string') {
+              errorMessage = errorData;
+            } else if (response.statusText && response.statusText !== 'OK') {
+              errorMessage = response.statusText;
+            }
+            
+            // Log for debugging
+            if (__DEV__) {
+              console.log('🔴 API Error Response (retry):', {
+                status: statusCode,
+                statusText: response.statusText,
+                fullErrorData: JSON.stringify(errorData, null, 2),
+                extractedMessage: errorMessage,
+              });
+            }
+          } catch (jsonParseError) {
+            // If JSON parsing fails and text is reasonable length, use it
+            if (text && text.length < 500) {
+              errorMessage = text;
             } else {
               errorMessage = response.statusText || `Request failed with status ${statusCode}`;
             }
-          } catch (textError) {
-            errorMessage = response.statusText || `Request failed with status ${statusCode}`;
+            
+            if (__DEV__) {
+              console.log('Error parsing JSON response:', jsonParseError);
+            }
           }
+        } catch (textError) {
+          // If we can't read the response at all
+          errorMessage = response.statusText || `Request failed with status ${statusCode}`;
           
           if (__DEV__) {
-            console.log('Error parsing response:', parseError);
+            console.log('Error reading response:', textError);
           }
         }
         
@@ -562,12 +707,47 @@ class ApiClient {
     // Extract retry options
     const { retries = 0, retryDelay = 1000, ...fetchOptions } = config;
 
-    // Log request details for location endpoints (for debugging)
-    if (__DEV__ && (endpoint.includes('/location/search') || endpoint.includes('/location/current'))) {
+    // Log request details for location and provider endpoints (for debugging)
+    if (__DEV__ && (
+      endpoint.includes('/location/') || 
+      endpoint.includes('/provider/') ||
+      endpoint.includes('/update-location')
+    )) {
+      const authHeader = (fetchOptions.headers as any)?.Authorization || (fetchOptions.headers as any)?.authorization;
+      const hasBearerToken = authHeader && authHeader.startsWith('Bearer ');
       console.log('🌐 ========== FETCH REQUEST ==========');
       console.log('🌐 URL:', url);
       console.log('🌐 Method:', fetchOptions.method || 'GET');
-      console.log('🌐 Headers:', JSON.stringify(fetchOptions.headers, null, 2));
+      console.log('🌐 Bearer Token:', hasBearerToken ? '✅ YES' : '❌ NO');
+      if (hasBearerToken) {
+        console.log('🌐 Authorization Header:', `Bearer ${authHeader.substring(7, 37)}...`);
+      } else {
+        console.log('🌐 Authorization Header: ❌ MISSING');
+      }
+      console.log('🌐 Content-Type:', (fetchOptions.headers as any)?.['Content-Type'] || (fetchOptions.headers as any)?.['content-type'] || 'NOT SET');
+      console.log('🌐 Request Body:', fetchOptions.body || 'NO BODY');
+      console.log('🌐 Request Body Type:', typeof fetchOptions.body);
+      if (fetchOptions.body) {
+        try {
+          const bodyParsed = typeof fetchOptions.body === 'string' ? JSON.parse(fetchOptions.body) : fetchOptions.body;
+          console.log('🌐 Request Body (parsed):', JSON.stringify(bodyParsed, null, 2));
+          console.log('🌐 Request Body Keys:', Object.keys(bodyParsed || {}));
+          console.log('🌐 Address in Body:', bodyParsed?.address !== undefined ? `✅ "${bodyParsed.address}"` : '❌ NOT FOUND');
+          if (bodyParsed?.address) {
+            console.log('🌐 Address Value:', `"${bodyParsed.address}"`);
+            console.log('🌐 Address Length:', bodyParsed.address.length);
+            console.log('🌐 Address Type:', typeof bodyParsed.address);
+          } else {
+            console.log('🌐 Address Value: ❌ MISSING OR UNDEFINED');
+          }
+        } catch (e) {
+          console.log('🌐 Request Body (raw - could not parse):', fetchOptions.body);
+          console.log('🌐 Parse Error:', e);
+        }
+      } else {
+        console.log('🌐 Request Body: ❌ NO BODY - This might be the issue!');
+      }
+      console.log('🌐 All Headers:', JSON.stringify(fetchOptions.headers, null, 2));
       console.log('🌐 Skip Auth:', options.skipAuth);
       console.log('🌐 ===================================');
     }
@@ -910,6 +1090,12 @@ export const locationService = {
     options: { placeId?: string; latitude?: number; longitude?: number }
   ): Promise<SavedLocation> => {
     try {
+      // Check if we have a valid token before making the request
+      const token = await apiClient.getAuthTokenPublic();
+      if (!token) {
+        throw new Error('Authentication required. Please sign in again.');
+      }
+
       // userId is automatically extracted from token, don't send it
       // Build body object explicitly without userId
       const body: { placeId?: string; latitude?: number; longitude?: number } = {};
@@ -929,23 +1115,134 @@ export const locationService = {
       }
 
       if (__DEV__) {
-        console.log('📤 Saving user location with payload:', JSON.stringify(body, null, 2));
+        console.log('📤 ========== SAVE USER LOCATION REQUEST ==========');
+        console.log('📤 Endpoint: POST /api/user/update-location');
+        console.log('📤 Payload:', JSON.stringify(body, null, 2));
         console.log('📤 Payload keys:', Object.keys(body));
+        console.log('📤 Token exists:', !!token);
+        console.log('📤 Token length:', token?.length || 0);
+        console.log('📤 User ID (from storage):', userId);
         console.log('📤 Note: userId is extracted from token automatically (NOT in payload)');
         // Verify userId is not in body
         if ((body as any).userId !== undefined) {
           console.error('❌ ERROR: userId found in body! This should not happen.');
         }
+        console.log('📤 ================================================');
       }
 
-      const response = await apiClient.post<{ data: { location: SavedLocation } }>(
+      const response = await apiClient.post<any>(
         '/api/user/update-location',
         body
       );
-      return response.data.location;
-    } catch (error) {
-      console.error('Error saving user location:', error);
-      throw error;
+
+      if (__DEV__) {
+        console.log('✅ Save Location Response:', JSON.stringify(response, null, 2));
+        console.log('✅ Response structure:', {
+          hasData: !!response.data,
+          hasLocation: !!response.data?.location,
+          hasMessage: !!response.data?.message,
+          responseKeys: Object.keys(response || {}),
+          dataKeys: response.data ? Object.keys(response.data) : [],
+        });
+      }
+
+      // Handle different response structures
+      // Expected: { data: { location: {...}, message: "..." } }
+      // Or: { data: { data: { location: {...} } } }
+      const location = 
+        response?.data?.location || 
+        response?.data?.data?.location ||
+        response?.location;
+
+      if (!location) {
+        if (__DEV__) {
+          console.error('❌ Location not found in response:', JSON.stringify(response, null, 2));
+        }
+        throw new Error('Invalid response from server: location data not found');
+      }
+
+      if (__DEV__) {
+        console.log('✅ Location saved successfully:', location);
+      }
+
+      return location;
+    } catch (error: any) {
+      // Extract error details from nested error structure
+      // Error can be nested: error.originalError.status or error.status
+      let originalError = error;
+      let status = error?.status;
+      let statusText = error?.statusText;
+      let errorDetails = error?.details;
+      
+      // Check if error is nested
+      if (error?.originalError) {
+        originalError = error.originalError;
+        status = originalError?.status || status;
+        statusText = originalError?.statusText || statusText;
+        errorDetails = originalError?.details || errorDetails;
+      }
+      
+      // Default values if still not found
+      status = status || 500;
+      statusText = statusText || 'Internal Server Error';
+      
+      console.error('❌ ========== SAVE LOCATION ERROR ==========');
+      console.error('❌ Error Message:', error.message);
+      console.error('❌ Error Structure:', {
+        hasOriginalError: !!error?.originalError,
+        errorStatus: error?.status,
+        errorStatusText: error?.statusText,
+        originalErrorStatus: originalError?.status,
+        originalErrorStatusText: originalError?.statusText,
+        finalStatus: status,
+        finalStatusText: statusText,
+      });
+      console.error('❌ Status:', status);
+      console.error('❌ Status Text:', statusText);
+      console.error('❌ Error Details:', JSON.stringify(errorDetails, null, 2));
+      console.error('❌ Full Error Object:', JSON.stringify(error, null, 2));
+      console.error('❌ Original Error Object:', JSON.stringify(originalError, null, 2));
+      console.error('❌ ==========================================');
+      
+      // Extract more specific error message
+      let errorMessage = error.message || 'Failed to save location';
+      
+      // Try to extract error from nested structure
+      const extractedError = 
+        errorDetails?.data?.error || 
+        errorDetails?.error || 
+        errorDetails?.message ||
+        originalError?.message ||
+        error.message;
+      
+      if (status === 500) {
+        // 500 errors usually mean server-side issue
+        if (extractedError && typeof extractedError === 'string' && extractedError !== 'Request failed with status 500') {
+          errorMessage = `Server error: ${extractedError}`;
+        } else if (errorDetails) {
+          errorMessage = `Server error: ${typeof errorDetails === 'string' ? errorDetails : JSON.stringify(errorDetails)}`;
+        } else {
+          errorMessage = 'Server error: The server encountered an internal error. Please try again later or contact support.';
+        }
+      } else if (status === 401) {
+        errorMessage = 'Authentication required. Please sign in again.';
+      } else if (status === 400) {
+        errorMessage = extractedError || 'Invalid request. Please check your location data.';
+      }
+      
+      const enhancedError = new Error(errorMessage) as any;
+      enhancedError.status = status;
+      enhancedError.statusText = statusText;
+      enhancedError.details = errorDetails;
+      enhancedError.originalError = originalError;
+      
+      console.error('Error saving user location:', {
+        message: enhancedError.message,
+        status: enhancedError.status,
+        statusText: enhancedError.statusText,
+        details: enhancedError.details,
+      });
+      throw enhancedError;
     }
   },
 
@@ -1189,18 +1486,147 @@ export const authService = {
    */
   companySignup: async (payload: CompanySignupPayload): Promise<CompanySignupResponse> => {
     try {
-      const response = await apiClient.post<{ data: CompanySignupResponse }>(
+      if (__DEV__) {
+        console.log('🔵 ========== COMPANY SIGNUP REQUEST ==========');
+        console.log('🔵 Endpoint: POST /api/user/company-signup');
+        console.log('🔵 Payload:', JSON.stringify({ ...payload, companyPassword: '***' }, null, 2));
+        console.log('🔵 =============================================');
+      }
+
+      const response = await apiClient.post<any>(
         '/api/user/company-signup',
         payload,
         { skipAuth: true }
       );
-      const { token, ...companyData } = response.data;
-      await apiClient.setAuthToken(token);
-      if (response.data.id) {
-        await apiClient.setUserId(response.data.id);
+
+      // Log the FULL response structure
+      console.log('📥 ========== COMPANY SIGNUP RESPONSE ==========');
+      console.log('📥 Full Response:', JSON.stringify(response, null, 2));
+      console.log('📥 Response Type:', typeof response);
+      console.log('📥 Response Keys:', Object.keys(response || {}));
+      
+      if (response?.data) {
+        console.log('📥 Response.data Keys:', Object.keys(response.data));
+        if (response.data?.data) {
+          console.log('📥 Response.data.data Keys:', Object.keys(response.data.data));
+        }
       }
-      return response.data;
+      
+      console.log('📥 Response Structure Analysis:', {
+        hasData: !!response?.data,
+        hasDataData: !!response?.data?.data,
+        hasToken: !!(response?.data?.data?.token || response?.data?.token || response?.token),
+        hasId: !!(response?.data?.data?.id || response?.data?.id || (response as any)?.id),
+        hasCompanyId: !!(response?.data?.data?.companyId || response?.data?.companyId),
+        responseStructure: {
+          topLevel: Object.keys(response || {}),
+          dataLevel: response?.data ? Object.keys(response.data) : [],
+          dataDataLevel: response?.data?.data ? Object.keys(response.data.data) : [],
+        },
+      });
+      console.log('📥 ============================================');
+
+      // Extract token from various possible locations
+      const token = 
+        response?.data?.data?.token || 
+        response?.data?.token || 
+        response?.token ||
+        (response as any)?.accessToken ||
+        (response as any)?.authToken;
+
+      // Extract company data
+      const companyData = response?.data?.data || response?.data || response;
+      const companyId = 
+        companyData?.id || 
+        companyData?.companyId ||
+        (response as any)?.id ||
+        response?.data?.id;
+
+      console.log('🔍 ========== COMPANY SIGNUP DATA EXTRACTION ==========');
+      console.log('🔍 Token Extraction:', {
+        'response.data.data.token': response?.data?.data?.token ? `✅ Found: ${response.data.data.token.substring(0, 20)}...` : '❌ Not found',
+        'response.data.token': response?.data?.token ? `✅ Found: ${response.data.token.substring(0, 20)}...` : '❌ Not found',
+        'response.token': response?.token ? `✅ Found: ${response.token.substring(0, 20)}...` : '❌ Not found',
+        'finalToken': token ? `✅ Found (length: ${token.length}, first 20: ${token.substring(0, 20)}...)` : '❌ NOT FOUND',
+      });
+      console.log('🔍 Company ID Extraction:', {
+        'response.data.data.id': response?.data?.data?.id ? `✅ Found: ${response.data.data.id}` : '❌ Not found',
+        'response.data.id': response?.data?.id ? `✅ Found: ${response.data.id}` : '❌ Not found',
+        'response.id': (response as any)?.id ? `✅ Found: ${(response as any).id}` : '❌ Not found',
+        'companyData.id': companyData?.id ? `✅ Found: ${companyData.id}` : '❌ Not found',
+        'companyData.companyId': companyData?.companyId ? `✅ Found: ${companyData.companyId}` : '❌ Not found',
+        'finalCompanyId': companyId ? `✅ Found: ${companyId}` : '❌ NOT FOUND',
+      });
+      console.log('🔍 Company Data:', {
+        companyName: companyData?.companyName,
+        companyEmail: companyData?.companyEmail,
+        companyPhoneNumber: companyData?.companyPhoneNumber,
+      });
+      console.log('🔍 ====================================================');
+
+      // Save token only if it exists
+      if (token) {
+        await apiClient.setAuthToken(token);
+        if (__DEV__) {
+          console.log('✅ Company token saved successfully');
+        }
+      } else {
+        if (__DEV__) {
+          console.warn('⚠️ ========== TOKEN NOT FOUND IN COMPANY SIGNUP RESPONSE ==========');
+          console.warn('⚠️ Backend is not returning a token in the company signup response.');
+          console.warn('⚠️ Response structure:', JSON.stringify(response, null, 2));
+          console.warn('⚠️ ================================================================');
+        }
+      }
+
+      // Save company ID separately for provider endpoints (from response body or token)
+      let finalCompanyId: number | undefined = undefined;
+      
+      if (companyId) {
+        // Use company ID from response body (preferred)
+        finalCompanyId = typeof companyId === 'number' ? companyId : parseInt(companyId.toString(), 10);
+        await AsyncStorage.setItem(COMPANY_ID_KEY, finalCompanyId.toString());
+        if (__DEV__) {
+          console.log('✅ Company ID saved from signup response body:', finalCompanyId);
+        }
+      } else if (token) {
+        // If no company ID in response, try to extract from token
+        const extractedUserId = extractUserIdFromToken(token);
+        if (extractedUserId) {
+          finalCompanyId = extractedUserId;
+          await AsyncStorage.setItem(COMPANY_ID_KEY, finalCompanyId.toString());
+          if (__DEV__) {
+            console.log('✅ Company ID extracted from token and saved:', finalCompanyId);
+          }
+        } else {
+          if (__DEV__) {
+            console.warn('⚠️ Company ID not found in response or token. Some features may not work.');
+            console.warn('⚠️ Response structure:', JSON.stringify(response, null, 2));
+          }
+        }
+      }
+      
+      // Also save to USER_ID_KEY for backward compatibility (but provider endpoints should use COMPANY_ID_KEY)
+      if (finalCompanyId) {
+        await apiClient.setUserId(finalCompanyId);
+      }
+
+      // Return the company data with ID from response body or token
+      return {
+        id: finalCompanyId || companyId || (token ? extractUserIdFromToken(token) : undefined),
+        companyName: companyData?.companyName || payload.companyName,
+        companyEmail: companyData?.companyEmail || payload.companyEmail,
+        companyPhoneNumber: companyData?.companyPhoneNumber || payload.companyPhoneNumber,
+        token: token || '', // Return empty string if token not found
+      };
     } catch (error: any) {
+      if (__DEV__) {
+        console.error('❌ ========== COMPANY SIGNUP ERROR ==========');
+        console.error('❌ Error Message:', error.message);
+        console.error('❌ Status:', error.status);
+        console.error('❌ Error Details:', JSON.stringify(error.details, null, 2));
+        console.error('❌ ==========================================');
+      }
       console.error('Error during company signup:', error);
       throw error;
     }
@@ -1246,11 +1672,14 @@ export const authService = {
       
       // Handle multiple possible response structures:
       // Check response headers for token (if available)
-      const responseHeaders = (response as any)?.__headers;
-      const tokenFromHeader = responseHeaders?.['authorization'] || 
-                             responseHeaders?.['Authorization'] ||
-                             responseHeaders?.['x-auth-token'] ||
-                             responseHeaders?.['X-Auth-Token'];
+      const responseHeaders = (response as any)?.__headers || {};
+      const tokenFromHeader = 
+        responseHeaders?.['authorization'] || 
+        responseHeaders?.['Authorization'] ||
+        responseHeaders?.['x-auth-token'] ||
+        responseHeaders?.['X-Auth-Token'] ||
+        responseHeaders?.['set-cookie'] ||
+        responseHeaders?.['Set-Cookie'];
       
       // Try all possible token locations (body first, then headers)
       const token = 
@@ -1260,6 +1689,20 @@ export const authService = {
         (response as any)?.accessToken ||
         (response as any)?.authToken ||
         (tokenFromHeader?.startsWith('Bearer ') ? tokenFromHeader.substring(7) : tokenFromHeader);
+      
+      // Enhanced logging for token detection
+      if (__DEV__) {
+        console.log('🔍 ========== TOKEN EXTRACTION DEBUG ==========');
+        console.log('🔍 Checking response.data.data.token:', response?.data?.data?.token ? '✅ Found' : '❌ Not found');
+        console.log('🔍 Checking response.data.token:', response?.data?.token ? '✅ Found' : '❌ Not found');
+        console.log('🔍 Checking response.token:', response?.token ? '✅ Found' : '❌ Not found');
+        console.log('🔍 Checking response.accessToken:', (response as any)?.accessToken ? '✅ Found' : '❌ Not found');
+        console.log('🔍 Checking response.authToken:', (response as any)?.authToken ? '✅ Found' : '❌ Not found');
+        console.log('🔍 Checking headers (authorization):', responseHeaders?.['authorization'] ? '✅ Found' : '❌ Not found');
+        console.log('🔍 Checking headers (x-auth-token):', responseHeaders?.['x-auth-token'] ? '✅ Found' : '❌ Not found');
+        console.log('🔍 Final token result:', token ? `✅ Found (length: ${token.length})` : '❌ NOT FOUND');
+        console.log('🔍 ============================================');
+      }
       
       // Extract email from various locations
       const email = 
@@ -1908,14 +2351,7 @@ export interface Provider {
 }
 
 export interface ProviderLocationPayload {
-  placeId?: string;
-  address?: string;
-  formattedAddress?: string;
-  latitude?: number;
-  longitude?: number;
-  city?: string;
-  state?: string;
-  country?: string;
+  address: string; // Only address is required/supported by the API
 }
 
 export interface AvailableRequest extends ServiceRequest {
@@ -1930,18 +2366,137 @@ export const providerService = {
    */
   signup: async (payload: ProviderSignupPayload): Promise<ProviderSignupResponse> => {
     try {
-      const response = await apiClient.post<{ data: ProviderSignupResponse }>(
+      if (__DEV__) {
+        console.log('🔵 ========== PROVIDER SIGNUP REQUEST ==========');
+        console.log('🔵 Endpoint: POST /api/provider/signup');
+        console.log('🔵 Payload:', JSON.stringify({ ...payload, password: '***' }, null, 2));
+        console.log('🔵 ==============================================');
+      }
+
+      const response = await apiClient.post<any>(
         '/api/provider/signup',
         payload,
         { skipAuth: true }
       );
-      const { token, ...providerData } = response.data;
-      await apiClient.setAuthToken(token);
-      if (response.data.id) {
-        await apiClient.setUserId(response.data.id);
+
+      // Log the FULL response structure
+      console.log('📥 ========== PROVIDER SIGNUP RESPONSE ==========');
+      console.log('📥 Full Response:', JSON.stringify(response, null, 2));
+      console.log('📥 Response Type:', typeof response);
+      console.log('📥 Response Keys:', Object.keys(response || {}));
+      
+      if (response?.data) {
+        console.log('📥 Response.data Keys:', Object.keys(response.data));
+        if (response.data?.data) {
+          console.log('📥 Response.data.data Keys:', Object.keys(response.data.data));
+        }
       }
-      return response.data;
-    } catch (error) {
+      
+      console.log('📥 Response Structure Analysis:', {
+        hasData: !!response?.data,
+        hasDataData: !!response?.data?.data,
+        hasToken: !!(response?.data?.data?.token || response?.data?.token || response?.token),
+        hasId: !!(response?.data?.data?.id || response?.data?.id || (response as any)?.id),
+        responseStructure: {
+          topLevel: Object.keys(response || {}),
+          dataLevel: response?.data ? Object.keys(response.data) : [],
+          dataDataLevel: response?.data?.data ? Object.keys(response.data.data) : [],
+        },
+      });
+      console.log('📥 ============================================');
+
+      // Extract token from various possible locations
+      const token = 
+        response?.data?.data?.token || 
+        response?.data?.token || 
+        response?.token ||
+        (response as any)?.accessToken ||
+        (response as any)?.authToken;
+
+      // Extract provider data
+      const providerData = response?.data?.data || response?.data || response;
+      const providerId = 
+        providerData?.id || 
+        (response as any)?.id ||
+        response?.data?.id;
+
+      console.log('🔍 ========== PROVIDER SIGNUP DATA EXTRACTION ==========');
+      console.log('🔍 Token Extraction:', {
+        'response.data.data.token': response?.data?.data?.token ? `✅ Found: ${response.data.data.token.substring(0, 20)}...` : '❌ Not found',
+        'response.data.token': response?.data?.token ? `✅ Found: ${response.data.token.substring(0, 20)}...` : '❌ Not found',
+        'response.token': response?.token ? `✅ Found: ${response.token.substring(0, 20)}...` : '❌ Not found',
+        'finalToken': token ? `✅ Found (length: ${token.length}, first 20: ${token.substring(0, 20)}...)` : '❌ NOT FOUND',
+      });
+      console.log('🔍 Provider ID Extraction:', {
+        'response.data.data.id': response?.data?.data?.id ? `✅ Found: ${response.data.data.id}` : '❌ Not found',
+        'response.data.id': response?.data?.id ? `✅ Found: ${response.data.id}` : '❌ Not found',
+        'response.id': (response as any)?.id ? `✅ Found: ${(response as any).id}` : '❌ Not found',
+        'providerData.id': providerData?.id ? `✅ Found: ${providerData.id}` : '❌ Not found',
+        'finalProviderId': providerId ? `✅ Found: ${providerId}` : '❌ NOT FOUND',
+      });
+      console.log('🔍 Provider Data:', {
+        name: providerData?.name,
+        email: providerData?.email,
+        phoneNumber: providerData?.phoneNumber,
+        verified: providerData?.verified,
+      });
+      console.log('🔍 ====================================================');
+
+      // Save token if found
+      if (token) {
+        await apiClient.setAuthToken(token);
+        if (__DEV__) {
+          console.log('✅ Provider token saved successfully');
+        }
+      } else {
+        if (__DEV__) {
+          console.warn('⚠️ ========== TOKEN NOT FOUND IN PROVIDER SIGNUP RESPONSE ==========');
+          console.warn('⚠️ Backend is not returning a token in the provider signup response.');
+          console.warn('⚠️ Response structure:', JSON.stringify(response, null, 2));
+          console.warn('⚠️ ================================================================');
+        }
+      }
+
+      // Save provider ID if found
+      if (providerId) {
+        await apiClient.setUserId(providerId);
+        if (__DEV__) {
+          console.log('✅ Provider ID saved from signup response:', providerId);
+        }
+      } else if (token) {
+        // Try to extract from token
+        const extractedId = extractUserIdFromToken(token);
+        if (extractedId) {
+          await apiClient.setUserId(extractedId);
+          if (__DEV__) {
+            console.log('✅ Provider ID extracted from token and saved:', extractedId);
+          }
+        } else {
+          if (__DEV__) {
+            console.warn('⚠️ Provider ID not found in response or token.');
+          }
+        }
+      }
+
+      // Return the provider data
+      return {
+        id: providerId || (token ? extractUserIdFromToken(token) : undefined),
+        name: providerData?.name || payload.name,
+        email: providerData?.email || payload.email,
+        phoneNumber: providerData?.phoneNumber || payload.phoneNumber,
+        verified: providerData?.verified || false,
+        age: providerData?.age || payload.age,
+        token: token || '',
+        message: providerData?.message || 'Provider registered successfully',
+      };
+    } catch (error: any) {
+      if (__DEV__) {
+        console.error('❌ ========== PROVIDER SIGNUP ERROR ==========');
+        console.error('❌ Error Message:', error.message);
+        console.error('❌ Status:', error.status);
+        console.error('❌ Error Details:', JSON.stringify(error.details, null, 2));
+        console.error('❌ ===========================================');
+      }
       console.error('Error during provider signup:', error);
       throw error;
     }
@@ -1989,20 +2544,107 @@ export const providerService = {
 
   /**
    * Update provider location
-   * PUT /api/provider/:providerId/location
+   * PUT /api/provider/location
+   * Note: Only address is sent in request body (as per API requirement)
+   *       Provider ID is extracted from Bearer token in Authorization header
    */
   updateLocation: async (
-    providerId: number,
     payload: ProviderLocationPayload
   ): Promise<{ providerId: number; location: SavedLocation; message: string }> => {
     try {
+      // Get token to verify it exists (provider ID is extracted from token by backend)
+      const token = await apiClient.getAuthTokenPublic();
+      const companyId = await apiClient.getCompanyId();
+      
+      // STRICT VALIDATION: Ensure address is a valid non-empty string
+      if (!payload.address || typeof payload.address !== 'string') {
+        throw new Error('Address is required and must be a string');
+      }
+      
+      const addressString = payload.address.trim();
+      
+      if (!addressString || addressString.length === 0) {
+        throw new Error('Address is required and cannot be empty');
+      }
+      
+      // Clean address: remove newlines, tabs, extra whitespace, ensure single line
+      const cleanAddress = addressString.replace(/[\n\r\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+      
+      // Ensure address is still valid after cleaning
+      if (!cleanAddress || cleanAddress.length === 0) {
+        throw new Error('Address is required and cannot be empty after cleaning');
+      }
+      
+      // Ensure it's a valid string (not an object or array)
+      if (typeof cleanAddress !== 'string') {
+        throw new Error('Address must be a string');
+      }
+      
+      // Ensure only address is sent (API requirement) - STRICT VALIDATION
+      const requestBody = {
+        address: cleanAddress, // ONLY address, guaranteed to be a clean non-empty string
+      };
+      
+      if (__DEV__) {
+        console.log('🔵 ========== UPDATE PROVIDER LOCATION ==========');
+        console.log('🔵 Endpoint: PUT /api/provider/location');
+        console.log('🔵 Company ID from storage (for reference):', companyId);
+        console.log('🔵 Token exists:', !!token);
+        console.log('🔵 Token length:', token?.length || 0);
+        console.log('🔵 Token preview:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+        console.log('🔵 Note: Provider ID is extracted from Bearer token by backend');
+        console.log('🔵 Original Address:', payload.address);
+        console.log('🔵 Clean Address:', cleanAddress);
+        console.log('🔵 Address Length:', cleanAddress.length);
+        console.log('🔵 Address Type:', typeof cleanAddress);
+        console.log('🔵 Request Body (address only):', JSON.stringify(requestBody, null, 2));
+        console.log('🔵 Authorization Header: Bearer token will be added automatically by request interceptor');
+        console.log('🔵 ==============================================');
+      }
+      
+      if (!token) {
+        throw new Error('Authentication required. Please sign in again.');
+      }
+      
+      // Final validation before sending
+      if (!requestBody.address || typeof requestBody.address !== 'string' || requestBody.address.length === 0) {
+        throw new Error('Address is required and must be a non-empty string');
+      }
+      
+      // FINAL CHECK: Verify request body before sending
+      if (__DEV__) {
+        console.log('🔴 ========== FINAL REQUEST CHECK ==========');
+        console.log('🔴 requestBody object:', requestBody);
+        console.log('🔴 requestBody.address:', requestBody.address);
+        console.log('🔴 requestBody.address type:', typeof requestBody.address);
+        console.log('🔴 requestBody.address length:', requestBody.address?.length || 0);
+        console.log('🔴 requestBody.address value:', JSON.stringify(requestBody.address));
+        console.log('🔴 JSON.stringify(requestBody):', JSON.stringify(requestBody));
+        console.log('🔴 Object.keys(requestBody):', Object.keys(requestBody));
+        console.log('🔴 Address exists in requestBody:', 'address' in requestBody);
+        console.log('🔴 Will be sent as:', JSON.stringify(requestBody));
+        console.log('🔴 ========================================');
+      }
+      
+      // Note: Bearer token is automatically added by request interceptor (skipAuth is not set)
+      // Provider ID is extracted from the token by the backend
       const response = await apiClient.put<{ data: { providerId: number; location: SavedLocation; message: string } }>(
-        `/api/provider/${providerId}/location`,
-        payload
+        `/api/provider/location`,
+        requestBody
+        // No skipAuth - Bearer token will be added automatically
       );
+      
+      if (__DEV__) {
+        console.log('✅ Provider location updated successfully');
+        console.log('✅ Response:', JSON.stringify(response, null, 2));
+      }
+      
       return response.data;
     } catch (error) {
-      console.error('Error updating provider location:', error);
+      if (__DEV__) {
+        console.error('❌ Error updating provider location:', error);
+        console.error('❌ Payload sent:', JSON.stringify(payload, null, 2));
+      }
       throw error;
     }
   },

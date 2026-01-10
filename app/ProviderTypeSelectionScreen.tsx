@@ -39,13 +39,7 @@ export default function ProviderTypeSelectionScreen() {
 
   const handleCorporateProvider = () => {
     haptics.light();
-    // TODO: Route to a screen that uses authService.companySignup() API
-    // The screen should use the existing companySignup endpoint
-    // For now routing to ProviderSignUpScreen - needs to be updated to handle corporate signup
-    router.push({
-      pathname: '/ProviderSignUpScreen',
-      params: { providerType: 'corporate' },
-    });
+    router.push('/ProviderSignUpScreen');
   };
 
   const animatedStyle = {

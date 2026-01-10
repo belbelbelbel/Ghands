@@ -173,6 +173,8 @@ export const getSpecificErrorMessage = (error: ApiError | Error | any, context: 
     'save_location': 'Failed to save location. Please try again.',
     'get_location': 'Failed to load location. Please try again.',
     'search_location': 'Location search is temporarily unavailable. Please enter your location manually.',
+    'provider_profile_setup': 'Failed to complete profile setup. Please try again.',
+    'add_categories': 'Failed to save categories. Please try again.',
   };
 
   const defaultMessage = defaultMessages[context] || 'Something went wrong. Please try again.';

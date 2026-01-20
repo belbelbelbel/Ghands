@@ -204,6 +204,10 @@ export const getSpecificErrorMessage = (error: ApiError | Error | any, context: 
     'accept_request': 'Failed to accept request. Please try again.',
     'reject_request': 'Failed to reject request. Please try again.',
     'get_request_details': 'Failed to load request details. Please try again.',
+    'select_provider': 'Failed to select provider. Please try again.',
+    'get_accepted_providers': 'Failed to load accepted providers. Please try again.',
+    'get_accepted_requests': 'Failed to load accepted requests. Please try again.',
+    'get_available_requests': 'Failed to load available requests. Make sure you have registered categories and set your location.',
   };
 
   const defaultMessage = defaultMessages[context] || 'Something went wrong. Please try again.';

@@ -3,7 +3,10 @@ import { Colors, BorderRadius, Spacing } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ArrowUp, Bell, CheckCircle, Info, Star, ThumbsUp, Wallet } from 'lucide-react-native';
 import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View, Image } from 'react-native';
+import { Dimensions, ScrollView, Text, TouchableOpacity, View, Image } from 'react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const scale = SCREEN_WIDTH < 375 ? 0.85 : SCREEN_WIDTH < 414 ? 0.92 : 1.0;
 import { Button } from '@/components/ui/Button';
 
 interface Review {
@@ -233,7 +236,7 @@ export default function AnalyticsScreen() {
             </View>
             <Text
               style={{
-                fontSize: 32,
+                fontSize: 32 * scale,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
                 marginBottom: 8,

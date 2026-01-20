@@ -6,6 +6,11 @@ import { Colors } from '../lib/designSystem';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// Responsive scaling based on screen size
+const isSmallScreen = SCREEN_WIDTH < 375;
+const isMediumScreen = SCREEN_WIDTH >= 375 && SCREEN_WIDTH < 414;
+const scale = isSmallScreen ? 0.85 : isMediumScreen ? 0.92 : 1.0;
+
 interface OnboardingSlideProps {
   slide: SlideData;
   isActive: boolean;
@@ -119,8 +124,8 @@ const styles = StyleSheet.create({
   },
   contentZone: {
     height: SCREEN_HEIGHT * 0.42,
-    paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingHorizontal: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
+    paddingBottom: SCREEN_HEIGHT < 700 ? 20 * scale : 32 * scale,
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
   },
@@ -128,16 +133,18 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   title: {
-    fontSize: 32,
+    fontSize: 32 * scale,
     fontFamily: 'Poppins-Bold',
     color: Colors.white,
-    marginBottom: 8,
+    marginBottom: 8 * scale,
+    paddingHorizontal: isSmallScreen ? 4 : 0,
   },
   description: {
-    fontSize: 16,
+    fontSize: 16 * scale,
     fontFamily: 'Poppins-Regular',
     color: Colors.white,
-    maxWidth: '85%',
-    marginBottom: 16,
+    maxWidth: isSmallScreen ? '95%' : '85%',
+    marginBottom: 16 * scale,
+    paddingHorizontal: isSmallScreen ? 4 : 0,
   },
 });

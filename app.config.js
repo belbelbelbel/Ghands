@@ -7,8 +7,13 @@ export default {
     icon: './assets/images/icon.png',
     scheme: 'ghands',
     userInterfaceStyle: 'automatic',
-    backgroundColor: '#000000',
-    newArchEnabled: false,
+    backgroundColor: '#6A9B00', 
+    newArchEnabled: true,
+    extra: {
+      eas: {
+        projectId: "82fb8167-b26b-4fcf-84c2-fb858f717a03"
+      }
+    },
     ios: {
       icon: './assets/images/icon.png',
       supportsTablet: true,
@@ -25,7 +30,7 @@ export default {
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/images/icon.png',
-        backgroundColor: '#000000',
+        backgroundColor: '#6A9B00', // Normal green color
       },
       edgeToEdgeEnabled: false,
       predictiveBackGestureEnabled: false,
@@ -43,14 +48,14 @@ export default {
       },
     },
     androidStatusBar: {
-      backgroundColor: '#000000',
-      barStyle: 'light-content',
+      backgroundColor: '#6A9B00', // Normal green color
+      barStyle: 'dark-content', // Dark text on light green background
       translucent: false,
       hidden: false,
     },
     androidNavigationBar: {
-      barStyle: 'light-content',
-      backgroundColor: '#000000',
+      barStyle: 'dark-content', // Dark icons on light green background
+      backgroundColor: '#6A9B00', // Normal green color
     },
     web: {
       bundler: 'metro',
@@ -64,18 +69,18 @@ export default {
           position: 'relative',
           visibility: 'visible',
           behavior: 'inset-swipe',
-          backgroundColor: '#000000',
+          backgroundColor: '#6A9B00', // Normal green color
         },
       ],
       [
         'expo-splash-screen',
         {
           image: './assets/images/icon.png',
-          imageWidth: 200,
+          imageWidth: 140, // 70% of 200px icon container
           resizeMode: 'contain',
-          backgroundColor: '#ADF802',
+          backgroundColor: '#6A9B00', // Normal green color
           dark: {
-            backgroundColor: '#000000',
+            backgroundColor: '#6A9B00', // Keep green in dark mode too
           },
         },
       ],
@@ -87,4 +92,3 @@ export default {
     },
   },
 };
-

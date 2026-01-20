@@ -2,9 +2,10 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { MapPin, Star, TrendingUp } from 'lucide-react-native';
+import { MapPin, Star, TrendingUp, Wrench, Zap, Sparkles, Paintbrush, Droplets, ShieldCheck } from 'lucide-react-native';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Animated, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { getCategoryIcon } from '@/utils/categoryIcons';
 
 interface TrendingService {
   id: string;
@@ -43,6 +44,27 @@ interface ServiceTip {
   category: string;
   readTime: string;
 }
+
+// Professional icon mapping for trending services
+const getServiceIcon = (categoryId: string) => {
+  const iconMap: Record<string, any> = {
+    plumber: Droplets,
+    electrician: Zap,
+    cleaning: Sparkles,
+    painter: Paintbrush,
+  };
+  return iconMap[categoryId] || Wrench;
+};
+
+const getServiceColor = (categoryId: string) => {
+  const colors: Record<string, string> = {
+    plumber: '#3B82F6',
+    electrician: '#F59E0B',
+    cleaning: '#10B981',
+    painter: '#8B5CF6',
+  };
+  return colors[categoryId] || '#6A9B00';
+};
 
 const trendingServices: TrendingService[] = [
   {
@@ -328,34 +350,38 @@ export default function DiscoverScreen() {
                   style={{
                     width: 200,
                     marginRight: 14,
-                    borderRadius: 18,
-                    padding: 18,
+                    borderRadius: 20,
+                    padding: 20,
                     backgroundColor: '#FFFFFF',
-                    borderWidth: 1,
-                    borderColor: '#E5E7EB',
+                    borderWidth: 1.5,
+                    borderColor: '#F3F4F6',
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 4,
-                    elevation: 2,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 8,
+                    elevation: 3,
                   }}
                 >
                   <View
                     style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: 16,
-                      backgroundColor: '#F9FAFB',
+                      width: 68,
+                      height: 68,
+                      borderRadius: 20,
+                      backgroundColor: getServiceColor(service.categoryId),
                       alignItems: 'center',
                       justifyContent: 'center',
                       marginBottom: 14,
+                      shadowColor: getServiceColor(service.categoryId),
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 10,
+                      elevation: 6,
                     }}
                   >
-                    <Image
-                      source={service.image}
-                      style={{ width: 46, height: 46 }}
-                      resizeMode="contain"
-                    />
+                    {React.createElement(getServiceIcon(service.categoryId), {
+                      size: 36,
+                      color: '#FFFFFF',
+                    })}
                   </View>
                   <Text
                     style={{
@@ -441,37 +467,52 @@ export default function DiscoverScreen() {
                   activeOpacity={0.8}
                   style={{
                     backgroundColor: '#FFFFFF',
-                    borderRadius: 18,
-                    padding: 18,
-                    marginBottom: index < featuredProviders.length - 1 ? 10 : 0,
-                    borderWidth: 1,
-                    borderColor: '#E5E7EB',
+                    borderRadius: 20,
+                    padding: 20,
+                    marginBottom: index < featuredProviders.length - 1 ? 12 : 0,
+                    borderWidth: 1.5,
+                    borderColor: '#F3F4F6',
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.06,
-                    shadowRadius: 6,
-                    elevation: 2,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 10,
+                    elevation: 3,
                   }}
                 >
                   <View className="flex-row items-center">
                     <View
                       style={{
-                        width: 68,
-                        height: 68,
-                        borderRadius: 14,
-                        backgroundColor: '#F9FAFB',
+                        width: 72,
+                        height: 72,
+                        borderRadius: 18,
+                        backgroundColor: '#FFFFFF',
                         alignItems: 'center',
                         justifyContent: 'center',
                         marginRight: 14,
-                        borderWidth: 1,
-                        borderColor: '#F3F4F6',
+                        borderWidth: 2,
+                        borderColor: '#E5E7EB',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 6,
+                        elevation: 3,
                       }}
                     >
-                      <Image
-                        source={provider.image}
-                        style={{ width: 50, height: 50 }}
-                        resizeMode="contain"
-                      />
+                      <View
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: 14,
+                          backgroundColor: '#F9FAFB',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {(() => {
+                          const IconComponent = getCategoryIcon(provider.category);
+                          return <IconComponent />;
+                        })()}
+                      </View>
                     </View>
                     <View style={{ flex: 1 }}>
                       <View className="flex-row items-center mb-2">
@@ -487,7 +528,16 @@ export default function DiscoverScreen() {
                           {provider.name}
                         </Text>
                         {provider.isVerified && (
-                          <Ionicons name="checkmark-circle" size={16} color="#6A9B00" />
+                          <View
+                            style={{
+                              marginLeft: 6,
+                              backgroundColor: '#6A9B00',
+                              borderRadius: 10,
+                              padding: 2,
+                            }}
+                          >
+                            <ShieldCheck size={14} color="#FFFFFF" />
+                          </View>
                         )}
                       </View>
                       <Text
@@ -631,21 +681,36 @@ export default function DiscoverScreen() {
                     </View>
                     <View
                       style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 14,
-                        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                        width: 68,
+                        height: 68,
+                        borderRadius: 16,
+                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        borderWidth: 1,
-                        borderColor: 'rgba(255, 255, 255, 0.15)',
+                        borderWidth: 1.5,
+                        borderColor: 'rgba(255, 255, 255, 0.25)',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 4,
+                        elevation: 3,
                       }}
                     >
-                      <Image
-                        source={offer.image}
-                        style={{ width: 42, height: 42 }}
-                        resizeMode="contain"
-                      />
+                      <View
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 12,
+                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {(() => {
+                          const IconComponent = getCategoryIcon(offer.title);
+                          return <IconComponent />;
+                        })()}
+                      </View>
                     </View>
                   </View>
                   <View className="flex-row items-center justify-between">
@@ -703,19 +768,19 @@ export default function DiscoverScreen() {
               <TouchableOpacity
                 key={tip.id}
                 activeOpacity={0.8}
-                style={{
-                  backgroundColor: '#F8FAFC',
-                  borderRadius: 16,
-                  padding: 18,
-                  marginBottom: index < serviceTips.length - 1 ? 10 : 0,
-                  borderWidth: 1,
-                  borderColor: '#E2E8F0',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.03,
-                  shadowRadius: 3,
-                  elevation: 1,
-                }}
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 18,
+                    padding: 20,
+                    marginBottom: index < serviceTips.length - 1 ? 12 : 0,
+                    borderWidth: 1.5,
+                    borderColor: '#E5E7EB',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.06,
+                    shadowRadius: 8,
+                    elevation: 2,
+                  }}
               >
                 <View className="flex-row items-start justify-between">
                   <View style={{ flex: 1, marginRight: 12 }}>

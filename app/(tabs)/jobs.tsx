@@ -2,10 +2,13 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import AnimatedModal from '@/components/AnimatedModal';
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import { haptics } from '@/hooks/useHaptics';
+import { serviceRequestService, ServiceRequest } from '@/services/api';
+import { useToast } from '@/hooks/useToast';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 type JobStatus = 'Ongoing' | 'Completed' | 'Cancelled';
 
@@ -17,84 +20,122 @@ type JobItem = {
   name: string;
   time: string;
   location: string;
+  requestId?: number;
 };
 
-const ONGOING_JOBS: JobItem[] = [
-  {
-    id: 1,
-    title: 'Plumbing Repair',
-    subtitle: 'Kitchen pipe leak repair',
-    status: 'In Progress',
-    name: 'Mike Johnson',
-    time: 'Dec 12, 2024 • 2:00 PM',
-    location: '123 Main St, Downtown',
-  },
-  {
-    id: 2,
-    title: 'Bathroom Install',
-    subtitle: 'New fixtures installation',
-    status: 'In Progress',
-    name: 'Andrew Miller',
-    time: 'Dec 14, 2024 • 11:30 AM',
-    location: '45 Market Rd, Victoria Island',
-  },
-];
+// Helper to format date
+const formatDate = (dateString?: string, timeString?: string): string => {
+  if (!dateString) return 'Not scheduled';
+  try {
+    const date = new Date(dateString);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const formattedDate = `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    return timeString ? `${formattedDate} • ${timeString}` : formattedDate;
+  } catch {
+    return dateString;
+  }
+};
 
-const COMPLETED_JOBS: JobItem[] = [
-  {
-    id: 1,
-    title: 'Electrical Inspection',
-    subtitle: 'Fuse box assessment',
-    status: 'Completed',
-    name: 'Claire Roberts',
-    time: 'Nov 22, 2024 • 4:00 PM',
-    location: '16 Palm Way, Ikoyi',
-  },
-  {
-    id: 2,
-    title: 'AC Servicing',
-    subtitle: 'Full apartment servicing',
-    status: 'Completed',
-    name: 'Kola Adeyemi',
-    time: 'Nov 18, 2024 • 9:00 AM',
-    location: '88 Bourdillon Rd, Ikoyi',
-  },
-];
-
-const CANCELLED_JOBS: JobItem[] = [
-  {
-    id: 1,
-    title: 'Carpentry Job',
-    subtitle: 'Wardrobe repairs',
-    status: 'Cancelled',
-    name: 'Angela Cooper',
-    time: 'Nov 10, 2024 • 1:00 PM',
-    location: '23 Unity Close, Lekki',
-  },
-];
+// Map ServiceRequest to JobItem
+const mapRequestToJobItem = (request: ServiceRequest): JobItem => {
+  const providerName = request.provider?.name || request.nearbyProviders?.[0]?.name || 'Provider TBD';
+  const categoryDisplayName = request.categoryName
+    ? request.categoryName.charAt(0).toUpperCase() + request.categoryName.slice(1).replace(/([A-Z])/g, ' $1')
+    : 'Service';
+  
+  return {
+    id: request.id,
+    requestId: request.id,
+    title: request.jobTitle || `${categoryDisplayName} Service`,
+    subtitle: request.description || 'Service request',
+    status: request.status === 'accepted' || request.status === 'in_progress' ? 'In Progress' : 
+            request.status === 'completed' ? 'Completed' :
+            request.status === 'cancelled' ? 'Cancelled' : 'Pending',
+    name: providerName,
+    time: formatDate(request.scheduledDate, request.scheduledTime),
+    location: request.location?.formattedAddress || request.location?.address || 'Location not specified',
+  };
+};
 
 export default function JobsScreen() {
   const [activeTab, setActiveTab] = useState<JobStatus>('Ongoing');
   const [pendingCancelJob, setPendingCancelJob] = useState<JobItem | null>(null);
+  const [allJobs, setAllJobs] = useState<JobItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+  const { showError } = useToast();
+
+  // Load user requests from API
+  const loadRequests = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Load all requests
+      const requests = await serviceRequestService.getUserRequests();
+      
+      // Ensure requests is always an array
+      const requestsArray = Array.isArray(requests) ? requests : [];
+      
+      // Map to job items
+      const jobItems = requestsArray.map(mapRequestToJobItem);
+      setAllJobs(jobItems);
+    } catch (error: any) {
+      console.error('Error loading requests:', error);
+      const errorMessage = getSpecificErrorMessage(error, 'get_requests');
+      showError(errorMessage);
+      setAllJobs([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [showError]);
+
+  // Load data on mount and when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadRequests();
+    }, [loadRequests])
+  );
+
+  // Pull to refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    haptics.light();
+    await loadRequests();
+    setRefreshing(false);
+    haptics.success();
+  }, [loadRequests]);
 
   const jobs = useMemo(() => {
-    switch (activeTab) {
-      case 'Completed':
-        return COMPLETED_JOBS;
-      case 'Cancelled':
-        return CANCELLED_JOBS;
-      default:
-        return ONGOING_JOBS;
-    }
-  }, [activeTab]);
+    const filtered = allJobs.filter(job => {
+      if (activeTab === 'Ongoing') {
+        return job.status === 'In Progress' || job.status === 'Pending';
+      } else if (activeTab === 'Completed') {
+        return job.status === 'Completed';
+      } else {
+        return job.status === 'Cancelled';
+      }
+    });
+    return filtered;
+  }, [activeTab, allJobs]);
 
-  const handlePrimaryAction = (status: JobStatus) => {
+  const handlePrimaryAction = (status: JobStatus, job?: JobItem) => {
     haptics.selection();
-    if (status === 'Ongoing') {
-      router.push('/OngoingJobDetails');
-    } else if (status === 'Completed') {
-      router.push('/CompletedJobDetail');
+    if (status === 'Ongoing' && job) {
+      // Pass requestId to OngoingJobDetails
+      router.push({
+        pathname: '/OngoingJobDetails',
+        params: {
+          requestId: job.id.toString(),
+        },
+      } as any);
+    } else if (status === 'Completed' && job) {
+      // Pass requestId to CompletedJobDetail
+      router.push({
+        pathname: '/CompletedJobDetail',
+        params: {
+          requestId: job.id.toString(),
+        },
+      } as any);
     } else {
       router.push('/JobDetailsScreen');
     }
@@ -134,8 +175,41 @@ export default function JobsScreen() {
           })}
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
-          {jobs.map((job) => (
+        {isLoading && allJobs.length === 0 ? (
+          <View className="flex-1 items-center justify-center py-20">
+            <ActivityIndicator size="large" color="#6A9B00" />
+            <Text className="text-gray-600 mt-4" style={{ fontFamily: 'Poppins-Medium' }}>
+              Loading jobs...
+            </Text>
+          </View>
+        ) : (
+          <ScrollView 
+            showsVerticalScrollIndicator={false} 
+            contentContainerStyle={{ paddingBottom: 24 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6A9B00" />
+            }
+          >
+            {jobs.length === 0 ? (
+              <View className="items-center justify-center py-20">
+                <Ionicons 
+                  name={activeTab === 'Ongoing' ? 'briefcase-outline' : activeTab === 'Completed' ? 'checkmark-circle-outline' : 'close-circle-outline'} 
+                  size={64} 
+                  color="#9CA3AF" 
+                />
+                <Text className="text-gray-600 mt-4 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
+                  No {activeTab.toLowerCase()} jobs yet
+                </Text>
+                <Text className="text-gray-500 mt-2 text-center text-sm px-8" style={{ fontFamily: 'Poppins-Regular' }}>
+                  {activeTab === 'Ongoing' 
+                    ? 'Your ongoing service requests will appear here.'
+                    : activeTab === 'Completed'
+                    ? 'Completed jobs will appear here once finished.'
+                    : 'Cancelled requests will appear here.'}
+                </Text>
+              </View>
+            ) : (
+              jobs.map((job) => (
             <View
               key={`${activeTab}-${job.id}`}
               className="border border-gray-200 mb-6 px-5 py-5 rounded-2xl shadow-[0px_6px_18px_rgba(15,23,42,0.04)]"
@@ -215,7 +289,7 @@ export default function JobsScreen() {
                         : 'bg-black w-full'
                   }`}
                   activeOpacity={0.85}
-                  onPress={() => handlePrimaryAction(activeTab)}
+                  onPress={() => handlePrimaryAction(activeTab, job)}
                 >
                   <Text
                     className={`text-sm  text-center ${
@@ -232,8 +306,10 @@ export default function JobsScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          ))}
-        </ScrollView>
+          ))
+            )}
+          </ScrollView>
+        )}
       </View>
 
       <AnimatedModal
@@ -255,12 +331,21 @@ export default function JobsScreen() {
             <TouchableOpacity
               className="flex-1 bg-[#FF2C2C] py-3 rounded-xl items-center justify-center"
               activeOpacity={0.85}
-              onPress={() => {
+              onPress={async () => {
                 const job = pendingCancelJob;
                 haptics.error();
                 setPendingCancelJob(null);
-                if (job) {
-                  router.push('/CancelRequestScreen');
+                if (job && job.requestId) {
+                  try {
+                    await serviceRequestService.cancelRequest(job.requestId);
+                    haptics.success();
+                    // Reload requests
+                    await loadRequests();
+                    router.push('/CancelRequestScreen' as any);
+                  } catch (error: any) {
+                    const errorMessage = getSpecificErrorMessage(error, 'cancel_request');
+                    showError(errorMessage);
+                  }
                 }
               }}
             >

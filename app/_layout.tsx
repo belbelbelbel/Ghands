@@ -1,6 +1,6 @@
 import { useFonts } from 'expo-font';
 import * as NavigationBar from 'expo-navigation-bar';
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
@@ -10,9 +10,11 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { analytics } from '@/services/analytics';
 import { performance } from '@/services/performance';
 import { crashReporting } from '@/services/crashReporting';
+import { apiClient } from '@/services/api';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const router = useRouter();
   const [fontsLoaded] = useFonts({
     'Outfit-Regular': require('../assets/fonts/Outfit/static/Outfit-Regular.ttf'),
     'Outfit-Medium': require('../assets/fonts/Outfit/static/Outfit-Medium.ttf'),
@@ -60,6 +62,17 @@ export default function RootLayout() {
       performance.measure('app_init', 'app_init_start');
     };
   }, []);
+
+  useEffect(() => {
+    // Set up global auth error handler
+    // This will automatically redirect users to their respective login pages
+    // when their token expires or is invalid
+    // Users with expired tokens should login again, not signup
+    apiClient.setupAuthErrorHandler((route) => {
+      // Use replace to prevent going back to the previous screen
+      router.replace(route as any);
+    });
+  }, [router]);
 
   if (!fontsLoaded) {
     return null;

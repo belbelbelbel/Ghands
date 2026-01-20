@@ -5,7 +5,7 @@ import { BorderRadius, Colors } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Bell, ChevronRight, CreditCard, HelpCircle, MapPin, Settings, Share2, Star, Trash2, User, Wallet } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Image, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -366,7 +366,7 @@ const ProfileScreen = () => {
               </Text>
               <Text
                 style={{
-                  fontSize: 36,
+                  fontSize: Math.min(36, Dimensions.get('window').width * 0.09),
                   fontFamily: 'Poppins-Bold',
                   color: Colors.white,
                 }}

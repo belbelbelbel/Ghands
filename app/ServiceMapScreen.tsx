@@ -6,7 +6,10 @@ import { useUserLocation } from '@/hooks/useUserLocation';
 import * as Location from 'expo-location';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Text, TouchableOpacity, View } from 'react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const scale = SCREEN_WIDTH < 375 ? 0.85 : SCREEN_WIDTH < 414 ? 0.92 : 1.0;
 import { Button } from '@/components/ui/Button';
 import { providerService, locationService } from '@/services/api';
 import { getCategoryIcon } from '@/utils/categoryIcons';
@@ -391,7 +394,7 @@ const ServiceMapScreen = () => {
                 marginBottom: 20,
               }}
             >
-              <Text style={{ fontSize: 40 }}>📍</Text>
+              <Text style={{ fontSize: 40 * scale }}>📍</Text>
             </View>
             <Text
               style={{
@@ -485,7 +488,7 @@ const ServiceMapScreen = () => {
                 marginBottom: 20,
               }}
             >
-              <Text style={{ fontSize: 40 }}>🔍</Text>
+              <Text style={{ fontSize: 40 * scale }}>🔍</Text>
             </View>
             <Text
               style={{

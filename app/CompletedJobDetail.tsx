@@ -3,87 +3,174 @@ import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import Demcatorline from "@/components/Demacator";
 import HeaderComponent from "@/components/HeaderComponent";
 import { haptics } from '@/hooks/useHaptics';
+import { serviceRequestService, ServiceRequest } from '@/services/api';
+import { useToast } from '@/hooks/useToast';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useEffect, useMemo } from "react";
-import { Animated, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Animated, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { analytics } from '@/services/analytics';
 
-export default function Jobdetails() {
+// Helper to format time ago
+const formatTimeAgo = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) {
+      return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+    } else if (diffHours > 0) {
+      return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+    } else if (diffMinutes > 0) {
+      return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
+    } else {
+      return 'Just now';
+    }
+  } catch {
+    return 'Recently';
+  }
+};
+
+// Helper to format date
+const formatDate = (dateString?: string, timeString?: string): string => {
+  if (!dateString) return 'Not scheduled';
+  try {
+    const date = new Date(dateString);
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const formattedDate = `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    return timeString ? `${formattedDate} - ${timeString}` : formattedDate;
+  } catch {
+    return dateString;
+  }
+};
+
+export default function CompletedJobDetail() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ requestId?: string }>();
+  const { showError } = useToast();
   
-  const iconStack = [
-    {
-      id: 1,
-      icons: <Ionicons name="call" size={14} color={'white'} />
-    },
-    {
-      id: 2,
-      icons: <Ionicons name="chatbubble" size={14} color={'white'} />
-    }
-  ]
+  const [request, setRequest] = useState<ServiceRequest | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const BookedDate = [
-    {
-      name: "Scheduled Date",
-      subtitle: 'October 20, 2024 - 2:00 PM',
-      icon: <Ionicons name="calendar"  color={'#9CA3AF'} size={18}/>
-    },
-    {
-      name: "Location",
-      subtitle: '123 Main St, Downtown',
-      icon: <Ionicons name="location"  color={'#9CA3AF'} size={18}/>
-    },
-    {
-      name: 'Total Cost',
-      subtitle: '$150.00',
-      icon: <Ionicons name="cash"  color={'#9CA3AF'} size={18}/>
+  useEffect(() => {
+    if (params.requestId) {
+      loadRequestDetails();
     }
-  ]
+  }, [params.requestId]);
 
-  const TIMELINE_STEPS = [
-    {
-      id: 'step-1',
-      title: 'Job Request Submitted',
-      description: 'Request sent to 3 selected providers',
-      status: 'Completed - 2 hours ago',
-      accent: '#DCFCE7',
-      dotColor: '#6A9B00',
-    },
-    {
-      id: 'step-2',
-      title: 'Inspection & Quotation',
-      description: 'Request sent to 3 selected providers',
-      status: 'Completed - 2 hours ago',
-      accent: '#DCFCE7',
-      dotColor: '#6A9B00',
-    },
-    {
-      id: 'step-3',
-      title: 'Job in Progress',
-      description: 'Provider is on site',
-      status: 'Completed - 2 hours ago',
-      accent: '#DCFCE7',
-      dotColor: '#6A9B00',
-    },
-    {
-      id: 'step-4',
-      title: 'Complete',
-      description: 'Review the job and provide feedback!!',
-      status: 'Completed - 2 hours ago',
-      accent: '#DCFCE7',
-      dotColor: '#6A9B00',
-    },
-  ];
+  const loadRequestDetails = async () => {
+    if (!params.requestId) return;
+    
+    setIsLoading(true);
+    try {
+      const requestId = parseInt(params.requestId, 10);
+      const requestDetails = await serviceRequestService.getRequestDetails(requestId);
+      setRequest(requestDetails);
+      
+      // If request has an accepted provider, load provider details
+      if (requestDetails.provider) {
+        setSelectedProvider(requestDetails.provider);
+      } else {
+        // Try to get provider from accepted providers if status is completed
+        try {
+          const acceptedProviders = await serviceRequestService.getAcceptedProviders(requestId);
+          if (acceptedProviders && acceptedProviders.length > 0) {
+            // Get the first provider (should be the selected one for completed jobs)
+            setSelectedProvider(acceptedProviders[0].provider);
+          }
+        } catch (error) {
+          // If no providers found, that's okay
+          console.log('No accepted providers found for completed job');
+        }
+      }
+      
+      // Trigger success haptic for completed job
+      haptics.success();
+    } catch (error: any) {
+      console.error('Error loading request details:', error);
+      const errorMessage = getSpecificErrorMessage(error, 'get_request_details');
+      showError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Generate timeline from request data
+  const timelineSteps = useMemo(() => {
+    if (!request) return [];
+    
+    return [
+      {
+        id: 'step-1',
+        title: 'Job Request Submitted',
+        description: 'Request was created',
+        status: `Completed - ${formatTimeAgo(request.createdAt || new Date().toISOString())}`,
+        accent: '#DCFCE7',
+        dotColor: '#6A9B00',
+      },
+      {
+        id: 'step-2',
+        title: 'Inspection & Quotation',
+        description: 'Provider inspected and submitted quotation',
+        status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
+        accent: '#DCFCE7',
+        dotColor: '#6A9B00',
+      },
+      {
+        id: 'step-3',
+        title: 'Job in Progress',
+        description: 'Provider completed the work',
+        status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
+        accent: '#DCFCE7',
+        dotColor: '#6A9B00',
+      },
+      {
+        id: 'step-4',
+        title: 'Complete',
+        description: 'Job completed successfully',
+        status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
+        accent: '#DCFCE7',
+        dotColor: '#6A9B00',
+      },
+    ];
+  }, [request]);
+
+  // Generate booked date info from request data
+  const bookedDate = useMemo(() => {
+    if (!request) return [];
+    
+    return [
+      {
+        name: "Scheduled Date",
+        subtitle: formatDate(request.scheduledDate, request.scheduledTime),
+        icon: <Ionicons name="calendar" color={'#9CA3AF'} size={18}/>
+      },
+      {
+        name: "Location",
+        subtitle: request.location?.formattedAddress || request.location?.address || 'Location not specified',
+        icon: <Ionicons name="location" color={'#9CA3AF'} size={18}/>
+      },
+      {
+        name: 'Total Cost',
+        subtitle: request.totalCost || '$0.00', // Might need backend support
+        icon: <Ionicons name="cash" color={'#9CA3AF'} size={18}/>
+      }
+    ];
+  }, [request]);
 
   const timelineAnimations = useMemo(
-    () => TIMELINE_STEPS.map(() => new Animated.Value(0)),
-    []
+    () => timelineSteps.map(() => new Animated.Value(0)),
+    [timelineSteps]
   );
 
   useEffect(() => {
-    // Trigger success haptic for completed job (payment success)
-    haptics.success();
+    if (timelineSteps.length === 0) return;
     
     const timelineSequence = timelineAnimations.map((anim, index) =>
       Animated.spring(anim, {
@@ -97,13 +184,27 @@ export default function Jobdetails() {
     Animated.stagger(100, timelineSequence).start(() => {
       haptics.light();
     });
-  }, [timelineAnimations]);
+  }, [timelineSteps, timelineAnimations]);
 
-  const renderTimeline = () => (
-    <View className="mb-8">
-      {TIMELINE_STEPS.map((step, index) => {
-        const isLast = index === TIMELINE_STEPS.length - 1;
-        const animation = timelineAnimations[index];
+  const iconStack = [
+    {
+      id: 1,
+      icons: <Ionicons name="call" size={14} color={'white'} />
+    },
+    {
+      id: 2,
+      icons: <Ionicons name="chatbubble" size={14} color={'white'} />
+    }
+  ];
+
+  const renderTimeline = () => {
+    if (timelineSteps.length === 0) return null;
+    
+    return (
+      <View className="mb-8">
+        {timelineSteps.map((step, index) => {
+          const isLast = index === timelineSteps.length - 1;
+          const animation = timelineAnimations[index];
 
         return (
           <View key={step.id} className="flex-row mb-6">
@@ -167,16 +268,51 @@ export default function Jobdetails() {
           </View>
         );
       })}
-    </View>
-  );
+      </View>
+    );
+  };
 
-  const routes = useRouter();
+  if (isLoading) {
+    return (
+      <SafeAreaWrapper>
+        <View className="flex-1 items-center justify-center py-20">
+          <ActivityIndicator size="large" color="#6A9B00" />
+          <Text className="text-gray-600 mt-4" style={{ fontFamily: 'Poppins-Medium' }}>
+            Loading job details...
+          </Text>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
+
+  if (!request) {
+    return (
+      <SafeAreaWrapper>
+        <View className="flex-1 items-center justify-center py-20 px-8">
+          <Ionicons name="alert-circle-outline" size={64} color="#9CA3AF" />
+          <Text className="text-gray-600 mt-4 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
+            Unable to load job details. Please try again.
+          </Text>
+          <TouchableOpacity
+            onPress={loadRequestDetails}
+            className="mt-6 px-6 py-3 bg-[#6A9B00] rounded-xl"
+            activeOpacity={0.85}
+          >
+            <Text className="text-white" style={{ fontFamily: 'Poppins-SemiBold' }}>
+              Retry
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
+
   return (
     <SafeAreaWrapper>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
           <View className="px-5" style={{ paddingTop: 20 }}>
             <View className="mb-6">
-              <HeaderComponent name="Job details" onPress={routes.back} />
+              <HeaderComponent name="Job details" onPress={router.back} />
             </View>
             <View className="mb-6">
               <Text
@@ -191,18 +327,20 @@ export default function Jobdetails() {
                 className="flex flex-row items-center justify-between px-5 py-5 bg-white rounded-2xl border border-gray-100"
                 activeOpacity={0.7}
                 onPress={() => {
-                  haptics.selection();
-                  router.push({
-                    pathname: '/ProviderDetailScreen',
-                    params: {
-                      providerName: 'Mike Johnson',
-                      providerId: 'provider-1',
-                    },
-                  } as any);
+                  if (selectedProvider) {
+                    haptics.selection();
+                    router.push({
+                      pathname: '/ProviderDetailScreen',
+                      params: {
+                        providerName: selectedProvider.name || 'Provider',
+                        providerId: selectedProvider.id?.toString() || '',
+                      },
+                    } as any);
+                  }
                 }}
               >
                 <View className="flex flex-row items-center gap-5">
-                  <View className="w-14 h-14 rounded-full overflow-hidden">
+                  <View className="w-14 h-14 rounded-full overflow-hidden bg-gray-200">
                     <Image
                       source={require('../assets/images/plumbericon.png')}
                       className="w-full h-full"
@@ -216,7 +354,7 @@ export default function Jobdetails() {
                         fontFamily: 'Poppins-Bold',
                       }}
                     >
-                      Mike Johnson
+                      {selectedProvider?.name || 'Provider TBD'}
                     </Text>
                     <View className="flex flex-row gap-2 items-center">
                       <View className="flex-row">
@@ -243,13 +381,13 @@ export default function Jobdetails() {
                       activeOpacity={0.85}
                       onPress={(e) => {
                         e.stopPropagation();
-                        if (icons.id === 2) {
+                        if (icons.id === 2 && selectedProvider) {
                           // Chat icon - navigate to chat
                           router.push({
                             pathname: '/ChatScreen',
                             params: {
-                              providerName: 'Mike Johnson',
-                              providerId: 'provider-1',
+                              providerName: selectedProvider.name || 'Provider',
+                              providerId: selectedProvider.id?.toString() || '',
                             },
                           } as any);
                         }
@@ -278,13 +416,12 @@ export default function Jobdetails() {
                   fontFamily: 'Poppins-Regular',
                 }}
               >
-                Kitchen sink pipe has developed a leak underneath the cabinet. Water is dripping continuously and
-                needs immediate repair. The pipe appears to be loose at the joint connection.
+                {request.description || request.jobTitle || 'No description provided'}
               </Text>
             </View>
             <Demcatorline />
             <View className="mt-6 mb-8">
-              {BookedDate.map((items, index) => (
+              {bookedDate.map((items, index) => (
                 <View key={index} className="flex mb-4 flex-row gap-4 items-start">
                   <View className="mt-1">{items.icon}</View>
                   <View className="flex-1">

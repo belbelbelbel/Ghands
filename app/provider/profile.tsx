@@ -18,6 +18,7 @@ import {
   ToggleRight,
 } from 'lucide-react-native';
 import React, { useState } from 'react';
+import { Dimensions } from 'react-native';
 import { Alert, Image, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ProviderProfileScreen() {
@@ -605,7 +606,7 @@ export default function ProviderProfileScreen() {
               </Text>
               <Text
                 style={{
-                  fontSize: 32,
+                  fontSize: Math.min(32, Dimensions.get('window').width * 0.08),
                   fontFamily: 'Poppins-Bold',
                   color: Colors.white,
                   marginBottom: 4,

@@ -5,7 +5,10 @@ import { useUserLocation } from '@/hooks/useUserLocation';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, Users } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl } from 'react-native';
+import { Dimensions, Image, ScrollView, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl } from 'react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const scale = SCREEN_WIDTH < 375 ? 0.85 : SCREEN_WIDTH < 414 ? 0.92 : 1.0;
 import { providerService, AvailableRequest, ServiceRequest, apiClient } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import Toast from '@/components/Toast';
@@ -202,8 +205,46 @@ export default function ProviderHomeScreen() {
       
       setPendingJobs(jobCards);
     } catch (error: any) {
-      console.error('Error loading available requests:', error);
-      const errorMessage = getSpecificErrorMessage(error, 'get_available_requests');
+      console.error('❌ Error loading available requests:', error);
+      
+      // Check for specific errors and provide helpful messages
+      let errorMessage = getSpecificErrorMessage(error, 'get_available_requests');
+      
+      // Extract error message from various response structures
+      const errorText = error?.message || 
+                       error?.details?.data?.error || 
+                       error?.details?.data?.message || 
+                       error?.details?.error || 
+                       error?.details?.message ||
+                       error?.error ||
+                       '';
+      
+      // Check if it's a location issue
+      if (errorText.toLowerCase().includes('location') || 
+          errorText.toLowerCase().includes('location not set') ||
+          errorText.toLowerCase().includes('no location')) {
+        errorMessage = 'Provider location not set. Please set your location in profile setup to see available requests.';
+      } 
+      // Check if it's a category issue
+      else if (errorText.toLowerCase().includes('category') || 
+               errorText.toLowerCase().includes('no categories') ||
+               errorText.toLowerCase().includes('no service')) {
+        errorMessage = 'No service categories registered. Please add service categories in profile setup to see available requests.';
+      }
+      // Check if there are just no requests available
+      else if (errorText.toLowerCase().includes('no requests') || 
+               errorText.toLowerCase().includes('no available')) {
+        errorMessage = 'No available requests found in your area. Check back later or adjust your location.';
+      }
+      
+      if (__DEV__) {
+        console.log('🔴 Error details:', {
+          errorText,
+          errorMessage,
+          fullError: error
+        });
+      }
+      
       showError(errorMessage);
       setPendingJobs([]);
     } finally {
@@ -670,14 +711,31 @@ export default function ProviderHomeScreen() {
             </View>
             {pendingJobs.slice(0, 3).map((job) => renderJobCard(job, false))}
           </View>
-        ) : !isLoadingPending && !isLoadingActive && (
+        ) : !isLoadingPending && (
           <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 20 }}>
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 4 }}>
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 8 }}>
               No available requests
             </Text>
-            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center' }}>
-              New service requests will appear here when they match your categories and location.
+            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 12 }}>
+              New service requests will appear here when they match your registered categories and are within your location radius.
             </Text>
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                router.push('/ProviderProfileSetupScreen' as any);
+              }}
+              style={{
+                backgroundColor: Colors.accent,
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: BorderRadius.default,
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+                Update Profile
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -685,13 +743,32 @@ export default function ProviderHomeScreen() {
         {!isLoadingPending && !isLoadingActive && 
          Array.isArray(pendingJobs) && pendingJobs.length === 0 && 
          Array.isArray(activeJobs) && activeJobs.length === 0 && (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 20 }}>
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 4 }}>
+          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 24, backgroundColor: Colors.backgroundGray, borderRadius: BorderRadius.xl }}>
+            <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 8 }}>
               No requests yet
             </Text>
-            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', maxWidth: 280 }}>
-              Make sure you've set your location and service categories to see nearby requests.
+            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', maxWidth: 280, marginBottom: 16 }}>
+              To see available requests, make sure you've:{'\n'}
+              • Set your business location{'\n'}
+              • Added service categories you offer
             </Text>
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                router.push('/ProviderProfileSetupScreen' as any);
+              }}
+              style={{
+                backgroundColor: Colors.black,
+                paddingHorizontal: 20,
+                paddingVertical: 10,
+                borderRadius: BorderRadius.default,
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+                Complete Profile Setup
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -796,7 +873,7 @@ export default function ProviderHomeScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-              <Text style={{ fontSize: 32, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 4 }}>
+              <Text style={{ fontSize: Math.min(32, Dimensions.get('window').width * 0.08), fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 4 }}>
                 95%
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>

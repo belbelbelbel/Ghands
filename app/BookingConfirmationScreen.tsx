@@ -2,7 +2,7 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import { haptics } from '@/hooks/useHaptics';
 import { useRouter } from 'expo-router';
-import { ArrowRight, CheckCircle } from 'lucide-react-native';
+import { ArrowRight, CheckCircle, CheckCircle2, FileText, Wrench, Circle } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -15,6 +15,7 @@ interface ProgressStep {
   status: ProgressStepStatus;
   statusText: string;
   statusColor: string;
+  icon?: any;
 }
 
 const PROGRESS_STEPS: ProgressStep[] = [
@@ -25,6 +26,7 @@ const PROGRESS_STEPS: ProgressStep[] = [
     status: 'completed',
     statusText: 'Completed - 2 hours ago',
     statusColor: '#DCFCE7',
+    icon: CheckCircle2,
   },
   {
     id: 'step-2',
@@ -33,6 +35,7 @@ const PROGRESS_STEPS: ProgressStep[] = [
     status: 'in-progress',
     statusText: 'In Progress - 2 of 3 completed',
     statusColor: '#DBEAFE',
+    icon: FileText,
   },
   {
     id: 'step-3',
@@ -41,6 +44,7 @@ const PROGRESS_STEPS: ProgressStep[] = [
     status: 'pending',
     statusText: 'Pending',
     statusColor: '#DBEAFE',
+    icon: Wrench,
   },
   {
     id: 'step-4',
@@ -49,6 +53,7 @@ const PROGRESS_STEPS: ProgressStep[] = [
     status: 'pending',
     statusText: 'Pending',
     statusColor: '#DBEAFE',
+    icon: CheckCircle,
   },
 ];
 
@@ -161,52 +166,47 @@ export default function BookingConfirmationScreen() {
               const textColor = getStepTextColor(step.status);
               const isLast = index === PROGRESS_STEPS.length - 1;
 
+              const IconComponent = step.icon || Circle;
+              const iconSize = step.status === 'completed' ? 20 : step.status === 'in-progress' ? 18 : 16;
+              
               return (
-                <View key={step.id} className="flex-row">
-                  <View className="items-center mr-4">
+                <View key={step.id} className="flex-row mb-4">
+                  <View className="items-center mr-5">
                     <Animated.View
                       style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 12,
-                        backgroundColor: isAnimated ? stepColor : '#D1D5DB',
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        backgroundColor: isAnimated ? stepColor : '#F3F4F6',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        opacity: isAnimated ? 1 : 0.5,
+                        borderWidth: isAnimated && step.status !== 'pending' ? 0 : 2,
+                        borderColor: '#E5E7EB',
+                        opacity: isAnimated ? 1 : 0.6,
+                        shadowColor: isAnimated && step.status !== 'pending' ? stepColor : '#000',
+                        shadowOffset: {
+                          width: 0,
+                          height: 2,
+                        },
+                        shadowOpacity: isAnimated && step.status !== 'pending' ? 0.2 : 0.05,
+                        shadowRadius: 4,
+                        elevation: isAnimated && step.status !== 'pending' ? 4 : 1,
                       }}
                     >
-                      {step.status === 'completed' && (
-                        <CheckCircle size={16} color="#FFFFFF" />
-                      )}
-                      {step.status === 'in-progress' && (
-                        <View
-                          style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: 6,
-                            backgroundColor: '#FFFFFF',
-                          }}
-                        />
-                      )}
-                      {step.status === 'pending' && (
-                        <View
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: '#FFFFFF',
-                          }}
-                        />
-                      )}
+                      <IconComponent 
+                        size={iconSize} 
+                        color={step.status === 'completed' || step.status === 'in-progress' ? '#FFFFFF' : '#9CA3AF'} 
+                      />
                     </Animated.View>
                     {!isLast && (
                       <View
-                        className="w-0.5"
                         style={{
+                          width: 3,
                           flex: 1,
                           backgroundColor: isAnimated && step.status !== 'pending' ? stepColor : '#E5E7EB',
-                          minHeight: 60,
-                          marginTop: 4,
+                          minHeight: 45,
+                          marginTop: 8,
+                          borderRadius: 2,
                         }}
                       />
                     )}

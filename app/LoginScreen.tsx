@@ -3,14 +3,15 @@ import { haptics } from '@/hooks/useHaptics';
 import { authService } from '@/services/api';
 import { useRouter } from 'expo-router';
 import { Lock, Mail } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { ScrollView, Text, TouchableOpacity, View, TextInput } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import { SocialButton } from '../components/SocialButton';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import { isValidEmail } from '@/utils/inputFormatting';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -18,18 +19,56 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Real-time validation states
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  
+  // Refs for auto-focus
+  const passwordInputRef = useRef<TextInput>(null);
+  
+  // Real-time email validation
+  const handleEmailChange = useCallback((text: string) => {
+    setEmail(text);
+    if (text.trim() && !isValidEmail(text.trim())) {
+      setEmailError('Please enter a valid email address');
+    } else {
+      setEmailError('');
+    }
+  }, []);
+  
+  // Real-time password validation
+  const handlePasswordChange = useCallback((text: string) => {
+    setPassword(text);
+    if (text.length > 0 && text.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+    } else {
+      setPasswordError('');
+    }
+  }, []);
 
   const handleLogin = async () => {
-    // Basic validation
-    if (!email.trim() || !password.trim()) {
-      showError('Please fill in all required fields');
-      return;
+    // Validate all fields
+    let hasErrors = false;
+    
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      hasErrors = true;
+    } else if (!isValidEmail(email.trim())) {
+      setEmailError('Please enter a valid email address');
+      hasErrors = true;
     }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      showError('Please enter a valid email address');
+    
+    if (!password.trim()) {
+      setPasswordError('Password is required');
+      hasErrors = true;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      hasErrors = true;
+    }
+    
+    if (hasErrors) {
+      showError('Please fix the errors above');
       return;
     }
 
@@ -43,16 +82,31 @@ export default function LoginScreen() {
       });
       
       // Token is already saved by authService.userLogin
+      // Set role to client for regular user login
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      await AsyncStorage.setItem('@ghands:user_role', 'client');
+      
       haptics.success();
       showSuccess('Login successful!');
       
-      // Navigate to home after successful login
+      // Navigate directly to home - skip onboarding/account selection for authenticated users
       setTimeout(() => {
         router.replace('/(tabs)/home');
       }, 1000);
     } catch (error: any) {
-      console.error('Login error:', error);
       haptics.error();
+      
+      // Check if it's a network error first
+      const isNetworkError = error?.isNetworkError || 
+                            error?.message?.includes('Network') || 
+                            error?.message?.includes('Failed to fetch') ||
+                            error?.message?.includes('Network request failed');
+      
+      if (isNetworkError) {
+        showError('No internet connection. Please check your connection and reconnect to continue.');
+        setIsLoading(false);
+        return;
+      }
       
       // Extract error message from API response
       // API returns errors as: { "data": { "error": "..." }, "success": false }
@@ -143,19 +197,29 @@ export default function LoginScreen() {
           icon={<Mail size={20} color={'white'}/>}
           keyboardType="email-address"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={handleEmailChange}
           iconPosition="left"
           autoCapitalize="none"
+          error={!!emailError}
+          errorMessage={emailError}
+          returnKeyType="next"
+          onSubmitEditing={() => passwordInputRef.current?.focus()}
+          autoFocus={true}
         />
 
         {/* Password Input */}
         <InputField
+          ref={passwordInputRef}
           placeholder="Password"
           icon={<Lock size={20} color={'white'}/>}
           secureTextEntry={true}
           value={password}
-          onChangeText={setPassword}
+          onChangeText={handlePasswordChange}
           iconPosition="right"
+          error={!!passwordError}
+          errorMessage={passwordError}
+          returnKeyType="done"
+          onSubmitEditing={handleLogin}
         />
 
         {/* Forgot Password Link */}

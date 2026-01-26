@@ -1007,17 +1007,19 @@ HOW TO USE:
 - Use token for provider-specific endpoints
 
 
-4.3 GET PROVIDER DETAILS
+4.3 GET PROVIDER DETAILS [PROTECTED]
 ------------------------
 Method: GET
-Endpoint: /api/provider/:providerId
-Description: Get provider profile information including their service categories
+Endpoint: /api/provider
+Description: Get authenticated provider's own profile information including their service categories
+             Requires authentication - provider ID is automatically extracted from token
 
-URL Parameters:
-  providerId: number (required)
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
 
 Example Request:
-  GET /api/provider/1
+  GET /api/provider
+  Headers: Authorization: Bearer <your-token-here>
 
 Response (Success):
 {
@@ -1042,26 +1044,28 @@ Response (Success):
 
 Response (Error):
 {
-  "error": "Provider not found"
+  "error": "Provider not authenticated"
 }
 
 HOW TO USE:
-- Call this to display provider profile
-- Use to show provider information to users
+- Include Authorization header: Authorization: Bearer <token>
+- Provider ID is automatically extracted from token - no URL parameters needed
+- Use to display provider's own profile in their dashboard
 - Categories array shows what services provider can offer
 
 
-4.4 UPDATE PROVIDER LOCATION
+4.4 UPDATE PROVIDER LOCATION [PROTECTED]
 -----------------------------
 Method: PUT
-Endpoint: /api/provider/:providerId/location
+Endpoint: /api/provider/location
 Description: Update provider's current location
              Provider can simply provide placeId, address, or coordinates
              All location details will be automatically fetched and saved
              Important: Providers need location to see nearby requests
-AJE USE ONLY ADDRESS
-URL Parameters:
-  providerId: number (required)
+             Requires authentication - provider ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
 
 Request Body (JSON) - Option 1: Using placeId (Recommended - Most Accurate):
 {
@@ -1103,9 +1107,11 @@ Response (Error - Invalid Address):
 }
 
 HOW TO USE:
+- Include Authorization header: Authorization: Bearer <token>
+- Provider ID is automatically extracted from token - no URL parameters needed
 - SIMPLEST: Provider just provides placeId from location search (recommended)
   * Use GET /api/user/location/search?query=... to search
-  * User selects location and gets placeId
+  * Provider selects location and gets placeId
   * Provider sends placeId in this endpoint
   * All details (lat, lng, city, state, etc.) are automatically fetched and saved
   
@@ -1127,15 +1133,16 @@ IMPORTANT:
 - Update location regularly so providers see relevant nearby requests
 
 
-4.5 ADD SERVICE CATEGORIES TO PROVIDER
+4.5 ADD SERVICE CATEGORIES TO PROVIDER [PROTECTED]
 ---------------------------------------
 Method: POST
-Endpoint: /api/provider/:providerId/categories
+Endpoint: /api/provider/categories
 Description: Add service categories that the provider can offer
              Providers can offer multiple categories (e.g., plumbing AND electrical)
+             Requires authentication - provider ID is automatically extracted from token
 
-URL Parameters:
-  providerId: number (required)
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
 
 Request Body (JSON):
 {
@@ -1167,11 +1174,6 @@ Response (Error - Already Has Categories):
   "error": "Provider already has the following categories: plumbing, electrical. Please remove existing categories before adding new ones, or select different categories."
 }
 
-Response (Error - Provider Not Found):
-{
-  "error": "Provider not found"
-}
-
 IMPORTANT VALIDATION:
 - All category names MUST be valid categories from section 3.1
 - Duplicate categories in the same request are not allowed
@@ -1180,6 +1182,8 @@ IMPORTANT VALIDATION:
 - Only verified and active providers are counted in provider counts
 
 HOW TO USE:
+- Include Authorization header: Authorization: Bearer <token>
+- Provider ID is automatically extracted from token - no URL parameters needed
 - Call this when provider wants to add service categories
 - Category names must match exactly the "name" field from section 3.1 categories
 - Provider will see requests for all categories they've registered for
@@ -1190,7 +1194,16 @@ HOW TO USE:
 4.6 GET PROVIDER SERVICES/CATEGORIES
 -------------------------------------
 Method: GET
-Endpoint: /api/provider/:providerId/services
+Endpoint: /api/provider
+Description: Get authenticated provider's own profile information including their service categories
+             Requires authentication - provider ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Example Request:
+  GET /api/provider
+  Headers: Authorization: Bearer <your-token-here>/services
 Description: Get all service categories a provider offers
 
 URL Parameters:
@@ -1284,22 +1297,24 @@ HOW TO USE:
 - Also returned automatically in service request details (section 3.6)
 
 
-4.8 GET AVAILABLE REQUESTS FOR PROVIDER
+4.8 GET AVAILABLE REQUESTS FOR PROVIDER [PROTECTED]
 ---------------------------------------
 Method: GET
-Endpoint: /api/provider/:providerId/requests/available
+Endpoint: /api/provider/requests/available
 Description: Get all pending service requests that a provider can accept
              Shows requests in provider's registered categories, within distance radius
              Sorted by distance (closest first)
+             Requires authentication - provider ID is automatically extracted from token
 
-URL Parameters:
-  providerId: number (required)
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
 
 Query Parameters:
   maxDistanceKm: number (optional) - Maximum distance in kilometers (default: 50)
 
 Example Request:
-  GET /api/provider/1/requests/available?maxDistanceKm=50
+  GET /api/provider/requests/available?maxDistanceKm=50
+  Headers: Authorization: Bearer <your-token-here>
 
 Response (Success):
 {
@@ -1350,7 +1365,16 @@ HOW TO USE:
 4.9 ACCEPT SERVICE REQUEST
 --------------------------
 Method: POST
-Endpoint: /api/provider/:providerId/requests/:requestId/accept
+Endpoint: /api/provider
+Description: Get authenticated provider's own profile information including their service categories
+             Requires authentication - provider ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Example Request:
+  GET /api/provider
+  Headers: Authorization: Bearer <your-token-here>/requests/:requestId/accept
 Description: Provider accepts a service request
              Creates an acceptance record - request stays "pending" until user picks a provider
              Multiple providers can accept the same request, user will see all and pick one
@@ -1360,7 +1384,8 @@ URL Parameters:
   requestId: number (required)
 
 Example Request:
-  POST /api/provider/1/requests/5/accept
+  POST /api/provider/requests/5/accept
+  Headers: Authorization: Bearer <your-token-here>
 
 Response (Success):
 {
@@ -1396,6 +1421,9 @@ OR
 }
 
 HOW TO USE:
+- Include Authorization header: Authorization: Bearer <token>
+- Provider ID is automatically extracted from token - no providerId in URL needed
+- Replace :requestId in URL with the request ID to accept
 - Call this when provider clicks "Accept Request" button
 - Provider must offer the service category of the request
 - Request must be in "pending" status
@@ -1404,19 +1432,23 @@ HOW TO USE:
 - User will see all accepted providers and can pick one later
 
 
-4.9.1 REJECT SERVICE REQUEST
+4.9.1 REJECT SERVICE REQUEST [PROTECTED]
 -----------------------------
 Method: POST
-Endpoint: /api/provider/:providerId/requests/:requestId/reject
+Endpoint: /api/provider/requests/:requestId/reject
 Description: Provider rejects a service request
              Records the rejection so provider won't see this request again
+             Requires authentication - provider ID is automatically extracted from token
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
 
 URL Parameters:
-  providerId: number (required)
   requestId: number (required)
 
 Example Request:
-  POST /api/provider/1/requests/5/reject
+  POST /api/provider/requests/5/reject
+  Headers: Authorization: Bearer <your-token-here>
 
 Response (Success):
 {
@@ -1440,23 +1472,28 @@ OR
 }
 
 HOW TO USE:
+- Include Authorization header: Authorization: Bearer <token>
+- Provider ID is automatically extracted from token - no providerId in URL needed
+- Replace :requestId in URL with the request ID to reject
 - Call this when provider clicks "Reject Request" button
 - Records the rejection - provider won't see this request in available requests again
 - Request status remains "pending" for other providers
 
 
-4.10 GET PROVIDER ACCEPTED REQUESTS
+4.10 GET PROVIDER ACCEPTED REQUESTS [PROTECTED]
 ------------------------------------
 Method: GET
-Endpoint: /api/provider/:providerId/requests/accepted
+Endpoint: /api/provider/requests/accepted
 Description: Get all requests that provider has accepted
              Includes accepted, in_progress, and completed requests
+             Requires authentication - provider ID is automatically extracted from token
 
-URL Parameters:
-  providerId: number (required)
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
 
 Example Request:
-  GET /api/provider/1/requests/accepted
+  GET /api/provider/requests/accepted
+  Headers: Authorization: Bearer <your-token-here>
 
 Response (Success):
 {
@@ -1489,6 +1526,8 @@ Response (Success):
 }
 
 HOW TO USE:
+- Include Authorization header: Authorization: Bearer <token>
+- Provider ID is automatically extracted from token - no URL parameters needed
 - Call this to show provider their accepted/completed jobs
 - Display in provider's dashboard or job history
 - Filter by status if needed on frontend
@@ -1921,6 +1960,1028 @@ HOW TO HANDLE:
 - Redirect user to login screen
 - Clear stored token: localStorage.removeItem('token')
 - Prompt user to login again
+
+================================================================================
+                        5. WALLET & PAYMENT ENDPOINTS
+================================================================================
+
+All wallet endpoints support both users and providers/companies. The system automatically
+detects the account type from the authentication token.
+
+IMPORTANT WALLET FEATURES:
+- Each user and provider/company has their own wallet
+- Wallets require a 4-digit PIN for security (as shown in Figma designs)
+- All transactions are tracked in transaction history
+- Bank accounts can be linked for withdrawals
+- Payments for services require PIN verification
+- Providers automatically receive earnings when service is completed
+
+
+5.1 GET WALLET BALANCE [PROTECTED]
+----------------------------------
+Method: GET
+Endpoint: /api/wallet
+Description: Get authenticated user's or provider's wallet balance and information
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Response (Success):
+{
+  "data": {
+    "id": 1,
+    "balance": 5000.00,
+    "currency": "NGN",
+    "isPinSet": true
+  }
+}
+
+Response (Error):
+{
+  "error": "Wallet not found"
+}
+
+HOW TO USE:
+- Call this to display wallet balance in the app
+- Check isPinSet to determine if user needs to set PIN
+- Use this endpoint on wallet/billing screens
+
+
+5.2 SET WALLET PIN [PROTECTED]
+-------------------------------
+Method: POST
+Endpoint: /api/wallet/pin
+Description: Set a 4-digit PIN for wallet security (first time setup)
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Request Body (JSON):
+{
+  "pin": "1234",           // Required, exactly 4 digits
+  "confirmPin": "1234"    // Required, must match pin
+}
+
+Response (Success):
+{
+  "data": {
+    "message": "PIN set successfully"
+  }
+}
+
+Response (Error):
+{
+  "error": "PIN must be exactly 4 digits"
+}
+OR
+{
+  "error": "PINs do not match"
+}
+OR
+{
+  "error": "PIN already set. Use change PIN endpoint."
+}
+
+HOW TO USE:
+- Call this when user first sets up wallet PIN (as shown in Figma)
+- Validate PIN format on frontend (4 digits only)
+- Show PIN mismatch error if pins don't match
+- Redirect to wallet screen after successful PIN setup
+
+
+5.3 CHANGE WALLET PIN [PROTECTED]
+----------------------------------
+Method: PUT
+Endpoint: /api/wallet/pin
+Description: Change existing wallet PIN
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Request Body (JSON):
+{
+  "oldPin": "1234",        // Required, current PIN
+  "newPin": "5678",        // Required, new 4-digit PIN
+  "confirmPin": "5678"     // Required, must match newPin
+}
+
+Response (Success):
+{
+  "data": {
+    "message": "PIN changed successfully"
+  }
+}
+
+Response (Error):
+{
+  "error": "Invalid old PIN"
+}
+OR
+{
+  "error": "New PIN must be different from old PIN"
+}
+
+HOW TO USE:
+- Call this from "Change wallet PIN" option in Account Security screen
+- Verify old PIN before allowing change
+- Show success message after PIN is changed
+
+
+5.4 VERIFY WALLET PIN [PROTECTED]
+---------------------------------
+Method: POST
+Endpoint: /api/wallet/pin/verify
+Description: Verify wallet PIN (for transactions)
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Request Body (JSON):
+{
+  "pin": "1234"    // Required, 4-digit PIN
+}
+
+Response (Success):
+{
+  "data": {
+    "isValid": true
+  }
+}
+
+Response (Error):
+{
+  "error": "PIN not set"
+}
+OR
+{
+  "error": "PIN must be exactly 4 digits"
+}
+
+HOW TO USE:
+- Call this before allowing withdrawals or payments
+- Show PIN input screen (as shown in Figma)
+- Proceed with transaction if isValid is true
+
+
+5.5 INITIALIZE DEPOSIT [PROTECTED]
+----------------------------------
+Method: POST
+Endpoint: /api/wallet/deposit
+Description: Initialize a deposit transaction (creates payment link via Kora)
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Request Body (JSON):
+{
+  "amount": 5000,              // Required, minimum 100 NGN
+  "email": "user@example.com", // Required, valid email
+  "name": "John Doe",          // Optional, customer name
+  "phone": "12345678901"       // Optional, phone number
+}
+
+Response (Success):
+{
+  "data": {
+    "authorizationUrl": "https://checkout.korapay.com/...",
+    "reference": "DEP_abc123xyz"
+  }
+}
+
+Response (Error):
+{
+  "error": "Amount must be greater than 0"
+}
+OR
+{
+  "error": "Minimum deposit amount is 100 NGN"
+}
+
+HOW TO USE:
+- Call this when user wants to fund their wallet
+- Redirect user to authorizationUrl to complete payment
+- Save the reference to verify payment later
+- After payment, call verify deposit endpoint
+
+
+5.6 VERIFY DEPOSIT [PUBLIC CALLBACK]
+-------------------------------------
+Method: GET
+Endpoint: /api/wallet/deposit/verify/:reference
+Description: Verify and complete a deposit transaction (called after payment)
+
+Query Parameters:
+  :reference    // Deposit reference from initialize deposit
+
+Example Request:
+  GET /api/wallet/deposit/verify/DEP_abc123xyz
+
+Response (Success):
+{
+  "data": {
+    "reference": "DEP_abc123xyz",
+    "status": "completed",
+    "amount": 5000.00,
+    "balance": 5000.00
+  }
+}
+
+Response (Error):
+{
+  "error": "Deposit verification failed"
+}
+
+HOW TO USE:
+- Call this after user returns from payment gateway
+- Use the reference from initialize deposit
+- Update wallet balance display
+- Show success message if status is "completed"
+
+
+5.7 WITHDRAW TO BANK ACCOUNT [PROTECTED]
+----------------------------------------
+Method: POST
+Endpoint: /api/wallet/withdraw
+Description: Withdraw funds from wallet to linked bank account
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Request Body (JSON):
+{
+  "bankAccountId": 1,           // Required, ID of linked bank account
+  "amount": 3000,                // Required, minimum 100 NGN
+  "pin": "1234",                 // Required, wallet PIN
+  "narration": "Withdrawal"      // Optional, transaction description
+}
+
+Response (Success):
+{
+  "data": {
+    "reference": "WTH_xyz789abc",
+    "status": "pending",
+    "amount": 3000.00,
+    "balance": 2000.00
+  }
+}
+
+Response (Error):
+{
+  "error": "Invalid PIN"
+}
+OR
+{
+  "error": "Insufficient balance"
+}
+OR
+{
+  "error": "Bank account not verified"
+}
+OR
+{
+  "error": "Wallet PIN not set. Please set your PIN first."
+}
+
+HOW TO USE:
+- Call this from withdrawal screen
+- Require PIN verification before withdrawal
+- Show updated balance after successful withdrawal
+- Withdrawal status may be "pending" initially, then "completed"
+
+
+5.8 PAY FOR SERVICE [PROTECTED - USERS ONLY]
+--------------------------------------------
+Method: POST
+Endpoint: /api/wallet/pay
+Description: Pay for a service request using wallet balance
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required (user token only)
+
+Request Body (JSON):
+{
+  "requestId": 5,        // Required, service request ID
+  "amount": 5000,        // Required, must match service price
+  "pin": "1234"          // Required, wallet PIN
+}
+
+Response (Success):
+{
+  "data": {
+    "reference": "PAY_def456ghi",
+    "status": "completed",
+    "amount": 5000.00,
+    "balance": 0.00,
+    "requestId": 5
+  }
+}
+
+Response (Error):
+{
+  "error": "Invalid PIN"
+}
+OR
+{
+  "error": "Insufficient balance"
+}
+OR
+{
+  "error": "Service request already paid"
+}
+OR
+{
+  "error": "Amount does not match service price"
+}
+
+HOW TO USE:
+- Call this when user confirms payment for a service
+- Require PIN verification
+- Update service request status after payment
+- Provider will receive earnings when service is completed
+
+
+5.9 GET TRANSACTION HISTORY [PROTECTED]
+----------------------------------------
+Method: GET
+Endpoint: /api/wallet/transactions
+Description: Get wallet transaction history
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Query Parameters:
+  limit     // Optional, default 50, max number of transactions
+  offset    // Optional, default 0, pagination offset
+
+Example Request:
+  GET /api/wallet/transactions?limit=20&offset=0
+
+Response (Success):
+{
+  "data": {
+    "transactions": [
+      {
+        "id": 1,
+        "reference": "DEP_abc123",
+        "type": "deposit",
+        "status": "completed",
+        "amount": 5000.00,
+        "balanceBefore": 0.00,
+        "balanceAfter": 5000.00,
+        "description": "Wallet deposit",
+        "createdAt": "2024-01-15T10:30:00.000Z",
+        "completedAt": "2024-01-15T10:31:00.000Z"
+      },
+      {
+        "id": 2,
+        "reference": "PAY_def456",
+        "type": "payment",
+        "status": "completed",
+        "amount": 3000.00,
+        "balanceBefore": 5000.00,
+        "balanceAfter": 2000.00,
+        "description": "Payment for service request #5",
+        "createdAt": "2024-01-15T11:00:00.000Z",
+        "completedAt": "2024-01-15T11:00:00.000Z"
+      }
+    ],
+    "total": 2,
+    "limit": 50,
+    "offset": 0
+  }
+}
+
+Transaction Types:
+  - "deposit": Money added to wallet
+  - "withdrawal": Money withdrawn to bank
+  - "payment": Payment for service request
+  - "earnings": Provider earnings from completed service
+  - "refund": Refunded payment
+  - "transfer": Transfer between accounts
+
+Transaction Status:
+  - "pending": Transaction in progress
+  - "completed": Transaction successful
+  - "failed": Transaction failed
+  - "cancelled": Transaction cancelled
+
+HOW TO USE:
+- Display transaction history in "Transaction History" screen (as shown in Figma)
+- Show transaction type, amount, and status
+- Use pagination for large transaction lists
+- Format dates for display
+
+
+5.10 LIST BANKS [PUBLIC]
+------------------------
+Method: GET
+Endpoint: /api/wallet/banks
+Description: Get list of available banks for account linking
+
+Query Parameters:
+  countryCode    // Optional, default "NG" (Nigeria)
+
+Example Request:
+  GET /api/wallet/banks?countryCode=NG
+
+Response (Success):
+{
+  "data": [
+    {
+      "code": "044",
+      "name": "Access Bank"
+    },
+    {
+      "code": "050",
+      "name": "Ecobank Nigeria"
+    },
+    ...
+  ]
+}
+
+HOW TO USE:
+- Call this to populate bank dropdown in "Link your Bank Account" screen
+- Display bank names in dropdown
+- Store bank code when user selects a bank
+
+
+5.11 RESOLVE ACCOUNT NUMBER [PUBLIC]
+------------------------------------
+Method: POST
+Endpoint: /api/wallet/banks/resolve
+Description: Resolve bank account number to get account name
+
+Request Body (JSON):
+{
+  "bankCode": "044",           // Required, bank code from list banks
+  "accountNumber": "1234567890" // Required, 10-digit account number
+}
+
+Response (Success):
+{
+  "data": {
+    "accountName": "John Doe Akpi",
+    "accountNumber": "1234567890"
+  }
+}
+
+Response (Error):
+{
+  "error": "Invalid account number"
+}
+
+HOW TO USE:
+- Call this when user enters account number in "Link your Bank Account" screen
+- Display resolved account name (as shown in Figma: "John Doe Akpi")
+- Verify account before allowing user to save
+
+
+5.12 ADD BANK ACCOUNT [PROTECTED]
+----------------------------------
+Method: POST
+Endpoint: /api/wallet/bank-accounts
+Description: Link a bank account to wallet for withdrawals
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Request Body (JSON):
+{
+  "bankName": "First Bank of Nigeria",  // Required
+  "bankCode": "011",                    // Required, from list banks
+  "accountNumber": "1234567890"          // Required, 10 digits
+}
+
+Response (Success):
+{
+  "data": {
+    "id": 1,
+    "bankName": "First Bank of Nigeria",
+    "accountNumber": "1234567890",
+    "accountName": "John Doe Akpi",
+    "isDefault": true,
+    "isVerified": true
+  }
+}
+
+Response (Error):
+{
+  "error": "Bank account already exists"
+}
+OR
+{
+  "error": "Account number must be 10 digits"
+}
+
+HOW TO USE:
+- Call this from "Link your Bank Account" screen (as shown in Figma)
+- First account added becomes default automatically
+- Show success message and return to bank details screen
+- Display "Your bank details are protected" message (as shown in Figma)
+
+
+5.13 GET BANK ACCOUNTS [PROTECTED]
+-----------------------------------
+Method: GET
+Endpoint: /api/wallet/bank-accounts
+Description: Get all linked bank accounts
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+Response (Success):
+{
+  "data": [
+    {
+      "id": 1,
+      "bankName": "First Bank of Nigeria",
+      "accountNumber": "1234567890",
+      "accountName": "John Doe Akpi",
+      "isDefault": true,
+      "isVerified": true
+    },
+    {
+      "id": 2,
+      "bankName": "Access Bank",
+      "accountNumber": "0987654321",
+      "accountName": "John Doe Akpi",
+      "isDefault": false,
+      "isVerified": true
+    }
+  ]
+}
+
+HOW TO USE:
+- Display in "Bank details" screen (as shown in Figma)
+- Show all linked accounts with radio buttons
+- Highlight default account
+- Allow user to set different account as default
+
+
+5.14 SET DEFAULT BANK ACCOUNT [PROTECTED]
+-----------------------------------------
+Method: PUT
+Endpoint: /api/wallet/bank-accounts/:accountId/default
+Description: Set a bank account as default for withdrawals
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+URL Parameters:
+  :accountId    // Bank account ID
+
+Example Request:
+  PUT /api/wallet/bank-accounts/2/default
+
+Response (Success):
+{
+  "data": {
+    "id": 2,
+    "isDefault": true
+  }
+}
+
+HOW TO USE:
+- Call this when user selects a different bank account in "Cards" screen
+- Update UI to show selected account with radio button checked
+
+
+5.15 DELETE BANK ACCOUNT [PROTECTED]
+------------------------------------
+Method: DELETE
+Endpoint: /api/wallet/bank-accounts/:accountId
+Description: Remove a linked bank account
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required
+
+URL Parameters:
+  :accountId    // Bank account ID
+
+Example Request:
+  DELETE /api/wallet/bank-accounts/2
+
+Response (Success):
+{
+  "data": {
+    "message": "Bank account deleted successfully"
+  }
+}
+
+Response (Error):
+{
+  "error": "Unauthorized"
+}
+
+HOW TO USE:
+- Call this when user wants to remove a bank account
+- Show confirmation dialog before deletion
+- Update bank accounts list after deletion
+
+
+5.16 COMPLETE SERVICE REQUEST [PROTECTED - USERS ONLY]
+------------------------------------------------------
+Method: PUT
+Endpoint: /api/request-service/requests/:requestId/complete
+Description: Mark a service request as completed and transfer earnings to provider
+
+Headers:
+  Authorization: Bearer <your-token-here>   // Required (user token only)
+
+URL Parameters:
+  :requestId    // Service request ID
+
+Example Request:
+  PUT /api/request-service/requests/5/complete
+
+Response (Success):
+{
+  "data": {
+    "id": 5,
+    "status": "completed",
+    "message": "Service request completed successfully. Earnings transferred to provider."
+  }
+}
+
+Response (Error):
+{
+  "error": "Service request must be paid before completion"
+}
+OR
+{
+  "error": "No provider assigned to this request"
+}
+OR
+{
+  "error": "Service request is already completed"
+}
+
+HOW TO USE:
+- Call this when user confirms service is completed
+- Provider automatically receives payment in their wallet
+- Update service request status to "completed"
+- Show success message to user
+
+NOTE: This endpoint automatically transfers the service price from escrow to provider's wallet.
+The provider can then withdraw the earnings to their bank account.
+
+
+================================================================================
+                        6. QUOTATION ENDPOINTS
+================================================================================
+
+The quotation system allows providers to send detailed cost breakdowns to users.
+Users can view, accept, or reject quotations before making payment.
+
+QUOTATION FLOW:
+1. User creates service request
+2. Provider accepts the request
+3. Provider sends quotation with cost breakdown
+4. User views all quotations from different providers
+5. User accepts a quotation (this sets the provider and price)
+6. User pays for the service
+7. Service proceeds and provider receives earnings on completion
+
+
+6.1 SEND QUOTATION [PROTECTED - PROVIDERS ONLY]
+-----------------------------------------------
+Method: POST
+Endpoint: /api/request-service/requests/:requestId/quotation
+Description: Provider sends a quotation for a service request
+
+Headers:
+  Authorization: Bearer <provider-token-here>   // Required
+
+URL Parameters:
+  :requestId    // Service request ID
+
+Request Body (JSON):
+{
+  "laborCost": 5000,                    // Required, labor cost in NGN
+  "logisticsCost": 2000,                // Required, transportation/logistics cost in NGN
+  "materials": [                        // Optional, array of materials
+    {
+      "name": "Pipe Connector",         // Required, material name
+      "quantity": 1,                    // Optional, quantity (defaults to 1)
+      "unitPrice": 450                  // Optional, unit price in NGN
+    },
+    {
+      "name": "Plumber's Tape",
+      "quantity": 3,
+      "unitPrice": 150
+    }
+  ],
+  "findingsAndWorkRequired": "Kitchen sink pipe has developed a leak...",  // Required, min 10 chars
+  "serviceCharge": 25,                  // Optional, service charge in NGN
+  "tax": 0                              // Optional, tax amount in NGN
+}
+
+Response (Success):
+{
+  "data": {
+    "id": 1,
+    "requestId": 5,
+    "laborCost": 5000.00,
+    "logisticsCost": 2000.00,
+    "materials": [
+      {
+        "name": "Pipe Connector",
+        "quantity": 1,
+        "unitPrice": 450.00,
+        "total": 450.00
+      },
+      {
+        "name": "Plumber's Tape",
+        "quantity": 3,
+        "unitPrice": 150.00,
+        "total": 450.00
+      }
+    ],
+    "findingsAndWorkRequired": "Kitchen sink pipe has developed a leak...",
+    "serviceCharge": 25.00,
+    "tax": 0.00,
+    "total": 7925.00,
+    "status": "pending",
+    "sentAt": "2024-01-15T10:30:00.000Z",
+    "message": "Quotation sent successfully"
+  }
+}
+
+Response (Error):
+{
+  "error": "You must accept the request before sending a quotation"
+}
+OR
+{
+  "error": "A quotation has already been sent for this request"
+}
+OR
+{
+  "error": "Labor cost must be positive"
+}
+
+HOW TO USE:
+- Call this after provider accepts a request
+- Calculate total automatically (labor + logistics + materials + service charge + tax)
+- Materials are optional - can send quotation without materials
+- Show quotation summary to provider before sending (as shown in Figma)
+- After sending, quotation status is "pending" waiting for user response
+
+
+6.2 GET QUOTATION [PROTECTED - PROVIDERS ONLY]
+----------------------------------------------
+Method: GET
+Endpoint: /api/request-service/requests/:requestId/quotation
+Description: Provider views their own quotation for a request
+
+Headers:
+  Authorization: Bearer <provider-token-here>   // Required
+
+URL Parameters:
+  :requestId    // Service request ID
+
+Response (Success):
+{
+  "data": {
+    "id": 1,
+    "requestId": 5,
+    "laborCost": 5000.00,
+    "logisticsCost": 2000.00,
+    "materials": [...],
+    "findingsAndWorkRequired": "...",
+    "serviceCharge": 25.00,
+    "tax": 0.00,
+    "total": 7925.00,
+    "status": "pending",
+    "sentAt": "2024-01-15T10:30:00.000Z",
+    "acceptedAt": null,
+    "rejectedAt": null
+  }
+}
+
+Response (Error):
+{
+  "error": "Quotation not found"
+}
+
+HOW TO USE:
+- Call this to view quotation details
+- Check status to see if user has accepted/rejected
+- Display quotation in provider's quotation management screen
+
+
+6.3 GET ALL QUOTATIONS FOR REQUEST [PROTECTED - USERS ONLY]
+------------------------------------------------------------
+Method: GET
+Endpoint: /api/request-service/requests/:requestId/quotations
+Description: User views all quotations received for their service request
+
+Headers:
+  Authorization: Bearer <user-token-here>   // Required
+
+URL Parameters:
+  :requestId    // Service request ID
+
+Response (Success):
+{
+  "data": [
+    {
+      "id": 1,
+      "provider": {
+        "id": 1,
+        "name": "John Doe",
+        "verified": true,
+        "phoneNumber": "12345678901"
+      },
+      "laborCost": 5000.00,
+      "logisticsCost": 2000.00,
+      "materials": [...],
+      "findingsAndWorkRequired": "...",
+      "serviceCharge": 25.00,
+      "tax": 0.00,
+      "total": 7925.00,
+      "status": "pending",
+      "sentAt": "2024-01-15T10:30:00.000Z"
+    },
+    {
+      "id": 2,
+      "provider": {
+        "id": 2,
+        "name": "Jane Smith",
+        "verified": true,
+        "phoneNumber": "09876543210"
+      },
+      "laborCost": 4500.00,
+      "logisticsCost": 1500.00,
+      "materials": [...],
+      "total": 6000.00,
+      "status": "pending",
+      "sentAt": "2024-01-15T11:00:00.000Z"
+    }
+  ]
+}
+
+HOW TO USE:
+- Display all quotations in a list for user to compare
+- Show provider info, total cost, and status
+- Allow user to select and accept a quotation
+- Sort by total cost or sent date
+
+
+6.4 ACCEPT QUOTATION [PROTECTED - USERS ONLY]
+---------------------------------------------
+Method: POST
+Endpoint: /api/request-service/quotations/:quotationId/accept
+Description: User accepts a quotation (sets provider and price, rejects other quotations)
+
+Headers:
+  Authorization: Bearer <user-token-here>   // Required
+
+URL Parameters:
+  :quotationId    // Quotation ID
+
+Response (Success):
+{
+  "data": {
+    "quotationId": 1,
+    "requestId": 5,
+    "total": 7925.00,
+    "status": "accepted",
+    "message": "Quotation accepted. You can now proceed to payment."
+  }
+}
+
+Response (Error):
+{
+  "error": "Quotation is not in a valid state to be accepted"
+}
+OR
+{
+  "error": "Unauthorized: This quotation does not belong to you"
+}
+
+WHAT HAPPENS:
+- Quotation status changes to "accepted"
+- Service request status changes to "accepted"
+- Service request providerId is set to quotation provider
+- Service request price is set to quotation total
+- All other pending quotations for this request are automatically rejected
+- User can now proceed to payment
+
+HOW TO USE:
+- Call this when user clicks "Accept" on a quotation
+- Show success message
+- Redirect to payment screen
+- Update request status in UI
+
+
+6.5 REJECT QUOTATION [PROTECTED - USERS ONLY]
+----------------------------------------------
+Method: POST
+Endpoint: /api/request-service/quotations/:quotationId/reject
+Description: User rejects a quotation
+
+Headers:
+  Authorization: Bearer <user-token-here>   // Required
+
+URL Parameters:
+  :quotationId    // Quotation ID
+
+Response (Success):
+{
+  "data": {
+    "quotationId": 2,
+    "status": "rejected",
+    "message": "Quotation rejected"
+  }
+}
+
+Response (Error):
+{
+  "error": "Quotation is not in a valid state to be rejected"
+}
+
+HOW TO USE:
+- Call this when user clicks "Reject" or "Decline" on a quotation
+- Quotation status changes to "rejected"
+- Provider can see their quotation was rejected
+- User can still accept other quotations for the same request
+
+
+6.6 GET PROVIDER'S QUOTATIONS [PROTECTED - PROVIDERS ONLY]
+----------------------------------------------------------
+Method: GET
+Endpoint: /api/provider/quotations
+Description: Provider views all quotations they have sent
+
+Headers:
+  Authorization: Bearer <provider-token-here>   // Required
+
+Response (Success):
+{
+  "data": [
+    {
+      "id": 1,
+      "requestId": 5,
+      "request": {
+        "id": 5,
+        "jobTitle": "Kitchen sink repair",
+        "description": "Kitchen sink pipe has developed a leak...",
+        "status": "accepted"
+      },
+      "user": {
+        "id": 1,
+        "firstName": "Lawal",
+        "lastName": "Johnson",
+        "phoneNumber": "12345678901"
+      },
+      "laborCost": 5000.00,
+      "logisticsCost": 2000.00,
+      "materials": [...],
+      "total": 7925.00,
+      "status": "accepted",
+      "sentAt": "2024-01-15T10:30:00.000Z",
+      "acceptedAt": "2024-01-15T12:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "requestId": 6,
+      "request": {...},
+      "total": 6000.00,
+      "status": "pending",
+      "sentAt": "2024-01-15T11:00:00.000Z"
+    }
+  ]
+}
+
+HOW TO USE:
+- Display all quotations in provider's dashboard
+- Filter by status (pending, accepted, rejected)
+- Show request and user details for each quotation
+- Track which quotations were accepted and led to jobs
+
+
+QUOTATION STATUS FLOW:
+- "pending": Provider sent, waiting for user response
+- "accepted": User accepted, service can proceed
+- "rejected": User rejected this quotation
+- "expired": Quotation expired (if expiration is implemented)
+
+QUOTATION BREAKDOWN:
+The total is calculated as:
+  Total = Labor Cost + Logistics Cost + Materials Total + Service Charge + Tax
+
+Materials Total = Sum of (quantity × unitPrice) for all materials
+
+Example:
+  Labor Cost: ₦5,000
+  Logistics Cost: ₦2,000
+  Material 1: 1 × ₦450 = ₦450
+  Material 2: 3 × ₦150 = ₦450
+  Service Charge: ₦25
+  Tax: ₦0
+  Total: ₦7,925
+
 
 ================================================================================
                               END OF DOCUMENTATION

@@ -6,6 +6,7 @@ export interface SlideData {
   image: any; 
 }
 
+// Client Onboarding Slides
 export const ONBOARDING_SLIDES: SlideData[] = [
   {
     id: 'map',
@@ -27,6 +28,31 @@ export const ONBOARDING_SLIDES: SlideData[] = [
     description: 'Pay for rendered services securely through our in-app wallet.',
     icon: 'booking',
     image: require('../assets/images/onboarding3.png')
+  }
+];
+
+// Provider Onboarding Slides
+export const PROVIDER_ONBOARDING_SLIDES: SlideData[] = [
+  {
+    id: 'provider-demand',
+    title: 'Find people who need your service',
+    description: 'Get alerts customers are looking for your skills anywhere, anytime.',
+    icon: 'location',
+    image: require('../assets/images/Provideronboarding1.png')
+  },
+  {
+    id: 'provider-dashboard',
+    title: 'All jobs, one dashboard',
+    description: 'View, track, and manage every job, past and ongoing, in one place.',
+    icon: 'tracking',
+    image: require('../assets/images/Provideronboarding2.png')
+  },
+  {
+    id: 'provider-payments',
+    title: 'Simple, secure payments',
+    description: 'Get paid with confidence. Our in-app wallet keeps all your payments organized and safe.',
+    icon: 'booking',
+    image: require('../assets/images/Provideronboarding3.png')
   }
 ];
 

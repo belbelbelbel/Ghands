@@ -1,5 +1,6 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
+import { haptics } from '@/hooks/useHaptics';
+import { BorderRadius, Colors } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Download, FileText, Share2 } from 'lucide-react-native';
 import React from 'react';
@@ -61,8 +62,8 @@ export default function ProviderReceiptScreen() {
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 20,
-            paddingTop: 16,
-            paddingBottom: 12,
+            paddingTop: 12,
+            paddingBottom: 10,
             backgroundColor: Colors.white,
             borderBottomWidth: 1,
             borderBottomColor: Colors.border,
@@ -71,19 +72,19 @@ export default function ProviderReceiptScreen() {
           <TouchableOpacity
             onPress={() => router.back()}
             style={{
-              width: 40,
-              height: 40,
+              width: 32,
+              height: 32,
               alignItems: 'center',
               justifyContent: 'center',
               marginRight: 12,
             }}
             activeOpacity={0.7}
           >
-            <ArrowLeft size={24} color={Colors.textPrimary} />
+            <ArrowLeft size={20} color={Colors.textPrimary} />
           </TouchableOpacity>
           <Text
             style={{
-              fontSize: 18,
+              fontSize: 16,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
               flex: 1,
@@ -97,7 +98,7 @@ export default function ProviderReceiptScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 16,
+            paddingTop: 14,
             paddingBottom: 100,
           }}
         >
@@ -106,40 +107,40 @@ export default function ProviderReceiptScreen() {
             style={{
               backgroundColor: Colors.white,
               borderRadius: BorderRadius.xl,
-              padding: 16,
-              marginBottom: 16,
+              padding: 14,
+              marginBottom: 14,
               borderWidth: 1,
               borderColor: Colors.border,
             }}
           >
             {/* Receipt Header */}
-            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
               <View
                 style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
                   backgroundColor: Colors.accent,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginBottom: 10,
+                  marginBottom: 8,
                 }}
               >
-                <FileText size={28} color={Colors.white} />
+                <FileText size={22} color={Colors.white} />
               </View>
               <Text
                 style={{
-                  fontSize: 16,
+                  fontSize: 15,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.textPrimary,
-                  marginBottom: 4,
+                  marginBottom: 3,
                 }}
               >
                 Job Receipt
               </Text>
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: 11,
                   fontFamily: 'Poppins-Regular',
                   color: Colors.textSecondaryDark,
                 }}
@@ -149,10 +150,10 @@ export default function ProviderReceiptScreen() {
             </View>
 
             {/* Job Details */}
-            <View style={{ marginBottom: 16 }}>
+            <View style={{ marginBottom: 14 }}>
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: 13,
                   fontFamily: 'Poppins-SemiBold',
                   color: Colors.textPrimary,
                   marginBottom: 8,
@@ -234,13 +235,13 @@ export default function ProviderReceiptScreen() {
             </View>
 
             {/* Cost Breakdown */}
-            <View style={{ marginBottom: 16 }}>
+            <View style={{ marginBottom: 14 }}>
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: 13,
                   fontFamily: 'Poppins-SemiBold',
                   color: Colors.textPrimary,
-                  marginBottom: 10,
+                  marginBottom: 8,
                 }}
               >
                 Cost Breakdown
@@ -344,8 +345,8 @@ export default function ProviderReceiptScreen() {
 
               <View
                 style={{
-                  marginTop: 12,
-                  paddingTop: 12,
+                  marginTop: 10,
+                  paddingTop: 10,
                   borderTopWidth: 2,
                   borderTopColor: Colors.accent,
                 }}
@@ -358,7 +359,7 @@ export default function ProviderReceiptScreen() {
                 >
                   <Text
                     style={{
-                      fontSize: 16,
+                      fontSize: 15,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.textPrimary,
                     }}
@@ -367,7 +368,7 @@ export default function ProviderReceiptScreen() {
                   </Text>
                   <Text
                     style={{
-                      fontSize: 16,
+                      fontSize: 15,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.accent,
                     }}
@@ -383,8 +384,8 @@ export default function ProviderReceiptScreen() {
               style={{
                 backgroundColor: Colors.successLight,
                 borderRadius: BorderRadius.default,
-                padding: 12,
-                marginBottom: 16,
+                padding: 10,
+                marginBottom: 14,
               }}
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -411,13 +412,13 @@ export default function ProviderReceiptScreen() {
           </View>
 
           {/* Action Buttons */}
-          <View style={{ gap: 12, marginBottom: 20 }}>
+          <View style={{ gap: 10, marginBottom: 16 }}>
             <TouchableOpacity
               onPress={handleDownloadReceipt}
               style={{
                 backgroundColor: Colors.accent,
                 borderRadius: BorderRadius.xl,
-                paddingVertical: 12,
+                paddingVertical: 10,
                 paddingHorizontal: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -425,13 +426,13 @@ export default function ProviderReceiptScreen() {
               }}
               activeOpacity={0.8}
             >
-              <Download size={18} color={Colors.white} />
+              <Download size={16} color={Colors.white} />
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: 13,
                   fontFamily: 'Poppins-SemiBold',
                   color: Colors.white,
-                  marginLeft: 8,
+                  marginLeft: 6,
                 }}
               >
                 Download PDF
@@ -442,7 +443,7 @@ export default function ProviderReceiptScreen() {
               style={{
                 backgroundColor: Colors.white,
                 borderRadius: BorderRadius.xl,
-                paddingVertical: 12,
+                paddingVertical: 10,
                 paddingHorizontal: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -452,16 +453,54 @@ export default function ProviderReceiptScreen() {
               }}
               activeOpacity={0.8}
             >
-              <Share2 size={18} color={Colors.accent} />
+              <Share2 size={16} color={Colors.accent} />
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: 13,
                   fontFamily: 'Poppins-SemiBold',
                   color: Colors.accent,
-                  marginLeft: 8,
+                  marginLeft: 6,
                 }}
               >
                 Share
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                router.push({
+                  pathname: '/ReportIssueScreen',
+                  params: {
+                    requestId: receiptData.receiptNumber,
+                    jobTitle: receiptData.jobTitle,
+                    orderNumber: receiptData.receiptNumber,
+                    cost: `₦${formatCurrency(receiptData.totalAmount)}`,
+                    assignee: receiptData.clientName,
+                    completionDate: receiptData.paymentDate,
+                  },
+                } as any);
+              }}
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.xl,
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: Colors.error,
+              }}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.error,
+                }}
+              >
+                Report Issue
               </Text>
             </TouchableOpacity>
           </View>

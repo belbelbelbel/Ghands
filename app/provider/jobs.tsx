@@ -3,13 +3,16 @@ import { BorderRadius, Colors, Fonts, Spacing } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Calendar, MapPin } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl } from 'react-native';
-import { providerService, ServiceRequest, apiClient } from '@/services/api';
+import { Image, ScrollView, Text, TouchableOpacity, View, RefreshControl } from 'react-native';
+import { JobHistoryCardSkeleton } from '@/components/LoadingSkeleton';
+import { providerService, ServiceRequest, apiClient, authService } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useFocusEffect } from 'expo-router';
+import { AuthError } from '@/utils/errors';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 
 type JobStatus = 'Ongoing' | 'Pending' | 'Completed';
 
@@ -59,7 +62,20 @@ const formatTimeAgo = (dateString: string): string => {
 };
 
 // Map API status to JobStatus
-const mapApiStatusToJobStatus = (apiStatus: string): JobStatus => {
+// IMPORTANT: If a request is in getAcceptedRequests(), it means provider has already accepted it
+// So even if status is "pending" (waiting for client selection), treat it as "Ongoing"
+const mapApiStatusToJobStatus = (apiStatus: string, isFromAcceptedList: boolean = true): JobStatus => {
+  // FIRST check if it's completed - this should always be 'Completed' regardless of other conditions
+  if (apiStatus?.toLowerCase() === 'completed') {
+    return 'Completed';
+  }
+  
+  // If this is from accepted requests list, provider has already accepted
+  // So treat "pending" as "Ongoing" (waiting for client to confirm)
+  if (isFromAcceptedList && apiStatus?.toLowerCase() === 'pending') {
+    return 'Ongoing';
+  }
+  
   switch (apiStatus?.toLowerCase()) {
     case 'accepted':
     case 'in_progress':
@@ -69,7 +85,7 @@ const mapApiStatusToJobStatus = (apiStatus: string): JobStatus => {
     case 'completed':
       return 'Completed';
     default:
-      return 'Pending';
+      return 'Ongoing'; // Default to Ongoing if from accepted list
   }
 };
 
@@ -88,7 +104,9 @@ const mapRequestToJobItem = (request: ServiceRequest): JobItem => {
   const scheduledDate = request.scheduledDate ? formatDate(request.scheduledDate) : '';
   const scheduledTime = request.scheduledTime || '';
   
-  const status = mapApiStatusToJobStatus(request.status || 'pending');
+  // Since this is from getAcceptedRequests(), provider has already accepted
+  // So isFromAcceptedList = true
+  const status = mapApiStatusToJobStatus(request.status || 'pending', true);
   
   return {
     id: request.id?.toString() || '',
@@ -122,19 +140,8 @@ export default function ProviderJobsScreen() {
   const loadAcceptedRequests = useCallback(async () => {
     setIsLoading(true);
     try {
-      // NO need to get providerId - backend extracts from Bearer token
-      if (__DEV__) {
-        console.log('🔄 Loading accepted requests (provider ID from Bearer token)...');
-      }
-
       const requests = await providerService.getAcceptedRequests();
-      
-      // Ensure requests is always an array
       const requestsArray = Array.isArray(requests) ? requests : [];
-      
-      if (__DEV__) {
-        console.log('✅ Accepted requests loaded:', requestsArray.length);
-      }
       
       // Map to job items only if we have valid requests
       const jobItems = requestsArray.length > 0
@@ -143,9 +150,56 @@ export default function ProviderJobsScreen() {
       
       setAllJobs(jobItems);
     } catch (error: any) {
-      console.error('Error loading accepted requests:', error);
-      const errorMessage = getSpecificErrorMessage(error, 'get_accepted_requests');
-      showError(errorMessage);
+      // If AuthError, redirect immediately (silent - no logs, no errors shown)
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
+      
+      // Check if it's a 500 error that might be auth-related
+      // For provider endpoints, 500 errors are often auth-related (expired/invalid token)
+      const status = error?.status || (error as any)?.response?.status || 500;
+      if (status === 500) {
+        try {
+          const token = await authService.getAuthToken();
+          if (!token) {
+            // No token = auth error, redirect silently
+            await handleAuthErrorRedirect(router);
+            return;
+          }
+          // Even if token exists, 500 on provider protected route usually means expired/invalid token
+          // Be aggressive - redirect on any 500 error for provider endpoints
+          await handleAuthErrorRedirect(router);
+          return;
+        } catch (redirectError) {
+          // If redirect fails, try again with fallback
+          try {
+            router.replace('/ProviderSignInScreen' as any);
+          } catch {
+            // Silent fail
+          }
+          return;
+        }
+      }
+      
+      // Check if it's a network error first
+      const isNetworkError = error?.isNetworkError || 
+                            error?.message?.includes('Network') || 
+                            error?.message?.includes('Failed to fetch') ||
+                            error?.message?.includes('Network request failed');
+      
+      if (isNetworkError) {
+        showError('No internet connection. Please check your connection and reconnect to continue.');
+        setAllJobs([]);
+        return;
+      }
+      
+      // Don't show errors for auth-related issues (already redirected)
+      // Only show error if it's not a 500 (which might be auth-related)
+      if (status !== 500) {
+        const errorMessage = getSpecificErrorMessage(error, 'get_accepted_requests');
+        showError(errorMessage);
+      }
       setAllJobs([]);
     } finally {
       setIsLoading(false);
@@ -171,7 +225,15 @@ export default function ProviderJobsScreen() {
   const getJobsForTab = () => {
     // Ensure allJobs is always an array
     const jobsArray = Array.isArray(allJobs) ? allJobs : [];
-    return jobsArray.filter((job) => job.status === activeTab);
+    
+    // Filter by active tab AND explicitly exclude completed jobs from Ongoing tab
+    return jobsArray.filter((job) => {
+      // If activeTab is 'Ongoing', explicitly exclude 'Completed' jobs
+      if (activeTab === 'Ongoing') {
+        return job.status === 'Ongoing' && job.status !== 'Completed';
+      }
+      return job.status === activeTab;
+    });
   };
 
   const renderJobCard = (job: JobItem) => (
@@ -248,10 +310,18 @@ export default function ProviderJobsScreen() {
             }}
             onPress={() => {
               haptics.light();
+              
+              // Validate requestId before navigating
+              const requestId = job.requestId || job.id;
+              if (!requestId) {
+                showError('Invalid job ID');
+                return;
+              }
+              
               router.push({
                 pathname: '/ProviderJobDetailsScreen',
                 params: {
-                  requestId: job.requestId?.toString() || job.id,
+                  requestId: requestId.toString(),
                 },
               } as any);
             }}
@@ -261,80 +331,42 @@ export default function ProviderJobsScreen() {
             </Text>
             <ArrowRight size={14} color={Colors.white} />
           </TouchableOpacity>
-      ) : job.status === 'Pending' ? (
-        <View style={{ flexDirection: 'row', gap: Spacing.xs }}>
-          <TouchableOpacity
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              borderRadius: BorderRadius.default,
-              borderWidth: 1,
-              borderColor: Colors.errorBorder,
-              backgroundColor: Colors.errorLight,
-            }}
-          >
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.error, textAlign: 'center' }}>
-              Decline
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              flex: 1,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              borderRadius: BorderRadius.default,
-              borderWidth: 1,
-              borderColor: Colors.border,
-              backgroundColor: Colors.white,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            onPress={() => {
-              haptics.light();
-              router.push({
-                pathname: '/ProviderJobDetailsScreen',
-                params: {
-                  requestId: job.requestId?.toString() || job.id,
-                },
-              } as any);
-            }}
-          >
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginRight: Spacing.xs }}>
-              View details
-            </Text>
-            <ArrowRight size={14} color={Colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
       ) : (
+        // For accepted requests (status is "Ongoing" or "Pending" but provider has accepted)
+        // Only show "Check Updates" button - never show "Decline"
         <TouchableOpacity
           style={{
             width: '100%',
             paddingVertical: 12,
             paddingHorizontal: 16,
             borderRadius: BorderRadius.default,
-            borderWidth: 1,
-            borderColor: Colors.border,
-            backgroundColor: Colors.white,
+            backgroundColor: Colors.black,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
           }}
           onPress={() => {
             haptics.light();
+            
+            // Validate requestId before navigating
+            const requestId = job.requestId || job.id;
+            if (!requestId) {
+              showError('Invalid job ID');
+              return;
+            }
+            
             router.push({
               pathname: '/ProviderJobDetailsScreen',
               params: {
-                requestId: job.requestId?.toString() || job.id,
+                requestId: requestId.toString(),
               },
             } as any);
           }}
         >
-          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginRight: Spacing.xs }}>
-            View details
+          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: Spacing.xs }}>
+            Check Updates
           </Text>
-          <ArrowRight size={14} color={Colors.textPrimary} />
+          <ArrowRight size={14} color={Colors.white} />
         </TouchableOpacity>
       )}
 
@@ -399,7 +431,7 @@ export default function ProviderJobsScreen() {
                   color: activeTab === tab ? Colors.textPrimary : Colors.textTertiary,
                 }}
               >
-                {tab === 'Completed' ? 'Updates' : tab}
+                {tab}
               </Text>
             </TouchableOpacity>
           ))}
@@ -422,12 +454,11 @@ export default function ProviderJobsScreen() {
           }
         >
           {isLoading ? (
-            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
-              <ActivityIndicator size="large" color={Colors.accent} />
-              <Text style={{ ...Fonts.bodyMedium, color: Colors.textTertiary, marginTop: 16 }}>
-                Loading jobs...
-              </Text>
-            </View>
+            <>
+              {[1, 2, 3].map((index) => (
+                <JobHistoryCardSkeleton key={index} />
+              ))}
+            </>
           ) : getJobsForTab().length > 0 ? (
             getJobsForTab().map((job) => renderJobCard(job))
           ) : (

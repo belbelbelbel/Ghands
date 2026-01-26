@@ -4,14 +4,16 @@ import { authService } from '@/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Lock, Mail, Phone } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { ScrollView, Text, TouchableOpacity, View, TextInput } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { AuthButton } from '../components/AuthButton';
 import { InputField } from '../components/InputField';
 import { SocialButton } from '../components/SocialButton';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import { formatPhoneNumber, isValidEmail, getPasswordStrength, isValidPhoneNumber } from '@/utils/inputFormatting';
+import { Colors } from '@/lib/designSystem';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -21,7 +23,79 @@ export default function SignupScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Prevent duplicate submissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Real-time validation states
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [passwordStrength, setPasswordStrength] = useState<{ strength: 'weak' | 'medium' | 'strong'; message: string } | null>(null);
+  
+  // Refs for auto-focus
+  const phoneInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const confirmPasswordInputRef = useRef<TextInput>(null);
+
+  // Real-time email validation
+  const handleEmailChange = useCallback((text: string) => {
+    setEmail(text);
+    if (text.trim() && !isValidEmail(text.trim())) {
+      setEmailError('Please enter a valid email address');
+    } else {
+      setEmailError('');
+    }
+  }, []);
+
+  // Real-time phone validation with formatting
+  const handlePhoneChange = useCallback((text: string) => {
+    const digits = text.replace(/\D/g, '').slice(0, 11);
+    const formatted = formatPhoneNumber(digits);
+    setPhoneNumber(formatted);
+    
+    if (digits.length > 0 && digits.length !== 11) {
+      setPhoneError('Phone number must be 11 digits');
+    } else if (digits.length === 11 && !isValidPhoneNumber(digits)) {
+      setPhoneError('Invalid phone number format');
+    } else {
+      setPhoneError('');
+    }
+  }, []);
+
+  // Real-time password validation with strength indicator
+  const handlePasswordChange = useCallback((text: string) => {
+    setPassword(text);
+    
+    if (text.length > 0 && text.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      setPasswordStrength(null);
+    } else if (text.length >= 6) {
+      setPasswordError('');
+      const strength = getPasswordStrength(text);
+      setPasswordStrength(strength);
+    } else {
+      setPasswordError('');
+      setPasswordStrength(null);
+    }
+    
+    // Check confirm password match if it's already filled
+    if (confirmPassword && text !== confirmPassword) {
+      setConfirmPasswordError('Passwords do not match');
+    } else if (confirmPassword && text === confirmPassword) {
+      setConfirmPasswordError('');
+    }
+  }, [confirmPassword]);
+
+  // Real-time confirm password validation
+  const handleConfirmPasswordChange = useCallback((text: string) => {
+    setConfirmPassword(text);
+    
+    if (text && text !== password) {
+      setConfirmPasswordError('Passwords do not match');
+    } else {
+      setConfirmPasswordError('');
+    }
+  }, [password]);
 
   const handleSignup = async () => {
     // Prevent duplicate submissions
@@ -32,38 +106,40 @@ export default function SignupScreen() {
       return;
     }
 
-    // Basic validation
-    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
-      showError('Please fill in all required fields');
-      return;
+    // Validate all fields
+    let hasErrors = false;
+    
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      hasErrors = true;
+    } else if (!isValidEmail(email.trim())) {
+      setEmailError('Please enter a valid email address');
+      hasErrors = true;
     }
-
-    if (password !== confirmPassword) {
-      showError('Passwords do not match');
-      return;
+    
+    if (phoneNumber.trim() && !isValidPhoneNumber(phoneNumber.replace(/\s/g, ''))) {
+      setPhoneError('Phone number must be 11 digits');
+      hasErrors = true;
     }
-
-    if (password.length < 6) {
-      showError('Password must be at least 6 characters');
-      return;
+    
+    if (!password.trim()) {
+      setPasswordError('Password is required');
+      hasErrors = true;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      hasErrors = true;
     }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      showError('Please enter a valid email address');
-      return;
+    
+    if (!confirmPassword.trim()) {
+      setConfirmPasswordError('Please confirm your password');
+      hasErrors = true;
+    } else if (password !== confirmPassword) {
+      setConfirmPasswordError('Passwords do not match');
+      hasErrors = true;
     }
-
-    // Phone number validation (optional but if provided, must be exactly 11 characters)
-    if (phoneNumber.trim() && phoneNumber.trim().length !== 11) {
-      showError('Phone number must be exactly 11 characters');
-      return;
-    }
-
-    // Phone number should only contain digits
-    if (phoneNumber.trim() && !/^\d+$/.test(phoneNumber.trim())) {
-      showError('Phone number should only contain numbers');
+    
+    if (hasErrors) {
+      showError('Please fix the errors above');
       return;
     }
 
@@ -73,10 +149,11 @@ export default function SignupScreen() {
 
     try {
       // Build signup payload with only email, password, and phoneNumber
+      const phoneDigits = phoneNumber.replace(/\s/g, '');
       const signupPayload = {
         email: email.trim().toLowerCase(), // Normalize email to lowercase
         password: password.trim(),
-        ...(phoneNumber.trim() && phoneNumber.trim().length === 11 ? { phoneNumber: phoneNumber.trim() } : {}),
+        ...(phoneDigits && phoneDigits.length === 11 ? { phoneNumber: phoneDigits } : {}),
       };
 
       // Log what we're sending for debugging
@@ -110,8 +187,20 @@ export default function SignupScreen() {
         router.replace('/(tabs)/home');
       }, 1500);
     } catch (error: any) {
-      console.error('Signup error:', error);
       haptics.error();
+      
+      // Check if it's a network error first
+      const isNetworkError = error?.isNetworkError || 
+                            error?.message?.includes('Network') || 
+                            error?.message?.includes('Failed to fetch') ||
+                            error?.message?.includes('Network request failed');
+      
+      if (isNetworkError) {
+        showError('No internet connection. Please check your connection and reconnect to continue.');
+        setIsLoading(false);
+        setIsSubmitting(false);
+        return;
+      }
       
       // Extract error message from API response
       // API returns errors as: { "data": { "error": "..." }, "success": false }
@@ -197,9 +286,14 @@ export default function SignupScreen() {
           icon={<Mail size={20} color={'white'}/>}
           keyboardType="email-address"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={handleEmailChange}
           iconPosition="left"
           autoCapitalize="none"
+          error={!!emailError}
+          errorMessage={emailError}
+          returnKeyType="next"
+          onSubmitEditing={() => phoneInputRef.current?.focus()}
+          autoFocus={true}
         />
 
         {/* Phone Number Input */}
@@ -208,24 +302,69 @@ export default function SignupScreen() {
           icon={<Phone size={20} color={'white'}/>}
           keyboardType="phone-pad"
           value={phoneNumber}
-          onChangeText={(text) => {
-            // Only allow digits and limit to 11 characters
-            const cleaned = text.replace(/[^\d]/g, '').slice(0, 11);
-            setPhoneNumber(cleaned);
-          }}
+          onChangeText={handlePhoneChange}
           iconPosition="left"
           autoCapitalize="none"
+          error={!!phoneError}
+          errorMessage={phoneError}
+          maxLength={13} // 4 + space + 3 + space + 4 = 13
+          returnKeyType="next"
+          onSubmitEditing={() => passwordInputRef.current?.focus()}
         />
 
         {/* Password Input */}
-        <InputField
-          placeholder="Password"
-          icon={<Lock size={20} color={'white'}/>}
-          secureTextEntry={true}
-          value={password}
-          onChangeText={setPassword}
-          iconPosition="right"
-        />
+        <View>
+          <InputField
+            placeholder="Password (min 6 characters)"
+            icon={<Lock size={20} color={'white'}/>}
+            secureTextEntry={true}
+            value={password}
+            onChangeText={handlePasswordChange}
+            iconPosition="right"
+            error={!!passwordError}
+            errorMessage={passwordError}
+            maxLength={50}
+            showCharCount={password.length > 0}
+            returnKeyType="next"
+            onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
+          />
+          {/* Password Strength Indicator */}
+          {passwordStrength && password.length >= 6 && (
+            <View style={{ marginTop: -8, marginBottom: 8, paddingHorizontal: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <View style={{ flex: 1, height: 4, backgroundColor: Colors.backgroundGray, borderRadius: 2, overflow: 'hidden' }}>
+                  <View
+                    style={{
+                      width: `${(passwordStrength.score / 6) * 100}%`,
+                      height: '100%',
+                      backgroundColor:
+                        passwordStrength.strength === 'weak'
+                          ? '#EF4444'
+                          : passwordStrength.strength === 'medium'
+                          ? '#F59E0B'
+                          : '#10B981',
+                    }}
+                  />
+                </View>
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 11,
+                    fontFamily: 'Poppins-Medium',
+                    color:
+                      passwordStrength.strength === 'weak'
+                        ? '#EF4444'
+                        : passwordStrength.strength === 'medium'
+                        ? '#F59E0B'
+                        : '#10B981',
+                  }}
+                >
+                  {passwordStrength.message}
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
 
         {/* Confirm Password Input */}
         <InputField
@@ -233,8 +372,12 @@ export default function SignupScreen() {
           icon={<Lock size={20} color={'white'}/>}
           secureTextEntry={true}
           value={confirmPassword}
-          onChangeText={setConfirmPassword}
+          onChangeText={handleConfirmPasswordChange}
           iconPosition="right"
+          error={!!confirmPasswordError}
+          errorMessage={confirmPasswordError}
+          returnKeyType="done"
+          onSubmitEditing={handleSignup}
         />
 
 

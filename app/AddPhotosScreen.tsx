@@ -195,12 +195,7 @@ export default function AddPhotosScreen() {
     if (isFindingProviders) {
       return;
     }
-    if (selectedPhotos.size === 0) {
-      showError('Please select at least one photo to continue');
-      return;
-    }
-    // Navigate directly to provider selection - confirmation will be shown in summary
-    const selected = photos.filter((photo) => selectedPhotos.has(photo.id));
+    // Photos are now optional - allow proceeding without photos
     setIsFindingProviders(true);
 
     if (findingTimeoutRef.current) {
@@ -213,25 +208,58 @@ export default function AddPhotosScreen() {
       router.replace({
         pathname: '/ServiceMapScreen' as any,
         params: {
+          requestId: params.requestId, // Pass requestId for provider selection
           categoryName: params.categoryName, // Pass categoryName (primary)
           serviceType: params.serviceType || params.categoryName, // Use categoryName as fallback
           selectedDateTime: params.selectedDateTime,
           selectedDate: params.selectedDate,
           selectedTime: params.selectedTime,
-          photoCount: selectedPhotos.size.toString(),
+          photoCount: selectedPhotos.size.toString(), // Will be 0 if no photos selected
           location: params.location, // Preserve location
         },
       } as any);
     }, 1800);
-  }, [isFindingProviders, selectedPhotos, photos, router, params]);
+  }, [isFindingProviders, selectedPhotos, router, params]);
 
   const handleCancel = useCallback(() => {
-    router.back();
-  }, [router]);
+    // Navigate back to DateTimeScreen explicitly
+    if (params.requestId) {
+      router.replace({
+        pathname: '/DateTimeScreen' as any,
+        params: {
+          requestId: params.requestId,
+          categoryName: params.categoryName,
+          selectedDate: params.selectedDate,
+          selectedTime: params.selectedTime,
+          serviceType: params.serviceType,
+          location: params.location,
+        },
+      } as any);
+    } else {
+      // If no requestId, go to categories
+      router.replace('/(tabs)/categories' as any);
+    }
+  }, [router, params]);
 
   const handleBack = useCallback(() => {
-    router.back();
-  }, [router]);
+    // Navigate back to DateTimeScreen explicitly
+    if (params.requestId) {
+      router.replace({
+        pathname: '/DateTimeScreen' as any,
+        params: {
+          requestId: params.requestId,
+          categoryName: params.categoryName,
+          selectedDate: params.selectedDate,
+          selectedTime: params.selectedTime,
+          serviceType: params.serviceType,
+          location: params.location,
+        },
+      } as any);
+    } else {
+      // If no requestId, go to categories
+      router.replace('/(tabs)/categories' as any);
+    }
+  }, [router, params]);
 
   const animatedStyles = useRef({
     opacity: fadeAnim,
@@ -243,7 +271,8 @@ export default function AddPhotosScreen() {
     outputRange: ['0deg', '360deg'],
   });
 
-  const canProceed = selectedPhotos.size > 0;
+  // Photos are optional, so user can always proceed
+  const canProceed = true;
 
   return (
     <SafeAreaWrapper>
@@ -272,10 +301,10 @@ export default function AddPhotosScreen() {
               <Camera size={40} color="#6B7280" />
             </View>
             <Text className="text-lg text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
-              Add Photos of the Issue
+              Add Photos of the Issue (Optional)
             </Text>
             <Text className="text-sm text-gray-500 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
-              Help providers understand the problem better
+              Help providers understand the problem better. You can skip this step if you don't have photos.
             </Text>
           </View>
 
@@ -383,7 +412,7 @@ export default function AddPhotosScreen() {
               className={`text-base ${!canProceed || isFindingProviders ? 'text-gray-500' : 'text-white'}`}
               style={{ fontFamily: 'Poppins-SemiBold' }}
             >
-              {isFindingProviders ? 'Matching…' : 'Done'}
+              {isFindingProviders ? 'Matching…' : selectedPhotos.size > 0 ? 'Continue' : 'Skip & Continue'}
             </Text>
           </TouchableOpacity>
 

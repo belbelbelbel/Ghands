@@ -2,13 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ONBOARDING_STORAGE_KEY } from './useOnboarding';
-import { apiClient } from '@/services/api';
+import { authService } from '@/services/api';
 
 export type UserRole = 'client' | 'provider' | null;
 
 interface UseAuthRoleReturn {
   role: UserRole;
   setRole: (role: UserRole) => Promise<void>;
+  switchRole: (newRole: UserRole) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
 }
@@ -55,23 +56,91 @@ export function useAuthRole(): UseAuthRoleReturn {
     }
   }, []);
 
+  /**
+   * Switch role without going through onboarding
+   * Used for demo/testing purposes
+   * Navigates to the respective auth screen instead of home
+   */
+  const switchRole = useCallback(async (newRole: UserRole) => {
+    try {
+      if (!newRole) {
+        throw new Error('Role cannot be null');
+      }
+
+      // Clear auth tokens when switching roles (user needs to log in with new role)
+      await authService.clearAuthTokens();
+
+      // Clear all provider-related data if switching from provider
+      const providerKeys = [
+        '@ghands:business_name',
+        '@ghands:company_name',
+        '@ghands:provider_id',
+        '@ghands:provider_name',
+        '@ghands:provider_email',
+        '@ghands:company_email',
+        '@ghands:company_phone',
+        '@ghands:profile_complete',
+      ];
+      await AsyncStorage.multiRemove(providerKeys);
+
+      // Set new role
+      await AsyncStorage.setItem(AUTH_ROLE_KEY, newRole);
+      setRoleState(newRole);
+
+      // Mark onboarding as complete so user doesn't see it again
+      await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+
+      // Navigate to appropriate auth screen (not home)
+      if (newRole === 'provider') {
+        router.replace('/ProviderSignInScreen');
+      } else {
+        router.replace('/LoginScreen');
+      }
+    } catch (error) {
+      console.error('Error switching role:', error);
+      throw error;
+    }
+  }, [router]);
+
   const logout = useCallback(async () => {
     try {
-      // Clear all auth data using apiClient (includes token, refresh token, and user ID)
-      await apiClient.clearAuthTokens();
+      // Get role BEFORE clearing it so we know where to redirect
+      const currentRole = await AsyncStorage.getItem(AUTH_ROLE_KEY);
       
-      // Clear role and onboarding status
-      await AsyncStorage.multiRemove([AUTH_ROLE_KEY, ONBOARDING_STORAGE_KEY]);
+      // Clear all auth data using authService (includes token, refresh token, and user ID)
+      await authService.clearAuthTokens();
+      
+      // Clear all provider-related data
+      const providerKeys = [
+        '@ghands:business_name',
+        '@ghands:company_name',
+        '@ghands:provider_id',
+        '@ghands:provider_name',
+        '@ghands:provider_email',
+        '@ghands:company_email',
+        '@ghands:company_phone',
+        '@ghands:profile_complete', // Provider profile completion status
+      ];
+      
+      // Clear role, onboarding status, and provider data
+      await AsyncStorage.multiRemove([
+        AUTH_ROLE_KEY,
+        ONBOARDING_STORAGE_KEY,
+        ...providerKeys,
+      ]);
       
       setRoleState(null);
       
-      if (__DEV__) {
-        console.log('✅ Logout successful - All auth data cleared');
+      // Redirect to appropriate login screen based on role
+      // User is signing out, so they're not a first-timer - go to login, not role selection
+      if (currentRole === 'provider') {
+        router.replace('/ProviderSignInScreen');
+      } else if (currentRole === 'client') {
+        router.replace('/LoginScreen');
+      } else {
+        // Only go to role selection if no role was found (shouldn't happen on logout)
+        router.replace('/SelectAccountTypeScreen');
       }
-      
-      // Navigate to index which will check onboarding status and route appropriately
-      // Since we cleared onboarding, it will route to /onboarding
-      router.replace('/');
     } catch (error) {
       console.error('Error during logout:', error);
       throw error;
@@ -81,6 +150,7 @@ export function useAuthRole(): UseAuthRoleReturn {
   return {
     role,
     setRole,
+    switchRole,
     logout,
     isLoading,
   };

@@ -1,128 +1,58 @@
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
-import { Dimensions, Image, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
 import useOnboarding from '../hooks/useOnboarding';
+import { authService } from '@/services/authService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-// Normal green color used throughout the app
-const APP_GREEN = '#6A9B00';
-
-// Responsive scaling factors based on screen size
-const isSmallScreen = SCREEN_WIDTH < 375; // iPhone SE, small Android
-const isMediumScreen = SCREEN_WIDTH >= 375 && SCREEN_WIDTH < 414; // iPhone 8, 11
-const isLargeScreen = SCREEN_WIDTH >= 414; // iPhone 12+, most Android
-
-// Calculate responsive values
-const getResponsiveSize = (small: number, medium: number, large: number) => {
-  if (isSmallScreen) return small;
-  if (isMediumScreen) return medium;
-  return large;
-};
-
-const getResponsivePadding = (base: number) => {
-  return isSmallScreen ? base * 0.75 : base;
-};
+const AUTH_ROLE_KEY = '@ghands:user_role';
 
 export default function EntryPoint() {
   const router = useRouter();
-  const { isOnboardingComplete, isLoading } = useOnboarding();
+  const { isOnboardingComplete, isLoading: onboardingLoading } = useOnboarding();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
-    if (!isLoading) {
-      const destination = isOnboardingComplete ? '/(tabs)/home' : '/onboarding';
-      router.replace(destination);
-    }
-  }, [isLoading, isOnboardingComplete, router]);
-
-  // Calculate responsive dimensions
-  const iconSize = getResponsiveSize(
-    SCREEN_WIDTH * 0.35, // 35% on small screens
-    SCREEN_WIDTH * 0.38, // 38% on medium screens
-    SCREEN_WIDTH * 0.4   // 40% on large screens
-  );
-
-  const iconMaxSize = getResponsiveSize(200, 220, 240);
-  const iconMinSize = getResponsiveSize(120, 140, 160);
-  const borderRadius = getResponsiveSize(16, 18, 20);
-  const marginBottom = getResponsiveSize(
-    SCREEN_HEIGHT < 700 ? 20 : 30,
-    SCREEN_HEIGHT < 800 ? 35 : 40,
-    40
-  );
-  const taglineFontSize = getResponsiveSize(14, 16, 17);
-  const horizontalPadding = getResponsivePadding(20);
-
-  return (
-    <View style={[styles.container, { paddingHorizontal: horizontalPadding }]}>
-      {/* Icon Container - Black square with rounded corners */}
-      <View style={[
-        styles.iconContainer,
-        {
-          width: iconSize,
-          height: iconSize,
-          maxWidth: iconMaxSize,
-          maxHeight: iconMaxSize,
-          minWidth: iconMinSize,
-          minHeight: iconMinSize,
-          borderRadius: borderRadius,
-          marginBottom: marginBottom,
-        }
-      ]}>
-        <Image 
-          source={require('../assets/images/icon.png')} 
-          style={styles.icon}
-          resizeMode="contain"
-        />
-      </View>
-      
-      {/* Tagline Text */}
-      <Text 
-        style={[
-          styles.tagline,
-          {
-            fontSize: taglineFontSize,
-            paddingHorizontal: horizontalPadding,
+    const checkAuthAndRoute = async () => {
+      try {
+        // Check if user is authenticated
+        const token = await authService.getAuthToken();
+        const role = await AsyncStorage.getItem(AUTH_ROLE_KEY);
+        
+        if (token && role) {
+          // User is authenticated - go directly to their home screen based on role
+          // Skip onboarding check for authenticated users
+          if (role === 'provider') {
+            router.replace('/provider/home');
+          } else {
+            router.replace('/(tabs)/home');
           }
-        ]}
-        numberOfLines={2}
-        adjustsFontSizeToFit
-      >
-        Your one-stop shop for help
-      </Text>
-    </View>
-  );
-}
+          return;
+        }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: APP_GREEN,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconContainer: {
-    backgroundColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 6, // Android shadow
-  },
-  icon: {
-    width: '75%',
-    height: '75%',
-  },
-  tagline: {
-    fontFamily: 'Poppins-SemiBold',
-    color: '#000000',
-    textAlign: 'center',
-    marginTop: 8,
-    letterSpacing: 0.3,
-  },
-});
+        // User is not authenticated - check onboarding status
+        if (!onboardingLoading) {
+          if (isOnboardingComplete) {
+            // Onboarding complete but not authenticated - go to account selection
+            router.replace('/SelectAccountTypeScreen');
+          } else {
+            // First time user - show onboarding/account selection
+            router.replace('/SelectAccountTypeScreen');
+          }
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error checking auth:', error);
+        }
+        // On error, go to account selection
+        router.replace('/SelectAccountTypeScreen');
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkAuthAndRoute();
+  }, [onboardingLoading, isOnboardingComplete, router]);
+
+  // Return null - we redirect immediately, no splash screen here
+  return null;
+}

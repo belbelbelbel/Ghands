@@ -1,89 +1,57 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CoachMarkStep } from '@/components/CoachMarks';
 
-const COACH_MARKS_COMPLETED_KEY = '@ghands:coach_marks_completed';
+const COACH_MARKS_STORAGE_KEY = '@ghands:coach_marks_complete';
 
-export interface CoachMark {
-  id: string;
-  title: string;
-  description: string;
-  targetElement?: string; // Ref name for highlighting
+interface UseCoachMarksReturn {
+  isComplete: boolean;
+  isLoading: boolean;
+  currentStep: number;
+  startTour: () => void;
+  nextStep: () => void;
+  previousStep: () => void;
+  skipTour: () => Promise<void>;
+  completeTour: () => Promise<void>;
+  resetTour: () => Promise<void>;
 }
 
-export const COACH_MARKS: CoachMark[] = [
-  {
-    id: 'search',
-    title: 'Search for Services',
-    description: 'Use the search bar to quickly find any service you need',
-  },
-  {
-    id: 'categories',
-    title: 'Browse Categories',
-    description: 'Scroll through service categories to find what you\'re looking for',
-  },
-  {
-    id: 'quick-actions',
-    title: 'Quick Actions',
-    description: 'Fast access to emergency services, booking again, and your wallet',
-  },
-  {
-    id: 'request-button',
-    title: 'Request Service',
-    description: 'Tap the center button to start a new service request',
-  },
-  {
-    id: 'jobs',
-    title: 'View Your Jobs',
-    description: 'Track all your bookings and service history in the Jobs tab',
-  },
-];
-
-export function useCoachMarks() {
-  const [isCompleted, setIsCompleted] = useState(true);
-  const [currentStep, setCurrentStep] = useState(0);
+export default function useCoachMarks(
+  steps: CoachMarkStep[]
+): UseCoachMarksReturn {
+  const [isComplete, setIsComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isVisible, setIsVisible] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
-    checkCoachMarksStatus();
-  }, []);
-
-  const checkCoachMarksStatus = async () => {
-    try {
-      const value = await AsyncStorage.getItem(COACH_MARKS_COMPLETED_KEY);
-      const completed = value === 'true';
-      setIsCompleted(completed);
-      setIsVisible(false); // Don't auto-show, user must click button
-    } catch (error) {
-      console.error('Error checking coach marks status:', error);
-      setIsCompleted(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const markAsCompleted = useCallback(async () => {
-    try {
-      await AsyncStorage.setItem(COACH_MARKS_COMPLETED_KEY, 'true');
-      setIsCompleted(true);
-      setIsVisible(false);
-    } catch (error) {
-      console.error('Error marking coach marks as completed:', error);
-    }
+    const checkStatus = async () => {
+      try {
+        const value = await AsyncStorage.getItem(COACH_MARKS_STORAGE_KEY);
+        setIsComplete(value === 'true');
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error checking coach marks status:', error);
+        }
+        setIsComplete(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkStatus();
   }, []);
 
   const startTour = useCallback(() => {
+    if (steps.length === 0) return;
+    setIsActive(true);
     setCurrentStep(0);
-    setIsVisible(true);
-  }, []);
+  }, [steps.length]);
 
   const nextStep = useCallback(() => {
-    if (currentStep < COACH_MARKS.length - 1) {
+    if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
-    } else {
-      markAsCompleted();
     }
-  }, [currentStep, markAsCompleted]);
+  }, [currentStep, steps.length]);
 
   const previousStep = useCallback(() => {
     if (currentStep > 0) {
@@ -91,21 +59,56 @@ export function useCoachMarks() {
     }
   }, [currentStep]);
 
-  const skipTour = useCallback(() => {
-    markAsCompleted();
-  }, [markAsCompleted]);
+  const skipTour = useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(COACH_MARKS_STORAGE_KEY, 'true');
+      setIsComplete(true);
+      setIsActive(false);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error skipping coach marks:', error);
+      }
+      setIsComplete(true);
+      setIsActive(false);
+    }
+  }, []);
+
+  const completeTour = useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(COACH_MARKS_STORAGE_KEY, 'true');
+      setIsComplete(true);
+      setIsActive(false);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error completing coach marks:', error);
+      }
+      setIsComplete(true);
+      setIsActive(false);
+    }
+  }, []);
+
+  const resetTour = useCallback(async () => {
+    try {
+      await AsyncStorage.removeItem(COACH_MARKS_STORAGE_KEY);
+      setIsComplete(false);
+      setCurrentStep(0);
+      setIsActive(false);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error resetting coach marks:', error);
+      }
+    }
+  }, []);
 
   return {
-    isVisible,
-    isCompleted,
+    isComplete,
     isLoading,
     currentStep,
-    currentMark: COACH_MARKS[currentStep],
-    totalSteps: COACH_MARKS.length,
     startTour,
     nextStep,
     previousStep,
     skipTour,
-    markAsCompleted,
+    completeTour,
+    resetTour,
   };
 }

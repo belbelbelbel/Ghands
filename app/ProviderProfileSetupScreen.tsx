@@ -2,7 +2,7 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
-import { ServiceCategory, apiClient, providerService, serviceRequestService } from '@/services/api';
+import { ServiceCategory, providerService, serviceRequestService, authService } from '@/services/api';
 import { getCategoryIcon } from '@/utils/categoryIcons';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from '@expo/vector-icons';
@@ -105,18 +105,33 @@ export default function ProviderProfileSetupScreen() {
       });
 
       setCategories(categoriesWithIcons);
-      
-      if (__DEV__) {
-        console.log('✅ Categories loaded:', categoriesWithIcons.length);
-      }
     } catch (error: any) {
-      console.error('Error loading categories:', error);
+      if (__DEV__) {
+        console.error('Error loading categories:', error);
+      }
       showError('Failed to load categories. Please try again.');
       setCategories([]);
     } finally {
       setIsLoadingCategories(false);
     }
   }, [selectedCategories, showError]);
+
+  // Load business name from storage on mount (preserve it when location is set)
+  useEffect(() => {
+    const loadBusinessName = async () => {
+      try {
+        const savedBusinessName = await AsyncStorage.getItem('@ghands:business_name');
+        if (savedBusinessName && !businessName) {
+          setBusinessName(savedBusinessName);
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error loading business name:', error);
+        }
+      }
+    };
+    loadBusinessName();
+  }, []); // Only run on mount
 
   // Load categories when modal opens
   useEffect(() => {
@@ -147,6 +162,7 @@ export default function ProviderProfileSetupScreen() {
   };
 
   // Listen for location updates from LocationSearchScreen with EXACT coordinates
+  // IMPORTANT: Only update location-related state, preserve businessName
   useFocusEffect(
     useCallback(() => {
       if (params.location) {
@@ -163,20 +179,15 @@ export default function ProviderProfileSetupScreen() {
         const lat = parseFloat(params.latitude);
         if (!isNaN(lat)) {
           setExactLatitude(lat);
-          if (__DEV__) {
-            console.log('✅ Exact latitude from API:', lat);
-          }
         }
       }
       if (params.longitude) {
         const lng = parseFloat(params.longitude);
         if (!isNaN(lng)) {
           setExactLongitude(lng);
-          if (__DEV__) {
-            console.log('✅ Exact longitude from API:', lng);
-          }
         }
       }
+      // NOTE: businessName is NOT updated here - it's preserved from state or loaded from storage
     }, [params.location, params.placeId, params.formattedAddress, params.latitude, params.longitude])
   );
 
@@ -211,7 +222,7 @@ export default function ProviderProfileSetupScreen() {
 
     try {
       // Get token first (required for API calls)
-      const token = await apiClient.getAuthTokenPublic();
+      const token = await authService.getAuthToken();
       if (!token) {
         showError('Session expired. Please sign up again.');
         setIsSaving(false);
@@ -220,22 +231,14 @@ export default function ProviderProfileSetupScreen() {
       
       // Get provider/company ID from company signup response (stored separately)
       // This is the ID from the company signup response body or token
-      let providerId = await apiClient.getCompanyId();
-      
-      if (__DEV__) {
-        console.log('✅ Company ID retrieved (from signup response or token):', providerId);
-      }
+      let providerId = await authService.getCompanyId();
       
       // If still no provider/company ID, we cannot proceed
       // The API endpoints require providerId in the URL path
       // Note: Company and Provider are the same - company ID is used as provider ID
       if (!providerId) {
         if (__DEV__) {
-          console.error('❌ No provider/company ID found after signup. This should not happen.');
-          console.error('❌ Token exists:', !!token);
-          console.error('❌ Token length:', token.length);
-          console.error('❌ Token preview:', token.substring(0, 20) + '...');
-          console.error('❌ Please check company signup response includes ID or token contains user ID.');
+          console.error('No provider/company ID found after signup. This should not happen.');
         }
         showError('Unable to identify your account. Please try signing up again.');
         setIsSaving(false);
@@ -281,47 +284,43 @@ export default function ProviderProfileSetupScreen() {
       
       try {
         if (__DEV__) {
-          console.log('🔄 Attempting to update location...');
-          console.log('🔄 Provider ID (from token):', providerId);
-          console.log('🔄 Note: Provider ID is extracted from Bearer token by backend');
-          console.log('🔄 Original Address:', location);
-          console.log('🔄 Clean Address:', cleanAddress);
-          console.log('🔄 Address Length:', cleanAddress.length);
-          console.log('🔄 Address Type:', typeof cleanAddress);
+          console.log('🔍 [ProviderProfileSetupScreen] Saving location to API:', {
+            address: cleanAddress,
+            addressLength: cleanAddress.length,
+            hasPlaceId: !!locationPlaceId,
+            hasCoordinates: !!(exactLatitude && exactLongitude),
+            coordinates: exactLatitude && exactLongitude ? { lat: exactLatitude, lng: exactLongitude } : null,
+          });
         }
         
-        // FINAL CHECK: Verify address before sending
-        if (__DEV__) {
-          console.log('🔴 ========== BEFORE UPDATE LOCATION CALL ==========');
-          console.log('🔴 cleanAddress:', cleanAddress);
-          console.log('🔴 cleanAddress type:', typeof cleanAddress);
-          console.log('🔴 cleanAddress length:', cleanAddress?.length || 0);
-          console.log('🔴 cleanAddress value:', JSON.stringify(cleanAddress));
-          const payloadToSend = { address: cleanAddress };
-          console.log('🔴 Payload being sent:', payloadToSend);
-          console.log('🔴 JSON.stringify payload:', JSON.stringify(payloadToSend));
-          console.log('🔴 Payload keys:', Object.keys(payloadToSend));
-          console.log('🔴 Address in payload:', payloadToSend.address);
-          console.log('🔴 ================================================');
+        // Send placeId or coordinates if available (more accurate than address)
+        // Priority: placeId > coordinates > address
+        const locationPayload: any = {};
+        
+        if (locationPlaceId && locationPlaceId.trim().length > 0 && !locationPlaceId.startsWith('lat_')) {
+          // Use placeId if available (most accurate)
+          locationPayload.placeId = locationPlaceId.trim();
+        } else if (exactLatitude !== null && exactLongitude !== null && 
+                   !isNaN(exactLatitude) && !isNaN(exactLongitude)) {
+          // Use coordinates if available
+          locationPayload.latitude = exactLatitude;
+          locationPayload.longitude = exactLongitude;
+        } else {
+          // Fallback to address
+          locationPayload.address = cleanAddress;
         }
         
-        await providerService.updateLocation({
-          address: cleanAddress, // Send cleaned address (provider ID extracted from token)
-        });
+        await providerService.updateLocation(locationPayload);
+        
         if (__DEV__) {
-          console.log('✅ Provider/Company location updated with address:', cleanAddress);
+          console.log('✅ [ProviderProfileSetupScreen] Location saved successfully');
         }
       } catch (locationError: any) {
-        console.error('❌ Error updating location:', locationError);
-        // Log full error details for debugging
         if (__DEV__) {
-          console.error('❌ Location Error Details:', {
-            message: locationError?.message,
-            status: locationError?.status,
-            statusText: locationError?.statusText,
-            details: locationError?.details,
-            originalError: locationError?.originalError,
-            fullError: JSON.stringify(locationError, null, 2),
+          console.log('🔍 [ProviderProfileSetupScreen] Error saving location:', {
+            error: locationError,
+            errorMessage: locationError?.message,
+            errorStatus: locationError?.status,
           });
         }
         // Show specific error message from API
@@ -333,28 +332,8 @@ export default function ProviderProfileSetupScreen() {
 
       // Add categories (provider ID extracted from Bearer token automatically)
       try {
-        if (__DEV__) {
-          console.log('🔄 Attempting to add categories...');
-          console.log('🔄 Provider ID will be extracted from Bearer token automatically');
-          console.log('🔄 Categories:', selectedCategories);
-        }
-        await providerService.addCategories(selectedCategories); // NO providerId needed - extracted from token
-        if (__DEV__) {
-          console.log('✅ Provider categories added:', selectedCategories);
-        }
+        await providerService.addCategories(selectedCategories);
       } catch (categoriesError: any) {
-        console.error('❌ Error adding categories:', categoriesError);
-        // Log full error details for debugging
-        if (__DEV__) {
-          console.error('❌ Categories Error Details:', {
-            message: categoriesError?.message,
-            status: categoriesError?.status,
-            statusText: categoriesError?.statusText,
-            details: categoriesError?.details,
-            originalError: categoriesError?.originalError,
-            fullError: JSON.stringify(categoriesError, null, 2),
-          });
-        }
         
         // Extract error message with better handling for "already has categories" case
         let errorMessage = getSpecificErrorMessage(categoriesError, 'add_categories');
@@ -389,7 +368,9 @@ export default function ProviderProfileSetupScreen() {
       }
 
       // Save business name to AsyncStorage for welcome message
+      // Save to both keys: business_name (for this screen) and company_name (for provider home)
       await AsyncStorage.setItem('@ghands:business_name', businessName.trim());
+      await AsyncStorage.setItem('@ghands:company_name', businessName.trim());
       
       haptics.success();
       showSuccess('Profile setup completed successfully!');
@@ -417,9 +398,10 @@ export default function ProviderProfileSetupScreen() {
   return (
     <SafeAreaWrapper>
       <View style={{ paddingTop: 20, paddingHorizontal: 20 }}>
-        <TouchableOpacity onPress={() => router.back()} className="mb-6">
+        {/* Back button disabled during provider profile setup */}
+        {/* <TouchableOpacity onPress={() => router.back()} className="mb-6">
           <Ionicons name="arrow-back" size={22} color="#000" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
         <Text className="text-3xl font-bold text-black mb-8" style={{

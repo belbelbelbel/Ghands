@@ -111,9 +111,10 @@ export default function ProviderSignInScreen() {
   return (
     <SafeAreaWrapper>
       <View style={{ paddingTop: 20, paddingHorizontal: 20 }}>
-        <TouchableOpacity onPress={() => router.back()} className="mb-6">
+        {/* Back button disabled during authentication */}
+        {/* <TouchableOpacity onPress={() => router.back()} className="mb-6">
           <Ionicons name="arrow-back" size={22} color="#000" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
         <Text className="text-3xl font-bold text-black mb-8" style={{

@@ -1,0 +1,161 @@
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { Colors, Fonts } from '@/lib/designSystem';
+import { useRouter } from 'expo-router';
+import { Building2, User, ArrowLeft, Users } from 'lucide-react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AccountTypeCard } from '../components/AccountTypeCard';
+import { haptics } from '@/hooks/useHaptics';
+
+export default function ClientTypeSelectionScreen() {
+  const router = useRouter();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const handleBack = () => {
+    haptics.light();
+    router.back();
+  };
+
+  const handleIndividualClient = () => {
+    haptics.selection();
+    // Navigate to individual client signup
+    router.push('/SignupScreen');
+  };
+
+  const handleCompanyClient = () => {
+    haptics.selection();
+    // Navigate to company client signup
+    router.push('/SignupScreen');
+  };
+
+  const animatedStyle = {
+    opacity: fadeAnim,
+    transform: [{ translateY: slideAnim }],
+  };
+
+  return (
+    <Animated.View style={{ flex: 1, backgroundColor: Colors.backgroundLight }}>
+      <SafeAreaWrapper>
+        <ScrollView 
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Back Button */}
+          <TouchableOpacity
+            onPress={handleBack}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 20,
+              paddingTop: 16,
+              paddingBottom: 8,
+            }}
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={24} color={Colors.textPrimary} />
+            <Text
+              style={{
+                marginLeft: 8,
+                color: Colors.textPrimary,
+                fontFamily: 'Poppins-Medium',
+                fontSize: 16,
+              }}
+            >
+              Back
+            </Text>
+          </TouchableOpacity>
+
+          {/* Header Icon */}
+          <Animated.View
+            style={[
+              {
+                alignItems: 'center',
+                marginTop: 24,
+                marginBottom: 32,
+              },
+              animatedStyle,
+            ]}
+          >
+            <View
+              style={{
+                width: 160,
+                height: 160,
+                backgroundColor: Colors.accent,
+                borderRadius: 80,
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
+                shadowRadius: 12,
+                elevation: 8,
+              }}
+            >
+              <Users size={60} color={Colors.white} />
+            </View>
+          </Animated.View>
+
+          <Animated.View
+            style={[
+              {
+                flex: 0,
+                justifyContent: 'center',
+                paddingHorizontal: 20,
+                paddingBottom: 32,
+              },
+              animatedStyle,
+            ]}
+          >
+            <Text
+              style={{
+                ...Fonts.h3,
+                textAlign: 'left',
+                marginBottom: 24,
+                color: Colors.textPrimary,
+                fontFamily: 'Poppins-Bold',
+              }}
+            >
+              Choose Your Account Type
+            </Text>
+
+            {/* Individual Client Card */}
+            <View style={{ marginBottom: 16 }}>
+              <AccountTypeCard
+                icon={<User size={32} color="white" />}
+                title="Individual Client"
+                subtitle="Personal service requests"
+                tags={["Personal", "Quick", "Easy"]}
+                onPress={handleIndividualClient}
+              />
+            </View>
+
+            {/* Company Client Card */}
+            <AccountTypeCard
+              icon={<Building2 size={32} color="white" />}
+              title="Company Client"
+              subtitle="Business service solutions"
+              tags={["Business", "Professional", "Managed"]}
+              onPress={handleCompanyClient}
+            />
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaWrapper>
+    </Animated.View>
+  );
+}

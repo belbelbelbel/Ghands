@@ -11,6 +11,7 @@ export type ProviderCategory = 'Plumber' | 'Electrician' | 'Car Wash' | 'Mechani
 
 export type ServiceProvider = {
   id: string;
+  providerId?: number; // Real backend provider ID for API calls
   name: string;
   category: ProviderCategory;
   rating: number;

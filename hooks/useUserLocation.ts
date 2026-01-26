@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { locationService, SavedLocation, apiClient } from '@/services/api';
+import { locationService, SavedLocation, authService } from '@/services/api';
+import { AuthError } from '@/utils/errors';
+import { useRouter } from 'expo-router';
 
 const USER_LOCATION_STORAGE_KEY = '@app:user_location';
 const USER_LOCATION_PLACE_ID_KEY = '@app:user_location_place_id';
@@ -17,6 +19,7 @@ interface UseUserLocationReturn {
 export function useUserLocation(): UseUserLocationReturn {
   const [location, setLocationState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     loadSavedLocation();
@@ -28,8 +31,8 @@ export function useUserLocation(): UseUserLocationReturn {
       
       // Check if user is a provider (providers have company ID, not user ID for location)
       // Providers should NOT call user location endpoint - they use provider location endpoint
-      const companyId = await apiClient.getCompanyId();
-      const userId = await apiClient.getUserId();
+      const companyId = await authService.getCompanyId();
+      const userId = await authService.getUserId();
       
       // For providers: Skip API call to user location endpoint (providers use provider location endpoint)
       if (companyId) {
@@ -55,6 +58,12 @@ export function useUserLocation(): UseUserLocationReturn {
             return;
           }
         } catch (error) {
+          // If AuthError, redirect immediately
+          if (error instanceof AuthError) {
+            const { handleAuthErrorRedirect } = await import('@/utils/authRedirect');
+            await handleAuthErrorRedirect(router);
+            return;
+          }
           // Location not set in API, fallback to local storage
           if (__DEV__) {
             console.log('No saved location in API, using local storage');

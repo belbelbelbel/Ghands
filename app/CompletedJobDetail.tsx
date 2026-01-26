@@ -11,6 +11,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Animated, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { analytics } from '@/services/analytics';
+import { CheckCircle2, FileText, Wrench, CheckCircle } from 'lucide-react-native';
+import { Colors } from '@/lib/designSystem';
 
 // Helper to format time ago
 const formatTimeAgo = (dateString: string): string => {
@@ -113,6 +115,7 @@ export default function CompletedJobDetail() {
         status: `Completed - ${formatTimeAgo(request.createdAt || new Date().toISOString())}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
+        icon: CheckCircle2,
       },
       {
         id: 'step-2',
@@ -121,6 +124,7 @@ export default function CompletedJobDetail() {
         status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
+        icon: FileText,
       },
       {
         id: 'step-3',
@@ -129,6 +133,7 @@ export default function CompletedJobDetail() {
         status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
+        icon: Wrench,
       },
       {
         id: 'step-4',
@@ -137,6 +142,7 @@ export default function CompletedJobDetail() {
         status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
+        icon: CheckCircle,
       },
     ];
   }, [request]);
@@ -206,33 +212,49 @@ export default function CompletedJobDetail() {
           const isLast = index === timelineSteps.length - 1;
           const animation = timelineAnimations[index];
 
+        const IconComponent = step.icon || CheckCircle2;
+        
         return (
-          <View key={step.id} className="flex-row mb-6">
+          <View key={step.id} className="flex-row mb-4">
             <View className="items-center mr-5">
               <Animated.View
                 style={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: 8,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
                   backgroundColor: step.dotColor,
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   transform: [
                     {
                       scale: animation.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [0.7, 1],
+                        outputRange: [0.8, 1],
                       }),
                     },
                   ],
                   opacity: animation,
+                  shadowColor: step.dotColor,
+                  shadowOffset: {
+                    width: 0,
+                    height: 2,
+                  },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 4,
                 }}
-              />
+              >
+                <IconComponent size={20} color={Colors.white} />
+              </Animated.View>
               {!isLast && (
                 <View
-                  className="w-0.5"
                   style={{
+                    width: 3,
                     flex: 1,
                     backgroundColor: '#6A9B00',
-                    marginTop: 6,
+                    marginTop: 8,
+                    borderRadius: 2,
+                    minHeight: 40,
                   }}
                 />
               )}

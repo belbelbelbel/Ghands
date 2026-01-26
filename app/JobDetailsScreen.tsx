@@ -7,7 +7,7 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
 import { useToast } from '@/hooks/useToast';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { serviceRequestService, apiClient, locationService } from '@/services/api';
+import { serviceRequestService, locationService, authService } from '@/services/api';
 import { haptics } from '@/hooks/useHaptics';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 
@@ -48,11 +48,11 @@ export default function JobDetailsScreen() {
   // Load location details if we have a saved location
   const loadLocationDetails = useCallback(async () => {
     try {
-      const userId = await apiClient.getUserId();
+      const userId = await authService.getUserId();
       if (userId) {
         const savedLocation = await locationService.getUserLocation(userId);
         if (savedLocation) {
-          setLocationData({
+          const newLocationData = {
             placeId: savedLocation.placeId,
             formattedAddress: savedLocation.fullAddress,
             address: savedLocation.address,
@@ -61,9 +61,13 @@ export default function JobDetailsScreen() {
             country: savedLocation.country,
             latitude: savedLocation.latitude,
             longitude: savedLocation.longitude,
-          });
+          };
+          setLocationData(newLocationData);
           if (__DEV__) {
-            console.log('✅ Location loaded from API:', savedLocation.fullAddress);
+            console.log('✅ [JobDetailsScreen] Location loaded from API:', {
+              address: savedLocation.fullAddress,
+              hasLocationData: !!newLocationData,
+            });
           }
           return true; // Location found
         }
@@ -71,7 +75,7 @@ export default function JobDetailsScreen() {
     } catch (error) {
       // Location not set in API
       if (__DEV__) {
-        console.log('No saved location in API');
+        console.log('⚠️ [JobDetailsScreen] No saved location in API:', error);
       }
     }
     return false; // Location not found
@@ -85,14 +89,23 @@ export default function JobDetailsScreen() {
   // Refresh location when screen comes into focus (e.g., returning from LocationSearchScreen)
   useFocusEffect(
     useCallback(() => {
-      // Refresh location when screen comes into focus
-      loadLocationDetails();
-    }, [loadLocationDetails])
+      // Small delay to ensure API has updated after location change
+      const refreshLocationData = async () => {
+        // Refresh location hook first (local storage)
+        await refreshLocation();
+        // Small delay to ensure API has processed the update
+        await new Promise(resolve => setTimeout(resolve, 300));
+        // Then load location details from API
+        await loadLocationDetails();
+      };
+      refreshLocationData();
+    }, [loadLocationDetails, refreshLocation])
   );
 
   const handleBack = useCallback(() => {
     haptics.light();
-    router.back();
+    // Navigate back to categories screen explicitly to avoid navigation stack issues
+    router.replace('/(tabs)/categories' as any);
   }, [router]);
 
   const handleChangeLocation = useCallback(() => {
@@ -144,7 +157,7 @@ export default function JobDetailsScreen() {
     haptics.light();
 
     try {
-      const userId = await apiClient.getUserId();
+      const userId = await authService.getUserId();
       
       if (!userId) {
         showError('Unable to identify your account. Please sign out and sign in again.');
@@ -220,11 +233,33 @@ export default function JobDetailsScreen() {
 
       // Update job details (Step 2)
       // userId is automatically extracted from token, don't send it
-      await serviceRequestService.updateJobDetails(requestId, {
+      if (__DEV__) {
+        console.log('🔄 Calling updateJobDetails API:', {
+          requestId,
+          jobTitle: jobTitle.trim(),
+          descriptionLength: description.trim().length,
+          hasLocation: !!locationPayload,
+        });
+      }
+      
+      const updateResponse = await serviceRequestService.updateJobDetails(requestId, {
         jobTitle: jobTitle.trim(),
         description: description.trim(),
         location: locationPayload,
       });
+
+      if (__DEV__) {
+        const providerCount = updateResponse.nearbyProviders?.length || 0;
+        const hasProviders = providerCount > 0;
+        console.log('✅ updateJobDetails response:', {
+          requestId: updateResponse.requestId,
+          hasNearbyProviders: hasProviders,
+          providerCount: providerCount,
+          note: hasProviders 
+            ? `${providerCount} provider(s) found nearby` 
+            : 'No providers found within 50km radius - request created but no providers available',
+        });
+      }
 
       showSuccess('Job details updated!');
       haptics.success();
@@ -240,7 +275,14 @@ export default function JobDetailsScreen() {
         } as any);
       }, 1000);
     } catch (error: any) {
-      console.error('Error updating job details:', error);
+      if (__DEV__) {
+        console.error('❌ Error in handleNext (updateJobDetails):', {
+          requestId: params.requestId,
+          error: error instanceof Error ? error.message : error,
+          status: error?.status,
+          details: error?.details,
+        });
+      }
       const errorMessage = getSpecificErrorMessage(error, 'update_job_details');
       showError(errorMessage);
       haptics.error();

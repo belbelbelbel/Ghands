@@ -81,7 +81,8 @@ export default function OtpScreen() {
   };
 
   const handleBackToReset = () => {
-    router.back();
+    // Disabled: OTP verification should not allow going back
+    // router.back();
   };
 
   const handleResendCode = () => {
@@ -109,8 +110,9 @@ export default function OtpScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back Button */}
-        <TouchableOpacity
+
+        {/* Back Button - Disabled during OTP verification */}
+        {/* <TouchableOpacity
           onPress={handleBackToReset}
           style={{ marginBottom: 24 }}
           activeOpacity={0.7}
@@ -127,7 +129,7 @@ export default function OtpScreen() {
           >
             <ArrowLeft size={20} color={Colors.textPrimary} />
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Title */}
         <Text

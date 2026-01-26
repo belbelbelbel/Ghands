@@ -1,10 +1,10 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { useUserLocation } from '@/hooks/useUserLocation';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Camera, MapPin, Plus, User } from 'lucide-react-native';
+import { Camera, MapPin, Plus, User } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, Dimensions, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useUserLocation } from '@/hooks/useUserLocation';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -144,7 +144,7 @@ export default function ProfileSetupScreen() {
   };
 
   const handleBack = () => {
-    router.back();
+    // router.back();
   };
 
   const handleAddHomeAddress = () => {
@@ -173,9 +173,8 @@ export default function ProfileSetupScreen() {
           className="flex-row items-center justify-between px-4 py-4"
           style={{ minHeight: screenHeight * 0.02 }}
         >
-          <TouchableOpacity onPress={handleBack}>
-            <ArrowLeft size={24} color="black" />
-          </TouchableOpacity>
+          {/* Back button disabled during profile setup */}
+          <View style={{ width: 24 }} />
           <Text 
             className="text-lg font-bold text-black"
             style={{ 

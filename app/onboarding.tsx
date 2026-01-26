@@ -19,7 +19,8 @@ export default function OnboardingScreen() {
   const handleNext = async () => {
     if (currentSlideIndex === ONBOARDING_SLIDES.length - 1) {
       await completeOnboarding();
-      router.replace('/SelectAccountTypeScreen');
+      // Navigate to client type selection after onboarding
+      router.replace('/ClientTypeSelectionScreen');
     } else {
       nextSlide();
     }
@@ -27,7 +28,8 @@ export default function OnboardingScreen() {
 
   const handleSkip = async () => {
     await skipOnboarding();
-    router.replace('/SelectAccountTypeScreen');
+    // Navigate to client type selection after skipping
+    router.replace('/ClientTypeSelectionScreen');
   };
 
   const handleSlideChange = (index: number) => {

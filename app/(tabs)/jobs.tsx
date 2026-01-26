@@ -1,14 +1,17 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import AnimatedModal from '@/components/AnimatedModal';
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import { haptics } from '@/hooks/useHaptics';
 import { serviceRequestService, ServiceRequest } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { AuthError } from '@/utils/errors';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, TouchableOpacity, View, Modal, Pressable, StyleSheet } from 'react-native';
+import { JobHistoryCardSkeleton } from '@/components/LoadingSkeleton';
+import { Colors } from '@/lib/designSystem';
 
 type JobStatus = 'Ongoing' | 'Completed' | 'Cancelled';
 
@@ -21,6 +24,7 @@ type JobItem = {
   time: string;
   location: string;
   requestId?: number;
+  acceptedProvidersCount?: number; // Track if providers have accepted
 };
 
 // Helper to format date
@@ -37,23 +41,38 @@ const formatDate = (dateString?: string, timeString?: string): string => {
 };
 
 // Map ServiceRequest to JobItem
-const mapRequestToJobItem = (request: ServiceRequest): JobItem => {
+// Note: This function should be called with acceptedProviders data if available
+const mapRequestToJobItem = (request: ServiceRequest, acceptedProvidersCount: number = 0): JobItem => {
   const providerName = request.provider?.name || request.nearbyProviders?.[0]?.name || 'Provider TBD';
   const categoryDisplayName = request.categoryName
     ? request.categoryName.charAt(0).toUpperCase() + request.categoryName.slice(1).replace(/([A-Z])/g, ' $1')
     : 'Service';
+  
+  // Determine status: If providers have accepted, show "In Progress" even if request status is "pending"
+  let status: string;
+  if (request.status === 'accepted' || request.status === 'in_progress') {
+    status = 'In Progress';
+  } else if (request.status === 'completed') {
+    status = 'Completed';
+  } else if (request.status === 'cancelled') {
+    status = 'Cancelled';
+  } else if (acceptedProvidersCount > 0) {
+    // Providers have accepted, but request status is still "pending" (waiting for client selection)
+    status = 'In Progress'; // Show as "In Progress" to indicate providers have accepted
+  } else {
+    status = 'Pending';
+  }
   
   return {
     id: request.id,
     requestId: request.id,
     title: request.jobTitle || `${categoryDisplayName} Service`,
     subtitle: request.description || 'Service request',
-    status: request.status === 'accepted' || request.status === 'in_progress' ? 'In Progress' : 
-            request.status === 'completed' ? 'Completed' :
-            request.status === 'cancelled' ? 'Cancelled' : 'Pending',
+    status,
     name: providerName,
     time: formatDate(request.scheduledDate, request.scheduledTime),
     location: request.location?.formattedAddress || request.location?.address || 'Location not specified',
+    acceptedProvidersCount, // Include accepted providers count
   };
 };
 
@@ -76,11 +95,78 @@ export default function JobsScreen() {
       // Ensure requests is always an array
       const requestsArray = Array.isArray(requests) ? requests : [];
       
-      // Map to job items
-      const jobItems = requestsArray.map(mapRequestToJobItem);
+      // Filter out requests that are still in the booking flow (not confirmed yet)
+      // Only show requests that have been confirmed/booked AND sent to providers
+      const confirmedRequests = requestsArray.filter((request) => {
+        // Must have both jobTitle and description
+        const hasJobTitle = request.jobTitle && request.jobTitle.trim().length > 0;
+        const hasDescription = request.description && request.description.trim().length > 0;
+        if (!hasJobTitle || !hasDescription) {
+          return false;
+        }
+        
+        // For "pending" status: Only show if booking has been sent to providers
+        // A booking is sent to providers when:
+        // 1. It has location (request was sent to providers via updateJobDetails)
+        // OR it has scheduled date/time (user confirmed booking in DateTimeScreen)
+        // This ensures user has completed the booking flow and seen providers
+        // but is still waiting for provider response (status is still "pending", not "accepted")
+        // Note: When a provider is selected, status changes to "accepted", so if status is "pending",
+        // it means no provider has been selected yet
+        if (request.status === 'pending') {
+          const hasScheduledDateTime = !!(request.scheduledDate && request.scheduledTime);
+          const hasLocation = !!(request.location?.latitude && request.location?.longitude);
+          const hasLocationText = !!(request.location?.formattedAddress || request.location?.address);
+          
+          // Show "pending" if booking has been sent to providers (has location OR date/time)
+          // This means user has completed the booking flow and confirmed booking
+          // Status being "pending" already means no provider has been selected yet
+          // (if provider was selected, status would be "accepted")
+          return hasScheduledDateTime || hasLocation || hasLocationText;
+        }
+        
+        // Show all other statuses (accepted, in_progress, completed, cancelled) - these are confirmed
+        return true;
+      });
+      
+      // Map to job items - Load accepted providers for each request to determine correct status
+      const jobItems = await Promise.all(
+        confirmedRequests.map(async (request) => {
+          // Check if providers have accepted this request
+          let acceptedProvidersCount = 0;
+          try {
+            const acceptedProviders = await serviceRequestService.getAcceptedProviders(request.id);
+            acceptedProvidersCount = acceptedProviders?.length || 0;
+          } catch (error) {
+            // Silently fail - if we can't load accepted providers, use request status
+            if (__DEV__) {
+              console.log(`Could not load accepted providers for request ${request.id}:`, error);
+            }
+          }
+          
+          return mapRequestToJobItem(request, acceptedProvidersCount);
+        })
+      );
       setAllJobs(jobItems);
     } catch (error: any) {
-      console.error('Error loading requests:', error);
+      // If AuthError, redirect immediately
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
+      
+      // Check if it's a network error first
+      const isNetworkError = error?.isNetworkError || 
+                            error?.message?.includes('Network') || 
+                            error?.message?.includes('Failed to fetch') ||
+                            error?.message?.includes('Network request failed');
+      
+      if (isNetworkError) {
+        showError('No internet connection. Please check your connection and reconnect to continue.');
+        setAllJobs([]);
+        return;
+      }
+      
       const errorMessage = getSpecificErrorMessage(error, 'get_requests');
       showError(errorMessage);
       setAllJobs([]);
@@ -176,12 +262,14 @@ export default function JobsScreen() {
         </View>
 
         {isLoading && allJobs.length === 0 ? (
-          <View className="flex-1 items-center justify-center py-20">
-            <ActivityIndicator size="large" color="#6A9B00" />
-            <Text className="text-gray-600 mt-4" style={{ fontFamily: 'Poppins-Medium' }}>
-              Loading jobs...
-            </Text>
-          </View>
+          <ScrollView 
+            showsVerticalScrollIndicator={false} 
+            contentContainerStyle={{ paddingBottom: 24 }}
+          >
+            {[1, 2, 3].map((index) => (
+              <JobHistoryCardSkeleton key={index} />
+            ))}
+          </ScrollView>
         ) : (
           <ScrollView 
             showsVerticalScrollIndicator={false} 
@@ -223,25 +311,40 @@ export default function JobsScreen() {
                     {job.subtitle}
                   </Text>
                 </View>
-                <AnimatedStatusChip
-                  status={job.status}
-                  statusColor={
-                    activeTab === 'Ongoing'
-                      ? '#FEF9C3'
-                      : activeTab === 'Completed'
-                        ? '#DCFCE7'
-                        : '#F3F4F6'
-                  }
-                  textColor={
-                    activeTab === 'Ongoing'
-                      ? '#92400E'
-                      : activeTab === 'Completed'
-                        ? '#166534'
-                        : '#6B7280'
-                  }
-                  size="small"
-                  animated={true}
-                />
+                <View className="flex-row items-center gap-2">
+                  <AnimatedStatusChip
+                    status={job.status}
+                    statusColor={
+                      activeTab === 'Ongoing'
+                        ? '#FEF9C3'
+                        : activeTab === 'Completed'
+                          ? '#DCFCE7'
+                          : '#F3F4F6'
+                    }
+                    textColor={
+                      activeTab === 'Ongoing'
+                        ? '#92400E'
+                        : activeTab === 'Completed'
+                          ? '#166534'
+                          : '#6B7280'
+                    }
+                    size="small"
+                    animated={true}
+                  />
+                  {/* Cancel Request button in header - only show if no providers accepted */}
+                  {activeTab === 'Ongoing' && job.acceptedProvidersCount === 0 && (
+                    <TouchableOpacity
+                      className="bg-red-50 border border-red-500 py-1.5 px-3 rounded-lg"
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        haptics.warning();
+                        setPendingCancelJob(job);
+                      }}
+                    >
+                      <Ionicons name="close-circle" size={16} color="#FF2C2C" />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               <View className="flex-row items-center gap-3 mt-2">
@@ -263,27 +366,11 @@ export default function JobsScreen() {
                 </Text>
               </View>
 
-              <View
-                className={`flex flex-row pt-4 ${activeTab === 'Ongoing' ? 'justify-between' : 'justify-center'}`}
-              >
-                {activeTab === 'Ongoing' && (
-                  <TouchableOpacity
-                    className="bg-red-50 border border-red-500 py-2 px-5 rounded-lg"
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      haptics.warning();
-                      setPendingCancelJob(job);
-                    }}
-                  >
-                    <Text className="text-sm text-[#FF2C2C]" style={{ fontFamily: 'Poppins-Medium' }}>
-                      Cancel Request
-                    </Text>
-                  </TouchableOpacity>
-                )}
+              <View className="flex flex-row pt-4 justify-center">
                 <TouchableOpacity
                   className={`py-3 px-6 rounded-lg ${
                     activeTab === 'Ongoing'
-                      ? 'bg-gray-100'
+                      ? 'bg-gray-100 w-full'
                       : activeTab === 'Completed'
                         ? 'bg-[#6A9B00] w-full'
                         : 'bg-black w-full'
@@ -312,62 +399,139 @@ export default function JobsScreen() {
         )}
       </View>
 
-      <AnimatedModal
+      {/* Cancel Request Modal - Centered Box */}
+      <Modal
         visible={!!pendingCancelJob}
-        onClose={() => {
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
           haptics.light();
           setPendingCancelJob(null);
         }}
-        animationType="slide"
       >
-        <View className="px-2">
-          <Text className="text-lg text-center text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
-            Cancel Request?
-          </Text>
-          <Text className="text-sm text-center text-gray-500 mb-5" style={{ fontFamily: 'Poppins-Regular' }}>
-            This action cannot be undone
-          </Text>
-          <View className="flex-row justify-between gap-3">
-            <TouchableOpacity
-              className="flex-1 bg-[#FF2C2C] py-3 rounded-xl items-center justify-center"
-              activeOpacity={0.85}
-              onPress={async () => {
-                const job = pendingCancelJob;
-                haptics.error();
-                setPendingCancelJob(null);
-                if (job && job.requestId) {
-                  try {
-                    await serviceRequestService.cancelRequest(job.requestId);
-                    haptics.success();
-                    // Reload requests
-                    await loadRequests();
-                    router.push('/CancelRequestScreen' as any);
-                  } catch (error: any) {
-                    const errorMessage = getSpecificErrorMessage(error, 'cancel_request');
-                    showError(errorMessage);
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+          }}
+        >
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => {
+              haptics.light();
+              setPendingCancelJob(null);
+            }}
+          />
+          <View
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: 20,
+              padding: 24,
+              width: '100%',
+              maxWidth: 400,
+              shadowColor: '#000',
+              shadowOffset: {
+                width: 0,
+                height: 4,
+              },
+              shadowOpacity: 0.25,
+              shadowRadius: 12,
+              elevation: 16,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+                textAlign: 'center',
+                marginBottom: 8,
+              }}
+            >
+              Cancel Request?
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.textSecondaryDark,
+                textAlign: 'center',
+                marginBottom: 24,
+              }}
+            >
+              This action cannot be undone
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: '#FF2C2C',
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                activeOpacity={0.85}
+                onPress={async () => {
+                  const job = pendingCancelJob;
+                  haptics.error();
+                  setPendingCancelJob(null);
+                  if (job && job.requestId) {
+                    try {
+                      await serviceRequestService.cancelRequest(job.requestId);
+                      haptics.success();
+                      // Reload requests
+                      await loadRequests();
+                      router.push('/CancelRequestScreen' as any);
+                    } catch (error: any) {
+                      const errorMessage = getSpecificErrorMessage(error, 'cancel_request');
+                      showError(errorMessage);
+                    }
                   }
-                }
-              }}
-            >
-              <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="flex-1 bg-gray-100 py-3 rounded-xl items-center justify-center"
-              activeOpacity={0.85}
-              onPress={() => {
-                haptics.light();
-                setPendingCancelJob(null);
-              }}
-            >
-              <Text className="text-base text-black" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                Go back
-              </Text>
-            </TouchableOpacity>
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.white,
+                  }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: Colors.backgroundGray,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                activeOpacity={0.85}
+                onPress={() => {
+                  haptics.light();
+                  setPendingCancelJob(null);
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  Go back
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </AnimatedModal>
+      </Modal>
     </SafeAreaWrapper>
   );
 }

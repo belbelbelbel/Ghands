@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiClient } from '@/services/api';
+import { authService } from '@/services/authService';
 
 const AUTH_ROLE_KEY = '@ghands:user_role';
 
@@ -13,8 +13,8 @@ export async function handleTokenExpiration(): Promise<string | null> {
     // Get user role before clearing tokens
     const role = await AsyncStorage.getItem(AUTH_ROLE_KEY);
     
-    // Clear all auth tokens
-    await apiClient.clearAuthTokens();
+    // Clear all auth tokens via AuthService
+    await authService.clearAuthTokens();
     
     // Clear role
     await AsyncStorage.removeItem(AUTH_ROLE_KEY);
@@ -30,8 +30,7 @@ export async function handleTokenExpiration(): Promise<string | null> {
     // No role found - go to account type selection
     return '/SelectAccountTypeScreen';
   } catch (error) {
-    console.error('Error handling token expiration:', error);
-    // Fallback to account type selection
+    // Silent error - fallback to account type selection
     return '/SelectAccountTypeScreen';
   }
 }

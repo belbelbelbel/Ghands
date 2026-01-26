@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 
 export type JobActivityStatus = 'Completed' | 'In Progress' | 'Pending';
 
@@ -34,10 +35,34 @@ type JobActivityCardProps = {
 };
 
 const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
+  const router = useRouter();
   const theme = jobStatusTheme[activity.status];
 
+  const handlePress = () => {
+    const requestId = parseInt(activity.id, 10);
+    if (isNaN(requestId)) return;
+
+    // All non-completed jobs (In Progress, Pending) go to OngoingJobDetails (Check Updates page)
+    if (activity.status === 'Completed') {
+      router.push({
+        pathname: '/CompletedJobDetail',
+        params: { requestId: activity.id },
+      } as any);
+    } else {
+      // Navigate to OngoingJobDetails for In Progress and Pending jobs
+      router.push({
+        pathname: '/OngoingJobDetails',
+        params: { requestId: activity.id },
+      } as any);
+    }
+  };
+
   return (
-    <View className="bg-white rounded-2xl px-4 py-6 border border-gray-100 shadow-[0px_6px_18px_rgba(16,24,40,0.04)]">
+    <TouchableOpacity
+      className="bg-white rounded-2xl px-4 py-6 border border-gray-100 shadow-[0px_6px_18px_rgba(16,24,40,0.04)]"
+      activeOpacity={0.7}
+      onPress={handlePress}
+    >
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
           <View className="w-10 h-10 rounded-full bg-[#F2F7EC] items-center justify-center mr-3">
@@ -84,7 +109,7 @@ const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
           {activity.priceRange}
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

@@ -1,9 +1,10 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, MessageCircle, Phone } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, MessageCircle, Phone, CheckCircle2, FileText, Wrench, CheckCircle, CreditCard, Circle } from 'lucide-react-native';
 import React from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { haptics } from '@/hooks/useHaptics';
 
 const TIMELINE_STEPS = [
   {
@@ -13,51 +14,107 @@ const TIMELINE_STEPS = [
     status: 'Completed - 2 hours ago',
     dotColor: Colors.accent,
     lineColor: Colors.accent,
+    icon: CheckCircle2,
+    isCompleted: true,
   },
   {
     id: '2',
     title: 'Quotation Sent',
     description: 'Waiting for confirmation',
-    status: '',
-    dotColor: Colors.accent,
-    lineColor: Colors.accent,
+    status: 'In Progress',
+    dotColor: '#F59E0B',
+    lineColor: '#F59E0B',
+    icon: FileText,
+    isCompleted: false,
+    isActive: true,
   },
   {
     id: '3',
     title: 'Quotation Accepted',
     description: 'Client Accepted your quote',
     status: '',
-    dotColor: Colors.accent,
-    lineColor: Colors.accent,
+    dotColor: '#9CA3AF',
+    lineColor: '#9CA3AF',
+    icon: Circle,
+    isCompleted: false,
+    isActive: false,
   },
   {
     id: '4',
     title: 'Payment Confirmed',
     description: 'Payment Secured',
     status: '',
-    dotColor: Colors.accent,
-    lineColor: Colors.accent,
+    dotColor: '#9CA3AF',
+    lineColor: '#9CA3AF',
+    icon: CreditCard,
+    isCompleted: false,
+    isActive: false,
   },
   {
     id: '5',
     title: 'Job In Progress',
     description: 'You are onsite!',
     status: '',
-    dotColor: Colors.accent,
-    lineColor: Colors.accent,
+    dotColor: '#9CA3AF',
+    lineColor: '#9CA3AF',
+    icon: Wrench,
+    isCompleted: false,
+    isActive: false,
   },
   {
     id: '6',
     title: 'Complete',
     description: 'Job Approved',
     status: '',
-    dotColor: Colors.accent,
-    lineColor: Colors.accent,
+    dotColor: '#9CA3AF',
+    lineColor: '#9CA3AF',
+    icon: CheckCircle,
+    isCompleted: false,
+    isActive: false,
   },
 ];
 
 export default function ProviderCompletedJobScreen() {
   const router = useRouter();
+  
+  // Create animation values for each timeline step
+  const timelineAnimations = useMemo(
+    () => TIMELINE_STEPS.map(() => new Animated.Value(0)),
+    []
+  );
+
+  const lineAnimations = useMemo(
+    () => TIMELINE_STEPS.slice(0, -1).map(() => new Animated.Value(0)),
+    []
+  );
+
+  // Animate timeline on mount
+  useEffect(() => {
+    // Animate timeline dots with spring animation
+    const timelineSequence = timelineAnimations.map((anim, index) =>
+      Animated.spring(anim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 8,
+        delay: index * 120,
+      })
+    );
+    Animated.stagger(100, timelineSequence).start(() => {
+      haptics.light();
+    });
+
+    // Animate progress lines after dots
+    const lineSequence = lineAnimations.map((anim, index) =>
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 400,
+        delay: (index + 1) * 120 + 200,
+        useNativeDriver: false,
+      })
+    );
+    Animated.stagger(100, lineSequence).start();
+  }, [timelineAnimations, lineAnimations]);
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
@@ -364,6 +421,20 @@ export default function ProviderCompletedJobScreen() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
+              onPress={() => {
+                haptics.light();
+                router.push({
+                  pathname: '/ReportIssueScreen',
+                  params: {
+                    requestId: 'WO-2024-1157', // TODO: Get from actual request data
+                    jobTitle: 'Kitchen sink replacement', // TODO: Get from actual request data
+                    orderNumber: 'Order #WO-2024-1157', // TODO: Get from actual request data
+                    cost: '₦48,500.00', // TODO: Get from actual request data
+                    assignee: 'JohnDoe Akpan', // TODO: Get from actual request data
+                    completionDate: 'Oct 20, 2025', // TODO: Get from actual request data
+                  },
+                } as any);
+              }}
               activeOpacity={0.8}
             >
               <Text
@@ -391,35 +462,96 @@ export default function ProviderCompletedJobScreen() {
           >
             {TIMELINE_STEPS.map((step, index) => {
               const isLast = index === TIMELINE_STEPS.length - 1;
+              const IconComponent = step.icon || Circle;
+              const iconSize = step.isCompleted || step.isActive ? 20 : 16;
+              const animation = timelineAnimations[index];
+              const lineAnim = !isLast ? lineAnimations[index] : null;
+              
               return (
-                <View key={step.id} style={{ flexDirection: 'row', marginBottom: isLast ? 0 : 16 }}>
+                <Animated.View 
+                  key={step.id} 
+                  style={{ 
+                    flexDirection: 'row', 
+                    marginBottom: isLast ? 0 : 12,
+                    opacity: animation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                    }),
+                    transform: [{
+                      translateX: animation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-20, 0],
+                      }),
+                    }],
+                  }}
+                >
                   {/* Timeline Indicator */}
                   <View style={{ alignItems: 'center', marginRight: 16 }}>
-                    <View
+                    <Animated.View
                       style={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: 8,
-                        backgroundColor: step.dotColor,
-                        borderWidth: 2,
-                        borderColor: Colors.white,
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        backgroundColor: step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#F3F4F6',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: step.isCompleted || step.isActive ? 0 : 2,
+                        borderColor: '#E5E7EB',
+                        shadowColor: step.isCompleted || step.isActive ? step.dotColor : '#000',
+                        shadowOffset: {
+                          width: 0,
+                          height: 2,
+                        },
+                        shadowOpacity: step.isCompleted || step.isActive ? 0.2 : 0.05,
+                        shadowRadius: 4,
+                        elevation: step.isCompleted || step.isActive ? 4 : 1,
+                        transform: [{
+                          scale: animation.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.8, 1],
+                          }),
+                        }],
                       }}
-                    />
+                    >
+                      <IconComponent 
+                        size={iconSize} 
+                        color={step.isCompleted || step.isActive ? Colors.white : '#9CA3AF'} 
+                      />
+                    </Animated.View>
                     {!isLast && (
-                      <View
+                      <Animated.View
                         style={{
-                          width: 2,
+                          width: 3,
                           flex: 1,
-                          backgroundColor: step.lineColor,
-                          marginTop: 4,
+                          backgroundColor: step.isCompleted ? step.lineColor : step.isActive ? step.lineColor : '#E5E7EB',
+                          marginTop: 8,
+                          borderRadius: 2,
                           minHeight: 40,
+                          opacity: lineAnim ? lineAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, 1],
+                          }) : 1,
+                          transform: lineAnim ? [{
+                            scaleY: lineAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, 1],
+                            }),
+                          }] : [],
                         }}
                       />
                     )}
                   </View>
 
                   {/* Timeline Content */}
-                  <View style={{ flex: 1 }}>
+                  <Animated.View 
+                    style={{ 
+                      flex: 1,
+                      opacity: animation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, 1],
+                      }),
+                    }}
+                  >
                     <Text
                       style={{
                         fontSize: 14,
@@ -451,8 +583,8 @@ export default function ProviderCompletedJobScreen() {
                         {step.status}
                       </Text>
                     )}
-                  </View>
-                </View>
+                  </Animated.View>
+                </Animated.View>
               );
             })}
           </View>

@@ -12,9 +12,7 @@ export function extractUserIdFromToken(token: string): number | null {
     // JWT tokens have 3 parts separated by dots
     const parts = token.split('.');
     if (parts.length !== 3) {
-      if (__DEV__) {
-        console.warn('Invalid JWT token format - expected 3 parts, got:', parts.length);
-      }
+      // Token might be UUID format, not JWT - this is valid, just return null
       return null;
     }
 
@@ -49,22 +47,13 @@ export function extractUserIdFromToken(token: string): number | null {
         decodedPayload = result;
       }
     } catch (decodeError) {
-      if (__DEV__) {
-        console.warn('Failed to decode token payload:', decodeError);
-      }
+      // Token might not be JWT format (could be UUID) - silently return null
       return null;
     }
 
     const payloadObj = JSON.parse(decodedPayload);
 
-    if (__DEV__) {
-      console.log('🔍 Token payload decoded:', {
-        hasUserId: !!payloadObj.userId,
-        hasId: !!payloadObj.id,
-        hasSub: !!payloadObj.sub,
-        payloadKeys: Object.keys(payloadObj),
-      });
-    }
+    // Removed verbose token logging
 
     // Check for user ID in common JWT payload fields
     const userId = payloadObj.userId || payloadObj.id || payloadObj.user_id || payloadObj.sub;
@@ -72,24 +61,12 @@ export function extractUserIdFromToken(token: string): number | null {
     if (userId) {
       const numUserId = typeof userId === 'number' ? userId : parseInt(String(userId), 10);
       if (!isNaN(numUserId)) {
-        if (__DEV__) {
-          console.log('✅ User ID extracted from token:', numUserId, 'from field:', 
-            payloadObj.userId ? 'userId' : 
-            payloadObj.id ? 'id' : 
-            payloadObj.user_id ? 'user_id' : 'sub');
-        }
         return numUserId;
       }
     }
-
-    if (__DEV__) {
-      console.warn('⚠️ No user ID found in token payload. Available fields:', Object.keys(payloadObj));
-    }
     return null;
   } catch (error) {
-    if (__DEV__) {
-      console.warn('Failed to extract user ID from token:', error);
-    }
+    // Token might not be JWT format - silently return null
     return null;
   }
 }

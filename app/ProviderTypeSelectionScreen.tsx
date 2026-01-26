@@ -33,12 +33,14 @@ export default function ProviderTypeSelectionScreen() {
   };
 
   const handleIndividualProvider = () => {
-    haptics.light();
-    router.push('/IndividualProviderComingSoonScreen');
+    haptics.selection();
+    // Navigate to individual provider signup
+    router.push('/ProviderSignUpScreen');
   };
 
   const handleCorporateProvider = () => {
-    haptics.light();
+    haptics.selection();
+    // Navigate to corporate provider signup
     router.push('/ProviderSignUpScreen');
   };
 

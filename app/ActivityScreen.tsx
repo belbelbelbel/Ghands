@@ -99,6 +99,18 @@ export default function ActivityScreen() {
           providerName: transaction.serviceName,
         },
       } as any);
+    } else if (transaction.status === 'failed') {
+      router.push({
+        pathname: '/TransactionFailedScreen',
+        params: {
+          transactionId: transaction.id,
+          amount: transaction.amount.toString(),
+          providerName: transaction.serviceName,
+          serviceFee: (transaction.amount * 0.93).toFixed(2), // Approximate service fee
+          platformFee: (transaction.amount * 0.07).toFixed(2), // Approximate platform fee
+          totalAmount: transaction.amount.toFixed(2),
+        },
+      } as any);
     }
   };
 
@@ -170,10 +182,11 @@ export default function ActivityScreen() {
           </Text>
           <Text
             style={{
-              fontSize: 28,
+              fontSize: 22,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
               marginBottom: 4,
+              letterSpacing: -0.4,
             }}
           >
             ₦{totalSpent.toLocaleString('en-US', {

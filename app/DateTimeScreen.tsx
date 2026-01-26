@@ -2,7 +2,7 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
-import { apiClient, serviceRequestService } from '@/services/api';
+import { serviceRequestService, authService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -114,8 +114,20 @@ export default function DateTimeScreen() {
 
   const handleBack = useCallback(() => {
     haptics.light();
-    router.back();
-  }, [router]);
+    // Navigate back to JobDetailsScreen explicitly
+    if (params.requestId) {
+      router.replace({
+        pathname: '/JobDetailsScreen' as any,
+        params: {
+          requestId: params.requestId,
+          categoryName: params.categoryName,
+        },
+      } as any);
+    } else {
+      // If no requestId, go to categories
+      router.replace('/(tabs)/categories' as any);
+    }
+  }, [router, params]);
 
   // Format date as YYYY-MM-DD
   const formatDateForAPI = useCallback((date: Date): string => {
@@ -187,7 +199,7 @@ export default function DateTimeScreen() {
     haptics.light();
 
     try {
-      const userId = await apiClient.getUserId();
+      const userId = await authService.getUserId();
       
       if (!userId) {
         showError('Unable to identify your account. Please sign out and sign in again.');
@@ -245,8 +257,20 @@ export default function DateTimeScreen() {
   }, [selectedDate, selectedTime, formattedDateTime, params, router, showError, showSuccess, formatDateForAPI, formatTimeForAPI]);
 
   const handleCancel = useCallback(() => {
-    router.back();
-  }, [router]);
+    // Navigate back to JobDetailsScreen explicitly
+    if (params.requestId) {
+      router.replace({
+        pathname: '/JobDetailsScreen' as any,
+        params: {
+          requestId: params.requestId,
+          categoryName: params.categoryName,
+        },
+      } as any);
+    } else {
+      // If no requestId, go to categories
+      router.replace('/(tabs)/categories' as any);
+    }
+  }, [router, params]);
 
   const handlePreviousMonth = useCallback(() => {
     setCurrentDate((prev) => {

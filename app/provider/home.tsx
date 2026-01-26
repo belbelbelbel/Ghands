@@ -1,21 +1,27 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import LocationSearchModal from '@/components/LocationSearchModal';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
+import Skeleton, { JobCardSkeleton } from '@/components/LoadingSkeleton';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, Users } from 'lucide-react-native';
-import React, { useEffect, useState, useCallback } from 'react';
-import { Dimensions, Image, ScrollView, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { Dimensions, Image, ScrollView, Text, TouchableOpacity, View, RefreshControl } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const scale = SCREEN_WIDTH < 375 ? 0.85 : SCREEN_WIDTH < 414 ? 0.92 : 1.0;
-import { providerService, AvailableRequest, ServiceRequest, apiClient } from '@/services/api';
+import { providerService, serviceRequestService, AvailableRequest, ServiceRequest, authService } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AuthError } from '@/utils/errors';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import JobAcceptedModal from '@/components/JobAcceptedModal';
+import { calculateDistance, estimateTravelTime } from '@/utils/navigationUtils';
+import { useTokenGuard } from '@/hooks/useTokenGuard';
 
 interface JobCard {
   id: string;
@@ -102,6 +108,7 @@ const mapRequestToJobCard = (request: AvailableRequest | ServiceRequest, isActiv
 
 export default function ProviderHomeScreen() {
   const router = useRouter();
+  const { isChecking } = useTokenGuard();
   const { location, refreshLocation } = useUserLocation();
   const { toast, showError, showSuccess, hideToast } = useToast();
   const [isOnline, setIsOnline] = useState(true);
@@ -113,6 +120,19 @@ export default function ProviderHomeScreen() {
   const [isLoadingActive, setIsLoadingActive] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [providerName, setProviderName] = useState<string>('Guest');
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
+  const activeJobsRef = useRef<JobCard[]>([]);
+  const [acceptedJobModal, setAcceptedJobModal] = useState<{
+    visible: boolean;
+    jobLocation: { address: string; city?: string; latitude: number; longitude: number };
+    distanceKm?: number;
+    travelTimeMinutes?: number;
+    requestId?: number;
+  }>({
+    visible: false,
+    jobLocation: { address: '', latitude: 0, longitude: 0 },
+  });
+  const [providerLocation, setProviderLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Load provider/company name
   const loadProviderName = useCallback(async () => {
@@ -121,14 +141,11 @@ export default function ProviderHomeScreen() {
       const companyName = await AsyncStorage.getItem('@ghands:company_name');
       if (companyName) {
         setProviderName(companyName);
-        if (__DEV__) {
-          console.log('✅ Provider name loaded from storage:', companyName);
-        }
         return;
       }
 
       // If no company name, try to get provider name from API
-      const providerId = await apiClient.getCompanyId(); // Use getCompanyId() for providers
+      const providerId = await authService.getCompanyId(); // Use getCompanyId() for providers
       if (providerId) {
         try {
           const provider = await providerService.getProvider(providerId);
@@ -136,15 +153,10 @@ export default function ProviderHomeScreen() {
             setProviderName(provider.name);
             // Also save to AsyncStorage for future use
             await AsyncStorage.setItem('@ghands:company_name', provider.name);
-            if (__DEV__) {
-              console.log('✅ Provider name loaded from API:', provider.name);
-            }
             return;
           }
         } catch (error) {
-          if (__DEV__) {
-            console.warn('⚠️ Could not load provider name from API');
-          }
+          // Silently fail - will try other sources
         }
       }
 
@@ -152,27 +164,42 @@ export default function ProviderHomeScreen() {
       const businessName = await AsyncStorage.getItem('@ghands:business_name');
       if (businessName) {
         setProviderName(businessName);
-        if (__DEV__) {
-          console.log('✅ Business name loaded from storage:', businessName);
-        }
         return;
       }
 
       // Default to "Guest" if no name found
       setProviderName('Guest');
+    } catch (error) {
       if (__DEV__) {
-        console.log('⚠️ No provider/company name found, using "Guest"');
+        // Silent error handling - no logs
+      }
+      setProviderName('Guest');
+    }
+  }, []);
+
+  // Load provider location for distance calculations
+  const loadProviderLocation = useCallback(async () => {
+    try {
+      const providerId = await authService.getCompanyId();
+      if (providerId) {
+        const provider = await providerService.getProvider(providerId);
+        if (provider?.latitude && provider?.longitude) {
+          setProviderLocation({
+            latitude: provider.latitude,
+            longitude: provider.longitude,
+          });
+        }
       }
     } catch (error) {
-      console.error('Error loading provider name:', error);
-      setProviderName('Guest');
+      // Silently fail - distance calculations will be skipped
     }
   }, []);
 
   // Load provider name on mount and when screen comes into focus
   useEffect(() => {
     loadProviderName();
-  }, [loadProviderName]);
+    loadProviderLocation();
+  }, [loadProviderName, loadProviderLocation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -184,28 +211,158 @@ export default function ProviderHomeScreen() {
   const loadAvailableRequests = useCallback(async () => {
     setIsLoadingPending(true);
     try {
-      // NO need to get providerId - backend extracts from Bearer token
       if (__DEV__) {
-        console.log('🔄 Loading available requests (provider ID from Bearer token)...');
+        console.log('🔍 [loadAvailableRequests] Starting to load requests...');
       }
-
+      
       const requests = await providerService.getAvailableRequests(50);
       
-      // Ensure requests is always an array
+      if (__DEV__) {
+        console.log('🔍 [loadAvailableRequests] Received from API:', {
+          requests,
+          requestsType: typeof requests,
+          isArray: Array.isArray(requests),
+          length: Array.isArray(requests) ? requests.length : 'not an array',
+          firstRequest: Array.isArray(requests) && requests.length > 0 ? requests[0] : null,
+        });
+      }
+      
       const requestsArray = Array.isArray(requests) ? requests : [];
       
       if (__DEV__) {
-        console.log('✅ Available requests loaded:', requestsArray.length);
+        console.log('🔍 [loadAvailableRequests] After array check:', {
+          requestsArray,
+          requestsArrayLength: requestsArray.length,
+        });
       }
       
       // Map to job cards only if we have valid requests
+      // Backend should already filter out accepted requests
+      // We'll do a safety check but use a ref to avoid dependency issues
       const jobCards = requestsArray.length > 0 
         ? requestsArray.map((req) => mapRequestToJobCard(req, false))
         : [];
       
-      setPendingJobs(jobCards);
+      if (__DEV__) {
+        console.log('🔍 [loadAvailableRequests] Mapped job cards:', {
+          jobCards,
+          jobCardsLength: jobCards.length,
+          firstJobCard: jobCards.length > 0 ? jobCards[0] : null,
+        });
+      }
+      
+      // CRITICAL: Filter out any requests that are already in accepted jobs
+      // This ensures accepted requests NEVER show in available requests
+      const currentActiveJobIds = new Set(activeJobsRef.current.map(job => job.requestId?.toString()));
+      const filteredJobCards = jobCards.filter((job) => {
+        const requestId = job.requestId?.toString();
+        const isAccepted = currentActiveJobIds.has(requestId);
+        
+        if (__DEV__ && isAccepted) {
+          console.log('🔍 [loadAvailableRequests] Filtering out accepted request:', {
+            requestId,
+            jobTitle: job.service,
+          });
+        }
+        
+        return !isAccepted;
+      });
+      
+      if (__DEV__ && filteredJobCards.length !== jobCards.length) {
+        console.log('🔍 [loadAvailableRequests] Filtered out accepted requests:', {
+          originalCount: jobCards.length,
+          filteredCount: filteredJobCards.length,
+          removedCount: jobCards.length - filteredJobCards.length,
+          activeJobIds: Array.from(currentActiveJobIds),
+        });
+      }
+      
+      setPendingJobs(filteredJobCards);
+      
     } catch (error: any) {
-      console.error('❌ Error loading available requests:', error);
+      if (__DEV__) {
+        console.log('🔍 [loadAvailableRequests] Error caught in UI:', {
+          error,
+          errorType: typeof error,
+          errorName: error?.name,
+          errorMessage: error?.message,
+          errorStatus: error?.status,
+          errorDetails: error?.details,
+          errorResponse: error?.response,
+          isAuthError: error instanceof AuthError,
+          errorKeys: error ? Object.keys(error) : [],
+        });
+      }
+      
+      // If AuthError, redirect immediately (silent - no logs, no errors shown)
+      if (error instanceof AuthError) {
+        if (__DEV__) {
+          console.log('🔍 [loadAvailableRequests] AuthError detected, redirecting...');
+        }
+        await handleAuthErrorRedirect(router);
+        return;
+      }
+      
+      // Check if it's a 500 error that might be auth-related
+      // For provider endpoints, 500 errors are often auth-related (expired/invalid token)
+      const status = error?.status || 500;
+      if (status === 500) {
+        if (__DEV__) {
+          console.log('🔍 [loadAvailableRequests] 500 error detected, checking token...');
+        }
+        try {
+          const { authService } = await import('@/services/authService');
+          const token = await authService.getAuthToken();
+          if (__DEV__) {
+            console.log('🔍 [loadAvailableRequests] Token check:', {
+              hasToken: !!token,
+              tokenLength: token?.length,
+            });
+          }
+          if (!token) {
+            // No token = auth error, redirect silently
+            if (__DEV__) {
+              console.log('🔍 [loadAvailableRequests] No token found, redirecting...');
+            }
+            await handleAuthErrorRedirect(router);
+            return;
+          }
+          // Even if token exists, 500 on provider protected route usually means expired/invalid token
+          // Be aggressive - redirect on any 500 error for provider endpoints
+          if (__DEV__) {
+            console.log('🔍 [loadAvailableRequests] Token exists but 500 error, redirecting...');
+          }
+          await handleAuthErrorRedirect(router);
+          return;
+        } catch (redirectError) {
+          if (__DEV__) {
+            console.log('🔍 [loadAvailableRequests] Redirect error:', redirectError);
+          }
+          // If redirect fails, try again with fallback
+          try {
+            router.replace('/ProviderSignInScreen' as any);
+          } catch {
+            // Silent fail
+          }
+          return;
+        }
+      }
+      
+      // Don't log errors - silent handling for auth errors
+      // Check if it's a network error first
+      const isNetworkError = error?.isNetworkError || 
+                            error?.message?.includes('Network') || 
+                            error?.message?.includes('Failed to fetch') ||
+                            error?.message?.includes('Network request failed');
+      
+      if (isNetworkError) {
+        if (__DEV__) {
+          console.log('🔍 [loadAvailableRequests] Network error detected');
+        }
+        showError('No internet connection. Please check your connection and reconnect to continue.');
+        setPendingJobs([]);
+        return;
+      }
       
       // Check for specific errors and provide helpful messages
       let errorMessage = getSpecificErrorMessage(error, 'get_available_requests');
@@ -219,11 +376,18 @@ export default function ProviderHomeScreen() {
                        error?.error ||
                        '';
       
+      if (__DEV__) {
+        console.log('🔍 [loadAvailableRequests] Error text extracted:', {
+          errorText,
+          errorMessage,
+        });
+      }
+      
       // Check if it's a location issue
       if (errorText.toLowerCase().includes('location') || 
           errorText.toLowerCase().includes('location not set') ||
           errorText.toLowerCase().includes('no location')) {
-        errorMessage = 'Provider location not set. Please set your location in profile setup to see available requests.';
+        errorMessage = 'Location not set. Please set your location in profile setup to see available requests.';
       } 
       // Check if it's a category issue
       else if (errorText.toLowerCase().includes('category') || 
@@ -237,15 +401,24 @@ export default function ProviderHomeScreen() {
         errorMessage = 'No available requests found in your area. Check back later or adjust your location.';
       }
       
-      if (__DEV__) {
-        console.log('🔴 Error details:', {
-          errorText,
-          errorMessage,
-          fullError: error
-        });
+      // Don't show errors for auth-related issues (already redirected)
+      // Only show error if it's not a "no requests" case and not a 500 error
+      if (!errorText.toLowerCase().includes('no requests') && 
+          !errorText.toLowerCase().includes('no available') &&
+          status !== 500) {
+        if (__DEV__) {
+          console.log('🔍 [loadAvailableRequests] Showing error to user:', errorMessage);
+        }
+        showError(errorMessage);
+      } else {
+        if (__DEV__) {
+          console.log('🔍 [loadAvailableRequests] Suppressing error (no requests or 500):', {
+            errorText,
+            status,
+          });
+        }
       }
       
-      showError(errorMessage);
       setPendingJobs([]);
     } finally {
       setIsLoadingPending(false);
@@ -256,29 +429,49 @@ export default function ProviderHomeScreen() {
   const loadAcceptedRequests = useCallback(async () => {
     setIsLoadingActive(true);
     try {
-      // NO need to get providerId - backend extracts from Bearer token
-      if (__DEV__) {
-        console.log('🔄 Loading accepted requests (provider ID from Bearer token)...');
-      }
-
       const requests = await providerService.getAcceptedRequests();
       
       // Ensure requests is always an array
       const requestsArray = Array.isArray(requests) ? requests : [];
       
-      if (__DEV__) {
-        console.log('✅ Accepted requests loaded:', requestsArray.length);
-      }
-      
-      // Map to job cards only if we have valid requests
+      // Map to job cards and calculate distance if provider location is available
       const jobCards = requestsArray.length > 0
-        ? requestsArray.map((req) => mapRequestToJobCard(req, true))
+        ? requestsArray.map((req) => {
+            const jobCard = mapRequestToJobCard(req, true);
+            
+            // Calculate distance if we have provider location and job location
+            if (providerLocation && req.location?.latitude && req.location?.longitude) {
+              const distance = calculateDistance(
+                providerLocation.latitude,
+                providerLocation.longitude,
+                req.location.latitude,
+                req.location.longitude
+              );
+              // Add distance to job card
+              return {
+                ...jobCard,
+                distanceKm: distance,
+                minutesAway: estimateTravelTime(distance),
+              };
+            }
+            
+            return jobCard;
+          })
         : [];
       
       setActiveJobs(jobCards);
       setHasActiveJobs(jobCards.length > 0);
+      // Update ref to avoid dependency issues
+      activeJobsRef.current = jobCards;
     } catch (error: any) {
-      console.error('Error loading accepted requests:', error);
+      // If AuthError, redirect immediately
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
+      if (__DEV__) {
+        // Silent error handling - no logs
+      }
       const errorMessage = getSpecificErrorMessage(error, 'get_accepted_requests');
       showError(errorMessage);
       setActiveJobs([]);
@@ -286,13 +479,28 @@ export default function ProviderHomeScreen() {
     } finally {
       setIsLoadingActive(false);
     }
-  }, [showError]);
+  }, [showError, providerLocation]);
 
   // Load data on mount and when screen comes into focus
+  // Only load once when screen comes into focus, not on every render
   useFocusEffect(
     useCallback(() => {
-      loadAvailableRequests();
-      loadAcceptedRequests();
+      setIsScreenFocused(true);
+      // Load accepted requests FIRST to update the ref
+      // Then load available requests which will filter out accepted ones
+      (async () => {
+        try {
+          await loadAcceptedRequests();
+          await loadAvailableRequests();
+        } catch {
+          // Silent error - already handled in individual functions
+        }
+      })();
+      
+      // Cleanup when screen loses focus
+      return () => {
+        setIsScreenFocused(false);
+      };
     }, [loadAvailableRequests, loadAcceptedRequests])
   );
 
@@ -303,16 +511,20 @@ export default function ProviderHomeScreen() {
     }
   }, [showLocationModal, refreshLocation]);
 
-  // Pull to refresh
+  // Pull to refresh - ONLY manual refresh, no auto-refresh
+  // Load accepted requests FIRST, then available requests (so filtering works correctly)
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     haptics.light();
-    await Promise.all([loadAvailableRequests(), loadAcceptedRequests()]);
+    // Load accepted requests first to update the ref
+    await loadAcceptedRequests();
+    // Then load available requests which will filter out accepted ones
+    await loadAvailableRequests();
     setRefreshing(false);
     haptics.success();
   }, [loadAvailableRequests, loadAcceptedRequests]); 
 
-  const renderJobCard = (job: JobCard, isActive: boolean) => (
+  const renderJobCard = useCallback((job: JobCard, isActive: boolean) => (
     <View
       key={job.id}
       style={{
@@ -365,11 +577,26 @@ export default function ProviderHomeScreen() {
             </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
             <MapPin size={12} color={Colors.textSecondaryDark} />
-            <Text style={{ fontSize: 12, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Regular', marginLeft: 6 }}>
+            <Text style={{ fontSize: 12, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Regular', marginLeft: 6, flex: 1 }}>
               {job.location}
             </Text>
+            {isActive && job.distanceKm !== undefined && job.distanceKm > 0 && (
+              <View
+                style={{
+                  backgroundColor: Colors.backgroundGray,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: BorderRadius.sm,
+                  marginLeft: 8,
+                }}
+              >
+                <Text style={{ fontSize: 11, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium' }}>
+                  {job.distanceKm < 1 ? `${Math.round(job.distanceKm * 1000)}m` : `${job.distanceKm.toFixed(1)}km`}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -408,7 +635,22 @@ export default function ProviderHomeScreen() {
             justifyContent: 'center',
             width: '100%',
           }}
-          onPress={() => router.push('/ProviderUpdatesScreen' as any)}
+          onPress={() => {
+            haptics.light();
+            
+            // Validate requestId before navigating
+            if (!job.requestId) {
+              showError('Invalid job ID');
+              return;
+            }
+            
+            router.push({
+              pathname: '/ProviderJobDetailsScreen',
+              params: {
+                requestId: job.requestId.toString(),
+              },
+            } as any);
+          }}
         >
           <Text style={{ color: Colors.white, fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
             Check Updates
@@ -436,23 +678,98 @@ export default function ProviderHomeScreen() {
               
               haptics.light();
               try {
-                // NO need to get providerId - backend extracts from Bearer token
-                if (__DEV__) {
-                  console.log('🔄 Accepting request (provider ID from Bearer token)...');
-                  console.log('🔄 Request ID:', job.requestId);
+                // Get job location details for modal
+                const jobRequest = pendingJobs.find(j => j.requestId === job.requestId);
+                let jobLocationData = {
+                  address: job.location || 'Location not specified',
+                  city: '',
+                  latitude: 0,
+                  longitude: 0,
+                };
+                let distanceKm: number | undefined;
+                let travelTimeMinutes: number | undefined;
+
+                // Try to get location from the original request data
+                try {
+                  const requestDetails = await serviceRequestService.getRequestDetails(job.requestId);
+                  
+                  if (requestDetails?.location) {
+                    jobLocationData = {
+                      address: requestDetails.location.formattedAddress || requestDetails.location.address || job.location,
+                      city: requestDetails.location.city || '',
+                      latitude: requestDetails.location.latitude || 0,
+                      longitude: requestDetails.location.longitude || 0,
+                    };
+
+                    // Calculate distance if we have both provider and job locations
+                    if (providerLocation && jobLocationData.latitude && jobLocationData.longitude) {
+                      distanceKm = calculateDistance(
+                        providerLocation.latitude,
+                        providerLocation.longitude,
+                        jobLocationData.latitude,
+                        jobLocationData.longitude
+                      );
+                      travelTimeMinutes = estimateTravelTime(distanceKm);
+                    } else if (job.distanceKm !== undefined) {
+                      // Use distance from API if available
+                      distanceKm = job.distanceKm;
+                      travelTimeMinutes = job.minutesAway;
+                    }
+                  } else if (job.distanceKm !== undefined) {
+                    // Use distance from job card if available
+                    distanceKm = job.distanceKm;
+                    travelTimeMinutes = job.minutesAway;
+                  }
+                } catch (error) {
+                  // If we can't get location details, use what we have from job card
+                  if (job.distanceKm !== undefined) {
+                    distanceKm = job.distanceKm;
+                    travelTimeMinutes = job.minutesAway;
+                  }
                 }
 
-                await providerService.acceptRequest(job.requestId); // REMOVE providerId
-                haptics.success();
-                showSuccess('Request accepted! Waiting for client confirmation.');
+                // Optimistically remove from available requests immediately
+                setPendingJobs(prev => prev.filter(j => j.requestId !== job.requestId));
                 
-                // Refresh the list
-                setTimeout(() => {
-                  loadAvailableRequests();
-                  loadAcceptedRequests();
-                }, 1000);
+                await providerService.acceptRequest(job.requestId);
+                haptics.success();
+                
+                // Show modal with location and navigation options
+                // Show modal if we have address (even without coordinates) or if we have valid coordinates
+                if (jobLocationData.address && jobLocationData.address !== 'Location not specified') {
+                  // If we have valid coordinates, use them; otherwise use default (0,0) but still show modal
+                  if (jobLocationData.latitude === 0 || jobLocationData.longitude === 0) {
+                    // Try to get coordinates from the job card if available
+                    const jobWithLocation = pendingJobs.find(j => j.requestId === job.requestId);
+                    // If still no coordinates, modal will show but navigation won't work
+                  }
+                  
+                  setAcceptedJobModal({
+                    visible: true,
+                    jobLocation: {
+                      address: jobLocationData.address,
+                      city: jobLocationData.city,
+                      latitude: jobLocationData.latitude || 0,
+                      longitude: jobLocationData.longitude || 0,
+                    },
+                    distanceKm,
+                    travelTimeMinutes,
+                    requestId: job.requestId,
+                  });
+                } else {
+                  // Fallback to toast if no location data at all
+                  showSuccess('Request accepted! Waiting for client confirmation.');
+                }
+                
+                // Load accepted requests FIRST to update the ref
+                await loadAcceptedRequests();
+                
+                // Then load available requests (which will filter out the accepted one)
+                await loadAvailableRequests();
               } catch (error: any) {
-                console.error('Error accepting request:', error);
+                if (__DEV__) {
+                  // Silent error handling - no logs
+                }
                 haptics.error();
                 const errorMessage = getSpecificErrorMessage(error, 'accept_request');
                 showError(errorMessage);
@@ -493,7 +810,12 @@ export default function ProviderHomeScreen() {
         </View>
       )}
     </View>
-  );
+  ), [router, loadAvailableRequests, loadAcceptedRequests, showError, showSuccess, haptics]);
+
+  // If checking token, show nothing (will redirect if no token)
+  if (isChecking) {
+    return null;
+  }
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.white}>
@@ -667,23 +989,34 @@ export default function ProviderHomeScreen() {
           </View>
         </View>
         {isLoadingActive ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 20 }}>
-            <ActivityIndicator size="small" color={Colors.accent} />
-            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 8 }}>
-              Loading active jobs...
-            </Text>
+          <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Skeleton width={100} height={16} borderRadius={8} />
+              <Skeleton width={60} height={12} borderRadius={6} />
+            </View>
+            {[1, 2].map((i) => (
+              <JobCardSkeleton key={i} />
+            ))}
           </View>
         ) : Array.isArray(activeJobs) && activeJobs.length > 0 ? (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Active Jobs</Text>
-              <TouchableOpacity onPress={() => router.push('/provider/jobs')}>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
-                  View all <ArrowRight size={12} color={Colors.accent} />
+              <TouchableOpacity 
+                onPress={() => {
+                  haptics.light();
+                  router.push('/provider/jobs');
+                }}
+                style={{ flexDirection: 'row', alignItems: 'center' }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.accent, marginRight: 4 }}>
+                  View all
                 </Text>
+                <ArrowRight size={14} color={Colors.accent} />
               </TouchableOpacity>
             </View>
-            {activeJobs.slice(0, 3).map((job) => renderJobCard(job, true))}
+            {activeJobs.slice(0, 2).map((job) => renderJobCard(job, true))}
           </View>
         ) : !isLoadingActive && (
           // Empty state for active jobs will be shown below if no pending jobs either
@@ -691,11 +1024,14 @@ export default function ProviderHomeScreen() {
         )}
 
         {isLoadingPending ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 20 }}>
-            <ActivityIndicator size="small" color={Colors.accent} />
-            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 8 }}>
-              Loading available requests...
-            </Text>
+          <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <View style={{ width: 140, height: 16, backgroundColor: Colors.border, borderRadius: 8 }} />
+              <View style={{ width: 60, height: 12, backgroundColor: Colors.border, borderRadius: 6 }} />
+            </View>
+            {[1, 2, 3].map((i) => (
+              <JobCardSkeleton key={i} />
+            ))}
           </View>
         ) : Array.isArray(pendingJobs) && pendingJobs.length > 0 ? (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
@@ -958,6 +1294,23 @@ export default function ProviderHomeScreen() {
         type={toast.type}
         visible={toast.visible}
         onClose={hideToast}
+      />
+
+      {/* Job Accepted Modal */}
+      <JobAcceptedModal
+        visible={acceptedJobModal.visible}
+        onClose={() => setAcceptedJobModal(prev => ({ ...prev, visible: false }))}
+        onViewDetails={() => {
+          if (acceptedJobModal.requestId) {
+            router.push({
+              pathname: '/ProviderJobDetailsScreen',
+              params: { requestId: acceptedJobModal.requestId.toString() },
+            } as any);
+          }
+        }}
+        jobLocation={acceptedJobModal.jobLocation}
+        distanceKm={acceptedJobModal.distanceKm}
+        travelTimeMinutes={acceptedJobModal.travelTimeMinutes}
       />
     </SafeAreaWrapper>
   );

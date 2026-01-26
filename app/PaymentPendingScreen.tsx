@@ -82,10 +82,11 @@ export default function PaymentPendingScreen() {
           </View>
           <Text
             style={{
-              fontSize: 24,
+              fontSize: 19,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
-              marginBottom: 8,
+              marginBottom: 6,
+              letterSpacing: -0.3,
             }}
           >
             Payment Pending
@@ -134,10 +135,11 @@ export default function PaymentPendingScreen() {
             </Text>
             <Text
               style={{
-                fontSize: 32,
+                fontSize: 22,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
                 marginBottom: 4,
+                letterSpacing: -0.4,
               }}
             >
               ₦{transactionData.totalPayment}

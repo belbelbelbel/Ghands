@@ -192,10 +192,11 @@ export default function ProviderDetailScreen() {
               >
                 <Text
                   style={{
-                    fontSize: 24,
+                    fontSize: 19,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.textPrimary,
                     marginBottom: 4,
+                    letterSpacing: -0.3,
                   }}
                 >
                   {provider.name}
@@ -268,10 +269,11 @@ export default function ProviderDetailScreen() {
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text
                   style={{
-                    fontSize: 32,
+                    fontSize: 22,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.textPrimary,
                     marginBottom: 4,
+                    letterSpacing: -0.4,
                   }}
                 >
                   {provider.jobsDone}
@@ -298,10 +300,11 @@ export default function ProviderDetailScreen() {
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text
                   style={{
-                    fontSize: 32,
+                    fontSize: 22,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.textPrimary,
                     marginBottom: 4,
+                    letterSpacing: -0.4,
                   }}
                 >
                   {provider.responseTime}
@@ -328,10 +331,11 @@ export default function ProviderDetailScreen() {
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text
                   style={{
-                    fontSize: 32,
+                    fontSize: 22,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.textPrimary,
                     marginBottom: 4,
+                    letterSpacing: -0.4,
                   }}
                 >
                   {provider.onTimePercentage}%

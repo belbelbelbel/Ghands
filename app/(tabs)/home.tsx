@@ -1,13 +1,15 @@
-import CoachMarks from '@/components/CoachMarks';
+import CoachMarks, { CoachMarkStep } from '@/components/CoachMarks';
+import { CoachMarkTarget } from '@/components/CoachMarkTarget';
 import LiveSupportScreen from '@/components/LiveSupportScreen';
+import LocationSearchModal from '@/components/LocationSearchModal';
 import { JobCardSkeleton } from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import JobActivityCard from '@/components/home/JobActivityCard';
 import PromoCodeCard from '@/components/home/PromoCodeCard';
 import RecommendedCard from '@/components/home/RecommendedCard';
 import TodoCard from '@/components/home/TodoCard';
-import { jobActivities, promoCodes, quickActions, recommendedServices, todoItems, type QuickAction } from '@/components/home/data';
-import { useCoachMarks } from '@/hooks/useCoachMarks';
+import { promoCodes, quickActions, recommendedServices, todoItems, type QuickAction, type JobActivity } from '@/components/home/data';
+import useCoachMarks from '@/hooks/useCoachMarks';
 import { haptics } from '@/hooks/useHaptics';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,8 +18,12 @@ import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ServiceCategory, homeScreenCategories } from '../../data/serviceCategories';
-import { serviceRequestService } from '@/services/api';
+import { serviceRequestService, ServiceRequest, authService } from '@/services/api';
 import { getCategoryIcon } from '@/utils/categoryIcons';
+import { Colors, BorderRadius, Spacing, SHADOWS } from '@/lib/designSystem';
+import { AuthError } from '@/utils/errors';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import { useTokenGuard } from '@/hooks/useTokenGuard';
 
 const CategoryItem = React.memo(({
   category,
@@ -57,31 +63,95 @@ CategoryItem.displayName = 'CategoryItem';
 
 const HomeScreen = React.memo(() => {
   const router = useRouter();
+  const { isChecking } = useTokenGuard();
   const [searchQuery, setSearchQuery] = useState('');
   const [apiCategories, setApiCategories] = useState<ServiceCategory[]>([]); // API categories
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const { location, isLoading, refreshLocation } = useUserLocation();
+  const [jobActivities, setJobActivities] = useState<JobActivity[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  
+  // Coach marks configuration
+  const coachMarkSteps: CoachMarkStep[] = [
+    {
+      id: 'location',
+      target: 'location-selector',
+      title: 'Set Your Location',
+      description: 'Tap here to set your location. This helps us show you nearby service providers.',
+      position: 'bottom',
+    },
+    {
+      id: 'search',
+      target: 'search-bar',
+      title: 'Search Services',
+      description: 'Use the search bar to quickly find any service you need.',
+      position: 'bottom',
+    },
+    {
+      id: 'categories',
+      target: 'categories-section',
+      title: 'Browse Categories',
+      description: 'Explore different service categories or tap "View all" to see everything.',
+      position: 'bottom',
+    },
+    {
+      id: 'quick-actions',
+      target: 'quick-actions',
+      title: 'Quick Actions',
+      description: 'Access emergency services, book again, or manage your wallet quickly.',
+      position: 'bottom',
+    },
+    {
+      id: 'job-activity',
+      target: 'job-activity',
+      title: 'Track Your Jobs',
+      description: 'See all your active and completed service requests here.',
+      position: 'bottom',
+    },
+  ];
+
   const {
-    isVisible: isCoachMarksVisible,
+    isComplete: isCoachMarksComplete,
+    isLoading: isLoadingCoachMarks,
     currentStep,
-    currentMark,
-    totalSteps,
     startTour,
     nextStep,
     previousStep,
     skipTour,
-  } = useCoachMarks();
+    completeTour,
+  } = useCoachMarks(coachMarkSteps);
+
+  // Start coach marks tour on first visit
+  useEffect(() => {
+    if (!isLoadingCoachMarks && !isCoachMarksComplete && coachMarkSteps.length > 0) {
+      // Small delay to ensure layout is complete
+      const timer = setTimeout(() => {
+        startTour();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoadingCoachMarks, isCoachMarksComplete, startTour, coachMarkSteps.length]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const categoriesFadeAnim = useRef(new Animated.Value(1)).current; // Start visible for dummy data
 
-  // Refresh location when screen comes into focus
+  // Refresh location and jobs when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       // Reload location from storage when screen comes into focus
       refreshLocation();
-    }, [refreshLocation])
+      // Reload job activities
+      loadJobActivities();
+    }, [refreshLocation, loadJobActivities])
   );
+
+  // Refresh location when modal closes
+  useEffect(() => {
+    if (!showLocationModal) {
+      refreshLocation();
+    }
+  }, [showLocationModal, refreshLocation]);
 
   const animationConfig = useMemo(() => ({
     fadeConfig: {
@@ -103,10 +173,200 @@ const HomeScreen = React.memo(() => {
     ]).start();
   }, [fadeAnim, slideAnim, animationConfig]);
 
+  // Helper function to format time ago
+  const formatTimeAgo = useCallback((dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffDays > 0) {
+        return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+      } else if (diffHours > 0) {
+        return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+      } else if (diffMinutes > 0) {
+        return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
+      } else {
+        return 'Just now';
+      }
+    } catch {
+      return 'Recently';
+    }
+  }, []);
+
+  // Map ServiceRequest to JobActivity
+  const mapRequestToJobActivity = useCallback((request: ServiceRequest, acceptedProvidersCount: number = 0): JobActivity => {
+    const categoryDisplayName = request.categoryName
+      ? request.categoryName.charAt(0).toUpperCase() + request.categoryName.slice(1).replace(/([A-Z])/g, ' $1')
+      : 'Service';
+    
+    // Map status: If providers have accepted, show "In Progress" even if request status is "pending"
+    let status: 'Completed' | 'In Progress' | 'Pending' = 'Pending';
+    if (request.status === 'completed') {
+      status = 'Completed';
+    } else if (request.status === 'accepted' || request.status === 'in_progress') {
+      status = 'In Progress';
+    } else if (acceptedProvidersCount > 0) {
+      // Providers have accepted, but request status is still "pending" (waiting for client selection)
+      status = 'In Progress'; // Show as "In Progress" to indicate providers have accepted
+    }
+
+    // Get quotations count (if available)
+    const quotesCount = 0; // TODO: Get from request if available
+
+    // Format price range (if available)
+    const priceRange = request.price ? `₦${request.price.toLocaleString()}` : 'Price pending';
+
+    return {
+      id: request.id.toString(),
+      title: request.jobTitle || `${categoryDisplayName} Service`,
+      category: categoryDisplayName,
+      submittedAt: formatTimeAgo(request.createdAt),
+      quotes: quotesCount,
+      priceRange,
+      status,
+    };
+  }, [formatTimeAgo]);
+
+  // Load job activities from API
+  const loadJobActivities = useCallback(async () => {
+    setIsLoadingJobs(true);
+    try {
+      // Fetch all requests
+      const requests = await serviceRequestService.getUserRequests();
+      
+      if (!Array.isArray(requests) || requests.length === 0) {
+        setJobActivities([]);
+        return;
+      }
+
+      // Filter out requests that are still in the booking flow (not confirmed yet)
+      // Also filter out cancelled/deleted requests - they should only show in Jobs tab
+      // Only show requests that have been confirmed/booked AND sent to providers
+      const confirmedRequests = requests.filter((request) => {
+        // Exclude cancelled requests - they should only show in Jobs tab
+        if (request.status === 'cancelled') {
+          return false;
+        }
+        
+        // Must have both jobTitle and description
+        const hasJobTitle = request.jobTitle && request.jobTitle.trim().length > 0;
+        const hasDescription = request.description && request.description.trim().length > 0;
+        if (!hasJobTitle || !hasDescription) {
+          return false;
+        }
+        
+        // For "pending" status: Only show if booking has been sent to providers
+        // A booking is sent to providers when:
+        // 1. It has location (request was sent to providers via updateJobDetails)
+        // OR it has scheduled date/time (user confirmed booking in DateTimeScreen)
+        // This ensures user has completed the booking flow and seen providers
+        // but is still waiting for provider response (status is still "pending", not "accepted")
+        // Note: When a provider is selected, status changes to "accepted", so if status is "pending",
+        // it means no provider has been selected yet
+        if (request.status === 'pending') {
+          const hasScheduledDateTime = !!(request.scheduledDate && request.scheduledTime);
+          const hasLocation = !!(request.location?.latitude && request.location?.longitude);
+          const hasLocationText = !!(request.location?.formattedAddress || request.location?.address);
+          
+          // Show "pending" if booking has been sent to providers (has location OR date/time)
+          // This means user has completed the booking flow and confirmed booking
+          // Status being "pending" already means no provider has been selected yet
+          // (if provider was selected, status would be "accepted")
+          return hasScheduledDateTime || hasLocation || hasLocationText;
+        }
+        
+        // Show all other statuses (accepted, in_progress, completed) - these are confirmed
+        return true;
+      });
+
+      // Map to JobActivity format - Load accepted providers for each request to determine correct status
+      const activities = await Promise.all(
+        confirmedRequests.map(async (request) => {
+          // Check if providers have accepted this request
+          let acceptedProvidersCount = 0;
+          try {
+            const acceptedProviders = await serviceRequestService.getAcceptedProviders(request.id);
+            acceptedProvidersCount = acceptedProviders?.length || 0;
+          } catch (error) {
+            // Silently fail - if we can't load accepted providers, use request status
+            if (__DEV__) {
+              console.log(`Could not load accepted providers for request ${request.id}:`, error);
+            }
+          }
+          
+          return mapRequestToJobActivity(request, acceptedProvidersCount);
+        })
+      );
+
+      // Sort by date (most recent first) and limit to 2 most recent
+      const sortedActivities = activities
+        .sort((a, b) => {
+          // Sort by status priority: In Progress > Pending > Completed
+          const statusPriority = { 'In Progress': 0, 'Pending': 1, 'Completed': 2 };
+          const priorityDiff = statusPriority[a.status] - statusPriority[b.status];
+          if (priorityDiff !== 0) return priorityDiff;
+          // Then by ID (most recent first)
+          return parseInt(b.id) - parseInt(a.id);
+        })
+        .slice(0, 2); // Show only 2 most recent
+
+      setJobActivities(sortedActivities);
+    } catch (error: any) {
+      // If AuthError, redirect immediately
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
+      
+      // Check if it's a network error
+      const isNetworkError = error?.isNetworkError || 
+                            error?.message?.includes('Network') || 
+                            error?.message?.includes('Failed to fetch') ||
+                            error?.message?.includes('Network request failed');
+      
+      if (isNetworkError) {
+        // Don't show error for network issues on home screen - just show empty state
+        setJobActivities([]);
+        return;
+      }
+      
+      // Check if it's a 500 error - might indicate invalid/expired token
+      const status = (error as any)?.status;
+      if (status === 500) {
+        // 500 errors on protected routes often mean invalid token
+        // Check if we have a token - if not, redirect
+        try {
+          const token = await authService.getAuthToken();
+          if (!token) {
+            // No token = redirect to login
+            await handleAuthErrorRedirect(router);
+            return;
+          }
+        } catch (tokenError) {
+          // Can't get token = redirect
+          await handleAuthErrorRedirect(router);
+          return;
+        }
+      }
+      
+      if (__DEV__ && !(error instanceof AuthError)) {
+        console.error('Error loading job activities:', error?.message || error);
+      }
+      setJobActivities([]);
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  }, [mapRequestToJobActivity, router]);
+
   // Fetch categories from API on mount
   useEffect(() => {
     loadCategoriesFromAPI();
-  }, []);
+    loadJobActivities();
+  }, [loadJobActivities]);
 
   // Animate categories when API data loads
   useEffect(() => {
@@ -143,9 +403,6 @@ const HomeScreen = React.memo(() => {
       
       if (!Array.isArray(categories) || categories.length === 0) {
         // If API fails or returns empty, keep dummy data
-        if (__DEV__) {
-          console.log('⚠️ Categories API returned empty or invalid data, using dummy data');
-        }
         return;
       }
       
@@ -168,22 +425,17 @@ const HomeScreen = React.memo(() => {
       
       // Replace dummy data with API data
       setApiCategories(limitedCategories);
-      
-      if (__DEV__) {
-        console.log('✅ Categories loaded from API (randomized):', limitedCategories.length);
-      }
     } catch (error: any) {
-      // On error, only use dummy data in development mode
+      // If AuthError, redirect immediately
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
+      
+      // On error, clear categories to show empty state
+      setApiCategories([]);
       if (__DEV__) {
         console.error('Error loading categories from API:', error);
-        console.log('ℹ️ Using dummy categories as fallback (development mode only)');
-        // Keep dummy data visible in dev mode for testing
-      } else {
-        // In production, clear categories on error to show empty state
-        setApiCategories([]);
-        if (__DEV__) {
-          console.error('Error loading categories from API:', error);
-        }
       }
     }
   };
@@ -240,8 +492,9 @@ const HomeScreen = React.memo(() => {
   }, [router]);
 
   const handleLocationPress = useCallback(() => {
-    router.push('../LocationSearchScreen' as any);
-  }, [router]);
+    haptics.light();
+    setShowLocationModal(true);
+  }, []);
 
   const handleViewAllJobs = useCallback(() => {
     router.push('/(tabs)/jobs' as any);
@@ -314,20 +567,10 @@ const HomeScreen = React.memo(() => {
 
   const bottomSpacerStyle = useMemo(() => ({ height: 90 }), []);
 
-  const displayLocation = useMemo(() => {
-    if (isLoading) {
-      return 'Loading...';
-    }
-    if (!location || !location.trim()) {
-      return 'Enter your location';
-    }
-    const trimmed = location.trim();
-    return trimmed.length > 32 ? `${trimmed.slice(0, 32)}...` : trimmed;
-  }, [location, isLoading]);
-
-  const locationTextColor = location ? '#4B5563' : '#9CA3AF';
-  const locationIconBackground = location ? '#111827' : '#F3F4F6';
-  const locationIconColor = location ? '#9bd917ff' : '#6B7280';
+  // If checking token, show nothing (will redirect if no token)
+  if (isChecking) {
+    return null;
+  }
 
   return (
     <SafeAreaWrapper>
@@ -335,41 +578,66 @@ const HomeScreen = React.memo(() => {
         <Animated.View
           style={[animatedStyles, { flex: 1, paddingTop: 17 }]}
         >
-          <View className="px-4 pt-0 pb-0">
-            <View className="flex-row items-center justify-between mb-1">
-              <TouchableOpacity
-                onPress={handleLocationPress}
-                className="flex-row items-center flex-1"
-                activeOpacity={0.8}
-              >
-                <View
-                  className="w-8 h-8 rounded-full items-center justify-center mr-2"
-                  style={{ backgroundColor: locationIconBackground }}
+          <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 0 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <CoachMarkTarget name="location-selector">
+                <TouchableOpacity
+                  onPress={handleLocationPress}
+                  style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+                  activeOpacity={0.8}
                 >
-                  <MapPin size={16} color={locationIconColor} />
-                </View>
-                <Text
-                  className="text-sm flex-1"
-                  numberOfLines={1}
-                  style={{ fontFamily: 'Poppins-SemiBold', color: locationTextColor }}
-                >
-                  {displayLocation}
-                </Text>
-                <ChevronDown size={16} color={location ? '#4B5563' : '#9CA3AF'} />
-              </TouchableOpacity>
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: Colors.black,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 8,
+                    }}
+                  >
+                    <MapPin size={16} color={Colors.accent} />
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Medium',
+                      color: location ? Colors.textPrimary : Colors.textSecondaryDark,
+                      flex: 1,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {location || 'Enter your location'}
+                  </Text>
+                  <ChevronDown size={16} color={location ? Colors.textSecondaryDark : Colors.textTertiary} />
+                </TouchableOpacity>
+              </CoachMarkTarget>
               <TouchableOpacity
-                className="relative p-2 ml-4"
+                style={{ position: 'relative', padding: 8, marginLeft: 16 }}
                 onPress={handleNotificationPress}
+                activeOpacity={0.7}
               >
-                <Bell size={22} color="#111827" />
-                <View className="absolute top-1 right-1 w-2 h-2 bg-[#9bd719ff] rounded-full" />
+                <Bell size={22} color={Colors.textPrimary} />
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: Colors.accent,
+                  }}
+                />
               </TouchableOpacity>
             </View>
 
-            <View
-              className="bg-gray-100 rounded-xl px-4 py-0 flex-row items-center"
-              style={searchBarStyle}
-            >
+            <CoachMarkTarget name="search-bar">
+              <View
+                className="bg-gray-100 rounded-xl px-4 py-0 flex-row items-center"
+                style={searchBarStyle}
+              >
               <TextInput
                 placeholder="Search for services"
                 value={searchQuery}
@@ -396,13 +664,15 @@ const HomeScreen = React.memo(() => {
               >
                 <Search size={18} color="#9bd719ff" />
               </TouchableOpacity>
-            </View>
+              </View>
+            </CoachMarkTarget>
           </View>
-          <View className="px-4 pt-6 mb-0">
+          <CoachMarkTarget name="categories-section">
+            <View className="px-4 pt-6 mb-0">
             <View className="flex-row pb-2 items-center justify-between mb-4">
               <Text
-                className="text-xl font-bold text-black"
-                style={{ fontFamily: 'Poppins-Bold' }}
+                className="text-lg font-bold text-black"
+                style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
               >
                 Categories
               </Text>
@@ -425,7 +695,7 @@ const HomeScreen = React.memo(() => {
                 horizontal 
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingRight: 16 }}
-                style={{ marginTop: 5, marginBottom: 20 }}
+                style={{ marginTop: 5, marginBottom: 28 }}
               >
                 {filteredCategories.map((category) => (
                   <CategoryItem
@@ -436,13 +706,15 @@ const HomeScreen = React.memo(() => {
                 ))}
               </ScrollView>
             </Animated.View>
-          </View>
+            </View>
+          </CoachMarkTarget>
 
           {/* Quick Actions */}
-          <View className="px-4 mb-6">
+          <CoachMarkTarget name="quick-actions">
+            <View className="px-4 mb-8">
             <Text
-              className="text-xl font-bold text-black mb-4"
-              style={{ fontFamily: 'Poppins-Bold' }}
+              className="text-lg font-bold text-black mb-4"
+              style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
             >
               Quick Actions
             </Text>
@@ -510,50 +782,53 @@ const HomeScreen = React.memo(() => {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
+            </View>
+          </CoachMarkTarget>
 
-          <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
+          <View style={{ paddingHorizontal: 16, marginBottom: 28 }}>
             <View
               style={{
                 backgroundColor: '#6A9B00',
                 borderRadius: 16,
-                padding: 24,
+                paddingVertical: 24,
+                paddingHorizontal: 18,
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                elevation: 4,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.04,
+                shadowRadius: 3,
+                elevation: 1,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      fontSize: 20,
+                      fontSize: 18,
                       fontFamily: 'Poppins-Bold',
                       color: '#000000',
-                      marginBottom: 8,
+                      marginBottom: 6,
                     }}
                   >
                     Invite Friends, Earn Rewards
                   </Text>
                   <Text
                     style={{
-                      fontSize: 14,
+                      fontSize: 13,
                       fontFamily: 'Poppins-Medium',
                       color: 'rgba(0, 0, 0, 0.7)',
-                      marginBottom: 16,
+                      marginBottom: 12,
+                      lineHeight: 18,
                     }}
                   >
                     Get $10 credit for each friend who signs up
                   </Text>
-                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity
                       style={{
                         backgroundColor: '#000000',
-                        borderRadius: 12,
-                        paddingVertical: 12,
-                        paddingHorizontal: 20,
+                        borderRadius: 10,
+                        paddingVertical: 10,
+                        paddingHorizontal: 18,
                         flex: 1,
                       }}
                       onPress={() => {
@@ -566,7 +841,7 @@ const HomeScreen = React.memo(() => {
                     >
                       <Text
                         style={{
-                          fontSize: 14,
+                          fontSize: 13,
                           fontFamily: 'Poppins-SemiBold',
                           color: '#FFFFFF',
                           textAlign: 'center',
@@ -578,9 +853,9 @@ const HomeScreen = React.memo(() => {
                     <TouchableOpacity
                       style={{
                         backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                        borderRadius: 12,
-                        paddingVertical: 12,
-                        paddingHorizontal: 16,
+                        borderRadius: 10,
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
                         borderWidth: 1,
                         borderColor: 'rgba(0, 0, 0, 0.2)',
                       }}
@@ -592,7 +867,7 @@ const HomeScreen = React.memo(() => {
                     >
                       <Text
                         style={{
-                          fontSize: 14,
+                          fontSize: 13,
                           fontFamily: 'Poppins-Medium',
                           color: '#000000',
                           textAlign: 'center',
@@ -605,16 +880,16 @@ const HomeScreen = React.memo(() => {
                 </View>
                 <View
                   style={{
-                    width: 80,
-                    height: 80,
+                    width: 64,
+                    height: 64,
                     backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                    borderRadius: 40,
+                    borderRadius: 32,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginLeft: 16,
+                    marginLeft: 14,
                   }}
                 >
-                  <Ionicons name="gift" size={40} color="#000000" />
+                  <Ionicons name="gift" size={32} color="#000000" />
                 </View>
               </View>
             </View>
@@ -622,21 +897,23 @@ const HomeScreen = React.memo(() => {
           <View className='px-4 mb-6 hidden'>
             <Text style={{
               fontFamily: 'Poppins-Bold'
-            }} className='text-xl font-bold mb-2'>Todo</Text>
+            }} className='text-lg font-bold mb-2' style={{ letterSpacing: -0.3 }}>Todo</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className='flex mt-0  flex-row '>
               {todoItems.map((item) => (
                 <TodoCard key={item.id} {...item} />
               ))}
             </ScrollView>
           </View>
-          <View className="px-4 mb-6">
-            <View className="flex-row items-center justify-between mb-3">
-              <Text
-                className="text-xl font-bold text-black"
-                style={{ fontFamily: 'Poppins-Bold' }}
-              >
-                Job Activity
-              </Text>
+          <CoachMarkTarget name="job-activity">
+            <View className="px-4 mb-8">
+              <View className="flex-row items-center justify-between mb-3">
+                <Text
+                  className="text-lg font-bold text-black"
+                  style={{ letterSpacing: -0.3 }}
+                  style={{ fontFamily: 'Poppins-Bold' }}
+                >
+                  Job Activity
+                </Text>
               <TouchableOpacity 
                 className="flex-row items-center"
                 onPress={handleViewAllJobs}
@@ -651,24 +928,74 @@ const HomeScreen = React.memo(() => {
                 <Ionicons name="chevron-forward" size={16} color="black" />
               </TouchableOpacity>
             </View>
-            {isLoading ? (
+            {isLoadingJobs ? (
               <>
                 <JobCardSkeleton />
                 <JobCardSkeleton />
               </>
-            ) : (
+            ) : jobActivities.length > 0 ? (
               jobActivities.map((activity, index) => (
                 <View key={activity.id} style={{ marginBottom: index < jobActivities.length - 1 ? 16 : 0 }}>
                   <JobActivityCard activity={activity} />
                 </View>
               ))
+            ) : (
+              <View
+                style={{
+                  backgroundColor: Colors.white,
+                  borderRadius: 20,
+                  padding: 32,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                }}
+              >
+                <View
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    backgroundColor: '#F2F7EC',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 16,
+                  }}
+                >
+                  <Ionicons name="briefcase-outline" size={32} color="#6A9B00" />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                    marginBottom: 8,
+                    textAlign: 'center',
+                  }}
+                >
+                  No jobs yet
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textSecondaryDark,
+                    textAlign: 'center',
+                    lineHeight: 20,
+                  }}
+                >
+                  Your recent job activity will appear here
+                </Text>
+              </View>
             )}
-          </View>
+            </View>
+          </CoachMarkTarget>
 
-          <View className="px-4 mb-8">
+          <View className="px-4 mb-10">
             <View className="flex-row items-center justify-between mb-4">
               <Text
-                className="text-xl font-bold text-black"
+                className="text-lg font-bold text-black"
+                style={{ letterSpacing: -0.3 }}
                 style={{ fontFamily: 'Poppins-Bold' }}
               >
                 Recommended for you
@@ -707,7 +1034,8 @@ const HomeScreen = React.memo(() => {
           <View className="px-4 mb-10">
             <View className="flex-row items-center justify-between mb-5">
               <Text
-                className="text-xl font-bold text-black"
+                className="text-lg font-bold text-black"
+                style={{ letterSpacing: -0.3 }}
                 style={{ fontFamily: 'Poppins-Bold' }}
               >
                 Promo Codes
@@ -728,16 +1056,37 @@ const HomeScreen = React.memo(() => {
         </Animated.View>
       </ScrollView>
 
-      {/* Coach Marks Modal */}
+      {/* Coach Marks */}
       <CoachMarks
-        visible={isCoachMarksVisible}
-        currentMark={currentMark}
-        currentStep={currentStep}
-        totalSteps={totalSteps}
-        onNext={nextStep}
-        onPrevious={previousStep}
+        steps={coachMarkSteps}
+        visible={!isCoachMarksComplete && !isLoadingCoachMarks && currentStep >= 0 && currentStep < coachMarkSteps.length}
+        onComplete={completeTour}
         onSkip={skipTour}
-        onClose={skipTour}
+        currentStep={currentStep}
+        onStepChange={(step) => {
+          if (step < coachMarkSteps.length) {
+            if (step > currentStep) {
+              nextStep();
+            } else if (step < currentStep) {
+              previousStep();
+            }
+          } else {
+            completeTour();
+          }
+        }}
+      />
+
+      {/* Location Search Modal */}
+      <LocationSearchModal
+        visible={showLocationModal}
+        onClose={() => {
+          setShowLocationModal(false);
+          refreshLocation();
+        }}
+        onLocationSelected={(selectedLocation) => {
+          setShowLocationModal(false);
+          refreshLocation();
+        }}
       />
     </SafeAreaWrapper>
   );

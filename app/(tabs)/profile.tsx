@@ -1,26 +1,61 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useAuthRole } from '@/hooks/useAuth';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { BorderRadius, Colors } from '@/lib/designSystem';
-import { useRouter } from 'expo-router';
+import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowRight, Bell, ChevronRight, CreditCard, HelpCircle, MapPin, Settings, Share2, Star, Trash2, User, Wallet } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Alert, Dimensions, Image, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { Alert, Dimensions, Image, ScrollView, Share, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { profileService } from '@/services/api';
 
 const ProfileScreen = () => {
   const router = useRouter();
-  const { logout } = useAuthRole();
+  const { logout, switchRole } = useAuthRole();
   const { location } = useUserLocation();
-
-  // Mock user data - in production, fetch from API
-  const [userData] = useState({
-    name: 'Marcus Johnson',
+  const [isLoading, setIsLoading] = useState(true);
+  const [userData, setUserData] = useState({
+    name: 'Loading...',
     location: location || 'New York, NY',
     rating: 4.8,
     reviews: 24,
     balance: 12847.50,
     referralCode: 'SARAH2024',
   });
+
+  // Load user profile from API
+  const loadUserProfile = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const profile = await profileService.getCurrentUserProfile();
+      
+      // Extract user data from API response
+      const firstName = profile?.firstName || profile?.data?.firstName || '';
+      const lastName = profile?.lastName || profile?.data?.lastName || '';
+      const fullName = firstName && lastName 
+        ? `${firstName} ${lastName}`.trim()
+        : firstName || lastName || 'User';
+      
+      setUserData(prev => ({
+        ...prev,
+        name: fullName,
+        location: location || prev.location,
+      }));
+    } catch (error: any) {
+      if (__DEV__) {
+        console.error('Error loading user profile:', error);
+      }
+      // Keep default/previous data on error
+    } finally {
+      setIsLoading(false);
+    }
+  }, [location]);
+
+  // Load profile when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadUserProfile();
+    }, [loadUserProfile])
+  );
 
   const handleOptionPress = (id: string) => {
     if (id === 'account') {
@@ -81,6 +116,26 @@ const ProfileScreen = () => {
           onPress: () => {
             // Handle account deletion
             Alert.alert('Account Deletion', 'Account deletion feature coming soon.');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleBecomeProvider = () => {
+    Alert.alert(
+      'Switch to Provider',
+      'Switch to provider mode for demo and testing?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Switch',
+          onPress: async () => {
+            try {
+              await switchRole('provider');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to switch role. Please try again.');
+            }
           },
         },
       ]
@@ -188,16 +243,20 @@ const ProfileScreen = () => {
                 flexWrap: 'wrap',
               }}
             >
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.textPrimary,
-                  marginRight: 8,
-                }}
-              >
-                {userData.name}
-              </Text>
+              {isLoading ? (
+                <ActivityIndicator size="small" color={Colors.accent} />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                    marginRight: 8,
+                  }}
+                >
+                  {userData.name}
+                </Text>
+              )}
             </View>
 
             {/* Location */}
@@ -487,6 +546,30 @@ const ProfileScreen = () => {
 
         {/* Action Buttons */}
         <View style={{ marginBottom: 24 }}>
+          <TouchableOpacity
+            onPress={handleBecomeProvider}
+            style={{
+              backgroundColor: Colors.accent,
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            activeOpacity={0.7}
+          >
+            <Text 
+              style={{
+                fontSize: 15,
+                fontFamily: 'Poppins-SemiBold',
+                color: Colors.white,
+              }}
+            >
+              Become a Provider
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={handleSignOut}
             style={{

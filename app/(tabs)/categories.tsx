@@ -7,11 +7,12 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Search, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { serviceRequestService, ServiceCategory, apiClient } from '@/services/api';
+import { serviceRequestService, ServiceCategory, authService } from '@/services/api';
 import { getCategoryIcon } from '@/utils/categoryIcons';
 import { haptics } from '@/hooks/useHaptics';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { extractUserIdFromToken } from '@/utils/tokenUtils';
+import { Colors, Spacing, SHADOWS } from '@/lib/designSystem';
 
 interface CategoryData extends ServiceCategory {
   IconComponent: React.ComponentType;
@@ -314,16 +315,16 @@ export default function CategoryPage() {
       setIsCreatingRequest(true);
       
       try {
-        let userId = await apiClient.getUserId();
+        let userId = await authService.getUserId();
         
         // If user ID is not stored, try to get it from token
         if (!userId) {
-          const token = await apiClient.getAuthTokenPublic();
+          const token = await authService.getAuthToken();
           if (token) {
             const extractedUserId = extractUserIdFromToken(token);
             if (extractedUserId) {
               userId = extractedUserId;
-              await apiClient.setUserId(userId);
+              await authService.setUserId(userId);
               if (__DEV__) {
                 console.log('✅ User ID extracted from token and saved:', userId);
               }
@@ -391,7 +392,9 @@ export default function CategoryPage() {
               <TouchableOpacity
                 onPress={() => {
                   haptics.light();
-                  routes.back();
+                  // Explicitly navigate to home instead of using router.back()
+                  // This prevents navigation stack issues
+                  routes.replace('/(tabs)/home');
                 }}
                 className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
               >
@@ -495,19 +498,48 @@ export default function CategoryPage() {
                   <CategorySkeleton />
                 </>
               ) : filteredCategories.length === 0 ? (
-                <View className="py-12 items-center px-4">
-                  <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
-                    <Search size={32} color="#9CA3AF" />
+                <View style={{ paddingVertical: Spacing.xxxl * 1.5, alignItems: 'center', paddingHorizontal: Spacing.lg }}>
+                  <View style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
+                    backgroundColor: Colors.backgroundGray,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: Spacing.lg,
+                    ...SHADOWS.sm,
+                  }}>
+                    <Search size={36} color={Colors.textTertiary} />
                   </View>
-                  <Text className="text-gray-700 text-lg mb-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                  <Text style={{
+                    fontSize: 18,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                    marginBottom: Spacing.sm,
+                    textAlign: 'center',
+                    letterSpacing: -0.3,
+                  }}>
                     No results found
                   </Text>
-                  <Text className="text-gray-500 text-sm text-center" style={{ fontFamily: 'Poppins-Regular' }}>
+                  <Text style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textSecondaryDark,
+                    textAlign: 'center',
+                    lineHeight: 20,
+                    maxWidth: 280,
+                    marginBottom: Spacing.xs,
+                  }}>
                     {searchQuery.trim() 
                       ? `We couldn't find any categories matching "${searchQuery}"`
                       : 'No categories available. Please try again later.'}
                   </Text>
-                  <Text className="text-gray-400 text-xs text-center mt-2" style={{ fontFamily: 'Poppins-Regular' }}>
+                  <Text style={{
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textTertiary,
+                    textAlign: 'center',
+                  }}>
                     {searchQuery.trim() ? 'Try searching with different keywords' : 'Pull down to refresh'}
                   </Text>
                 </View>

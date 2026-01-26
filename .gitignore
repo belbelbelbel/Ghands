@@ -43,3 +43,12 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Build files (should never be committed)
+*.aab
+*.apk
+*.ipa
+build-*.aab
+build-*.apk
+/eas-build-*.aab
+/eas-build-*.apk

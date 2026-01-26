@@ -26,9 +26,19 @@ export const getErrorMessage = (error: ApiError | Error | any, defaultMessage: s
     return formatApiErrorMessage(error);
   }
 
-  // Check if it's a network error first
-  if (error?.isNetworkError || error?.message?.includes('Network') || error?.message?.includes('Failed to fetch')) {
-    return 'Unable to connect to the server. Please check your internet connection and try again.';
+  // Check if it's a network error first (comprehensive detection)
+  const errorMessage = (error?.message || '').toLowerCase();
+  if (error?.isNetworkError || 
+      errorMessage.includes('network') || 
+      errorMessage.includes('failed to fetch') ||
+      errorMessage.includes('network request failed') ||
+      errorMessage.includes('econnrefused') ||
+      errorMessage.includes('enotfound') ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('offline') ||
+      errorMessage.includes('no internet') ||
+      (error?.name === 'TypeError' && errorMessage.includes('fetch'))) {
+    return 'No internet connection. Please check your connection and reconnect to continue.';
   }
 
   // Check nested error structure (API format)
@@ -103,12 +113,14 @@ const formatApiErrorMessage = (message: string): string => {
     'Unauthorized': 'Please sign in to continue.',
     'Forbidden': 'You don\'t have permission to perform this action.',
     'Not found': 'The requested item could not be found.',
-    'Network request failed': 'Unable to connect to the server. Please check your internet connection and try again.',
-    'Network connection failed': 'Unable to connect to the server. Please check your internet connection and try again.',
-    'Failed to fetch': 'Unable to connect to the server. Please check your internet connection and try again.',
-    'TypeError: Network request failed': 'Unable to connect to the server. Please check your internet connection and try again.',
+    'Network request failed': 'No internet connection. Please check your connection and reconnect to continue.',
+    'Network connection failed': 'No internet connection. Please check your connection and reconnect to continue.',
+    'Failed to fetch': 'No internet connection. Please check your connection and reconnect to continue.',
+    'TypeError: Network request failed': 'No internet connection. Please check your connection and reconnect to continue.',
     'timeout': 'The request took too long. Please check your connection and try again.',
     'Duplicate categories are not allowed': 'You have selected duplicate categories. Please select each category only once.',
+    'app client does not exist': 'Your account needs to be set up properly. Please complete your profile setup or contact support.',
+    'property app client does not exist': 'Your account setup is incomplete. Please complete your profile setup first.',
   };
 
   // Check for exact matches first
@@ -126,7 +138,7 @@ const formatApiErrorMessage = (message: string): string => {
 
   // If message is too technical, provide a generic friendly message
   if (message.includes('ECONNREFUSED') || message.includes('ENOTFOUND')) {
-    return 'Unable to connect to the server. Please check your internet connection.';
+    return 'No internet connection. Please check your connection and reconnect to continue.';
   }
 
   if (message.includes('500') || message.includes('Internal Server Error')) {
@@ -189,6 +201,7 @@ const getStatusErrorMessage = (status: number): string => {
  */
 export const getSpecificErrorMessage = (error: ApiError | Error | any, context: string): string => {
   const defaultMessages: { [key: string]: string } = {
+    'accept_quotation': 'Failed to accept quotation. Please try again.',
     'create_request': 'Failed to create service request. Please try again.',
     'update_job_details': 'Failed to update job details. Please check your information and try again.',
     'update_date_time': 'Failed to update date and time. Please try again.',
@@ -198,6 +211,7 @@ export const getSpecificErrorMessage = (error: ApiError | Error | any, context: 
     'search_categories': 'Failed to search categories. Please try again.',
     'save_location': 'Failed to save location. Please try again.',
     'get_location': 'Failed to load location. Please try again.',
+    'send_quotation': 'Failed to send quotation. Please check your details and try again.',
     'search_location': 'Location search is temporarily unavailable. Please enter your location manually.',
     'provider_profile_setup': 'Failed to complete profile setup. Please try again.',
     'add_categories': 'Failed to save categories. Some categories may already be added to your profile. Please select different categories or try again.',
@@ -208,6 +222,10 @@ export const getSpecificErrorMessage = (error: ApiError | Error | any, context: 
     'get_accepted_providers': 'Failed to load accepted providers. Please try again.',
     'get_accepted_requests': 'Failed to load accepted requests. Please try again.',
     'get_available_requests': 'Failed to load available requests. Make sure you have registered categories and set your location.',
+    'reject_quotation': 'Failed to reject quotation. Please try again.',
+    'get_provider_quotations': 'Failed to load quotations. Please try again.',
+    'pay_for_service': 'Payment failed. Please check your PIN and wallet balance, then try again.',
+    'complete_service_request': 'Failed to complete job. Please ensure payment is completed and try again.',
   };
 
   const defaultMessage = defaultMessages[context] || 'Something went wrong. Please try again.';

@@ -1,11 +1,12 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
+import { getCategoryIcon } from '@/utils/categoryIcons';
+import { Colors, BorderRadius, Spacing } from '@/lib/designSystem';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { MapPin, Star, TrendingUp, Wrench, Zap, Sparkles, Paintbrush, Droplets, ShieldCheck } from 'lucide-react-native';
+import { MapPin, ShieldCheck, Star, TrendingUp } from 'lucide-react-native';
 import React, { useCallback, useMemo, useRef } from 'react';
-import { Animated, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { getCategoryIcon } from '@/utils/categoryIcons';
+import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 interface TrendingService {
   id: string;
@@ -45,26 +46,7 @@ interface ServiceTip {
   readTime: string;
 }
 
-// Professional icon mapping for trending services
-const getServiceIcon = (categoryId: string) => {
-  const iconMap: Record<string, any> = {
-    plumber: Droplets,
-    electrician: Zap,
-    cleaning: Sparkles,
-    painter: Paintbrush,
-  };
-  return iconMap[categoryId] || Wrench;
-};
-
-const getServiceColor = (categoryId: string) => {
-  const colors: Record<string, string> = {
-    plumber: '#3B82F6',
-    electrician: '#F59E0B',
-    cleaning: '#10B981',
-    painter: '#8B5CF6',
-  };
-  return colors[categoryId] || '#6A9B00';
-};
+// Removed colorful service icons and colors - using neutral design
 
 const trendingServices: TrendingService[] = [
   {
@@ -242,43 +224,54 @@ export default function DiscoverScreen() {
     <SafeAreaWrapper>
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View style={[animatedStyles, { flex: 1, paddingTop: 20 }]}>
+          {/* Header Section */}
+          <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 }}>
+            <Text
+              style={{
+                fontSize: 28,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+                letterSpacing: -0.5,
+              }}
+            >
+              Discover
+            </Text>
+          </View>
+
           {/* Hero Banner - Featured Deal/Provider */}
-          <View className="px-4 mb-5">
+          <View style={{ paddingHorizontal: 16, marginBottom: 32 }}>
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={() => handleOfferPress('hero-offer')}
               style={{
-                backgroundColor: '#6A9B00',
-                borderRadius: 20,
-                padding: 20,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.08,
-                shadowRadius: 12,
-                elevation: 3,
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.xl,
+                padding: 24,
+                borderWidth: 1,
+                borderColor: Colors.border,
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                 <View
                   style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 26,
-                    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    backgroundColor: Colors.backgroundGray,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 14,
+                    marginRight: 16,
                   }}
                 >
-                  <Ionicons name="sparkles" size={26} color="#FFFFFF" />
+                  <Ionicons name="gift" size={24} color={Colors.textPrimary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      fontSize: 22,
+                      fontSize: 20,
                       fontFamily: 'Poppins-Bold',
-                      color: '#000000',
-                      marginBottom: 6,
+                      color: Colors.textPrimary,
+                      marginBottom: 4,
                       letterSpacing: -0.3,
                     }}
                   >
@@ -287,8 +280,8 @@ export default function DiscoverScreen() {
                   <Text
                     style={{
                       fontSize: 14,
-                      fontFamily: 'Poppins-Medium',
-                      color: 'rgba(0, 0, 0, 0.75)',
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
                       lineHeight: 20,
                     }}
                   >
@@ -298,23 +291,18 @@ export default function DiscoverScreen() {
               </View>
               <View
                 style={{
-                  backgroundColor: '#000000',
-                  borderRadius: 14,
-                  paddingVertical: 14,
-                  paddingHorizontal: 24,
+                  backgroundColor: Colors.black,
+                  borderRadius: BorderRadius.default,
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
                   alignSelf: 'flex-start',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 4,
-                  elevation: 3,
                 }}
               >
                 <Text
                   style={{
-                    fontSize: 15,
+                    fontSize: 14,
                     fontFamily: 'Poppins-SemiBold',
-                    color: '#FFFFFF',
+                    color: Colors.white,
                     letterSpacing: 0.2,
                   }}
                 >
@@ -325,17 +313,19 @@ export default function DiscoverScreen() {
           </View>
 
           {/* Trending Services */}
-          <View className="px-4 mb-5">
-            <View className="flex-row items-center justify-between mb-3">
-              <View className="flex-row items-center">
-                <TrendingUp size={20} color="#6A9B00" style={{ marginRight: 8 }} />
-                <Text
-                  className="text-xl font-bold text-black"
-                  style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
-                >
-                  Trending Services
-                </Text>
-              </View>
+          <View style={{ paddingHorizontal: 16, marginBottom: 32 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <TrendingUp size={18} color={Colors.textPrimary} style={{ marginRight: 8 }} />
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                  letterSpacing: -0.3,
+                }}
+              >
+                Trending Services
+              </Text>
             </View>
             <ScrollView
               horizontal
@@ -348,47 +338,37 @@ export default function DiscoverScreen() {
                   onPress={() => handleServicePress(service.categoryId)}
                   activeOpacity={0.85}
                   style={{
-                    width: 200,
-                    marginRight: 14,
-                    borderRadius: 20,
+                    width: 180,
+                    marginRight: 12,
+                    borderRadius: BorderRadius.xl,
                     padding: 20,
-                    backgroundColor: '#FFFFFF',
-                    borderWidth: 1.5,
-                    borderColor: '#F3F4F6',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.08,
-                    shadowRadius: 8,
-                    elevation: 3,
+                    backgroundColor: Colors.white,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
                   }}
                 >
                   <View
                     style={{
-                      width: 68,
-                      height: 68,
-                      borderRadius: 20,
-                      backgroundColor: getServiceColor(service.categoryId),
+                      width: 56,
+                      height: 56,
+                      borderRadius: BorderRadius.default,
+                      backgroundColor: Colors.backgroundGray,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginBottom: 14,
-                      shadowColor: getServiceColor(service.categoryId),
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.25,
-                      shadowRadius: 10,
-                      elevation: 6,
+                      marginBottom: 16,
                     }}
                   >
-                    {React.createElement(getServiceIcon(service.categoryId), {
-                      size: 36,
-                      color: '#FFFFFF',
-                    })}
+                    {(() => {
+                      const IconComponent = getCategoryIcon(service.title);
+                      return <IconComponent />;
+                    })()}
                   </View>
                   <Text
                     style={{
-                      fontSize: 17,
-                      fontFamily: 'Poppins-Bold',
-                      color: '#000000',
-                      marginBottom: 6,
+                      fontSize: 16,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.textPrimary,
+                      marginBottom: 4,
                       letterSpacing: -0.2,
                     }}
                   >
@@ -396,33 +376,31 @@ export default function DiscoverScreen() {
                   </Text>
                   <Text
                     style={{
-                      fontSize: 13,
-                      fontFamily: 'Poppins-Medium',
-                      color: '#6B7280',
-                      marginBottom: 10,
-                      lineHeight: 18,
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      marginBottom: 12,
+                      lineHeight: 16,
                     }}
                   >
                     {service.category}
                   </Text>
                   <View
                     style={{
-                      backgroundColor: '#FEF3C7',
-                      borderRadius: 10,
-                      paddingHorizontal: 12,
-                      paddingVertical: 7,
+                      backgroundColor: Colors.backgroundGray,
+                      borderRadius: BorderRadius.sm,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
                       flexDirection: 'row',
                       alignItems: 'center',
                       alignSelf: 'flex-start',
                     }}
                   >
-                    <Ionicons name="flame" size={14} color="#F59E0B" />
                     <Text
                       style={{
-                        fontSize: 12,
-                        fontFamily: 'Poppins-SemiBold',
-                        color: '#92400E',
-                        marginLeft: 5,
+                        fontSize: 11,
+                        fontFamily: 'Poppins-Medium',
+                        color: Colors.textSecondaryDark,
                         letterSpacing: 0.1,
                       }}
                     >
@@ -435,28 +413,36 @@ export default function DiscoverScreen() {
           </View>
 
           {/* Featured Providers */}
-          <View className="px-4 mb-5">
-            <View className="flex-row items-center justify-between mb-3">
+          <View style={{ paddingHorizontal: 16, marginBottom: 32 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <Text
-                className="text-xl font-bold text-black"
-                style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
+                style={{
+                  fontSize: 20,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                  letterSpacing: -0.3,
+                }}
               >
                 Featured Providers
               </Text>
               <TouchableOpacity
-                className="px-3 py-1 flex-row items-center"
+                style={{ flexDirection: 'row', alignItems: 'center' }}
                 onPress={() => {
                   haptics.light();
                   router.push('/(tabs)/categories');
                 }}
               >
                 <Text
-                  className="text-sm text-black"
-                  style={{ fontFamily: 'Poppins-SemiBold' }}
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.textSecondaryDark,
+                    marginRight: 4,
+                  }}
                 >
                   View all
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color="black" />
+                <Ionicons name="chevron-forward" size={14} color={Colors.textSecondaryDark} />
               </TouchableOpacity>
             </View>
             <View>
@@ -466,61 +452,38 @@ export default function DiscoverScreen() {
                   onPress={() => handleProviderPress(provider.id, provider.name)}
                   activeOpacity={0.8}
                   style={{
-                    backgroundColor: '#FFFFFF',
-                    borderRadius: 20,
+                    backgroundColor: Colors.white,
+                    borderRadius: BorderRadius.xl,
                     padding: 20,
                     marginBottom: index < featuredProviders.length - 1 ? 12 : 0,
-                    borderWidth: 1.5,
-                    borderColor: '#F3F4F6',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.08,
-                    shadowRadius: 10,
-                    elevation: 3,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
                   }}
                 >
-                  <View className="flex-row items-center">
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View
                       style={{
-                        width: 72,
-                        height: 72,
-                        borderRadius: 18,
-                        backgroundColor: '#FFFFFF',
+                        width: 64,
+                        height: 64,
+                        borderRadius: BorderRadius.default,
+                        backgroundColor: Colors.backgroundGray,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginRight: 14,
-                        borderWidth: 2,
-                        borderColor: '#E5E7EB',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.08,
-                        shadowRadius: 6,
-                        elevation: 3,
+                        marginRight: 16,
                       }}
                     >
-                      <View
-                        style={{
-                          width: 56,
-                          height: 56,
-                          borderRadius: 14,
-                          backgroundColor: '#F9FAFB',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        {(() => {
-                          const IconComponent = getCategoryIcon(provider.category);
-                          return <IconComponent />;
-                        })()}
-                      </View>
+                      {(() => {
+                        const IconComponent = getCategoryIcon(provider.category);
+                        return <IconComponent />;
+                      })()}
                     </View>
                     <View style={{ flex: 1 }}>
-                      <View className="flex-row items-center mb-2">
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                         <Text
                           style={{
-                            fontSize: 17,
+                            fontSize: 16,
                             fontFamily: 'Poppins-SemiBold',
-                            color: '#000000',
+                            color: Colors.textPrimary,
                             marginRight: 6,
                             letterSpacing: -0.2,
                           }}
@@ -530,35 +493,34 @@ export default function DiscoverScreen() {
                         {provider.isVerified && (
                           <View
                             style={{
-                              marginLeft: 6,
-                              backgroundColor: '#6A9B00',
-                              borderRadius: 10,
-                              padding: 2,
+                              backgroundColor: Colors.accent,
+                              borderRadius: BorderRadius.sm,
+                              padding: 3,
                             }}
                           >
-                            <ShieldCheck size={14} color="#FFFFFF" />
+                            <ShieldCheck size={12} color={Colors.white} />
                           </View>
                         )}
                       </View>
                       <Text
                         style={{
-                          fontSize: 13,
-                          fontFamily: 'Poppins-Medium',
-                          color: '#6B7280',
+                          fontSize: 12,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textSecondaryDark,
                           marginBottom: 8,
-                          lineHeight: 18,
+                          lineHeight: 16,
                         }}
                       >
                         {provider.category}
                       </Text>
-                      <View className="flex-row items-center flex-wrap">
-                        <View className="flex-row items-center mr-3">
-                          <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}>
+                          <Star size={12} color={Colors.textSecondaryDark} fill={Colors.textSecondaryDark} />
                           <Text
                             style={{
-                              fontSize: 13,
-                              fontFamily: 'Poppins-SemiBold',
-                              color: '#000000',
+                              fontSize: 12,
+                              fontFamily: 'Poppins-Medium',
+                              color: Colors.textPrimary,
                               marginLeft: 4,
                             }}
                           >
@@ -567,21 +529,21 @@ export default function DiscoverScreen() {
                         </View>
                         <Text
                           style={{
-                            fontSize: 12,
+                            fontSize: 11,
                             fontFamily: 'Poppins-Regular',
-                            color: '#6B7280',
-                            marginRight: 10,
+                            color: Colors.textSecondaryDark,
+                            marginRight: 12,
                           }}
                         >
                           ({provider.reviews})
                         </Text>
-                        <View className="flex-row items-center">
-                          <MapPin size={11} color="#6B7280" />
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <MapPin size={10} color={Colors.textSecondaryDark} />
                           <Text
                             style={{
-                              fontSize: 12,
+                              fontSize: 11,
                               fontFamily: 'Poppins-Regular',
-                              color: '#6B7280',
+                              color: Colors.textSecondaryDark,
                               marginLeft: 3,
                             }}
                           >
@@ -593,22 +555,22 @@ export default function DiscoverScreen() {
                     {provider.badge && (
                       <View
                         style={{
-                          backgroundColor: provider.badge === 'New' ? '#DBEAFE' : provider.badge === 'Top Rated' ? '#FEF3C7' : '#F3E8FF',
-                          borderRadius: 10,
+                          backgroundColor: Colors.backgroundGray,
+                          borderRadius: BorderRadius.sm,
                           paddingHorizontal: 10,
                           paddingVertical: 5,
                           position: 'absolute',
-                          top: 14,
-                          right: 14,
+                          top: 16,
+                          right: 16,
                           borderWidth: 1,
-                          borderColor: provider.badge === 'New' ? '#BFDBFE' : provider.badge === 'Top Rated' ? '#FDE68A' : '#E9D5FF',
+                          borderColor: Colors.border,
                         }}
                       >
                         <Text
                           style={{
                             fontSize: 10,
-                            fontFamily: 'Poppins-SemiBold',
-                            color: provider.badge === 'New' ? '#1E40AF' : provider.badge === 'Top Rated' ? '#92400E' : '#6B21A8',
+                            fontFamily: 'Poppins-Medium',
+                            color: Colors.textSecondaryDark,
                             letterSpacing: 0.2,
                           }}
                         >
@@ -623,11 +585,15 @@ export default function DiscoverScreen() {
           </View>
 
           {/* Special Offers */}
-          <View className="px-4 mb-5">
-            <View className="flex-row items-center justify-between mb-3">
+          <View style={{ paddingHorizontal: 16, marginBottom: 32 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <Text
-                className="text-xl font-bold text-black"
-                style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
+                style={{
+                  fontSize: 20,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                  letterSpacing: -0.3,
+                }}
               >
                 Special Offers
               </Text>
@@ -644,24 +610,19 @@ export default function DiscoverScreen() {
                   activeOpacity={0.9}
                   style={{
                     width: 280,
-                    marginRight: 14,
-                    backgroundColor: '#000000',
-                    borderRadius: 20,
-                    padding: 22,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 3 },
-                    shadowOpacity: 0.12,
-                    shadowRadius: 10,
-                    elevation: 4,
+                    marginRight: 12,
+                    backgroundColor: Colors.black,
+                    borderRadius: BorderRadius.xl,
+                    padding: 20,
                   }}
                 >
-                  <View className="flex-row items-center justify-between mb-4">
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                     <View style={{ flex: 1, marginRight: 12 }}>
                       <Text
                         style={{
-                          fontSize: 19,
+                          fontSize: 18,
                           fontFamily: 'Poppins-Bold',
-                          color: '#FFFFFF',
+                          color: Colors.white,
                           marginBottom: 6,
                           letterSpacing: -0.2,
                         }}
@@ -670,69 +631,31 @@ export default function DiscoverScreen() {
                       </Text>
                       <Text
                         style={{
-                          fontSize: 13,
-                          fontFamily: 'Poppins-Medium',
-                          color: 'rgba(255, 255, 255, 0.85)',
+                          fontSize: 12,
+                          fontFamily: 'Poppins-Regular',
+                          color: 'rgba(255, 255, 255, 0.8)',
                           lineHeight: 18,
                         }}
                       >
                         {offer.description}
                       </Text>
                     </View>
-                    <View
-                      style={{
-                        width: 68,
-                        height: 68,
-                        borderRadius: 16,
-                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderWidth: 1.5,
-                        borderColor: 'rgba(255, 255, 255, 0.25)',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.2,
-                        shadowRadius: 4,
-                        elevation: 3,
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 12,
-                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        {(() => {
-                          const IconComponent = getCategoryIcon(offer.title);
-                          return <IconComponent />;
-                        })()}
-                      </View>
-                    </View>
                   </View>
-                  <View className="flex-row items-center justify-between">
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View
                       style={{
-                        backgroundColor: '#6A9B00',
-                        borderRadius: 10,
-                        paddingHorizontal: 14,
-                        paddingVertical: 8,
-                        shadowColor: '#6A9B00',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.3,
-                        shadowRadius: 4,
-                        elevation: 3,
+                        backgroundColor: Colors.accent,
+                        borderRadius: BorderRadius.sm,
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
                       }}
                     >
                       <Text
                         style={{
-                          fontSize: 14,
+                          fontSize: 13,
                           fontFamily: 'Poppins-Bold',
-                          color: '#000000',
-                          letterSpacing: 0.3,
+                          color: Colors.black,
+                          letterSpacing: 0.2,
                         }}
                       >
                         {offer.discount}
@@ -740,9 +663,9 @@ export default function DiscoverScreen() {
                     </View>
                     <Text
                       style={{
-                        fontSize: 11,
-                        fontFamily: 'Poppins-Medium',
-                        color: 'rgba(255, 255, 255, 0.75)',
+                        fontSize: 10,
+                        fontFamily: 'Poppins-Regular',
+                        color: 'rgba(255, 255, 255, 0.7)',
                         letterSpacing: 0.1,
                       }}
                     >
@@ -755,11 +678,15 @@ export default function DiscoverScreen() {
           </View>
 
           {/* Service Tips */}
-          <View className="px-4 mb-5">
-            <View className="flex-row items-center justify-between mb-3">
+          <View style={{ paddingHorizontal: 16, marginBottom: 32 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <Text
-                className="text-xl font-bold text-black"
-                style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
+                style={{
+                  fontSize: 20,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                  letterSpacing: -0.3,
+                }}
               >
                 Service Tips
               </Text>
@@ -768,62 +695,57 @@ export default function DiscoverScreen() {
               <TouchableOpacity
                 key={tip.id}
                 activeOpacity={0.8}
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    borderRadius: 18,
-                    padding: 20,
-                    marginBottom: index < serviceTips.length - 1 ? 12 : 0,
-                    borderWidth: 1.5,
-                    borderColor: '#E5E7EB',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.06,
-                    shadowRadius: 8,
-                    elevation: 2,
-                  }}
+                style={{
+                  backgroundColor: Colors.white,
+                  borderRadius: BorderRadius.xl,
+                  padding: 20,
+                  marginBottom: index < serviceTips.length - 1 ? 12 : 0,
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                }}
               >
-                <View className="flex-row items-start justify-between">
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <Text
                       style={{
-                        fontSize: 17,
+                        fontSize: 16,
                         fontFamily: 'Poppins-SemiBold',
-                        color: '#000000',
-                        marginBottom: 8,
+                        color: Colors.textPrimary,
+                        marginBottom: 6,
                         letterSpacing: -0.2,
-                        lineHeight: 24,
+                        lineHeight: 22,
                       }}
                     >
                       {tip.title}
                     </Text>
                     <Text
                       style={{
-                        fontSize: 13,
+                        fontSize: 12,
                         fontFamily: 'Poppins-Regular',
-                        color: '#6B7280',
+                        color: Colors.textSecondaryDark,
                         marginBottom: 10,
-                        lineHeight: 19,
+                        lineHeight: 18,
                       }}
                     >
                       {tip.description}
                     </Text>
-                    <View className="flex-row items-center">
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <View
                         style={{
-                          backgroundColor: '#EEF2FF',
-                          borderRadius: 8,
+                          backgroundColor: Colors.backgroundGray,
+                          borderRadius: BorderRadius.sm,
                           paddingHorizontal: 10,
                           paddingVertical: 5,
                           marginRight: 10,
                           borderWidth: 1,
-                          borderColor: '#E0E7FF',
+                          borderColor: Colors.border,
                         }}
                       >
                         <Text
                           style={{
                             fontSize: 10,
-                            fontFamily: 'Poppins-SemiBold',
-                            color: '#4F46E5',
+                            fontFamily: 'Poppins-Medium',
+                            color: Colors.textSecondaryDark,
                             letterSpacing: 0.2,
                           }}
                         >
@@ -834,66 +756,68 @@ export default function DiscoverScreen() {
                         style={{
                           fontSize: 11,
                           fontFamily: 'Poppins-Regular',
-                          color: '#9CA3AF',
+                          color: Colors.textTertiary,
                         }}
                       >
                         {tip.readTime}
                       </Text>
                     </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" style={{ marginTop: 2 }} />
+                  <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} style={{ marginTop: 2 }} />
                 </View>
               </TouchableOpacity>
             ))}
           </View>
 
           {/* Nearby Popular Services */}
-          <View className="px-4 mb-8">
-            <View className="flex-row items-center justify-between mb-3">
-              <View className="flex-row items-center">
-                <MapPin size={20} color="#6A9B00" style={{ marginRight: 8 }} />
-                <Text
-                  className="text-xl font-bold text-black"
-                  style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
-                >
-                  Popular Near You
-                </Text>
-              </View>
+          <View style={{ paddingHorizontal: 16, marginBottom: 32 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <MapPin size={18} color={Colors.textPrimary} style={{ marginRight: 8 }} />
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                  letterSpacing: -0.3,
+                }}
+              >
+                Popular Near You
+              </Text>
             </View>
             <View
               style={{
-                backgroundColor: '#F9FAFB',
-                borderRadius: 20,
-                padding: 24,
+                backgroundColor: Colors.backgroundGray,
+                borderRadius: BorderRadius.xl,
+                padding: 32,
                 alignItems: 'center',
                 justifyContent: 'center',
-                minHeight: 180,
+                minHeight: 160,
                 borderWidth: 1,
-                borderColor: '#E5E7EB',
+                borderColor: Colors.border,
                 borderStyle: 'dashed',
               }}
             >
               <View
                 style={{
-                  width: 68,
-                  height: 68,
-                  borderRadius: 34,
-                  backgroundColor: '#F3F4F6',
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: Colors.white,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginBottom: 14,
-                  borderWidth: 2,
-                  borderColor: '#E5E7EB',
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: Colors.border,
                 }}
               >
-                <MapPin size={34} color="#9CA3AF" />
+                <MapPin size={28} color={Colors.textSecondaryDark} />
               </View>
               <Text
                 style={{
-                  fontSize: 17,
+                  fontSize: 16,
                   fontFamily: 'Poppins-SemiBold',
-                  color: '#000000',
-                  marginBottom: 8,
+                  color: Colors.textPrimary,
+                  marginBottom: 6,
                   letterSpacing: -0.2,
                 }}
               >
@@ -901,11 +825,11 @@ export default function DiscoverScreen() {
               </Text>
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: 12,
                   fontFamily: 'Poppins-Regular',
-                  color: '#6B7280',
+                  color: Colors.textSecondaryDark,
                   textAlign: 'center',
-                  lineHeight: 20,
+                  lineHeight: 18,
                 }}
               >
                 Explore popular services in your area

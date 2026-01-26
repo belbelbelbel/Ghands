@@ -1,124 +1,239 @@
-import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { Colors, Fonts } from '@/lib/designSystem';
+import { Colors } from '@/lib/designSystem';
+import { haptics } from '@/hooks/useHaptics';
 import { useRouter } from 'expo-router';
-import { Building, User, Users } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
-import { Animated, ScrollView, View } from 'react-native';
-import { AccountTypeCard } from '../components/AccountTypeCard';
+import { Animated, Dimensions, Image, ImageBackground, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { useAuthRole } from '../hooks/useAuth';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function SelectAccountTypeScreen() {
   const router = useRouter();
   const { setRole } = useAuthRole();
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const backgroundFade = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const logoScaleAnim = useRef(new Animated.Value(0.8)).current;
+  const buttonSlideAnim = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.delay(50),
-      Animated.timing(backgroundFade, {
+    // Animate logo and buttons on mount
+    Animated.parallel([
+      Animated.spring(fadeAnim, {
         toValue: 1,
-        duration: 400,
-        useNativeDriver: false, 
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
       }),
-      Animated.timing(fadeAnim, {
+      Animated.spring(logoScaleAnim, {
         toValue: 1,
-        duration: 400,
+        tension: 50,
+        friction: 7,
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Animate buttons with delay
+    setTimeout(() => {
+      Animated.spring(buttonSlideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }).start();
+    }, 300);
   }, []);
 
-  const handleCardPress = (nextRole: 'client' | 'provider') => {
-    // Persist chosen role for route guards
-    setRole(nextRole);
-    if (nextRole === 'provider') {
-      // Navigate to provider type selection screen
-      router.push('/ProviderTypeSelectionScreen');
+  const handleBack = () => {
+    haptics.light();
+    router.replace('/LoginScreen');
+  };
+
+  const handleRoleSelect = async (role: 'client' | 'provider') => {
+    haptics.selection();
+    // Persist chosen role
+    await setRole(role);
+    
+    if (role === 'client') {
+      // Navigate to client onboarding
+      router.replace('/onboarding');
     } else {
-      router.replace('/SignupScreen');
+      // Navigate to provider splash screen first, then onboarding
+      router.replace('/ProviderSplashScreen');
     }
   };
 
+  const logoStyle = {
+    opacity: fadeAnim,
+    transform: [{ scale: logoScaleAnim }],
+  };
 
-  // Skip button removed - users must select account type
-  // const handleSkip = () => {
-  //   router.push('/main');
-  // };
-
-  const interpolatedBackgroundColor = backgroundFade.interpolate({
-    inputRange: [0, 1],
-    outputRange: [Colors.background, Colors.backgroundLight], 
-  });
+  const buttonStyle = {
+    opacity: fadeAnim,
+    transform: [{ translateY: buttonSlideAnim }],
+  };
 
   return (
-    <Animated.View style={{ flex: 1, backgroundColor: interpolatedBackgroundColor,  }}>
-      <SafeAreaWrapper>
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-          {/* Header Icon */}
-          <Animated.View
-            style={{
-              opacity: fadeAnim,
-              alignItems: 'center',
-              marginTop: 64,
-              marginBottom: 32,
-            }}
-          >
-            <View
-              style={{
-                width: 160,
-                height: 160,
-                backgroundColor: Colors.accent,
-                borderRadius: 80,
-                alignItems: 'center',
-                justifyContent: 'center',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.15,
-                shadowRadius: 12,
-                elevation: 8,
-              }}
-            >
-              <Users size={60} color={Colors.white} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      
+      {/* Background Image */}
+      <ImageBackground
+        source={require('../assets/images/introimage.png')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      >
+        {/* Dark overlay for better text readability */}
+        <View style={styles.overlay} />
+
+        {/* Back Button */}
+        <TouchableOpacity
+          onPress={handleBack}
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
+          <View style={styles.backButtonContainer}>
+            <ArrowLeft size={20} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+
+        {/* Content */}
+        <View style={styles.content}>
+          {/* App Logo */}
+          <Animated.View style={[styles.logoContainer, logoStyle]}>
+            <View style={styles.logoImageContainer}>
+              <Image 
+                source={require('../assets/images/icon.png')} 
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
           </Animated.View>
-          <Animated.View
-            style={{
-              opacity: fadeAnim,
-              flex: 0,
-              justifyContent: 'center',
-              paddingHorizontal: 20,
-            }}
-          >
-            <Animated.Text
-              style={{
-                opacity: fadeAnim,
-                ...Fonts.h3,
-                textAlign: 'left',
-                marginBottom: 24,
-                color: Colors.textPrimary,
-              }}
-            >
-              Choose Your Account Type
-            </Animated.Text>
-            <AccountTypeCard
-              icon={<User size={32} color="white" />}
-              title="Individual Client"
-              subtitle="Personal service requests"
-              tags={["Established", "Licensed", "Certified"]}
-              onPress={() => handleCardPress('client')}
-            />
 
-            <AccountTypeCard
-              icon={<Building size={32} color="white" />}
-              title="Service Provider"
-              subtitle="Earn by completing jobs"
-              tags={["Verified", "Professional", "Insured"]}
-              onPress={() => handleCardPress('provider')}
-            />
+          {/* Buttons Container */}
+          <Animated.View style={[styles.buttonsContainer, buttonStyle]}>
+            {/* Sign Up as a Client Button - Green */}
+            <TouchableOpacity
+              style={styles.clientButton}
+              onPress={() => handleRoleSelect('client')}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.clientButtonText}>Sign Up as a Client</Text>
+            </TouchableOpacity>
+
+            {/* Sign Up as a Provider Button - Dark with Green Border */}
+            <TouchableOpacity
+              style={styles.providerButton}
+              onPress={() => handleRoleSelect('provider')}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.providerButtonText}>Sign Up as a Provider</Text>
+            </TouchableOpacity>
           </Animated.View>
-        </ScrollView>
-      </SafeAreaWrapper>
-    </Animated.View>
+        </View>
+      </ImageBackground>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  backgroundImage: {
+    flex: 1,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 10,
+  },
+  backButtonContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingBottom: 50,
+    paddingHorizontal: 20,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 40,
+  },
+  logoImageContainer: {
+    width: 120,
+    height: 120,
+    backgroundColor: '#000000', // Black background for logo visibility
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4, // Increased shadow for better visibility
+    shadowRadius: 10, // Increased shadow radius
+    elevation: 10, // Increased elevation for Android
+    overflow: 'hidden', // Ensure logo doesn't overflow container
+  },
+  logoImage: {
+    width: '90%', // Increased from 75% for better visibility
+    height: '90%', // Increased from 75% for better visibility
+  },
+  buttonsContainer: {
+    gap: 16,
+    paddingBottom: 20,
+  },
+  clientButton: {
+    width: '100%',
+    height: 56,
+    backgroundColor: '#6A9B00',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  clientButtonText: {
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  providerButton: {
+    width: '100%',
+    height: 56,
+    backgroundColor: 'rgba(18, 18, 18, 0.9)',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#6A9B00',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  providerButtonText: {
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+});

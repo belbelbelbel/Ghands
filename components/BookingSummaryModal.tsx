@@ -46,7 +46,7 @@ export default function BookingSummaryModal({
   onEditProviders,
   data,
 }: BookingSummaryModalProps) {
-  const { isProfileComplete, checkProfileComplete } = useProfileCompletion();
+  const { isProfileComplete, checkProfileComplete, markProfileComplete } = useProfileCompletion();
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   const handleEdit = (callback?: (data: BookingSummaryData) => void) => {
@@ -58,11 +58,19 @@ export default function BookingSummaryModal({
   };
 
   const handleConfirm = async () => {
-    // Check if profile is complete before confirming booking
+    // First check cached state (faster)
+    if (isProfileComplete === true) {
+      // Profile is already complete, proceed with booking
+      haptics.success();
+      onConfirm();
+      return;
+    }
+
+    // Double-check AsyncStorage to be absolutely sure (in case state is stale)
     const profileComplete = await checkProfileComplete();
     
     if (!profileComplete) {
-      // Show profile completion modal
+      // Show profile completion modal (only if not already complete)
       setShowProfileModal(true);
       return;
     }
@@ -73,13 +81,20 @@ export default function BookingSummaryModal({
   };
 
   const handleProfileComplete = async (profileData: { firstName: string; lastName: string; gender: string }) => {
-    // TODO: API call will be added after backend discussion
-    // For now, just mark as complete and close modal
+    // Mark profile as complete immediately to prevent showing modal again
+    await markProfileComplete();
+    
+    // Close the profile modal
     setShowProfileModal(false);
     
-    // Retry booking confirmation
+    // Profile completion modal is already closed by ProfileCompletionModal
+    // Now proceed with booking confirmation
     haptics.success();
-    onConfirm();
+    
+    // Small delay to ensure modal is fully closed
+    setTimeout(() => {
+      onConfirm();
+    }, 300);
   };
 
   return (
@@ -267,10 +282,12 @@ export default function BookingSummaryModal({
         </View>
       </View>
 
-      {/* Profile Completion Modal */}
+      {/* Profile Completion Modal - Only show if profile is not complete */}
       <ProfileCompletionModal
-        visible={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
+        visible={showProfileModal && isProfileComplete !== true}
+        onClose={() => {
+          setShowProfileModal(false);
+        }}
         onComplete={handleProfileComplete}
       />
     </AnimatedModal>

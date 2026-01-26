@@ -1,11 +1,15 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { Colors } from '@/lib/designSystem';
+import { Colors, BorderRadius } from '@/lib/designSystem';
 import { haptics } from '@/hooks/useHaptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronRight, Plus, CheckCircle, Lock, RefreshCw } from 'lucide-react-native';
+import { ChevronRight, Plus, CheckCircle, Lock, RefreshCw, X } from 'lucide-react-native';
 import React, { useEffect, useState, useRef } from 'react';
-import { Modal, ScrollView, Text, TouchableOpacity, View, Animated } from 'react-native';
+import { Modal, ScrollView, Text, TouchableOpacity, View, Animated, TextInput, ActivityIndicator } from 'react-native';
+import { walletService } from '@/services/api';
+import { useToast } from '@/hooks/useToast';
+import Toast from '@/components/Toast';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
 
 const PAYMENT_METHODS = [
   {
@@ -36,15 +40,22 @@ type PaymentStep = 'processing' | 'verifying' | 'completing' | 'success';
 export default function PaymentMethodsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
+    requestId?: string;
     amount?: string;
+    quotationId?: string;
     providerName?: string;
     serviceName?: string;
     transactionId?: string;
   }>();
+  const { toast, showError, showSuccess, hideToast } = useToast();
   
   const [showProcessingModal, setShowProcessingModal] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
   const [paymentStep, setPaymentStep] = useState<PaymentStep>('processing');
   const [selectedMethod, setSelectedMethod] = useState<typeof PAYMENT_METHODS[0] | null>(null);
+  const [pin, setPin] = useState(['', '', '', '']);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const pinInputRefs = useRef<TextInput[]>([]);
   const spinAnim = useRef(new Animated.Value(0)).current;
   const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -56,53 +67,136 @@ export default function PaymentMethodsScreen() {
   const handlePaymentMethodSelect = (method: typeof PAYMENT_METHODS[0]) => {
     haptics.selection();
     setSelectedMethod(method);
+    // Show PIN modal first
+    setShowPinModal(true);
+    setPin(['', '', '', '']);
+    if (pinInputRefs.current[0]) {
+      setTimeout(() => pinInputRefs.current[0]?.focus(), 100);
+    }
+  };
+
+  const handlePinChange = (value: string, index: number) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    
+    if (numericValue.length <= 1) {
+      const newPin = [...pin];
+      newPin[index] = numericValue;
+      setPin(newPin);
+
+      // Auto-focus next input
+      if (numericValue && index < 3) {
+        pinInputRefs.current[index + 1]?.focus();
+      }
+
+      // If PIN is complete, process payment
+      if (index === 3 && numericValue) {
+        handleProcessPayment(newPin.join(''));
+      }
+    }
+  };
+
+  const handlePinKeyPress = (key: string, index: number) => {
+    if (key === 'Backspace' && !pin[index] && index > 0) {
+      pinInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleProcessPayment = async (pinValue: string) => {
+    if (!params.requestId || !params.amount) {
+      showError('Missing payment information. Please try again.');
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    setShowPinModal(false);
     setShowProcessingModal(true);
     setPaymentStep('processing');
-    startPaymentFlow();
-  };
 
-  const startPaymentFlow = () => {
-    // Clear any existing timeouts
-    timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
-    timeoutRefs.current = [];
+    try {
+      const requestId = parseInt(params.requestId, 10);
+      const amount = parseFloat(params.amount);
 
-    // Step 1: Processing payment (1.5 seconds)
-    const timeout1 = setTimeout(() => {
-      setPaymentStep('verifying');
-      haptics.light();
-    }, 1500);
-    timeoutRefs.current.push(timeout1);
+      if (isNaN(requestId) || isNaN(amount)) {
+        throw new Error('Invalid payment information');
+      }
 
-    // Step 2: Verifying payment (1.5 seconds)
-    const timeout2 = setTimeout(() => {
-      setPaymentStep('completing');
-      haptics.light();
-    }, 3000);
-    timeoutRefs.current.push(timeout2);
-
-    // Step 3: Completing transaction (1 second)
-    const timeout3 = setTimeout(() => {
-      setPaymentStep('success');
-      haptics.success();
-    }, 4000);
-    timeoutRefs.current.push(timeout3);
-
-    // Step 4: Navigate to success screen (1.5 seconds after success)
-    const timeout4 = setTimeout(() => {
-      setShowProcessingModal(false);
-      const transactionId = `TXN-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-      router.replace({
-        pathname: '/PaymentSuccessfulScreen' as any,
-        params: {
-          transactionId,
-          providerName: params.providerName || 'Elite Plumbing Services',
-          serviceName: params.serviceName || 'Pipe Repair & Installation',
-          amount: params.amount || '485.00',
-        },
+      // Call the payment API
+      const response = await walletService.payForService({
+        requestId,
+        amount,
+        pin: pinValue,
       });
-    }, 5500);
-    timeoutRefs.current.push(timeout4);
+
+      // Payment successful - show success animation
+      setTimeout(() => {
+        setPaymentStep('verifying');
+        haptics.light();
+      }, 1500);
+
+      setTimeout(() => {
+        setPaymentStep('completing');
+        haptics.light();
+      }, 3000);
+
+      setTimeout(() => {
+        setPaymentStep('success');
+        haptics.success();
+      }, 4000);
+
+      // Navigate to success screen
+      setTimeout(() => {
+        setShowProcessingModal(false);
+        router.replace({
+          pathname: '/PaymentSuccessfulScreen' as any,
+          params: {
+            transactionId: response.reference,
+            providerName: params.providerName || 'Service Provider',
+            serviceName: params.serviceName || 'Service Request',
+            amount: params.amount,
+            requestId: params.requestId,
+          },
+        });
+      }, 5500);
+    } catch (error: any) {
+      console.error('Error processing payment:', error);
+      
+      // Handle payment failure
+      setTimeout(() => {
+        setShowProcessingModal(false);
+        const errorMessage = error?.message || error?.details?.data?.error || 'Payment processing failed';
+        
+        // Navigate to transaction failed screen
+        router.replace({
+          pathname: '/TransactionFailedScreen' as any,
+          params: {
+            transactionId: `TXN-${Date.now()}`,
+            amount: params.amount,
+            providerName: params.providerName || 'Service Provider',
+            serviceFee: (parseFloat(params.amount || '0') * 0.93).toFixed(2),
+            platformFee: (parseFloat(params.amount || '0') * 0.07).toFixed(2),
+            totalAmount: params.amount,
+            paymentMethod: '**** **** **** 4532',
+            initiatedDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          },
+        });
+      }, 2000);
+      setIsProcessingPayment(false);
+      setShowProcessingModal(false);
+      setShowPinModal(false);
+      setPin(['', '', '', '']);
+      
+      const errorMessage = getSpecificErrorMessage(error, 'pay_for_service');
+      showError(errorMessage);
+      haptics.error();
+    }
   };
+
+  const handleCancelPin = () => {
+    setShowPinModal(false);
+    setPin(['', '', '', '']);
+    setSelectedMethod(null);
+  };
+
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -161,7 +255,7 @@ export default function PaymentMethodsScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#000000" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
+        <Text className="text-lg font-bold text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}>
           Payment methods
         </Text>
         <View style={{ width: 24 }} />
@@ -307,11 +401,12 @@ export default function PaymentMethodsScreen() {
             {/* Title */}
             <Text
               style={{
-                fontSize: 20,
+                fontSize: 18,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
-                marginBottom: 8,
+                marginBottom: 6,
                 textAlign: 'center',
+                letterSpacing: -0.3,
               }}
             >
               {stepMessage.title}
@@ -488,8 +583,189 @@ export default function PaymentMethodsScreen() {
             )}
           </View>
         </View>
-      </Modal>
-    </SafeAreaWrapper>
-  );
-}
+        </Modal>
+
+        {/* PIN Input Modal */}
+        <Modal
+          visible={showPinModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={handleCancelPin}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: Colors.white,
+                borderTopLeftRadius: BorderRadius.xl,
+                borderTopRightRadius: BorderRadius.xl,
+                paddingTop: 24,
+                paddingBottom: 40,
+                paddingHorizontal: 20,
+              }}
+            >
+              {/* Header */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 24,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  Enter Wallet PIN
+                </Text>
+                <TouchableOpacity
+                  onPress={handleCancelPin}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <X size={20} color={Colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Description */}
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  marginBottom: 24,
+                  textAlign: 'center',
+                }}
+              >
+                Enter your 4-digit wallet PIN to confirm payment
+              </Text>
+
+              {/* Amount Display */}
+              {params.amount && (
+                <View
+                  style={{
+                    backgroundColor: Colors.backgroundGray,
+                    borderRadius: BorderRadius.default,
+                    padding: 16,
+                    marginBottom: 24,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Payment Amount
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 20,
+                      fontFamily: 'Poppins-Bold',
+                      color: Colors.textPrimary,
+                    }}
+                  >
+                    ₦{new Intl.NumberFormat('en-NG', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }).format(parseFloat(params.amount))}
+                  </Text>
+                </View>
+              )}
+
+              {/* PIN Input Fields */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  marginBottom: 24,
+                  gap: 12,
+                }}
+              >
+                {[0, 1, 2, 3].map((index) => (
+                  <TextInput
+                    key={index}
+                    ref={(ref) => {
+                      if (ref) pinInputRefs.current[index] = ref;
+                    }}
+                    value={pin[index]}
+                    onChangeText={(value) => handlePinChange(value, index)}
+                    onKeyPress={({ nativeEvent }) =>
+                      handlePinKeyPress(nativeEvent.key, index)
+                    }
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    secureTextEntry={true}
+                    style={{
+                      flex: 1,
+                      height: 56,
+                      borderWidth: 2,
+                      borderColor:
+                        pin[index]
+                          ? Colors.accent
+                          : Colors.border,
+                      borderRadius: BorderRadius.default,
+                      textAlign: 'center',
+                      fontSize: 24,
+                      fontFamily: 'Poppins-Bold',
+                      color: Colors.textPrimary,
+                      backgroundColor: Colors.white,
+                    }}
+                    textContentType="none"
+                    autoComplete="off"
+                  />
+                ))}
+              </View>
+
+              {/* Processing Indicator */}
+              {isProcessingPayment && (
+                <View
+                  style={{
+                    alignItems: 'center',
+                    marginTop: 16,
+                  }}
+                >
+                  <ActivityIndicator size="small" color={Colors.accent} />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      marginTop: 8,
+                    }}
+                  >
+                    Processing payment...
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          visible={toast.visible}
+          onClose={hideToast}
+        />
+      </SafeAreaWrapper>
+    );
+  }
 

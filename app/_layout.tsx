@@ -7,10 +7,20 @@ import { StatusBar } from 'react-native';
 import '../global.css';
 import { QueryProvider } from '../providers/QueryProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { AuthErrorBoundary } from '@/components/AuthErrorBoundary';
 import { analytics } from '@/services/analytics';
 import { performance } from '@/services/performance';
 import { crashReporting } from '@/services/crashReporting';
-import { apiClient } from '@/services/api';
+import { AuthError } from '@/utils/errors';
+import { handleTokenExpiration } from '@/utils/tokenExpirationHandler';
+import { authService } from '@/services/authService';
+
+// ErrorUtils is a global in React Native, not exported from react-native
+declare const ErrorUtils: {
+  getGlobalHandler: () => ((error: Error, isFatal?: boolean) => void) | null;
+  setGlobalHandler: (handler: (error: Error, isFatal?: boolean) => void) => void;
+};
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -58,21 +68,83 @@ export default function RootLayout() {
       timestamp: new Date().toISOString(),
     });
 
+    // Global error handler for AuthError (catches async errors that React error boundaries can't)
+    // ErrorUtils is a global in React Native
+    const ErrorUtilsGlobal = (global as any).ErrorUtils;
+    if (ErrorUtilsGlobal) {
+      const originalHandler = ErrorUtilsGlobal.getGlobalHandler?.();
+      const globalErrorHandler = async (error: Error, isFatal?: boolean) => {
+        // Check if it's an AuthError
+        if (error instanceof AuthError || error.name === 'AuthError') {
+          // Clear auth tokens immediately
+          await authService.clearAuthTokens();
+          
+          // Navigate to login immediately (no error message, no delay)
+          const route = await handleTokenExpiration();
+          if (route) {
+            router.replace(route as any);
+          } else {
+            router.replace('/SelectAccountTypeScreen' as any);
+          }
+          // Don't call original handler - we've handled it
+          return;
+        }
+        
+        // For other errors, call original handler
+        if (originalHandler) {
+          originalHandler(error, isFatal);
+        }
+      };
+
+      // Set global error handler
+      ErrorUtilsGlobal.setGlobalHandler(globalErrorHandler);
+    }
+
+    // Also handle unhandled promise rejections (async errors)
+    // React Native doesn't have a built-in handler, so we use a workaround
+    const handleUnhandledRejection = (event: any) => {
+      const error = event?.reason || event;
+      if (error instanceof AuthError || (error?.name === 'AuthError')) {
+        // Prevent default logging
+        event?.preventDefault?.();
+        
+        // Handle auth error immediately
+        (async () => {
+          await authService.clearAuthTokens();
+          const route = await handleTokenExpiration();
+          if (route) {
+            router.replace(route as any);
+          } else {
+            router.replace('/SelectAccountTypeScreen' as any);
+          }
+        })();
+      }
+    };
+
+    // Try to add promise rejection handler (works in some React Native environments)
+    if (typeof global !== 'undefined') {
+      (global as any).onunhandledrejection = handleUnhandledRejection;
+    }
+
     return () => {
       performance.measure('app_init', 'app_init_start');
+      // Restore original handler
+      const ErrorUtilsGlobal = (global as any).ErrorUtils;
+      if (ErrorUtilsGlobal) {
+        const originalHandler = ErrorUtilsGlobal.getGlobalHandler?.();
+        if (originalHandler) {
+          ErrorUtilsGlobal.setGlobalHandler(originalHandler);
+        }
+      }
+      // Cleanup promise rejection handler
+      if (typeof global !== 'undefined') {
+        delete (global as any).onunhandledrejection;
+      }
     };
-  }, []);
-
-  useEffect(() => {
-    // Set up global auth error handler
-    // This will automatically redirect users to their respective login pages
-    // when their token expires or is invalid
-    // Users with expired tokens should login again, not signup
-    apiClient.setupAuthErrorHandler((route) => {
-      // Use replace to prevent going back to the previous screen
-      router.replace(route as any);
-    });
   }, [router]);
+
+  // Note: AuthError handling is now done by AuthErrorBoundary component
+  // ApiClient throws AuthError, AuthErrorBoundary catches it and handles navigation + toast
 
   if (!fontsLoaded) {
     return null;
@@ -81,14 +153,18 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <QueryProvider>
-        <StatusBar 
-          barStyle="dark-content" 
-          backgroundColor="white" 
-          translucent={false}
-        />
-        <Stack>
+        <AuthErrorBoundary router={router}>
+          <StatusBar 
+            barStyle="dark-content" 
+            backgroundColor="white" 
+            translucent={false}
+          />
+          <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="provider-onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="ProviderSplashScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ClientTypeSelectionScreen" options={{ headerShown: false }} />
         <Stack.Screen name="SelectAccountTypeScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderTypeSelectionScreen" options={{ headerShown: false }} />
         <Stack.Screen name="IndividualProviderComingSoonScreen" options={{ headerShown: false }} />
@@ -124,6 +200,7 @@ export default function RootLayout() {
         <Stack.Screen name="ProviderCompletedJobScreen" options={{ headerShown: false }} />
         <Stack.Screen name="SendQuotationScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderReceiptScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ReportIssueScreen" options={{ headerShown: false }} />
         <Stack.Screen name="PhotosGalleryScreen" options={{ headerShown: false }} />
         <Stack.Screen name="HelpSupportScreen" options={{ headerShown: false }} />
         <Stack.Screen name="SupportScreen" options={{ headerShown: false }} />
@@ -135,6 +212,8 @@ export default function RootLayout() {
         <Stack.Screen name="BankTransferScreen" options={{ headerShown: false }} />
         <Stack.Screen name="PaymentPendingScreen" options={{ headerShown: false }} />
         <Stack.Screen name="PaymentSuccessfulScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="TransactionFailedScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="CallScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ActivityScreen" options={{ headerShown: false }} />
         <Stack.Screen name="AddCardDetailsScreen" options={{ headerShown: false }} />
         <Stack.Screen name="main" options={{ headerShown: false }} />
@@ -156,7 +235,8 @@ export default function RootLayout() {
         <Stack.Screen name="SecurityScreen" options={{ headerShown: false }} />
         <Stack.Screen name="CreatePINScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderActivityScreen" options={{ headerShown: false }} />
-        </Stack>
+          </Stack>
+        </AuthErrorBoundary>
       </QueryProvider>
     </ErrorBoundary>
   );

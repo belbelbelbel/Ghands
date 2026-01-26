@@ -2,14 +2,17 @@ import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
 import { analytics } from '@/services/analytics';
-import { serviceRequestService, ServiceRequest } from '@/services/api';
+import { serviceRequestService, ServiceRequest, QuotationWithProvider } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { Colors } from '@/lib/designSystem';
+import { CheckCircle2, FileText, Wrench, CheckCircle, Clock, Circle } from 'lucide-react-native';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Image,
   ScrollView,
@@ -167,121 +170,489 @@ export default function OngoingJobDetails() {
 
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [acceptedProviders, setAcceptedProviders] = useState<any[]>([]);
+  const [quotations, setQuotations] = useState<QuotationWithProvider[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingQuotations, setIsLoadingQuotations] = useState(false);
   const [activeTab, setActiveTab] = useState<'Updates' | 'Quotations'>('Updates');
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const quoteCardAnim = useRef(new Animated.Value(1)).current;
+  
+  // Selection flow state
+  const [isSelectingProvider, setIsSelectingProvider] = useState(false);
+  const [selectionCountdown, setSelectionCountdown] = useState<number | null>(null);
 
-  // Generate timeline from request data
+  // Generate timeline from request data - Shows all steps with proper status colors
   const timelineSteps = useMemo(() => {
     if (!request) return [];
 
     const timeline = [];
 
     // Step 1: Job Request Submitted (always completed)
+    // Show how many providers the request was sent to (from nearbyProviders if available)
+    const totalProvidersSentTo = request.nearbyProviders?.length || acceptedProviders.length || 0;
     timeline.push({
       id: 'step-1',
       title: 'Job Request Submitted',
-      description: `Request sent to ${acceptedProviders.length} ${acceptedProviders.length === 1 ? 'provider' : 'providers'}`,
+      description: totalProvidersSentTo > 0 
+        ? `Request sent to ${totalProvidersSentTo} ${totalProvidersSentTo === 1 ? 'provider' : 'providers'}`
+        : 'Job request submitted successfully',
       status: `Completed - ${formatTimeAgo(request.createdAt || new Date().toISOString())}`,
       accent: '#DCFCE7',
       dotColor: '#6A9B00',
+      isActive: false,
+      isCompleted: true,
+      icon: CheckCircle2,
     });
 
-    // Step 2: Inspection & Quotation
-    if (request.status === 'pending' && acceptedProviders.length > 0) {
+    // Step 1.5: Provider Selection (if applicable)
+    if (request?.selectedProvider || request?.selectedAt) {
+      if (request.status === 'accepted' && request.selectedProvider) {
+        // Provider accepted selection
+        timeline.push({
+          id: 'step-1.5',
+          title: 'Provider Selected',
+          description: `${request.selectedProvider.name} accepted your selection`,
+          status: `Completed - ${formatTimeAgo(request.updatedAt || request.selectedAt || '')}`,
+          accent: '#DCFCE7',
+          dotColor: '#6A9B00',
+          isActive: false,
+          isCompleted: true,
+          icon: CheckCircle2,
+        });
+      } else if (request.selectedAt && selectionCountdown !== null && selectionCountdown > 0) {
+        // Selection pending with countdown
+        const mins = Math.floor(selectionCountdown / 60);
+        const secs = selectionCountdown % 60;
+        timeline.push({
+          id: 'step-1.5',
+          title: 'Provider Selected',
+          description: `Waiting for provider to accept (${mins}:${secs.toString().padStart(2, '0')} remaining)`,
+          status: 'In Progress',
+          accent: '#FEF9C3',
+          dotColor: '#F59E0B',
+          isActive: true,
+          isCompleted: false,
+          icon: Clock,
+        });
+      } else if (request.selectedAt) {
+        // Selection pending (no countdown available)
+        timeline.push({
+          id: 'step-1.5',
+          title: 'Provider Selected',
+          description: 'Waiting for provider to accept (5 minutes)',
+          status: 'In Progress',
+          accent: '#FEF9C3',
+          dotColor: '#F59E0B',
+          isActive: true,
+          isCompleted: false,
+          icon: Clock,
+        });
+      }
+    }
+
+    // Step 2: Provider Acceptance (NEW STEP - shows when providers accept)
+    const hasAcceptedProviders = acceptedProviders && acceptedProviders.length > 0;
+    
+    // Show provider acceptance step if providers have accepted
+    if (hasAcceptedProviders) {
+      // Get the latest acceptance time
+      const acceptanceTimes = acceptedProviders
+        .filter(p => p.acceptance?.acceptedAt)
+        .map(p => new Date(p.acceptance.acceptedAt).getTime());
+      
+      const latestAcceptance = acceptanceTimes.length > 0 
+        ? Math.max(...acceptanceTimes)
+        : Date.now();
+      
       timeline.push({
         id: 'step-2',
-        title: 'Inspection & Quotation',
-        description: `${acceptedProviders.length} ${acceptedProviders.length === 1 ? 'provider has' : 'providers have'} accepted`,
-        status: `In Progress - ${acceptedProviders.length} accepted`,
-        accent: '#DBEAFE',
-        dotColor: '#F59E0B',
+        title: 'Provider Accepted',
+        description: `${acceptedProviders.length} ${acceptedProviders.length === 1 ? 'provider has' : 'providers have'} accepted your request`,
+        status: `Completed - ${formatTimeAgo(new Date(latestAcceptance).toISOString())}`,
+        accent: '#DCFCE7',
+        dotColor: '#6A9B00',
+        isActive: false,
+        isCompleted: true,
+        icon: CheckCircle2,
       });
-    } else if (request.status === 'accepted' || request.status === 'in_progress' || request.status === 'completed') {
+      
+      if (__DEV__) {
+        console.log('✅ [OngoingJobDetails] Timeline: Showing Provider Accepted step', {
+          count: acceptedProviders.length,
+          latestAcceptance: new Date(latestAcceptance).toISOString(),
+        });
+      }
+    } else {
+      // No providers accepted yet
       timeline.push({
         id: 'step-2',
+        title: 'Provider Acceptance',
+        description: 'Waiting for providers to accept your request',
+        status: 'Pending',
+        accent: '#F3F4F6',
+        dotColor: '#9CA3AF',
+        isActive: false,
+        isCompleted: false,
+        icon: Circle,
+      });
+      
+      if (__DEV__) {
+        console.log('⏳ [OngoingJobDetails] Timeline: No providers accepted yet', {
+          acceptedProvidersLength: acceptedProviders?.length || 0,
+          requestStatus: request?.status,
+        });
+      }
+    }
+
+    // Step 3: Inspection & Quotation
+    // Only count quotations that have been sent (have sentAt or status is not null/draft)
+    const hasQuotationSent = quotations.some(q => q.sentAt || (q.status && q.status !== 'draft' && q.status !== null));
+    const quotationAccepted = quotations.some(q => q.status === 'accepted');
+    
+    // Priority 1: If quotation is accepted OR request status moved forward, show completed
+    if (quotationAccepted || request.status === 'accepted' || request.status === 'in_progress' || request.status === 'completed') {
+      timeline.push({
+        id: 'step-3',
         title: 'Inspection & Quotation',
-        description: 'Provider selected and quotation accepted',
+        description: quotationAccepted 
+          ? 'Quotation accepted by you' 
+          : request.status === 'accepted' 
+            ? 'Provider selected and quotation accepted'
+            : 'Inspection completed and quotation accepted',
         status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
+        isActive: false,
+        isCompleted: true,
+        icon: FileText,
+      });
+    } 
+    // Priority 2: If quotation has been sent, show "waiting for client to accept"
+    else if (hasQuotationSent) {
+      timeline.push({
+        id: 'step-3',
+        title: 'Inspection & Quotation',
+        description: 'Quotation sent - waiting for you to accept',
+        status: 'In Progress',
+        accent: '#FEF9C3',
+        dotColor: '#F59E0B',
+        isActive: true,
+        isCompleted: false,
+        icon: Clock,
+      });
+    } 
+    // Priority 3: If providers have accepted but no quotation yet, show "waiting for inspection & quotation"
+    else if (hasAcceptedProviders) {
+      timeline.push({
+        id: 'step-3',
+        title: 'Inspection & Quotation',
+        description: 'Waiting for provider to inspect and send quotation',
+        status: 'In Progress',
+        accent: '#FEF9C3',
+        dotColor: '#F59E0B',
+        isActive: true,
+        isCompleted: false,
+        icon: Clock,
+      });
+    } 
+    // Priority 4: No providers accepted yet - show pending
+    else {
+      timeline.push({
+        id: 'step-3',
+        title: 'Inspection & Quotation',
+        description: 'Waiting for providers to accept your request',
+        status: 'Pending',
+        accent: '#F3F4F6',
+        dotColor: '#9CA3AF',
+        isActive: false,
+        isCompleted: false,
+        icon: Circle,
       });
     }
 
-    // Step 3: Job in Progress
+    // Step 4: Job in Progress
     if (request.status === 'in_progress') {
       timeline.push({
-        id: 'step-3',
+        id: 'step-4',
         title: 'Job in Progress',
         description: 'Provider is on site',
         status: 'In Progress',
-        accent: '#DBEAFE',
+        accent: '#FEF9C3',
         dotColor: '#F59E0B',
+        isActive: true,
+        isCompleted: false,
+        icon: Wrench,
       });
     } else if (request.status === 'completed') {
       timeline.push({
-        id: 'step-3',
+        id: 'step-4',
         title: 'Job in Progress',
         description: 'Provider was on site',
         status: 'Completed',
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
+        isActive: false,
+        isCompleted: true,
+        icon: Wrench,
+      });
+    } else {
+      // Not started yet - grayed out
+      timeline.push({
+        id: 'step-4',
+        title: 'Job in Progress',
+        description: 'Waiting for quotation acceptance and payment',
+        status: 'Pending',
+        accent: '#F3F4F6',
+        dotColor: '#9CA3AF',
+        isActive: false,
+        isCompleted: false,
+        icon: Circle,
       });
     }
 
-    // Step 4: Complete
+    // Step 5: Complete
     if (request.status === 'completed') {
       timeline.push({
-        id: 'step-4',
+        id: 'step-5',
         title: 'Complete',
-        description: 'Review the job and provide feedback!!',
+        description: 'Review the job and provide feedback',
         status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
+        isActive: false,
+        isCompleted: true,
+        icon: CheckCircle,
+      });
+    } else {
+      // Not started yet - grayed out
+      timeline.push({
+        id: 'step-5',
+        title: 'Complete',
+        description: 'Job will be marked complete after service',
+        status: 'Pending',
+        accent: '#F3F4F6',
+        dotColor: '#9CA3AF',
+        isActive: false,
+        isCompleted: false,
+        icon: Circle,
       });
     }
 
     return timeline;
-  }, [request, acceptedProviders]);
+  }, [request, acceptedProviders, quotations, selectionCountdown]);
 
-  // Generate quotations from accepted providers
-  const quotations = useMemo(() => {
-    return generateDummyQuotations(acceptedProviders, request?.categoryName);
-  }, [acceptedProviders, request?.categoryName]);
+  // Load quotations from API (6.3 endpoint)
+  const loadQuotations = useCallback(async () => {
+    if (!params.requestId) return;
+    
+    setIsLoadingQuotations(true);
+    try {
+      const requestId = parseInt(params.requestId, 10);
+      const quotationsData = await serviceRequestService.getQuotations(requestId);
+      setQuotations(quotationsData);
+    } catch (error: any) {
+      if (__DEV__) {
+        console.error('Error loading quotations:', error);
+      }
+      // Don't show error toast - quotations might not exist yet
+      setQuotations([]);
+    } finally {
+      setIsLoadingQuotations(false);
+    }
+  }, [params.requestId]);
+
+  // Helper function to format countdown
+  const formatCountdown = useCallback((seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }, []);
+
+  // Handle provider selection
+  const handleSelectProvider = useCallback(async (providerId: number) => {
+    if (!params.requestId || isSelectingProvider) return;
+
+    setIsSelectingProvider(true);
+    haptics.light();
+
+    try {
+      const requestId = parseInt(params.requestId, 10);
+      const response = await serviceRequestService.selectProvider(requestId, providerId);
+      
+      haptics.success();
+      showSuccess(response.message || 'Provider selected! They have 5 minutes to accept.');
+      
+      // Reload request data to get updated selection info
+      await loadRequestData();
+    } catch (error: any) {
+      if (__DEV__) {
+        console.error('Error selecting provider:', error);
+      }
+      haptics.error();
+      const errorMessage = getSpecificErrorMessage(error, 'select_provider');
+      showError(errorMessage);
+    } finally {
+      setIsSelectingProvider(false);
+    }
+  }, [params.requestId, isSelectingProvider, showSuccess, showError, loadRequestData]);
+
+  // Countdown timer for selection
+  // Uses backend's selectionTimeoutAt if available, otherwise calculates from selectedAt + 5 minutes
+  const startCountdownTimer = useCallback(() => {
+    if (!request?.selectedAt) {
+      setSelectionCountdown(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      try {
+        // Prefer backend's selectionTimeoutAt if available, otherwise calculate it
+        let timeoutTime: number;
+        if (request.selectionTimeoutAt) {
+          // Use backend's timeout time (more accurate)
+          timeoutTime = new Date(request.selectionTimeoutAt).getTime();
+        } else {
+          // Fallback: calculate from selectedAt + 5 minutes
+          const selectedTime = new Date(request.selectedAt!).getTime();
+          timeoutTime = selectedTime + (5 * 60 * 1000); // 5 minutes
+        }
+        
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((timeoutTime - now) / 1000)); // seconds
+
+        if (remaining > 0) {
+          setSelectionCountdown(remaining);
+        } else {
+          setSelectionCountdown(null);
+          // Selection timed out - reload to get updated status from backend
+          loadRequestData();
+        }
+      } catch (error) {
+        setSelectionCountdown(null);
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [request?.selectedAt, request?.selectionTimeoutAt, loadRequestData]);
+
+  // Start countdown when selection is active
+  useEffect(() => {
+    if (request?.selectedAt && !request.selectedProvider && request.status === 'pending') {
+      const cleanup = startCountdownTimer();
+      return cleanup;
+    } else {
+      setSelectionCountdown(null);
+    }
+  }, [request?.selectedAt, request?.selectedProvider, request?.status, request?.selectionTimeoutAt, startCountdownTimer]);
 
   // Map accepted providers to provider cards format
+  // Use actual quotation data instead of random logic
   const mappedProviders = useMemo(() => {
     if (!acceptedProviders || acceptedProviders.length === 0) return [];
 
-    return acceptedProviders.map((item, index) => {
-      // Randomly assign some providers as "Quote submitted" and others as "Inspecting"
-      const hasQuote = index < 2 || Math.random() > 0.3; // First 2 or 70% chance
+    return acceptedProviders.map((item) => {
+      // Check if this provider has actually sent a quotation
+      const providerQuotation = quotations.find(q => q.provider?.id === item.provider.id);
+      const hasQuotationSent = !!providerQuotation && (providerQuotation.sentAt || (providerQuotation.status && providerQuotation.status !== 'draft'));
+      const quotationAccepted = providerQuotation?.status === 'accepted';
+      
+      // Check selection status
+      const isSelected = request?.selectedProvider?.id === item.provider.id;
+      const isSelectionPending = isSelected && !request?.selectedProvider && request?.selectedAt;
+      const isSelectionAccepted = isSelected && request?.status === 'accepted';
+      const hasActiveSelection = request?.selectedAt && !request?.selectedProvider;
+      const isThisProviderSelected = hasActiveSelection && request?.selectedAt; // Check if this provider was selected
+      
+      // Determine status based on selection flow
+      let status = 'Provider accepted';
+      let statusColor = '#FEF9C3';
+      let statusTextColor = '#92400E';
+      let quoteDetails = 'Provider has accepted your request. Waiting for inspection and quotation.';
+      let inspectionStatus = `Accepted ${formatTimeAgo(item.acceptance.acceptedAt)}`;
+      // Provider selection now happens in ServiceMapScreen during booking confirmation
+      // No need to select providers here - canSelect is always false
+      let canSelect = false;
+
+      // Priority 1: Selection accepted
+      if (isSelectionAccepted) {
+        status = 'Provider accepted selection';
+        statusColor = '#DCFCE7';
+        statusTextColor = '#166534';
+        quoteDetails = 'Provider has accepted your selection. They can now send quotation.';
+        inspectionStatus = `Selection accepted ${formatTimeAgo(request.updatedAt || request.selectedAt || '')}`;
+        canSelect = false;
+      }
+      // Priority 2: Selection pending with countdown
+      else if (isSelected && selectionCountdown !== null && selectionCountdown > 0) {
+        status = 'Selected - waiting for response';
+        statusColor = '#DBEAFE';
+        statusTextColor = '#1E40AF';
+        quoteDetails = `Provider selected. Waiting for their response. ${formatCountdown(selectionCountdown)} remaining.`;
+        inspectionStatus = `Selected ${formatTimeAgo(request.selectedAt || '')}`;
+        canSelect = false;
+      }
+      // Priority 3: Selection pending (no countdown)
+      else if (isSelected && request?.selectedAt) {
+        status = 'Selected - waiting for response';
+        statusColor = '#DBEAFE';
+        statusTextColor = '#1E40AF';
+        quoteDetails = 'Provider selected. Waiting for their response (5 minutes).';
+        inspectionStatus = `Selected ${formatTimeAgo(request.selectedAt)}`;
+        canSelect = false;
+      }
+      // Priority 4: Quotation accepted
+      else if (quotationAccepted) {
+        status = 'Quote accepted';
+        statusColor = '#DCFCE7';
+        statusTextColor = '#166534';
+        quoteDetails = 'Quotation accepted. Provider will proceed with the job.';
+        inspectionStatus = `Quote accepted ${formatTimeAgo(request?.updatedAt || providerQuotation.sentAt || '')}`;
+        canSelect = false;
+      }
+      // Priority 5: Quotation sent
+      else if (hasQuotationSent) {
+        status = 'Quote submitted';
+        statusColor = '#DBEAFE';
+        statusTextColor = '#1E40AF';
+        quoteDetails = providerQuotation.findingsAndWorkRequired || 'Professional service with high-quality materials. Includes parts and labor with warranty.';
+        inspectionStatus = `Quote submitted ${formatTimeAgo(providerQuotation.sentAt || '')}`;
+        canSelect = false;
+      }
+      // Priority 6: Another provider is selected
+      else if (hasActiveSelection && !isSelected) {
+        status = 'Provider accepted';
+        statusColor = '#F3F4F6';
+        statusTextColor = '#6B7280';
+        quoteDetails = 'Another provider has been selected. Waiting for their response.';
+        inspectionStatus = `Accepted ${formatTimeAgo(item.acceptance.acceptedAt)}`;
+        canSelect = false;
+      }
 
       return {
         id: `provider-${item.provider.id}`,
         name: item.provider.name,
         role: 'Professional Service Provider',
         image: require('../assets/images/plumbericon2.png'),
-        status: hasQuote ? 'Quote submitted' : 'Inspecting',
-        statusColor: hasQuote ? '#DCFCE7' : '#FEF9C3',
-        statusTextColor: hasQuote ? '#166534' : '#92400E',
+        status,
+        statusColor,
+        statusTextColor,
         badgeColor: '#CFFAFE',
-        quote: hasQuote ? `$${65 + index * 10}` : null,
-        quoteDetails: hasQuote
-          ? 'Professional service with high-quality materials. Includes parts and labor with warranty.'
-          : 'Provider is currently on-site conducting inspection. Quote will be available shortly.',
-        duration: hasQuote ? `${2 + index}-${3 + index} hours` : null,
-        inspectionStatus: hasQuote
-          ? `Quote submitted ${formatTimeAgo(item.acceptance.acceptedAt)}`
-          : 'Inspection in progress',
-        cta: hasQuote ? 'View full quote' : null,
+        quote: hasQuotationSent ? `$${providerQuotation.total?.toFixed(2) || '0.00'}` : null,
+        quoteDetails,
+        duration: hasQuotationSent ? '2-3 hours' : null,
+        inspectionStatus,
+        cta: hasQuotationSent ? 'View full quote' : null,
         providerId: item.provider.id,
         distanceKm: item.distanceKm,
         minutesAway: item.minutesAway,
+        isSelected,
+        canSelect,
       };
     });
-  }, [acceptedProviders]);
+  }, [acceptedProviders, quotations, request, selectionCountdown, formatCountdown]);
 
   const timelineAnimations = useMemo(
     () => timelineSteps.map(() => new Animated.Value(0)),
@@ -298,14 +669,28 @@ export default function OngoingJobDetails() {
     [mappedProviders]
   );
 
-  // Load request details and accepted providers
+  // Load request details and accepted providers on mount
   useEffect(() => {
     if (params.requestId) {
       loadRequestData();
     }
   }, [params.requestId]);
 
-  const loadRequestData = async () => {
+  // Refresh data when screen comes into focus (e.g., returning from another screen)
+  // This ensures timeline and status are always up to date
+  useFocusEffect(
+    useCallback(() => {
+      if (params.requestId) {
+        // Small delay to avoid unnecessary refreshes during navigation
+        const timer = setTimeout(() => {
+          loadRequestData();
+        }, 300); // Increased delay to ensure API has time to update
+        return () => clearTimeout(timer);
+      }
+    }, [params.requestId, loadRequestData])
+  );
+
+  const loadRequestData = useCallback(async () => {
     if (!params.requestId) return;
 
     setIsLoading(true);
@@ -316,45 +701,182 @@ export default function OngoingJobDetails() {
       const requestDetails = await serviceRequestService.getRequestDetails(requestId);
       setRequest(requestDetails);
 
-      // Load accepted providers (for Updates tab and Quotations)
-      if (requestDetails.status === 'pending' || requestDetails.status === 'accepted' || requestDetails.status === 'in_progress') {
-        try {
-          const providers = await serviceRequestService.getAcceptedProviders(requestId);
-          setAcceptedProviders(providers || []);
-        } catch (error: any) {
-          console.error('Error loading accepted providers:', error);
-          // If no providers accepted yet, that's okay
-          setAcceptedProviders([]);
+      // Load accepted providers (for Updates tab) - ALWAYS load if status allows
+      // This ensures we have accurate data for the timeline communication flow
+      // IMPORTANT: Always try to load accepted providers, even if status is pending
+      // because providers might have accepted but request status hasn't updated yet
+      try {
+        const providers = await serviceRequestService.getAcceptedProviders(requestId);
+        const providersArray = Array.isArray(providers) ? providers : [];
+        setAcceptedProviders(providersArray);
+        
+        if (__DEV__) {
+          console.log('🔍 [OngoingJobDetails] Loaded accepted providers:', {
+            requestId,
+            requestStatus: requestDetails.status,
+            count: providersArray.length,
+            providers: providersArray.map(p => ({ 
+              id: p.provider?.id, 
+              name: p.provider?.name,
+              acceptedAt: p.acceptance?.acceptedAt 
+            })),
+            hasAcceptedProviders: providersArray.length > 0,
+          });
         }
+      } catch (error: any) {
+        if (__DEV__) {
+          console.error('❌ [OngoingJobDetails] Error loading accepted providers:', {
+            requestId,
+            error: error?.message || error,
+            status: error?.status,
+          });
+        }
+        // If no providers accepted yet or endpoint fails, set empty array
+        setAcceptedProviders([]);
+      }
+
+      // Load quotations (6.3 endpoint) - for Quotations tab
+      await loadQuotations();
+    } catch (error: any) {
+      if (__DEV__) {
+        console.error('Error loading request data:', error);
+      }
+      const errorMessage = getSpecificErrorMessage(error, 'get_request_details');
+      showError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [params.requestId, loadQuotations, showError]);
+
+  // Handle accept quotation (6.4 endpoint)
+  const handleAcceptQuotation = async (quotationId: number) => {
+    if (!params.requestId) return;
+
+    try {
+      setIsLoading(true);
+      const response = await serviceRequestService.acceptQuotation(quotationId);
+
+      haptics.success();
+      showSuccess(response.message || 'Quotation accepted! You can now proceed to payment.');
+
+      // Reload request data and quotations to update status
+      await loadRequestData();
+      await loadQuotations();
+
+      // Navigate to payment screen with quotation details
+      const acceptedQuotation = quotations.find(q => q.id === quotationId);
+      if (acceptedQuotation) {
+        router.push({
+          pathname: '/PaymentMethodsScreen',
+          params: {
+            requestId: params.requestId,
+            amount: acceptedQuotation.total.toString(),
+            quotationId: quotationId.toString(),
+          },
+        } as any);
       }
     } catch (error: any) {
-      console.error('Error loading request data:', error);
-      const errorMessage = getSpecificErrorMessage(error, 'get_request_details');
+      if (__DEV__) {
+        console.error('Error accepting quotation:', error);
+      }
+      haptics.error();
+      const errorMessage = getSpecificErrorMessage(error, 'accept_quotation');
       showError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle select provider (accept quote)
-  const handleSelectProvider = async (providerId: number) => {
+  // Handle reject quotation (6.5 endpoint)
+  const handleRejectQuotation = async (quotationId: number) => {
     if (!params.requestId) return;
 
     try {
-      const requestId = parseInt(params.requestId, 10);
-      await serviceRequestService.selectProvider(requestId, providerId);
+      setIsLoading(true);
+      const response = await serviceRequestService.rejectQuotation(quotationId);
 
       haptics.success();
-      showSuccess('Provider selected successfully! Request has been assigned.');
+      showSuccess(response.message || 'Quotation rejected successfully.');
+
+      // Reload quotations to update status
+      await loadQuotations();
+
+      // If we rejected the current quotation, move to next one if available
+      const currentIndex = quotations.findIndex(q => q.id === quotationId);
+      if (currentIndex >= 0 && quotations.length > 1) {
+        const nextIndex = currentIndex < quotations.length - 1 ? currentIndex : currentIndex - 1;
+        if (nextIndex >= 0) {
+          setCurrentQuoteIndex(nextIndex);
+        }
+      } else if (quotations.length === 1) {
+        // If it was the last quotation, stay on it but it will show as rejected
+        setCurrentQuoteIndex(0);
+      }
+    } catch (error: any) {
+      if (__DEV__) {
+        console.error('Error rejecting quotation:', error);
+      }
+      haptics.error();
+      const errorMessage = getSpecificErrorMessage(error, 'reject_quotation');
+      showError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle complete service request (5.16 endpoint)
+  const handleCompleteJob = async () => {
+    if (!params.requestId || !request) return;
+
+    // Show confirmation alert
+    Alert.alert(
+      'Complete Job',
+      'Are you sure the service has been completed? This will transfer payment to the provider.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => haptics.light(),
+        },
+        {
+          text: 'Complete',
+          style: 'default',
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              haptics.light();
+
+      const requestId = parseInt(params.requestId, 10);
+              const response = await serviceRequestService.completeServiceRequest(requestId);
+
+      haptics.success();
+              showSuccess(response.message || 'Job completed successfully! Payment has been transferred to the provider.');
 
       // Reload request data to update status
       await loadRequestData();
+
+              // Navigate to completed job detail screen after a short delay
+              setTimeout(() => {
+                router.replace({
+                  pathname: '/CompletedJobDetail',
+                  params: { requestId: params.requestId },
+                } as any);
+              }, 1500);
     } catch (error: any) {
-      console.error('Error selecting provider:', error);
+              if (__DEV__) {
+                console.error('Error completing job:', error);
+              }
       haptics.error();
-      const errorMessage = getSpecificErrorMessage(error, 'select_provider');
+              const errorMessage = getSpecificErrorMessage(error, 'complete_service_request');
       showError(errorMessage);
+            } finally {
+              setIsLoading(false);
     }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   useEffect(() => {
@@ -379,31 +901,52 @@ export default function OngoingJobDetails() {
   useEffect(() => {
     if (timelineSteps.length === 0) return;
 
-    // Enhanced timeline animation with haptics
+    // Enhanced timeline animation with haptics - More dynamic and smooth
     const timelineSequence = timelineAnimations.map((anim, index) =>
       Animated.spring(anim, {
         toValue: 1,
         useNativeDriver: true,
-        tension: 80,
-        friction: 8,
-        delay: index * 120,
+        tension: 70,
+        friction: 7,
+        delay: index * 100,
       })
     );
-    Animated.stagger(100, timelineSequence).start(() => {
+    Animated.stagger(80, timelineSequence).start(() => {
       // Light haptic when timeline finishes animating
       haptics.light();
+      
+      // Add a subtle pulse animation for active/completed steps
+      timelineAnimations.forEach((anim, index) => {
+        const step = timelineSteps[index];
+        if (step && (step.isCompleted || step.isActive)) {
+          Animated.sequence([
+            Animated.spring(anim, {
+              toValue: 1.08,
+              useNativeDriver: true,
+              tension: 200,
+              friction: 3,
+            }),
+            Animated.spring(anim, {
+              toValue: 1,
+              useNativeDriver: true,
+              tension: 200,
+              friction: 3,
+            }),
+          ]).start();
+        }
+      });
     });
 
-    // Animate progress lines after dots
+    // Animate progress lines after dots - More fluid animation
     const lineSequence = lineAnimations.map((anim, index) =>
       Animated.timing(anim, {
         toValue: 1,
-        duration: 400,
-        delay: (index + 1) * 120 + 200,
+        duration: 500,
+        delay: (index + 1) * 100 + 150,
         useNativeDriver: false,
       })
     );
-    Animated.stagger(100, lineSequence).start();
+    Animated.stagger(80, lineSequence).start();
 
     // Provider cards animation
     const providerSequence = providerAnimations.map((anim, index) =>
@@ -428,44 +971,69 @@ export default function OngoingJobDetails() {
           const animation = timelineAnimations[index];
           const lineAnim = !isLast ? lineAnimations[index] : null;
 
+          const IconComponent = step.icon || Circle;
+          const iconSize = step.isCompleted || step.isActive ? 20 : 16;
+
           return (
-            <View key={step.id} className="flex-row mb-6">
+            <View key={step.id} className="flex-row mb-4">
               <View className="items-center mr-5">
                 <Animated.View
                   style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 8,
-                    backgroundColor: step.dotColor,
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#F3F4F6',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: step.isCompleted || step.isActive ? 0 : 2,
+                    borderColor: '#E5E7EB',
                     transform: [
                       {
                         scale: animation.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [0.7, 1],
+                          outputRange: [0.8, 1],
                         }),
                       },
                     ],
-                    opacity: animation,
+                    opacity: step.isCompleted || step.isActive ? animation : animation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.5, 0.6],
+                    }),
+                    shadowColor: step.isCompleted || step.isActive ? step.dotColor : '#000',
+                    shadowOffset: {
+                      width: 0,
+                      height: 2,
+                    },
+                    shadowOpacity: step.isCompleted || step.isActive ? 0.2 : 0.05,
+                    shadowRadius: 4,
+                    elevation: step.isCompleted || step.isActive ? 4 : 1,
                   }}
-                />
+                >
+                  <IconComponent 
+                    size={iconSize} 
+                    color={step.isCompleted || step.isActive ? Colors.white : '#9CA3AF'} 
+                  />
+                </Animated.View>
                 {!isLast && (
                   <Animated.View
-                    className="w-0.5"
                     style={{
+                      width: 3,
                       flex: 1,
                       backgroundColor: lineAnim
                         ? lineAnim.interpolate({
                           inputRange: [0, 1],
-                          outputRange: ['#E5E7EB', step.dotColor],
+                            outputRange: ['#E5E7EB', step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#E5E7EB'],
                         })
                         : '#E5E7EB',
-                      marginTop: 6,
+                      marginTop: 8,
+                      borderRadius: 2,
+                      minHeight: 40,
                       height: lineAnim
                         ? lineAnim.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [0, 60],
+                            outputRange: [0, 50],
                         })
-                        : 60,
+                        : 50,
                     }}
                   />
                 )}
@@ -485,16 +1053,28 @@ export default function OngoingJobDetails() {
                   ],
                 }}
               >
-                <Text className="text-base text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
+                <Text 
+                  className="text-base mb-2" 
+                  style={{ 
+                    fontFamily: 'Poppins-Bold',
+                    color: step.isCompleted || step.isActive ? Colors.textPrimary : Colors.textSecondaryDark,
+                  }}
+                >
                   {step.title}
                 </Text>
-                <Text className="text-sm text-gray-600 mb-3" style={{ fontFamily: 'Poppins-Regular' }}>
+                <Text 
+                  className="text-sm mb-3" 
+                  style={{ 
+                    fontFamily: 'Poppins-Regular',
+                    color: step.isCompleted || step.isActive ? Colors.textSecondaryDark : Colors.textTertiary,
+                  }}
+                >
                   {step.description}
                 </Text>
                 <AnimatedStatusChip
                   status={step.status}
                   statusColor={step.accent}
-                  textColor="#111827"
+                  textColor={step.isCompleted ? '#166534' : step.isActive ? '#92400E' : '#6B7280'}
                   size="small"
                   animated={true}
                 />
@@ -637,14 +1217,20 @@ export default function OngoingJobDetails() {
               style={{ backgroundColor: provider.badgeColor }}
             >
               <Text className="text-xs text-gray-600 mb-2" style={{ fontFamily: 'Poppins-Medium' }}>
-                Inspection in Progress
+                {provider.status.includes('Selected') ? 'Provider Selection' : 'Inspection in Progress'}
               </Text>
-              <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
+              <Text className="text-sm text-gray-600 mb-2" style={{ fontFamily: 'Poppins-Regular' }}>
                 {provider.quoteDetails}
+              </Text>
+              <Text className="text-xs text-gray-500" style={{ fontFamily: 'Poppins-Regular' }}>
+                {provider.inspectionStatus}
               </Text>
             </View>
           </View>
         )}
+
+        {/* Provider selection now happens in ServiceMapScreen during booking confirmation */}
+        {/* No need to show selection button here */}
       </Animated.View>
     );
   };
@@ -720,26 +1306,27 @@ export default function OngoingJobDetails() {
             </TouchableOpacity>
           </View>
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
             {activeTab === 'Updates' ? (
               <>
                 {renderTimeline()}
                 <TouchableOpacity
-                  disabled={request.status !== 'in_progress'}
-                  className={`rounded-xl py-4 items-center justify-center mb-8 ${request.status === 'in_progress' ? 'bg-[#6A9B00]' : 'bg-gray-200'
+                  disabled={request.status !== 'in_progress' || isLoading}
+                  className={`rounded-xl py-4 items-center justify-center mb-8 ${request.status === 'in_progress' && !isLoading ? 'bg-[#6A9B00]' : 'bg-gray-200'
                     }`}
-                  activeOpacity={request.status === 'in_progress' ? 0.85 : 1}
-                  onPress={() => {
-                    // Handle mark as complete
-                    haptics.success();
-                  }}
+                  activeOpacity={request.status === 'in_progress' && !isLoading ? 0.85 : 1}
+                  onPress={handleCompleteJob}
                 >
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
                   <Text
                     className={`text-sm ${request.status === 'in_progress' ? 'text-white' : 'text-gray-500'}`}
                     style={{ fontFamily: 'Poppins-Medium' }}
                   >
                     {request.status === 'completed' ? 'Job Completed' : 'Mark as complete'}
                   </Text>
+                  )}
                 </TouchableOpacity>
                 {mappedProviders.length > 0 ? (
                   mappedProviders.map((provider, index) => renderProviderCard(provider, index))
@@ -789,8 +1376,8 @@ export default function OngoingJobDetails() {
                           router.push({
                             pathname: '/ProviderDetailScreen',
                             params: {
-                              providerId: (currentQuote as any).providerId?.toString() || currentQuote.id,
-                              providerName: currentQuote.providerName,
+                              providerId: currentQuote.provider.id.toString(),
+                              providerName: currentQuote.provider.name,
                             },
                           } as any);
                         }
@@ -812,31 +1399,34 @@ export default function OngoingJobDetails() {
                       >
                         <View className="flex-row items-center">
                           <Image
-                            source={quotations[currentQuoteIndex].providerImage}
+                            source={require('../assets/images/plumbericon2.png')}
                             className="w-14 h-14 rounded-full mr-3"
                             resizeMode="cover"
                           />
                           <View className="flex-1">
+                            <View className="flex-row items-center">
                             <Text className="text-base text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
-                              {quotations[currentQuoteIndex].providerName}
+                                {quotations[currentQuoteIndex].provider.name}
                             </Text>
+                              {quotations[currentQuoteIndex].provider.verified && (
+                                <Ionicons name="checkmark-circle" size={16} color="#6A9B00" style={{ marginLeft: 6 }} />
+                              )}
+                            </View>
                             <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Medium' }}>
-                              {quotations[currentQuoteIndex].providerType}
+                              Professional Service Provider
                             </Text>
-                            {(quotations[currentQuoteIndex] as any).distanceKm && (
                               <Text className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
-                                {(quotations[currentQuoteIndex] as any).distanceKm?.toFixed(1)} km away • ~{(quotations[currentQuoteIndex] as any).minutesAway} min
+                              {quotations[currentQuoteIndex].provider.phoneNumber}
                               </Text>
-                            )}
                           </View>
                           <Text className="text-2xl text-black" style={{ fontFamily: 'Poppins-Bold' }}>
-                            {quotations[currentQuoteIndex].quoteAmount}
+                            ₦{new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(quotations[currentQuoteIndex].total)}
                           </Text>
                         </View>
                       </Animated.View>
                     </TouchableOpacity>
 
-                    {/* Service Breakdown */}
+                    {/* Quotation Breakdown */}
                     <Animated.View
                       className="mb-4"
                       style={{
@@ -852,34 +1442,80 @@ export default function OngoingJobDetails() {
                       }}
                     >
                       <Text className="text-base text-black mb-3" style={{ fontFamily: 'Poppins-Bold' }}>
-                        Service Breakdown
+                        Quotation Breakdown
                       </Text>
                       <View className="bg-white rounded-2xl border border-gray-100 px-4 py-4">
-                        {quotations[currentQuoteIndex].serviceBreakdown.map((item, index) => (
-                          <View
-                            key={index}
-                            className={`flex-row items-center justify-between ${index < quotations[currentQuoteIndex].serviceBreakdown.length - 1 ? 'mb-3 pb-3 border-b border-gray-100' : ''}`}
-                          >
+                        <View className="flex-row items-center justify-between mb-3 pb-3 border-b border-gray-100">
                             <Text className="text-sm text-gray-700 flex-1" style={{ fontFamily: 'Poppins-Regular' }}>
-                              {item.service}
+                            Labor Cost
                             </Text>
                             <Text className="text-sm text-gray-900 ml-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                              {item.price}
+                            ₦{new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(quotations[currentQuoteIndex].laborCost)}
                             </Text>
                           </View>
-                        ))}
+                        <View className="flex-row items-center justify-between mb-3 pb-3 border-b border-gray-100">
+                          <Text className="text-sm text-gray-700 flex-1" style={{ fontFamily: 'Poppins-Regular' }}>
+                            Logistics Cost
+                          </Text>
+                          <Text className="text-sm text-gray-900 ml-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                            ₦{new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(quotations[currentQuoteIndex].logisticsCost)}
+                          </Text>
+                        </View>
+                        {quotations[currentQuoteIndex].materials && quotations[currentQuoteIndex].materials.length > 0 && (
+                          <View className="mb-3 pb-3 border-b border-gray-100">
+                            <Text className="text-sm text-gray-700 mb-2" style={{ fontFamily: 'Poppins-Regular' }}>
+                              Materials
+                            </Text>
+                            {quotations[currentQuoteIndex].materials.map((material, index) => {
+                              const quantity = material.quantity || 1;
+                              const unitPrice = material.unitPrice || 0;
+                              const total = quantity * unitPrice;
+                              return (
+                                <View key={index} className="flex-row items-center justify-between mb-1">
+                                  <Text className="text-xs text-gray-600 flex-1" style={{ fontFamily: 'Poppins-Regular' }}>
+                                    {material.name} (Qty: {quantity})
+                                  </Text>
+                                  <Text className="text-xs text-gray-900 ml-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                                    ₦{new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(total)}
+                                  </Text>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        )}
+                        {quotations[currentQuoteIndex].serviceCharge > 0 && (
+                          <View className="flex-row items-center justify-between mb-3 pb-3 border-b border-gray-100">
+                            <Text className="text-sm text-gray-700 flex-1" style={{ fontFamily: 'Poppins-Regular' }}>
+                              Service Charge
+                            </Text>
+                            <Text className="text-sm text-gray-900 ml-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                              ₦{new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(quotations[currentQuoteIndex].serviceCharge)}
+                            </Text>
+                          </View>
+                        )}
+                        {quotations[currentQuoteIndex].tax > 0 && (
+                          <View className="flex-row items-center justify-between mb-3 pb-3 border-b border-gray-100">
+                            <Text className="text-sm text-gray-700 flex-1" style={{ fontFamily: 'Poppins-Regular' }}>
+                              Tax
+                            </Text>
+                            <Text className="text-sm text-gray-900 ml-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                              ₦{new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(quotations[currentQuoteIndex].tax)}
+                            </Text>
+                          </View>
+                        )}
                         <View className="mt-3 pt-3 border-t border-gray-200 flex-row items-center justify-between">
                           <Text className="text-base text-black" style={{ fontFamily: 'Poppins-Bold' }}>
                             Total
                           </Text>
                           <Text className="text-lg text-[#6A9B00]" style={{ fontFamily: 'Poppins-Bold' }}>
-                            {quotations[currentQuoteIndex].quoteAmount}
+                            ₦{new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(quotations[currentQuoteIndex].total)}
                           </Text>
                         </View>
                       </View>
                     </Animated.View>
 
-                    {/* Payment Terms */}
+                    {/* Findings & Work Required */}
+                    {quotations[currentQuoteIndex].findingsAndWorkRequired && (
                     <Animated.View
                       className="mb-6"
                       style={{
@@ -895,41 +1531,114 @@ export default function OngoingJobDetails() {
                       }}
                     >
                       <Text className="text-base text-black mb-3" style={{ fontFamily: 'Poppins-Bold' }}>
-                        Payment Terms
+                          Findings & Work Required
                       </Text>
                       <View className="bg-white rounded-2xl border border-gray-100 px-4 py-4">
-                        {quotations[currentQuoteIndex].paymentTerms.map((term, index) => (
-                          <View key={index} className="flex-row items-start mb-3 last:mb-0">
-                            <Ionicons name="checkmark-circle" size={20} color="#6A9B00" style={{ marginRight: 10, marginTop: 2 }} />
-                            <Text className="text-sm text-gray-700 flex-1" style={{ fontFamily: 'Poppins-Regular' }}>
-                              {term.text}
+                          <Text className="text-sm text-gray-700" style={{ fontFamily: 'Poppins-Regular', lineHeight: 20 }}>
+                            {quotations[currentQuoteIndex].findingsAndWorkRequired}
                             </Text>
-                          </View>
-                        ))}
                       </View>
                     </Animated.View>
+                    )}
 
-                    {/* Accept Button */}
+                    {/* Action Buttons - Professional Balanced Layout */}
+                    <View className="mb-4">
+                      {/* Accept Button - Primary Action */}
                     <TouchableOpacity
                       activeOpacity={0.85}
-                      className="bg-black rounded-xl py-4 items-center justify-center mb-4"
+                        className="bg-black rounded-xl py-4 items-center justify-center mb-3"
+                        disabled={isLoading || isLoadingQuotations || quotations[currentQuoteIndex]?.status === 'rejected' || quotations[currentQuoteIndex]?.status === 'accepted'}
+                        style={{
+                          opacity: (isLoading || isLoadingQuotations || quotations[currentQuoteIndex]?.status === 'rejected' || quotations[currentQuoteIndex]?.status === 'accepted') ? 0.5 : 1,
+                        }}
                       onPress={async () => {
-                        // Handle accept quote - select provider
-                        const currentQuote = quotations[currentQuoteIndex] as any;
-                        if (currentQuote && currentQuote.providerId) {
-                          haptics.success();
+                          const currentQuote = quotations[currentQuoteIndex];
+                          if (currentQuote && currentQuote.id) {
+                            haptics.light();
                           analytics.track('accept_quote', {
                             job_id: params.requestId,
-                            provider_id: currentQuote.providerId
+                              quotation_id: currentQuote.id,
+                              provider_id: currentQuote.provider.id
                           });
-                          await handleSelectProvider(currentQuote.providerId);
+                            await handleAcceptQuotation(currentQuote.id);
+                          } else {
+                            showError('Invalid quotation. Please try again.');
                         }
                       }}
                     >
+                        {isLoading ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
                       <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
                         Accept Quote
                       </Text>
+                        )}
                     </TouchableOpacity>
+
+                      {/* Reject Button - Secondary Action */}
+                      {quotations[currentQuoteIndex]?.status === 'pending' && (
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          className="bg-white rounded-xl py-4 items-center justify-center border-2 border-gray-200"
+                          disabled={isLoading || isLoadingQuotations}
+                          style={{
+                            opacity: (isLoading || isLoadingQuotations) ? 0.5 : 1,
+                          }}
+                          onPress={async () => {
+                            const currentQuote = quotations[currentQuoteIndex];
+                            if (currentQuote && currentQuote.id) {
+                              haptics.light();
+                              analytics.track('reject_quote', {
+                                job_id: params.requestId,
+                                quotation_id: currentQuote.id,
+                                provider_id: currentQuote.provider.id
+                              });
+                              await handleRejectQuotation(currentQuote.id);
+                            } else {
+                              showError('Invalid quotation. Please try again.');
+                            }
+                          }}
+                        >
+                          {isLoading ? (
+                            <ActivityIndicator size="small" color="#DC2626" />
+                          ) : (
+                            <Text className="text-[#DC2626] text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                              Reject Quote
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Status Badge - Show if quotation is accepted */}
+                      {quotations[currentQuoteIndex]?.status === 'accepted' && (
+                        <View className="bg-[#DCFCE7] rounded-xl py-3 px-4 items-center justify-center mt-2">
+                          <View className="flex-row items-center">
+                            <Ionicons name="checkmark-circle" size={20} color="#16A34A" style={{ marginRight: 8 }} />
+                            <Text className="text-[#16A34A] text-sm" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                              Quotation Accepted
+                            </Text>
+                          </View>
+                          <Text className="text-[#16A34A] text-xs mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
+                            You can now proceed to payment
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Status Badge - Show if quotation is rejected */}
+                      {quotations[currentQuoteIndex]?.status === 'rejected' && (
+                        <View className="bg-[#FEE2E2] rounded-xl py-3 px-4 items-center justify-center mt-2">
+                          <View className="flex-row items-center">
+                            <Ionicons name="close-circle" size={20} color="#DC2626" style={{ marginRight: 8 }} />
+                            <Text className="text-[#DC2626] text-sm" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                              Quotation Rejected
+                            </Text>
+                          </View>
+                          <Text className="text-[#DC2626] text-xs mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
+                            This quotation has been rejected
+                          </Text>
+                        </View>
+                      )}
+                    </View>
 
                     {/* Navigation & Pagination */}
                     <View className="flex-row items-center justify-between mb-6">

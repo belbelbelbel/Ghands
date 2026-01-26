@@ -60,17 +60,18 @@ export default function TopUpScreen() {
         >
           <ArrowLeft size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text
-          style={{
-            fontSize: 20,
-            fontFamily: 'Poppins-Bold',
-            color: Colors.textPrimary,
-            flex: 1,
-            textAlign: 'center',
-          }}
-        >
-          Top Up
-        </Text>
+            <Text
+              style={{
+                fontSize: 18,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+                flex: 1,
+                textAlign: 'center',
+                letterSpacing: -0.3,
+              }}
+            >
+              Top Up
+            </Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -85,8 +86,8 @@ export default function TopUpScreen() {
         <View
           style={{
             backgroundColor: Colors.backgroundGray,
-            borderRadius: BorderRadius.xl,
-            padding: 16,
+            borderRadius: 14,
+            padding: 18,
             marginBottom: 24,
             position: 'relative',
           }}
@@ -110,9 +111,10 @@ export default function TopUpScreen() {
           >
             <Text
               style={{
-                fontSize: 24,
+                fontSize: 20,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
+                letterSpacing: -0.3,
               }}
             >
               ₦{balance.toLocaleString('en-US', {
@@ -128,10 +130,11 @@ export default function TopUpScreen() {
         <View style={{ marginBottom: 32 }}>
           <Text
             style={{
-              fontSize: 16,
+              fontSize: 17,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
-              marginBottom: 12,
+              marginBottom: 14,
+              letterSpacing: -0.2,
             }}
           >
             Choose Amount to Add
@@ -156,9 +159,9 @@ export default function TopUpScreen() {
                     backgroundColor: isSelected
                       ? Colors.accent
                       : Colors.backgroundGray,
-                    borderRadius: BorderRadius.default,
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
+                    borderRadius: 12,
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderWidth: isSelected ? 0 : 1,
@@ -168,9 +171,10 @@ export default function TopUpScreen() {
                 >
                   <Text
                     style={{
-                      fontSize: 16,
+                      fontSize: 15,
                       fontFamily: 'Poppins-Bold',
                       color: isSelected ? Colors.white : Colors.textPrimary,
+                      letterSpacing: -0.2,
                     }}
                   >
                     ₦{amount}
@@ -184,9 +188,9 @@ export default function TopUpScreen() {
           <View
             style={{
               backgroundColor: Colors.backgroundGray,
-              borderRadius: BorderRadius.lg,
-              paddingHorizontal: 14,
-              paddingVertical: 12,
+              borderRadius: 12,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
               borderWidth: 1,
               borderColor: Colors.border,
             }}
@@ -197,9 +201,10 @@ export default function TopUpScreen() {
               placeholder="Enter amount"
               keyboardType="decimal-pad"
               style={{
-                fontSize: 16,
+                fontSize: 15,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
+                letterSpacing: -0.2,
               }}
               placeholderTextColor={Colors.textSecondaryDark}
             />
@@ -210,10 +215,11 @@ export default function TopUpScreen() {
         <View style={{ marginBottom: 32 }}>
           <Text
             style={{
-              fontSize: 16,
+              fontSize: 17,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
-              marginBottom: 12,
+              marginBottom: 14,
+              letterSpacing: -0.2,
             }}
           >
             Select Payment Method
@@ -226,9 +232,9 @@ export default function TopUpScreen() {
             }}
             style={{
               backgroundColor: Colors.backgroundGray,
-              borderRadius: BorderRadius.lg,
-              padding: 14,
-              marginBottom: 10,
+              borderRadius: 14,
+              padding: 16,
+              marginBottom: 12,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -257,8 +263,8 @@ export default function TopUpScreen() {
             }}
             style={{
               backgroundColor: Colors.backgroundGray,
-              borderRadius: BorderRadius.lg,
-              padding: 14,
+              borderRadius: 14,
+              padding: 16,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -309,11 +315,12 @@ export default function TopUpScreen() {
           >
             <Text
               style={{
-                fontSize: 20,
+                fontSize: 18,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
                 flex: 1,
                 textAlign: 'center',
+                letterSpacing: -0.3,
               }}
             >
               Account details
@@ -330,7 +337,7 @@ export default function TopUpScreen() {
             >
               <Text
                 style={{
-                  fontSize: 24,
+                  fontSize: 20,
                   fontFamily: 'Poppins-Regular',
                   color: Colors.textSecondaryDark,
                 }}

@@ -1,9 +1,14 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import Toast from '@/components/Toast';
+import { haptics } from '@/hooks/useHaptics';
+import { useToast } from '@/hooks/useToast';
 import { Colors } from '@/lib/designSystem';
-import { useRouter } from 'expo-router';
+import { providerService } from '@/services/api';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ChevronDown, Plus, X } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface MaterialItem {
   id: string;
@@ -17,9 +22,19 @@ const PLATFORM_FEE_PERCENTAGE = 5;
 
 export default function SendQuotationScreen() {
   const router = useRouter();
-  const [amount, setAmount] = useState('');
+  const params = useLocalSearchParams<{ requestId?: string }>();
+  const { toast, showError, showSuccess, hideToast } = useToast();
+
+  // Check if requestId is available
+  useEffect(() => {
+    if (!params.requestId) {
+      showError('Request ID is missing. Please navigate from a job details screen.');
+    }
+  }, [params.requestId, showError]);
   const [laborCost, setLaborCost] = useState('450');
+  const [logisticsCost, setLogisticsCost] = useState('450');
   const [findings, setFindings] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [materials, setMaterials] = useState<MaterialItem[]>([
     { id: '1', name: 'Pipe Connector', quantity: 1, price: '450' },
     { id: '2', name: "Plumber's Tape", quantity: 3, price: '450' },
@@ -27,14 +42,15 @@ export default function SendQuotationScreen() {
 
   const calculateTotals = () => {
     const labor = parseFloat(laborCost.replace(/,/g, '')) || 0;
+    const logistics = parseFloat(logisticsCost.replace(/,/g, '')) || 0;
     const materialTotal = materials.reduce((sum, mat) => {
       const price = parseFloat(mat.price.replace(/,/g, '')) || 0;
       return sum + price * mat.quantity;
     }, 0);
-    const subtotal = labor + materialTotal;
+    const subtotal = labor + logistics + materialTotal;
     const platformFee = subtotal * (PLATFORM_FEE_PERCENTAGE / 100);
     const total = subtotal + platformFee;
-    return { labor, materialTotal, subtotal, platformFee, total };
+    return { labor, logistics, materialTotal, subtotal, platformFee, total };
   };
 
   const totals = calculateTotals();
@@ -69,12 +85,86 @@ export default function SendQuotationScreen() {
     setMaterials(materials.map((mat) => (mat.id === id ? { ...mat, [field]: value } : mat)));
   };
 
-  const handleSubmit = () => {
-    if (!amount || !findings) return;
-    router.back();
+  const handleSubmit = async () => {
+    // Validation
+    if (!params.requestId) {
+      showError('Request ID is missing. Please try again.');
+      return;
+    }
+
+    const labor = parseFloat(laborCost.replace(/,/g, '')) || 0;
+    const logistics = parseFloat(logisticsCost.replace(/,/g, '')) || 0;
+
+    if (labor <= 0) {
+      showError('Labor cost must be greater than 0');
+      return;
+    }
+
+    if (logistics <= 0) {
+      showError('Logistics cost must be greater than 0');
+      return;
+    }
+
+    if (!findings || findings.trim().length < 10) {
+      showError('Findings & Work required must be at least 10 characters');
+      return;
+    }
+
+    setIsSubmitting(true);
+    haptics.light();
+
+    try {
+      const requestId = parseInt(params.requestId, 10);
+      if (isNaN(requestId)) {
+        throw new Error('Invalid request ID');
+      }
+
+      // Map materials to API format
+      const materialsPayload = materials
+        .filter((mat) => {
+          const price = parseFloat(mat.price.replace(/,/g, '')) || 0;
+          return mat.name && price > 0;
+        })
+        .map((mat) => ({
+          name: mat.name,
+          quantity: mat.quantity,
+          unitPrice: parseFloat(mat.price.replace(/,/g, '')) || 0,
+        }));
+
+      // Calculate service charge (platform fee)
+      const subtotal = labor + logistics + materialsPayload.reduce((sum, mat) => sum + (mat.unitPrice * mat.quantity), 0);
+      const serviceCharge = Math.round(subtotal * (PLATFORM_FEE_PERCENTAGE / 100));
+
+      // Prepare API payload
+      const payload = {
+        laborCost: labor,
+        logisticsCost: logistics,
+        materials: materialsPayload.length > 0 ? materialsPayload : undefined,
+        findingsAndWorkRequired: findings.trim(),
+        serviceCharge: serviceCharge,
+        tax: 0,
+      };
+
+      await providerService.sendQuotation(requestId, payload);
+
+      haptics.success();
+      showSuccess('Quotation sent successfully! Waiting for client response.');
+      
+      // Navigate back after a short delay
+      setTimeout(() => {
+        router.back();
+      }, 1500);
+    } catch (error: any) {
+      console.error('Error sending quotation:', error);
+      haptics.error();
+      const errorMessage = getSpecificErrorMessage(error, 'send_quotation') || 'Failed to send quotation. Please try again.';
+      showError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const canSubmit = amount && findings;
+  const canSubmit = laborCost && logisticsCost && findings && findings.trim().length >= 10 && !isSubmitting;
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.white}>
@@ -131,56 +221,6 @@ export default function SendQuotationScreen() {
             }}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Amount Field */}
-            <View style={{ marginBottom: 16 }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                  marginBottom: 8,
-                }}
-              >
-                Amount <Text style={{ color: Colors.error }}>*</Text>
-              </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: Colors.backgroundGray,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                  paddingHorizontal: 16,
-                  height: 52,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.textPrimary,
-                    marginRight: 8,
-                  }}
-                >
-                  ₦
-                </Text>
-                <TextInput
-                  placeholder="10"
-                  value={formatInput(amount)}
-                  onChangeText={(text) => setAmount(text.replace(/,/g, ''))}
-                  keyboardType="numeric"
-                  style={{
-                    flex: 1,
-                    fontSize: 16,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.textPrimary,
-                  }}
-                  placeholderTextColor={Colors.textSecondaryDark}
-                />
-              </View>
-            </View>
-
             {/* Labor Cost Field */}
             <View style={{ marginBottom: 16 }}>
               <Text
@@ -191,7 +231,7 @@ export default function SendQuotationScreen() {
                   marginBottom: 8,
                 }}
               >
-                Labor Cost:
+                Labor Cost <Text style={{ color: Colors.error }}>*</Text>
               </Text>
               <View
                 style={{
@@ -219,6 +259,56 @@ export default function SendQuotationScreen() {
                   placeholder="10"
                   value={formatInput(laborCost)}
                   onChangeText={(text) => setLaborCost(text.replace(/,/g, ''))}
+                  keyboardType="numeric"
+                  style={{
+                    flex: 1,
+                    fontSize: 16,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textPrimary,
+                  }}
+                  placeholderTextColor={Colors.textSecondaryDark}
+                />
+              </View>
+            </View>
+
+            {/* Logistics Cost Field */}
+            <View style={{ marginBottom: 16 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.textPrimary,
+                  marginBottom: 8,
+                }}
+              >
+                Logistics Cost <Text style={{ color: Colors.error }}>*</Text>
+              </Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: Colors.backgroundGray,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                  paddingHorizontal: 16,
+                  height: 52,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                    marginRight: 8,
+                  }}
+                >
+                  ₦
+                </Text>
+                <TextInput
+                  placeholder="10"
+                  value={formatInput(logisticsCost)}
+                  onChangeText={(text) => setLogisticsCost(text.replace(/,/g, ''))}
                   keyboardType="numeric"
                   style={{
                     flex: 1,
@@ -521,6 +611,35 @@ export default function SendQuotationScreen() {
                 </View>
               )}
 
+              {logisticsCost && parseFloat(logisticsCost.replace(/,/g, '')) > 0 && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.white,
+                    }}
+                  >
+                    Logistics Cost:
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.white,
+                    }}
+                  >
+                    ₦{formatCurrency(totals.logistics)}
+                  </Text>
+                </View>
+              )}
+
               {materials.map((mat) => {
                 const price = parseFloat(mat.price.replace(/,/g, '')) || 0;
                 if (price === 0) return null;
@@ -574,7 +693,7 @@ export default function SendQuotationScreen() {
                         color: Colors.white,
                       }}
                     >
-                      Platform Fee:
+                      Service charge:
                     </Text>
                     <Text
                       style={{
@@ -584,6 +703,33 @@ export default function SendQuotationScreen() {
                       }}
                     >
                       ₦{formatCurrency(totals.platformFee)}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginTop: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'Poppins-Regular',
+                        color: Colors.white,
+                      }}
+                    >
+                      Tax:
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: Colors.white,
+                      }}
+                    >
+                      ₦0.00
                     </Text>
                   </View>
 
@@ -624,25 +770,30 @@ export default function SendQuotationScreen() {
             <View style={{ marginBottom: 20 }}>
               <TouchableOpacity
                 onPress={handleSubmit}
-                disabled={!canSubmit}
+                disabled={!canSubmit || isSubmitting}
                 style={{
-                  backgroundColor: canSubmit ? Colors.accent : Colors.backgroundGray,
+                  backgroundColor: canSubmit && !isSubmitting ? Colors.accent : Colors.backgroundGray,
                   borderRadius: 12,
                   paddingVertical: 14,
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginBottom: 10,
+                  flexDirection: 'row',
+                  gap: 8,
                 }}
                 activeOpacity={0.8}
               >
+                {isSubmitting && (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                )}
                 <Text
                   style={{
                     fontSize: 14,
                     fontFamily: 'Poppins-SemiBold',
-                    color: canSubmit ? Colors.white : Colors.textTertiary,
+                    color: canSubmit && !isSubmitting ? Colors.white : Colors.textTertiary,
                   }}
                 >
-                  Submit Quotation
+                  {isSubmitting ? 'Submitting...' : 'Submit Quotation'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -670,6 +821,12 @@ export default function SendQuotationScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onClose={hideToast}
+      />
     </SafeAreaWrapper>
   );
 }

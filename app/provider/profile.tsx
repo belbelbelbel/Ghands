@@ -2,7 +2,9 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useAuthRole } from '@/hooks/useAuth';
 import { haptics } from '@/hooks/useHaptics';
-import { useRouter } from 'expo-router';
+import { AuthError } from '@/utils/errors';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import { useRouter, useFocusEffect } from 'expo-router';
 import {
   ArrowRight,
   Bell,
@@ -16,15 +18,153 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  FileText,
 } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Dimensions } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Dimensions, ActivityIndicator } from 'react-native';
 import { Alert, Image, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import { providerService, Provider, serviceRequestService, ServiceCategory, ProviderQuotationListItem, authService } from '@/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Helper function to format category name (camelCase to readable)
+const formatCategoryName = (categoryName: string, allCategories: ServiceCategory[] = []): string => {
+  if (!categoryName) return '';
+  
+  // Try to find display name from categories list
+  const category = allCategories.find(cat => cat.name === categoryName);
+  if (category?.displayName) {
+    return category.displayName;
+  }
+  
+  // Fallback: Convert camelCase to Title Case
+  return categoryName
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (str) => str.toUpperCase())
+    .trim();
+};
 
 export default function ProviderProfileScreen() {
   const router = useRouter();
-  const { logout } = useAuthRole();
+  const { logout, switchRole } = useAuthRole();
   const [isOnline, setIsOnline] = useState(true);
+  const [provider, setProvider] = useState<Provider | null>(null);
+  const [services, setServices] = useState<{ id: number; categoryName: string }[]>([]);
+  const [allCategories, setAllCategories] = useState<ServiceCategory[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [providerName, setProviderName] = useState<string>('Loading...');
+  const [firstCategory, setFirstCategory] = useState<string>('');
+
+  // Load provider data
+  const loadProviderData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      // Load all categories first (to get display names)
+      let categoriesList: ServiceCategory[] = [];
+      try {
+        categoriesList = await serviceRequestService.getCategories();
+        setAllCategories(categoriesList);
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error loading categories:', error);
+        }
+      }
+      
+      // Get provider ID
+      const providerId = await authService.getCompanyId();
+      if (!providerId) {
+        // Try to get from business name storage as fallback
+        const businessName = await AsyncStorage.getItem('@ghands:business_name');
+        if (businessName) {
+          setProviderName(businessName);
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // Load provider details
+      const providerData = await providerService.getProvider(providerId);
+      setProvider(providerData);
+      
+      // Set provider name
+      if (providerData.name) {
+        setProviderName(providerData.name);
+        // Also save to storage for consistency
+        await AsyncStorage.setItem('@ghands:company_name', providerData.name);
+      } else {
+        // Fallback to business name from storage
+        const businessName = await AsyncStorage.getItem('@ghands:business_name');
+        if (businessName) {
+          setProviderName(businessName);
+        }
+      }
+
+      // Extract services/categories from provider data
+      // Provider response includes categories as array of strings: ["plumbing", "electrical"]
+      // Convert to expected format: [{ id: number, categoryName: string }]
+      if (providerData.categories && Array.isArray(providerData.categories)) {
+        const providerServices = providerData.categories.map((categoryName: string, index: number) => ({
+          id: index + 1,
+          categoryName: categoryName,
+        }));
+        setServices(providerServices);
+        
+        // Set first category as profession/title (with display name if available)
+        if (providerServices.length > 0) {
+          const firstService = formatCategoryName(providerServices[0].categoryName, categoriesList);
+          setFirstCategory(firstService);
+        }
+      } else {
+        // Try to get services using the service method as fallback
+        try {
+          const providerServices = await providerService.getServices(providerId);
+          setServices(providerServices);
+          
+          if (providerServices.length > 0) {
+            const firstService = formatCategoryName(providerServices[0].categoryName, categoriesList);
+            setFirstCategory(firstService);
+          }
+        } catch (error) {
+          // If getServices fails, just use empty array
+          setServices([]);
+        }
+      }
+
+    } catch (error: any) {
+      // If AuthError, redirect immediately
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
+      
+      if (__DEV__) {
+        console.error('Error loading provider profile:', error);
+      }
+      // Fallback to business name from storage
+      try {
+        const businessName = await AsyncStorage.getItem('@ghands:business_name');
+        if (businessName) {
+          setProviderName(businessName);
+        }
+      } catch (e) {
+        if (__DEV__) {
+          console.error('Error loading business name:', e);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Load data on mount and when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadProviderData();
+    }, [loadProviderData])
+  );
 
   const handleShareReferral = async () => {
     try {
@@ -77,6 +217,251 @@ export default function ProviderProfileScreen() {
           },
         },
       ]
+    );
+  };
+
+  const handleBecomeClient = () => {
+    Alert.alert(
+      'Switch to Client',
+      'Switch to client mode for demo and testing?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Switch',
+          onPress: async () => {
+            try {
+              await switchRole('client');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to switch role. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Quotations Preview Component
+  const QuotationsPreview = () => {
+    const [quotations, setQuotations] = useState<ProviderQuotationListItem[]>([]);
+    const [isLoadingQuotations, setIsLoadingQuotations] = useState(false);
+
+    const loadQuotations = useCallback(async () => {
+      setIsLoadingQuotations(true);
+      try {
+        const data = await providerService.getProviderQuotations();
+        // Show only first 3 quotations
+        setQuotations(data.slice(0, 3));
+      } catch (error: any) {
+        // If AuthError, redirect immediately
+        if (error instanceof AuthError) {
+          await handleAuthErrorRedirect(router);
+          return;
+        }
+        
+        if (__DEV__) {
+          console.error('Error loading quotations:', error);
+        }
+        setQuotations([]);
+      } finally {
+        setIsLoadingQuotations(false);
+      }
+    }, []);
+
+    useEffect(() => {
+      loadQuotations();
+    }, [loadQuotations]);
+
+    const formatCurrency = (value: number) => {
+      return new Intl.NumberFormat('en-NG', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(value);
+    };
+
+    const getStatusConfig = (status: string) => {
+      switch (status) {
+        case 'accepted':
+          return {
+            color: '#16A34A',
+            bgColor: '#DCFCE7',
+            icon: CheckCircle2,
+            label: 'Accepted',
+          };
+        case 'rejected':
+          return {
+            color: '#DC2626',
+            bgColor: '#FEE2E2',
+            icon: XCircle,
+            label: 'Rejected',
+          };
+        case 'pending':
+        default:
+          return {
+            color: '#F59E0B',
+            bgColor: '#FEF3C7',
+            icon: Clock,
+            label: 'Pending',
+          };
+      }
+    };
+
+    if (isLoadingQuotations) {
+      return (
+        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+          <ActivityIndicator size="small" color={Colors.accent} />
+        </View>
+      );
+    }
+
+    if (quotations.length === 0) {
+      return (
+        <View
+          style={{
+            backgroundColor: Colors.backgroundGray,
+            borderRadius: BorderRadius.default,
+            padding: 20,
+            alignItems: 'center',
+          }}
+        >
+          <FileText size={32} color={Colors.textTertiary} style={{ marginBottom: 8 }} />
+          <Text
+            style={{
+              fontSize: 13,
+              fontFamily: 'Poppins-Medium',
+              color: Colors.textSecondaryDark,
+              marginBottom: 4,
+            }}
+          >
+            No quotations yet
+          </Text>
+          <Text
+            style={{
+              fontSize: 11,
+              fontFamily: 'Poppins-Regular',
+              color: Colors.textTertiary,
+              textAlign: 'center',
+            }}
+          >
+            Start accepting requests to send quotations
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View>
+        {quotations.map((quotation) => {
+          const statusConfig = getStatusConfig(quotation.status);
+          const StatusIcon = statusConfig.icon;
+
+          return (
+            <TouchableOpacity
+              key={quotation.id}
+              activeOpacity={0.7}
+              onPress={() => {
+                haptics.light();
+                router.push({
+                  pathname: '/ProviderJobDetailsScreen',
+                  params: { requestId: quotation.requestId.toString() },
+                } as any);
+              }}
+              style={{
+                backgroundColor: Colors.backgroundGray,
+                borderRadius: BorderRadius.default,
+                padding: 12,
+                marginBottom: 8,
+                borderLeftWidth: 3,
+                borderLeftColor: statusConfig.color,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  marginBottom: 8,
+                }}
+              >
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.textPrimary,
+                      marginBottom: 4,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {quotation.request?.jobTitle || `Request #${quotation.requestId}`}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {quotation.user?.firstName} {quotation.user?.lastName}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    backgroundColor: statusConfig.bgColor,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: BorderRadius.xl,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <StatusIcon size={12} color={statusConfig.color} />
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: statusConfig.color,
+                    }}
+                  >
+                    {statusConfig.label}
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  ₦{formatCurrency(quotation.total)}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontFamily: 'Poppins-Medium',
+                      color: Colors.accent,
+                      marginRight: 4,
+                    }}
+                  >
+                    View
+                  </Text>
+                  <ArrowRight size={12} color={Colors.accent} />
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     );
   };
 
@@ -186,26 +571,32 @@ export default function ProviderProfileScreen() {
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.textPrimary,
-                  marginBottom: 4,
-                }}
-              >
-                Marcus Johnson
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
-                  marginBottom: 6,
-                }}
-              >
-                Professional Electrician
-              </Text>
+              {isLoading ? (
+                <ActivityIndicator size="small" color={Colors.accent} style={{ marginBottom: 4 }} />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                    marginBottom: 4,
+                  }}
+                >
+                  {providerName || 'Provider'}
+                </Text>
+              )}
+              {firstCategory ? (
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textSecondaryDark,
+                    marginBottom: 6,
+                  }}
+                >
+                  {firstCategory}
+                </Text>
+              ) : null}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                 <Star size={16} color="#F59E0B" fill="#F59E0B" />
                 <Text
@@ -331,27 +722,64 @@ export default function ProviderProfileScreen() {
               Services Offered
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {['Installation', 'Plumbing', 'Electrician'].map((service, index) => (
-                <View
-                  key={index}
-                  style={{
-                    backgroundColor: Colors.backgroundGray,
-                    borderRadius: BorderRadius.default,
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                  }}
-                >
-                  <Text
+              {isLoading ? (
+                <ActivityIndicator size="small" color={Colors.accent} />
+              ) : services.length > 0 ? (
+                services.map((service) => (
+                  <View
+                    key={service.id}
                     style={{
-                      fontSize: 13,
-                      fontFamily: 'Poppins-Medium',
-                      color: Colors.textPrimary,
+                      backgroundColor: Colors.backgroundGray,
+                      borderRadius: BorderRadius.default,
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
                     }}
                   >
-                    {service}
-                  </Text>
-                </View>
-              ))}
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'Poppins-Medium',
+                        color: Colors.textPrimary,
+                      }}
+                    >
+                      {formatCategoryName(service.categoryName, allCategories)}
+                    </Text>
+                  </View>
+                ))
+              ) : provider?.categories && provider.categories.length > 0 ? (
+                provider.categories.map((category, index) => (
+                  <View
+                    key={index}
+                    style={{
+                      backgroundColor: Colors.backgroundGray,
+                      borderRadius: BorderRadius.default,
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'Poppins-Medium',
+                        color: Colors.textPrimary,
+                      }}
+                    >
+                      {formatCategoryName(category, allCategories)}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textSecondaryDark,
+                    fontStyle: 'italic',
+                  }}
+                >
+                  No services added yet
+                </Text>
+              )}
               <TouchableOpacity
                 style={{
                   width: 40,
@@ -370,6 +798,61 @@ export default function ProviderProfileScreen() {
                 <Plus size={20} color={Colors.white} />
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* My Quotations Section */}
+          <View
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: BorderRadius.xl,
+              padding: 16,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: Colors.border,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 12,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                }}
+              >
+                My Quotations
+              </Text>
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+                activeOpacity={0.7}
+                onPress={() => {
+                  haptics.light();
+                  router.push('/provider/quotations' as any);
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.accent,
+                    marginRight: 4,
+                  }}
+                >
+                  View all
+                </Text>
+                <ArrowRight size={14} color={Colors.accent} />
+              </TouchableOpacity>
+            </View>
+            <QuotationsPreview />
           </View>
 
           {/* Photos Section */}
@@ -629,38 +1112,65 @@ export default function ProviderProfileScreen() {
           {/* Refer Friends Section */}
           <View
             style={{
-              backgroundColor: Colors.backgroundGray,
-              borderRadius: BorderRadius.xl,
-              padding: 16,
-              marginBottom: 16,
-              borderWidth: 1,
-              borderColor: Colors.border,
+              marginBottom: 24,
             }}
           >
+            <Text
+              style={{
+                fontSize: 18,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+                marginBottom: 6,
+              }}
+            >
+              Refer Friends
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.textSecondaryDark,
+                marginBottom: 12,
+              }}
+            >
+              Get $10 for each referral
+            </Text>
             <View
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginBottom: 12,
+                backgroundColor: Colors.white,
+                borderRadius: 12,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: Colors.border,
               }}
             >
               <Text
                 style={{
-                  fontSize: 16,
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.textPrimary,
+                  fontSize: 13,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
                 }}
               >
-                Refer Friends
+                Your code:{' '}
+                <Text
+                  style={{
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  {providerName.toUpperCase().slice(0, 5)}2024
+                </Text>
               </Text>
               <TouchableOpacity
                 onPress={handleShareReferral}
                 style={{
                   backgroundColor: Colors.accent,
-                  borderRadius: BorderRadius.default,
-                  paddingHorizontal: 16,
+                  borderRadius: 8,
                   paddingVertical: 8,
+                  paddingHorizontal: 16,
                 }}
                 activeOpacity={0.8}
               >
@@ -675,103 +1185,77 @@ export default function ProviderProfileScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-            <Text
-              style={{
-                fontSize: 13,
-                fontFamily: 'Poppins-Regular',
-                color: Colors.textSecondaryDark,
-                marginBottom: 12,
-              }}
-            >
-              Get 2% off platform fees
-            </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 12,
-              }}
-            >
-              <Share2 size={16} color={Colors.textSecondaryDark} style={{ marginRight: 8 }} />
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.textPrimary,
-                  flex: 1,
-                }}
-              >
-                https://www.ghandsdummylink.com/chima
-              </Text>
-              <TouchableOpacity
-                onPress={handleCopyLink}
-                style={{
-                  backgroundColor: Colors.black,
-                  borderRadius: BorderRadius.default,
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                }}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.white,
-                  }}
-                >
-                  Copy link
-                </Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
-          {/* Account Actions */}
-          <View style={{ marginBottom: 20 }}>
+          {/* Action Buttons */}
+          <View style={{ marginBottom: 24 }}>
             <TouchableOpacity
-              onPress={handleSignOut}
+              onPress={handleBecomeClient}
               style={{
-                backgroundColor: Colors.error,
-                borderRadius: BorderRadius.xl,
-                paddingVertical: 14,
-                paddingHorizontal: 16,
+                backgroundColor: Colors.accent,
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 12,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: 12,
               }}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
             >
-              <ArrowRight size={18} color={Colors.white} style={{ marginRight: 8 }} />
-              <Text
+              <Text 
                 style={{
-                  fontSize: 14,
+                  fontSize: 15,
                   fontFamily: 'Poppins-SemiBold',
                   color: Colors.white,
+                }}
+              >
+                Become a Client
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSignOut}
+              style={{
+                backgroundColor: '#FEE2E2',
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+              activeOpacity={0.7}
+            >
+              <ArrowRight size={18} color="#DC2626" />
+              <Text 
+                style={{
+                  fontSize: 15,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: '#DC2626',
+                  marginLeft: 12,
                 }}
               >
                 Sign Out
               </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               onPress={handleDeleteAccount}
               style={{
                 backgroundColor: Colors.backgroundGray,
-                borderRadius: BorderRadius.xl,
-                paddingVertical: 14,
-                paddingHorizontal: 16,
+                borderRadius: 12,
+                padding: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'center',
               }}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
             >
-              <Trash2 size={18} color={Colors.error} style={{ marginRight: 8 }} />
-              <Text
+              <Trash2 size={18} color={Colors.textPrimary} />
+              <Text 
                 style={{
-                  fontSize: 14,
+                  fontSize: 15,
                   fontFamily: 'Poppins-SemiBold',
-                  color: Colors.error,
+                  color: Colors.textPrimary,
+                  marginLeft: 12,
                 }}
               >
                 Delete Account

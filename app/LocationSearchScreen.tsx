@@ -5,7 +5,7 @@ import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { BorderRadius, Colors } from '@/lib/designSystem';
-import { LocationSearchResult, apiClient, locationService } from '@/services/api';
+import { LocationSearchResult, locationService, authService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -105,7 +105,9 @@ export default function LocationSearchScreen() {
         }
         setIsSearching(false);
       } catch (error: any) {
-        console.error('Error searching locations:', error);
+        if (__DEV__) {
+          console.error('Error searching locations:', error);
+        }
         setSearchResults([]);
         setIsSearching(false);
         
@@ -169,18 +171,8 @@ export default function LocationSearchScreen() {
           latitude: locationDetails.latitude,
           longitude: locationDetails.longitude,
         });
-        if (__DEV__) {
-          console.log('✅ Exact coordinates fetched from API:', {
-            placeId: result.placeId,
-            latitude: locationDetails.latitude,
-            longitude: locationDetails.longitude,
-            formattedAddress: locationDetails.formattedAddress,
-          });
-        }
       } catch (error) {
-        if (__DEV__) {
-          console.warn('⚠️ Could not fetch exact coordinates, will use placeId');
-        }
+        // Silently fail - will use placeId
         setSelectedLocationDetails(null);
       }
     } else {
@@ -203,38 +195,47 @@ export default function LocationSearchScreen() {
       // Use highest accuracy for precise location with optimal settings
       const currentLocation = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Highest, // Most accurate GPS (within 10 meters)
-        maximumAge: 3000, // Accept location up to 3 seconds old (fresher data)
+        maximumAge: 5000, // Accept location up to 5 seconds old (fresher data)
         timeout: 20000, // Wait up to 20 seconds for accurate location
         mayShowUserSettingsDialog: true, // Allow user to enable location services if disabled
       });
 
       const { latitude, longitude } = currentLocation.coords;
       
-      // Log coordinates for debugging
       if (__DEV__) {
-        console.log('📍 GPS Coordinates:', {
+        console.log('🔍 [LocationSearchScreen] GPS Location obtained:', {
           latitude,
           longitude,
-          accuracy: currentLocation.coords.accuracy, // Accuracy in meters
-          altitude: currentLocation.coords.altitude,
-          heading: currentLocation.coords.heading,
+          accuracy: currentLocation.coords.accuracy,
+          timestamp: new Date(currentLocation.timestamp).toISOString(),
         });
+      }
+      
+      // Validate coordinates - reject obviously wrong locations (like San Francisco default)
+      // Nigeria coordinates range: Latitude: 4.0 to 14.0, Longitude: 2.7 to 14.7
+      // San Francisco: 37.785834, -122.406417 (should be rejected if user is in Nigeria)
+      const isLikelyNigeria = latitude >= 4.0 && latitude <= 14.0 && longitude >= 2.7 && longitude <= 14.7;
+      const isLikelySanFrancisco = Math.abs(latitude - 37.785834) < 0.1 && Math.abs(longitude - (-122.406417)) < 0.1;
+      
+      if (__DEV__) {
+        console.log('🔍 [LocationSearchScreen] Location validation:', {
+          isLikelyNigeria,
+          isLikelySanFrancisco,
+          coordinates: { latitude, longitude },
+        });
+      }
+      
+      // If coordinates look like San Francisco default and user is likely in Nigeria, warn
+      if (isLikelySanFrancisco && !isLikelyNigeria) {
+        if (__DEV__) {
+          console.warn('⚠️ [LocationSearchScreen] Detected San Francisco coordinates - might be simulator default location');
+        }
+        // Still proceed but log warning
       }
       
       // Use API for reverse geocoding
       try {
         const locationDetails = await locationService.getCurrentLocation(latitude, longitude);
-        
-        // Log the address received from API
-        if (__DEV__) {
-          console.log('📍 Reverse Geocoding Result:', {
-            formattedAddress: locationDetails.formattedAddress,
-            city: locationDetails.city,
-            state: locationDetails.state,
-            country: locationDetails.country,
-            coordinates: { latitude, longitude },
-          });
-        }
         
         // If we get here, we have a valid address from the API
         // Generate placeId from coordinates if not provided by reverse geocoding
@@ -258,56 +259,62 @@ export default function LocationSearchScreen() {
         setSearchQuery(locationDetails.formattedAddress);
         setShowResults(false);
         
-        if (__DEV__) {
-          console.log('✅ Current location - exact coordinates stored:', {
-            latitude: locationDetails.latitude,
-            longitude: locationDetails.longitude,
-            formattedAddress: locationDetails.formattedAddress,
-          });
-        }
-        
         // Automatically save to backend if user is signed in
         // BUT: Skip auto-save for providers (they save via providerService.updateLocation in ProviderProfileSetupScreen)
         const isProvider = next === 'provider-profile-setup';
         
+        if (__DEV__) {
+          console.log('🔍 [LocationSearchScreen] Saving location:', {
+            isProvider,
+            hasPlaceId: !!locationDetails.placeId,
+            coordinates: { lat: locationDetails.latitude || latitude, lng: locationDetails.longitude || longitude },
+            address: locationDetails.formattedAddress,
+          });
+        }
+        
         if (!isProvider) {
           // Only auto-save for regular users, not providers
-          const userId = await apiClient.getUserId();
+          const userId = await authService.getUserId();
           if (userId) {
             try {
               // Try to save using placeId first (more accurate)
               if (locationDetails.placeId && !locationDetails.placeId.startsWith('lat_')) {
+                if (__DEV__) {
+                  console.log('🔍 [LocationSearchScreen] Saving location using placeId:', locationDetails.placeId);
+                }
                 await locationService.saveUserLocation(userId, { 
                   placeId: locationDetails.placeId 
                 });
               } else {
                 // If no placeId or it's a generated one, save using coordinates
+                const saveLat = locationDetails.latitude || latitude;
+                const saveLng = locationDetails.longitude || longitude;
+                if (__DEV__) {
+                  console.log('🔍 [LocationSearchScreen] Saving location using coordinates:', { lat: saveLat, lng: saveLng });
+                }
                 await locationService.saveUserLocation(userId, {
-                  latitude: locationDetails.latitude || latitude,
-                  longitude: locationDetails.longitude || longitude,
+                  latitude: saveLat,
+                  longitude: saveLng,
                 });
               }
               // Also save locally
               await setLocation(locationDetails.formattedAddress);
               await refreshLocation();
+              
               if (__DEV__) {
-                console.log('✅ Current location saved to backend automatically (user endpoint)');
+                console.log('✅ [LocationSearchScreen] Location saved to backend successfully');
               }
             } catch (saveError: any) {
               // Log but don't fail - location is still selected
               if (__DEV__) {
-                console.warn('⚠️ Could not save location to backend:', saveError);
-                console.warn('⚠️ Error details:', JSON.stringify(saveError, null, 2));
+                console.log('🔍 [LocationSearchScreen] Error saving location to backend:', {
+                  error: saveError,
+                  errorMessage: saveError?.message,
+                  errorStatus: saveError?.status,
+                });
               }
               // Still save locally
               await setLocation(locationDetails.formattedAddress);
-              // Show a subtle warning but don't block the user
-              if (saveError.message?.includes('not set') || saveError.message?.includes('400')) {
-                // This shouldn't happen, but if it does, we'll try again on confirm
-                if (__DEV__) {
-                  console.warn('⚠️ Location save failed - will retry on confirm');
-                }
-              }
             }
           } else {
             // Save locally even if not signed in
@@ -316,25 +323,12 @@ export default function LocationSearchScreen() {
         } else {
           // For providers: Only save locally, will be saved to provider endpoint in ProviderProfileSetupScreen
           await setLocation(locationDetails.formattedAddress);
-          if (__DEV__) {
-            console.log('✅ Provider location selected - will be saved via provider endpoint on Finish Setup');
-          }
         }
         
         showSuccess('Current location detected and saved!');
       } catch (error: any) {
-        console.error('❌ Error getting current location:', error);
-        
-        // Detailed error logging
         if (__DEV__) {
-          console.error('❌ ========== CURRENT LOCATION ERROR ==========');
-          console.error('❌ Error Message:', error.message);
-          console.error('❌ Error Status:', error.status);
-          console.error('❌ Error StatusText:', error.statusText);
-          console.error('❌ Error Details:', JSON.stringify(error.details, null, 2));
-          console.error('❌ Full Error:', JSON.stringify(error, null, 2));
-          console.error('❌ Coordinates:', { latitude, longitude });
-          console.error('❌ ===========================================');
+          console.error('Error getting current location:', error);
         }
         
         // Check error type
@@ -386,9 +380,6 @@ export default function LocationSearchScreen() {
           await setLocation(searchQuery.trim());
         }
         
-        if (__DEV__) {
-          console.log('✅ Provider location selected - will be saved via provider endpoint on Finish Setup');
-        }
         
         showSuccess('Location selected!');
         haptics.success();
@@ -401,7 +392,7 @@ export default function LocationSearchScreen() {
       }
       
       // For regular users: Save to user location endpoint
-      const userId = await apiClient.getUserId();
+      const userId = await authService.getUserId();
       
       if (!userId) {
         // If no user ID, just save locally
@@ -426,6 +417,16 @@ export default function LocationSearchScreen() {
             if (coordMatch && coordMatch[1] && coordMatch[2]) {
               const lat = parseFloat(coordMatch[1]);
               const lng = parseFloat(coordMatch[2]);
+              
+              if (__DEV__) {
+                console.log('🔍 [LocationSearchScreen] Saving location using extracted coordinates:', { lat, lng });
+              }
+              
+              // Validate coordinates before saving
+              if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                throw new Error('Invalid coordinates extracted from placeId');
+              }
+              
               // Save using coordinates
               await locationService.saveUserLocation(userId, {
                 latitude: lat,
@@ -437,6 +438,9 @@ export default function LocationSearchScreen() {
             }
           } else {
             // Real placeId from API - use it
+            if (__DEV__) {
+              console.log('🔍 [LocationSearchScreen] Saving location using placeId:', selectedLocation.placeId);
+            }
             await locationService.saveUserLocation(userId, {
               placeId: selectedLocation.placeId,
             });
@@ -448,6 +452,10 @@ export default function LocationSearchScreen() {
           // Refresh location in hook
           await refreshLocation();
           
+          if (__DEV__) {
+            console.log('✅ [LocationSearchScreen] Location saved to backend successfully');
+          }
+          
           showSuccess('Location saved successfully!');
           haptics.success();
           
@@ -455,7 +463,13 @@ export default function LocationSearchScreen() {
             handleNavigation();
           }, 1000);
         } catch (error: any) {
-          console.error('Error saving location via API:', error);
+          if (__DEV__) {
+            console.log('🔍 [LocationSearchScreen] Error saving location via API:', {
+              error,
+              errorMessage: error?.message,
+              errorStatus: error?.status,
+            });
+          }
           // Fallback to local storage
           await setLocation(selectedLocation.fullAddress);
           showSuccess('Location saved locally!');
@@ -466,6 +480,9 @@ export default function LocationSearchScreen() {
       } else {
         // If no placeId, try to get location details from search query
         // For now, just save locally
+        if (__DEV__) {
+          console.log('🔍 [LocationSearchScreen] No placeId, saving location text only:', searchQuery.trim());
+        }
         await setLocation(searchQuery.trim());
         showSuccess('Location saved successfully!');
         setTimeout(() => {
@@ -473,7 +490,9 @@ export default function LocationSearchScreen() {
         }, 1000);
       }
     } catch (error) {
-      console.error('Error saving location:', error);
+      if (__DEV__) {
+        console.error('Error saving location:', error);
+      }
       const errorMessage = getSpecificErrorMessage(error, 'save_location');
       showError(errorMessage);
       haptics.error();
@@ -525,31 +544,14 @@ export default function LocationSearchScreen() {
       if (selectedLocationDetails?.latitude && selectedLocationDetails?.longitude) {
         exactLatitude = selectedLocationDetails.latitude;
         exactLongitude = selectedLocationDetails.longitude;
-        if (__DEV__) {
-          console.log('✅ Using stored exact coordinates:', {
-            latitude: exactLatitude,
-            longitude: exactLongitude,
-          });
-        }
       } else if (placeIdData && !placeIdData.startsWith('lat_')) {
         // Fetch exact coordinates from API if not already stored
         try {
           const locationDetails = await locationService.getLocationDetails(placeIdData);
           exactLatitude = locationDetails.latitude;
           exactLongitude = locationDetails.longitude;
-          
-          if (__DEV__) {
-            console.log('✅ Exact coordinates fetched from API:', {
-              placeId: placeIdData,
-              latitude: exactLatitude,
-              longitude: exactLongitude,
-              formattedAddress: locationDetails.formattedAddress,
-            });
-          }
         } catch (error) {
-          if (__DEV__) {
-            console.warn('⚠️ Could not get exact coordinates from API, using placeId only');
-          }
+          // Silently fail - will use placeId only
         }
       } else if (placeIdData && placeIdData.startsWith('lat_')) {
         // Extract coordinates from generated placeId
@@ -557,22 +559,7 @@ export default function LocationSearchScreen() {
         if (coordMatch && coordMatch[1] && coordMatch[2]) {
           exactLatitude = parseFloat(coordMatch[1]);
           exactLongitude = parseFloat(coordMatch[2]);
-          if (__DEV__) {
-            console.log('✅ Using coordinates from generated placeId:', {
-              latitude: exactLatitude,
-              longitude: exactLongitude,
-            });
-          }
         }
-      }
-      
-      if (__DEV__) {
-        console.log('✅ ========== NAVIGATING TO PROVIDER PROFILE SETUP ==========');
-        console.log('✅ Location Data (cleaned):', locationData);
-        console.log('✅ Location Data Length:', locationData.length);
-        console.log('✅ Location Data Type:', typeof locationData);
-        console.log('✅ Place ID:', placeIdData);
-        console.log('✅ ===========================================================');
       }
       
       router.replace({
@@ -586,6 +573,37 @@ export default function LocationSearchScreen() {
         },
       } as any);
     } else if (next === 'ServiceMapScreen') {
+      // Get coordinates if available
+      let latitude: string | undefined;
+      let longitude: string | undefined;
+      
+      if (selectedLocationDetails?.latitude && selectedLocationDetails?.longitude) {
+        latitude = selectedLocationDetails.latitude.toString();
+        longitude = selectedLocationDetails.longitude.toString();
+      } else if (selectedLocation?.placeId) {
+        // Try to get coordinates from placeId
+        try {
+          if (selectedLocation.placeId.startsWith('lat_')) {
+            // Extract coordinates from generated placeId
+            const coordMatch = selectedLocation.placeId.match(/lat_([\d.-]+)_([\d.-]+)/);
+            if (coordMatch && coordMatch[1] && coordMatch[2]) {
+              latitude = coordMatch[1];
+              longitude = coordMatch[2];
+            }
+          } else {
+            // Fetch coordinates from API using placeId
+            const locationDetails = await locationService.getLocationDetails(selectedLocation.placeId);
+            latitude = locationDetails.latitude.toString();
+            longitude = locationDetails.longitude.toString();
+          }
+        } catch (error) {
+          // If we can't get coordinates, still navigate - ServiceMapScreen will try to get them
+          if (__DEV__) {
+            console.log('Could not get coordinates for location, will use GPS or saved location');
+          }
+        }
+      }
+      
       // Navigate back to ServiceMapScreen with all booking params preserved
       router.replace({
         pathname: '/ServiceMapScreen' as any,
@@ -597,6 +615,8 @@ export default function LocationSearchScreen() {
           selectedTime: params.selectedTime,
           photoCount: params.photoCount,
           location: (searchQuery && typeof searchQuery === 'string') ? searchQuery.trim() : '', // Updated location
+          latitude: latitude, // Pass coordinates
+          longitude: longitude, // Pass coordinates
         },
       } as any);
     } else {

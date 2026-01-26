@@ -99,10 +99,11 @@ export default function PaymentSuccessfulScreen() {
           />
           <Text
             style={{
-              fontSize: 28,
+              fontSize: 20,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
               marginBottom: 6,
+              letterSpacing: -0.3,
             }}
           >
             G-Hands
@@ -150,10 +151,11 @@ export default function PaymentSuccessfulScreen() {
             </View>
             <Text
               style={{
-                fontSize: 24,
+                fontSize: 19,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
-                marginBottom: 8,
+                marginBottom: 6,
+                letterSpacing: -0.3,
               }}
             >
               Payment Successful

@@ -1,27 +1,27 @@
-import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import LocationSearchModal from '@/components/LocationSearchModal';
-import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
+import JobAcceptedModal from '@/components/JobAcceptedModal';
 import Skeleton, { JobCardSkeleton } from '@/components/LoadingSkeleton';
+import LocationSearchModal from '@/components/LocationSearchModal';
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import Toast from '@/components/Toast';
+import { haptics } from '@/hooks/useHaptics';
+import { useToast } from '@/hooks/useToast';
+import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { useRouter } from 'expo-router';
-import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, Users } from 'lucide-react-native';
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Dimensions, Image, ScrollView, Text, TouchableOpacity, View, RefreshControl } from 'react-native';
+import { BorderRadius, Colors } from '@/lib/designSystem';
+import { AvailableRequest, ServiceRequest, authService, providerService, serviceRequestService } from '@/services/api';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { AuthError } from '@/utils/errors';
+import { calculateDistance, estimateTravelTime } from '@/utils/navigationUtils';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, TrendingUp, Users } from 'lucide-react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const scale = SCREEN_WIDTH < 375 ? 0.85 : SCREEN_WIDTH < 414 ? 0.92 : 1.0;
-import { providerService, serviceRequestService, AvailableRequest, ServiceRequest, authService } from '@/services/api';
-import { useToast } from '@/hooks/useToast';
-import Toast from '@/components/Toast';
-import { haptics } from '@/hooks/useHaptics';
-import { getSpecificErrorMessage } from '@/utils/errorMessages';
-import { useFocusEffect } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AuthError } from '@/utils/errors';
-import { handleAuthErrorRedirect } from '@/utils/authRedirect';
-import JobAcceptedModal from '@/components/JobAcceptedModal';
-import { calculateDistance, estimateTravelTime } from '@/utils/navigationUtils';
-import { useTokenGuard } from '@/hooks/useTokenGuard';
 
 interface JobCard {
   id: string;
@@ -886,7 +886,7 @@ export default function ProviderHomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 0 }}>
             <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
               Welcome, {providerName}
             </Text>
@@ -900,6 +900,93 @@ export default function ProviderHomeScreen() {
               />
             </View> */}
           </View>
+        </View>
+
+        {/* Insights Section - Full width, moved outside padded container */}
+        {hasActiveJobs ? (
+          <View style={{ marginBottom: 32 }}>
+            <View
+              style={{
+                marginHorizontal: 16,
+                borderRadius: BorderRadius.md,
+                overflow: 'hidden',
+                shadowColor: Colors.accent,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.2,
+                shadowRadius: 8,
+                elevation: 4,
+              }}
+            >
+              <LinearGradient
+                colors={['#8BC34A', Colors.accent]} // Lighter green to darker green
+                start={{ x: 0, y: 0 }} // Start from left
+                end={{ x: 1, y: 0 }} // End at right (horizontal gradient)
+                style={{
+                  padding: 20,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 14, fontFamily: 'Poppins-Regular', color: Colors.black }}>
+                    Total Earnings This Month
+                  </Text>
+                  <TouchableOpacity 
+                    onPress={() => router.push('/AnalyticsScreen' as any)} 
+                    activeOpacity={0.7}
+                    style={{ flexDirection: 'row', alignItems: 'center' }}
+                  >
+                    <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: 2 }}>
+                      View full analytics
+                    </Text>
+                    <ArrowRight size={12} color={Colors.white} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={{ fontSize: 36, fontFamily: 'Poppins-Bold', color: Colors.black, marginBottom: 8 }}>
+                  $4,285.50
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <TrendingUp size={14} color={Colors.black} style={{ marginRight: 4 }} />
+                  <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.black }}>
+                    +12.5% vs last month
+                  </Text>
+                </View>
+              </LinearGradient>
+            </View>
+          </View>
+        ) : (
+          <View style={{ marginBottom: 24 }}>
+            <View
+              style={{
+                marginHorizontal: 16,
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.xl,
+                borderWidth: 2,
+                borderColor: Colors.border,
+                borderStyle: 'dashed',
+                padding: 32,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 6 }}>
+                No insights yet
+              </Text>
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 16 }}>
+                Once you start getting jobs, you'll see insights here.
+              </Text>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: Colors.black,
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  borderRadius: BorderRadius.default,
+                }}
+              >
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>Learn more</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        <View style={{ paddingHorizontal: 16 }}>
 
           {!hasActiveJobs && (
             <TouchableOpacity
@@ -909,7 +996,7 @@ export default function ProviderHomeScreen() {
                 padding: 12,
                 flexDirection: 'row',
                 alignItems: 'center',
-                marginBottom: 16,
+                marginBottom: 20,
               }}
               onPress={() => {
                 haptics.light();
@@ -939,40 +1026,54 @@ export default function ProviderHomeScreen() {
             </TouchableOpacity>
           )}
 
-          <Text style={{ fontSize: 15, fontFamily: 'Poppins-Medium', color: Colors.textPrimary, marginBottom: 10 }}>
+          <Text style={{ fontSize: 15, fontFamily: 'Poppins-Medium', color: Colors.textPrimary, marginBottom: 12 }}>
             Quick Actions
           </Text>
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
             <TouchableOpacity
               style={{
                 flex: 1,
-                backgroundColor: Colors.black,
-                borderRadius: BorderRadius.xl,
-                padding: 12,
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.md,
+                padding: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: Colors.border,
+                shadowColor: Colors.black,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.1,
+                shadowRadius: 2,
+                elevation: 2,
               }}
               onPress={() => {
                 haptics.light();
-                router.push('/ProviderProfileSetupScreen' as any);
+                router.push('/YourServicesScreen' as any);
               }}
               activeOpacity={0.7}
             >
-              <Plus size={16} color={Colors.white} />
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: Colors.white, marginLeft: 6 }}>
+              <Plus size={20} color={Colors.black} />
+              <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.black, marginLeft: 6 }}>
                 Add Service
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={{
                 flex: 1,
-                backgroundColor: Colors.black,
-                borderRadius: BorderRadius.xl,
+                backgroundColor: Colors.white,
+                borderWidth: 1,
+                borderColor: Colors.border, 
+                borderRadius: BorderRadius.md,
                 padding: 12,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
+                shadowColor: Colors.black,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.1,
+                shadowRadius: 2,
+                elevation: 2,
               }}
               onPress={() => {
                 haptics.light();
@@ -981,8 +1082,8 @@ export default function ProviderHomeScreen() {
               }}
               activeOpacity={0.7}
             >
-              <Users size={16} color={Colors.white} />
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: Colors.white, marginLeft: 6 }}>
+              see this <Users size={16} color={Colors.black} />
+              <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.black, marginLeft: 6 }}>
                 Invite Friends
               </Text>
             </TouchableOpacity>
@@ -1034,7 +1135,7 @@ export default function ProviderHomeScreen() {
             ))}
           </View>
         ) : Array.isArray(pendingJobs) && pendingJobs.length > 0 ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
+          <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Available Requests</Text>
               {pendingJobs.length > 3 && (
@@ -1048,7 +1149,7 @@ export default function ProviderHomeScreen() {
             {pendingJobs.slice(0, 3).map((job) => renderJobCard(job, false))}
           </View>
         ) : !isLoadingPending && (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 20 }}>
+          <View style={{ paddingHorizontal: 16, marginBottom: 24, alignItems: 'center', paddingVertical: 20 }}>
             <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 8 }}>
               No available requests
             </Text>
@@ -1079,7 +1180,7 @@ export default function ProviderHomeScreen() {
         {!isLoadingPending && !isLoadingActive && 
          Array.isArray(pendingJobs) && pendingJobs.length === 0 && 
          Array.isArray(activeJobs) && activeJobs.length === 0 && (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20, alignItems: 'center', paddingVertical: 24, backgroundColor: Colors.backgroundGray, borderRadius: BorderRadius.xl }}>
+          <View style={{ paddingHorizontal: 16, marginBottom: 24, alignItems: 'center', paddingVertical: 24, backgroundColor: Colors.backgroundGray, borderRadius: BorderRadius.xl }}>
             <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 8 }}>
               No requests yet
             </Text>
@@ -1108,8 +1209,8 @@ export default function ProviderHomeScreen() {
           </View>
         )}
 
-        <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
-          <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 10 }}>
+        <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
+          <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 12 }}>
             Featured Resources
           </Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -1186,95 +1287,6 @@ export default function ProviderHomeScreen() {
           </View>
         </View>
 
-        {/* Insights Section */}
-        {hasActiveJobs ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
-            <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 10 }}>
-              Insights
-            </Text>
-            <View
-              style={{
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                borderWidth: 1,
-                borderColor: Colors.border,
-                padding: 16,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>Job Completion Rate</Text>
-                <TouchableOpacity onPress={() => router.push('/AnalyticsScreen' as any)} activeOpacity={0.7}>
-                  <Text style={{ fontSize: 11, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
-                    View full analytics <ArrowRight size={11} color={Colors.accent} />
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={{ fontSize: Math.min(32, Dimensions.get('window').width * 0.08), fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 4 }}>
-                95%
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>Last 30 Days </Text>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>+5%</Text>
-              </View>
-              <View
-                style={{
-                  height: 32,
-                  flexDirection: 'row',
-                  alignItems: 'flex-end',
-                  gap: 3,
-                }}
-              >
-                {[20, 35, 28, 45, 38, 52, 48, 60, 55, 70, 65, 75, 80, 85, 90, 88, 92, 95, 93, 95].map(
-                  (height, index) => (
-                    <View
-                      key={index}
-                      style={{
-                        flex: 1,
-                        height: `${height}%`,
-                        backgroundColor: Colors.accent,
-                        borderRadius: 2,
-                      }}
-                    />
-                  )
-                )}
-              </View>
-            </View>
-          </View>
-        ) : (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
-            <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 10 }}>
-              Insights
-            </Text>
-            <View
-              style={{
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                borderWidth: 2,
-                borderColor: Colors.border,
-                borderStyle: 'dashed',
-                padding: 32,
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 6 }}>
-                No insights yet
-              </Text>
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 16 }}>
-                Once you start getting jobs, you'll see insights here.
-              </Text>
-              <TouchableOpacity
-                style={{
-                  backgroundColor: Colors.black,
-                  paddingVertical: 10,
-                  paddingHorizontal: 20,
-                  borderRadius: BorderRadius.default,
-                }}
-              >
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>Learn more</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
       </ScrollView>
 
       {/* Location Search Modal */}

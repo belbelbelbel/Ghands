@@ -2,13 +2,13 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
-import { Colors } from '@/lib/designSystem';
+import { BorderRadius, Colors } from '@/lib/designSystem';
 import { providerService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, ChevronDown, Plus, X } from 'lucide-react-native';
+import { ArrowLeft, ChevronDown, ChevronUp, Minus, Plus, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface MaterialItem {
   id: string;
@@ -22,23 +22,35 @@ const PLATFORM_FEE_PERCENTAGE = 5;
 
 export default function SendQuotationScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ requestId?: string }>();
+  const params = useLocalSearchParams<{ requestId?: string; jobTitle?: string; returnToTab?: string }>();
   const { toast, showError, showSuccess, hideToast } = useToast();
+  const [jobTitle, setJobTitle] = useState<string | null>(null);
 
-  // Check if requestId is available
   useEffect(() => {
     if (!params.requestId) {
       showError('Request ID is missing. Please navigate from a job details screen.');
     }
-  }, [params.requestId, showError]);
-  const [laborCost, setLaborCost] = useState('450');
-  const [logisticsCost, setLogisticsCost] = useState('450');
+    
+    // Load job title if not provided in params
+    if (params.jobTitle) {
+      setJobTitle(params.jobTitle);
+    } else if (params.requestId) {
+      // Optionally load job title from API for context
+      // This is optional - we can skip if it adds unnecessary API call
+    }
+  }, [params.requestId, params.jobTitle, showError]);
+
+  const [laborCost, setLaborCost] = useState('10');
+  const [logisticsCost, setLogisticsCost] = useState('10');
   const [findings, setFindings] = useState('');
+  const [total, setTotal] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [materials, setMaterials] = useState<MaterialItem[]>([
-    { id: '1', name: 'Pipe Connector', quantity: 1, price: '450' },
-    { id: '2', name: "Plumber's Tape", quantity: 3, price: '450' },
+    { id: '1', name: 'Pipe Connector', quantity: 1, price: '100000' },
+    { id: '2', name: "Plumber's Tape", quantity: 3, price: '100000' },
   ]);
+  const [selectedMaterialIndex, setSelectedMaterialIndex] = useState<number | null>(null);
+  const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
 
   const calculateTotals = () => {
     const labor = parseFloat(laborCost.replace(/,/g, '')) || 0;
@@ -49,11 +61,26 @@ export default function SendQuotationScreen() {
     }, 0);
     const subtotal = labor + logistics + materialTotal;
     const platformFee = subtotal * (PLATFORM_FEE_PERCENTAGE / 100);
-    const total = subtotal + platformFee;
-    return { labor, logistics, materialTotal, subtotal, platformFee, total };
+    const tax = 0;
+    const calculatedTotal = subtotal + platformFee + tax;
+    
+    return { labor, logistics, materialTotal, subtotal, platformFee, tax, total: calculatedTotal };
   };
 
-  const totals = calculateTotals();
+  const totals = useMemo(() => calculateTotals(), [laborCost, logisticsCost, materials]);
+  
+  // Auto-update total when other fields change (if total is empty or matches calculated value)
+  useEffect(() => {
+    const calculatedTotalStr = totals.total.toString();
+    const formattedCalculated = formatInput(calculatedTotalStr);
+    const currentTotalFormatted = formatInput(total);
+    
+    // Only auto-update if total is empty or matches the calculated value
+    if (!total || currentTotalFormatted === formattedCalculated) {
+      setTotal(calculatedTotalStr);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totals.total]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -85,8 +112,23 @@ export default function SendQuotationScreen() {
     setMaterials(materials.map((mat) => (mat.id === id ? { ...mat, [field]: value } : mat)));
   };
 
+  const handleQuantityChange = (id: string, delta: number) => {
+    setMaterials(materials.map((mat) => {
+      if (mat.id === id) {
+        const newQuantity = Math.max(1, mat.quantity + delta);
+        return { ...mat, quantity: newQuantity };
+      }
+      return mat;
+    }));
+  };
+
+  const handleSelectMaterial = (materialId: string, materialName: string) => {
+    handleUpdateMaterial(materialId, 'name', materialName);
+    setShowMaterialDropdown(false);
+    setSelectedMaterialIndex(null);
+  };
+
   const handleSubmit = async () => {
-    // Validation
     if (!params.requestId) {
       showError('Request ID is missing. Please try again.');
       return;
@@ -110,6 +152,12 @@ export default function SendQuotationScreen() {
       return;
     }
 
+    const totalValue = parseFloat(total.replace(/,/g, '')) || totals.total;
+    if (totalValue <= 0) {
+      showError('Total must be greater than 0');
+      return;
+    }
+
     setIsSubmitting(true);
     haptics.light();
 
@@ -119,7 +167,6 @@ export default function SendQuotationScreen() {
         throw new Error('Invalid request ID');
       }
 
-      // Map materials to API format
       const materialsPayload = materials
         .filter((mat) => {
           const price = parseFloat(mat.price.replace(/,/g, '')) || 0;
@@ -131,11 +178,9 @@ export default function SendQuotationScreen() {
           unitPrice: parseFloat(mat.price.replace(/,/g, '')) || 0,
         }));
 
-      // Calculate service charge (platform fee)
       const subtotal = labor + logistics + materialsPayload.reduce((sum, mat) => sum + (mat.unitPrice * mat.quantity), 0);
       const serviceCharge = Math.round(subtotal * (PLATFORM_FEE_PERCENTAGE / 100));
 
-      // Prepare API payload
       const payload = {
         laborCost: labor,
         logisticsCost: logistics,
@@ -150,9 +195,14 @@ export default function SendQuotationScreen() {
       haptics.success();
       showSuccess('Quotation sent successfully! Waiting for client response.');
       
-      // Navigate back after a short delay
+      // Navigate back and optionally switch to Quotations tab
       setTimeout(() => {
-        router.back();
+        if (params.returnToTab === 'Quotations') {
+          // Navigate back and the parent screen should handle tab switching
+          router.back();
+        } else {
+          router.back();
+        }
       }, 1500);
     } catch (error: any) {
       console.error('Error sending quotation:', error);
@@ -164,12 +214,12 @@ export default function SendQuotationScreen() {
     }
   };
 
-  const canSubmit = laborCost && logisticsCost && findings && findings.trim().length >= 10 && !isSubmitting;
+  const canSubmit = laborCost && logisticsCost && findings && findings.trim().length >= 10 && total && !isSubmitting;
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.white}>
       <View style={{ flex: 1 }}>
-        {/* Fixed Header */}
+        {/* Header */}
         <View
           style={{
             flexDirection: 'row',
@@ -177,8 +227,6 @@ export default function SendQuotationScreen() {
             paddingHorizontal: 20,
             paddingTop: 16,
             paddingBottom: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: Colors.border,
             backgroundColor: Colors.white,
           }}
         >
@@ -195,309 +243,323 @@ export default function SendQuotationScreen() {
           >
             <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text
-            style={{
-              fontSize: 20,
-              fontFamily: 'Poppins-Bold',
-              color: Colors.textPrimary,
-              flex: 1,
-            }}
-          >
-            Send Quotation
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+              }}
+            >
+              Send Quotation
+            </Text>
+            {jobTitle && (
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  marginTop: 2,
+                }}
+                numberOfLines={1}
+              >
+                {jobTitle}
+              </Text>
+            )}
+          </View>
         </View>
 
-        {/* Scrollable Content */}
+        {/* Content with Green Side Bars */}
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{
-              paddingHorizontal: 20,
-              paddingTop: 20,
-              paddingBottom: 20,
-            }}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Labor Cost Field */}
-            <View style={{ marginBottom: 16 }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                  marginBottom: 8,
-                }}
-              >
-                Labor Cost <Text style={{ color: Colors.error }}>*</Text>
-              </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: Colors.backgroundGray,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                  paddingHorizontal: 16,
-                  height: 52,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.textPrimary,
-                    marginRight: 8,
-                  }}
-                >
-                  ₦
-                </Text>
-                <TextInput
-                  placeholder="10"
-                  value={formatInput(laborCost)}
-                  onChangeText={(text) => setLaborCost(text.replace(/,/g, ''))}
-                  keyboardType="numeric"
-                  style={{
-                    flex: 1,
-                    fontSize: 16,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.textPrimary,
-                  }}
-                  placeholderTextColor={Colors.textSecondaryDark}
-                />
-              </View>
-            </View>
-
-            {/* Logistics Cost Field */}
-            <View style={{ marginBottom: 16 }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                  marginBottom: 8,
-                }}
-              >
-                Logistics Cost <Text style={{ color: Colors.error }}>*</Text>
-              </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: Colors.backgroundGray,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                  paddingHorizontal: 16,
-                  height: 52,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.textPrimary,
-                    marginRight: 8,
-                  }}
-                >
-                  ₦
-                </Text>
-                <TextInput
-                  placeholder="10"
-                  value={formatInput(logisticsCost)}
-                  onChangeText={(text) => setLogisticsCost(text.replace(/,/g, ''))}
-                  keyboardType="numeric"
-                  style={{
-                    flex: 1,
-                    fontSize: 16,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.textPrimary,
-                  }}
-                  placeholderTextColor={Colors.textSecondaryDark}
-                />
-              </View>
-            </View>
-
-            {/* Material List Section */}
-            <View style={{ marginBottom: 16 }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: 12,
-                }}
-              >
+          <View style={{ flex: 1, flexDirection: 'row' }}>
+            {/* Left Green Bar */}
+            <View style={{ width: 4, backgroundColor: Colors.accent }} />
+            
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingHorizontal: 20,
+                paddingTop: 24,
+                paddingBottom: 100,
+              }}
+              style={{ flex: 1 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Labor Cost */}
+              <View style={{ marginBottom: 20 }}>
                 <Text
                   style={{
                     fontSize: 14,
                     fontFamily: 'Poppins-SemiBold',
-                    color: Colors.accent,
-                    textDecorationLine: 'underline',
+                    color: Colors.textPrimary,
+                    marginBottom: 8,
                   }}
                 >
-                  Material List
+                  Labor Cost:
                 </Text>
-                <Text
+                <View
                   style={{
-                    fontSize: 12,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.textSecondaryDark,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: Colors.white,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
+                    paddingHorizontal: 12,
+                    height: 48,
                   }}
                 >
-                  Optional
-                </Text>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textPrimary,
+                      marginRight: 4,
+                    }}
+                  >
+                    ₦
+                  </Text>
+                  <TextInput
+                    placeholder="10"
+                    value={formatInput(laborCost)}
+                    onChangeText={(text) => setLaborCost(text.replace(/,/g, ''))}
+                    keyboardType="numeric"
+                    style={{
+                      flex: 1,
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textPrimary,
+                    }}
+                    placeholderTextColor={Colors.textSecondaryDark}
+                  />
+                </View>
               </View>
 
-              {/* Single Container Box for All Materials */}
-              <View
-                style={{
-                  backgroundColor: Colors.white,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: '#000000',
-                  padding: 12,
-                }}
-              >
+              {/* Logistics Cost */}
+              <View style={{ marginBottom: 20 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                    marginBottom: 8,
+                  }}
+                >
+                  Logistics Cost:
+                </Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: Colors.white,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
+                    paddingHorizontal: 12,
+                    height: 48,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textPrimary,
+                      marginRight: 4,
+                    }}
+                  >
+                    ₦
+                  </Text>
+                  <TextInput
+                    placeholder="10"
+                    value={formatInput(logisticsCost)}
+                    onChangeText={(text) => setLogisticsCost(text.replace(/,/g, ''))}
+                    keyboardType="numeric"
+                    style={{
+                      flex: 1,
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textPrimary,
+                    }}
+                    placeholderTextColor={Colors.textSecondaryDark}
+                  />
+                </View>
+              </View>
+
+              {/* Material List */}
+              <View style={{ marginBottom: 20 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.textPrimary,
+                    }}
+                  >
+                    Material List
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.error,
+                      marginLeft: 8,
+                    }}
+                  >
+                    Optional
+                  </Text>
+                </View>
+
                 {materials.map((material, index) => (
-                  <View key={material.id}>
-                    <View
+                  <View
+                    key={material.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      marginBottom: 12,
+                      gap: 8,
+                    }}
+                  >
+                    {/* Material Dropdown */}
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedMaterialIndex(index);
+                        setShowMaterialDropdown(true);
+                      }}
                       style={{
+                        flex: 2,
+                        backgroundColor: Colors.white,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: Colors.border,
+                        paddingHorizontal: 12,
+                        height: 48,
                         flexDirection: 'row',
                         alignItems: 'center',
-                        gap: 8,
+                        justifyContent: 'space-between',
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        {material.name}
+                      </Text>
+                      <ChevronDown size={16} color={Colors.textSecondaryDark} />
+                    </TouchableOpacity>
+
+                    {/* Quantity Selector */}
+                    <View
+                      style={{
+                        width: 60,
+                        backgroundColor: Colors.white,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: Colors.border,
+                        height: 48,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingHorizontal: 8,
+                      }}
+                    >
+                      <TouchableOpacity
+                        onPress={() => handleQuantityChange(material.id, -1)}
+                        activeOpacity={0.7}
+                        style={{ padding: 4 }}
+                      >
+                        <ChevronDown size={14} color={Colors.textPrimary} />
+                      </TouchableOpacity>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontFamily: 'Poppins-SemiBold',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        {material.quantity}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => handleQuantityChange(material.id, 1)}
+                        activeOpacity={0.7}
+                        style={{ padding: 4 }}
+                      >
+                        <ChevronUp size={14} color={Colors.textPrimary} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Price Input */}
+                    <View
+                      style={{
+                        flex: 1.5,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: Colors.white,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: Colors.border,
+                        paddingHorizontal: 12,
+                        height: 48,
                       }}
                     >
                       <Text
                         style={{
-                          fontSize: 13,
-                          fontFamily: 'Poppins-Medium',
+                          fontSize: 14,
+                          fontFamily: 'Poppins-Regular',
                           color: Colors.textPrimary,
-                          width: 70,
+                          marginRight: 4,
                         }}
                       >
-                        Material
+                        ₦
                       </Text>
-                      <View
+                      <TextInput
+                        value={formatInput(material.price)}
+                        onChangeText={(text) =>
+                          handleUpdateMaterial(material.id, 'price', text.replace(/,/g, ''))
+                        }
+                        keyboardType="numeric"
                         style={{
                           flex: 1,
-                          backgroundColor: Colors.white,
-                          borderRadius: 6,
-                          borderWidth: 1,
-                          borderColor: '#000000',
-                          paddingHorizontal: 10,
-                          height: 36,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
+                          fontSize: 14,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textPrimary,
                         }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            fontFamily: 'Poppins-Regular',
-                            color: Colors.textPrimary,
-                          }}
-                        >
-                          {material.name}
-                        </Text>
-                        <ChevronDown size={14} color={Colors.textSecondaryDark} />
-                      </View>
-                      <View
-                        style={{
-                          width: 45,
-                          backgroundColor: Colors.white,
-                          borderRadius: 6,
-                          borderWidth: 1,
-                          borderColor: '#000000',
-                          paddingHorizontal: 6,
-                          height: 36,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            fontFamily: 'Poppins-Regular',
-                            color: Colors.textPrimary,
-                          }}
-                        >
-                          {material.quantity}
-                        </Text>
-                        <ChevronDown size={12} color={Colors.textSecondaryDark} />
-                      </View>
-                      <View
-                        style={{
-                          width: 100,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          backgroundColor: Colors.white,
-                          borderRadius: 6,
-                          borderWidth: 1,
-                          borderColor: '#000000',
-                          paddingHorizontal: 8,
-                          height: 36,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            fontFamily: 'Poppins-SemiBold',
-                            color: Colors.textPrimary,
-                            marginRight: 4,
-                          }}
-                        >
-                          ₦
-                        </Text>
-                        <TextInput
-                          value={formatInput(material.price)}
-                          onChangeText={(text) =>
-                            handleUpdateMaterial(material.id, 'price', text.replace(/,/g, ''))
-                          }
-                          keyboardType="numeric"
-                          style={{
-                            flex: 1,
-                            fontSize: 13,
-                            fontFamily: 'Poppins-Regular',
-                            color: Colors.textPrimary,
-                          }}
-                          placeholder="100,000"
-                          placeholderTextColor={Colors.textSecondaryDark}
-                        />
-                      </View>
-                      {materials.length > 1 && (
-                        <TouchableOpacity
-                          onPress={() => handleRemoveMaterial(material.id)}
-                          style={{
-                            width: 28,
-                            height: 28,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginLeft: 4,
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <X size={16} color={Colors.error} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    {index < materials.length - 1 && (
-                      <View
-                        style={{
-                          height: 1,
-                          backgroundColor: Colors.border,
-                          marginVertical: 8,
-                        }}
+                        placeholder="100,000"
+                        placeholderTextColor={Colors.textSecondaryDark}
                       />
+                    </View>
+
+                    {/* Remove Button */}
+                    {materials.length > 1 && (
+                      <TouchableOpacity
+                        onPress={() => handleRemoveMaterial(material.id)}
+                        style={{
+                          width: 48,
+                          height: 48,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Minus size={20} color={Colors.error} />
+                      </TouchableOpacity>
                     )}
                   </View>
                 ))}
 
+                {/* Add Item Button */}
                 <TouchableOpacity
                   onPress={handleAddMaterial}
                   style={{
@@ -511,7 +573,7 @@ export default function SendQuotationScreen() {
                   <Plus size={16} color={Colors.accent} style={{ marginRight: 6 }} />
                   <Text
                     style={{
-                      fontSize: 13,
+                      fontSize: 14,
                       fontFamily: 'Poppins-SemiBold',
                       color: Colors.accent,
                     }}
@@ -520,186 +582,241 @@ export default function SendQuotationScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-            </View>
 
-            {/* Findings & Work Required */}
-            <View style={{ marginBottom: 16 }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                  marginBottom: 8,
-                }}
-              >
-                Findings & Work required <Text style={{ color: Colors.error }}>*</Text>
-              </Text>
-              <View
-                style={{
-                  backgroundColor: Colors.backgroundGray,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                  minHeight: 100,
-                }}
-              >
-                <TextInput
-                  placeholder="Message"
-                  value={findings}
-                  onChangeText={setFindings}
-                  multiline
-                  textAlignVertical="top"
+              {/* Findings & Work Required */}
+              <View style={{ marginBottom: 20 }}>
+                <Text
                   style={{
                     fontSize: 14,
-                    fontFamily: 'Poppins-Regular',
+                    fontFamily: 'Poppins-SemiBold',
                     color: Colors.textPrimary,
-                    minHeight: 80,
+                    marginBottom: 8,
                   }}
-                  placeholderTextColor={Colors.textSecondaryDark}
-                />
+                >
+                  Findings & Work required <Text style={{ color: Colors.error }}>*</Text>
+                </Text>
+                <View
+                  style={{
+                    backgroundColor: Colors.white,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
+                    paddingHorizontal: 12,
+                    paddingVertical: 12,
+                    minHeight: 120,
+                  }}
+                >
+                  <TextInput
+                    placeholder="Message"
+                    value={findings}
+                    onChangeText={setFindings}
+                    multiline
+                    textAlignVertical="top"
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textPrimary,
+                      minHeight: 100,
+                    }}
+                    placeholderTextColor={Colors.textSecondaryDark}
+                  />
+                </View>
               </View>
-            </View>
 
-            {/* Quotation Summary */}
-            <View
-              style={{
-                backgroundColor: Colors.accent,
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 16,
-              }}
-            >
-              <Text
+              {/* Total Field */}
+              <View style={{ marginBottom: 24 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                    marginBottom: 8,
+                  }}
+                >
+                  Total <Text style={{ color: Colors.error }}>*</Text>
+                </Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: Colors.white,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
+                    paddingHorizontal: 12,
+                    height: 48,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textPrimary,
+                      marginRight: 4,
+                    }}
+                  >
+                    ₦
+                  </Text>
+                  <TextInput
+                    placeholder="10"
+                    value={formatInput(total)}
+                    onChangeText={(text) => setTotal(text.replace(/,/g, ''))}
+                    keyboardType="numeric"
+                    style={{
+                      flex: 1,
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textPrimary,
+                    }}
+                    placeholderTextColor={Colors.textSecondaryDark}
+                  />
+                </View>
+              </View>
+
+              {/* Quotation Summary */}
+              <View
                 style={{
-                  fontSize: 16,
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.white,
-                  marginBottom: 12,
+                  borderRadius: BorderRadius.xl,
+                  overflow: 'hidden',
+                  marginBottom: 24,
+                  borderWidth: 1,
+                  borderColor: Colors.border,
                 }}
               >
-                Quotation Summary
-              </Text>
-
-              {laborCost && parseFloat(laborCost.replace(/,/g, '')) > 0 && (
+                {/* Green Header */}
                 <View
                   style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    marginBottom: 8,
+                    backgroundColor: '#CAFF33',
+                    padding: 16,
                   }}
                 >
                   <Text
                     style={{
-                      fontSize: 13,
-                      fontFamily: 'Poppins-Regular',
-                      color: Colors.white,
+                      fontSize: 16,
+                      fontFamily: 'Poppins-Bold',
+                      color: Colors.textPrimary,
                     }}
                   >
-                    Labor Cost:
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontFamily: 'Poppins-SemiBold',
-                      color: Colors.white,
-                    }}
-                  >
-                    ₦{formatCurrency(totals.labor)}
+                    Quotation Summary
                   </Text>
                 </View>
-              )}
 
-              {logisticsCost && parseFloat(logisticsCost.replace(/,/g, '')) > 0 && (
+                {/* White Content Area */}
                 <View
                   style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    marginBottom: 8,
+                    backgroundColor: Colors.white,
+                    padding: 16,
                   }}
                 >
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontFamily: 'Poppins-Regular',
-                      color: Colors.white,
-                    }}
-                  >
-                    Logistics Cost:
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontFamily: 'Poppins-SemiBold',
-                      color: Colors.white,
-                    }}
-                  >
-                    ₦{formatCurrency(totals.logistics)}
-                  </Text>
-                </View>
-              )}
-
-              {materials.map((mat) => {
-                const price = parseFloat(mat.price.replace(/,/g, '')) || 0;
-                if (price === 0) return null;
-                return (
                   <View
-                    key={mat.id}
                     style={{
                       flexDirection: 'row',
                       justifyContent: 'space-between',
-                      marginBottom: 8,
+                      marginBottom: 12,
                     }}
                   >
                     <Text
                       style={{
                         fontSize: 13,
                         fontFamily: 'Poppins-Regular',
-                        color: Colors.white,
+                        color: Colors.textPrimary,
                       }}
                     >
-                      {mat.name} (Qty: {mat.quantity}):
+                      Labor Cost
                     </Text>
                     <Text
                       style={{
                         fontSize: 13,
                         fontFamily: 'Poppins-SemiBold',
-                        color: Colors.white,
+                        color: Colors.textPrimary,
                       }}
                     >
-                      ₦{formatCurrency(price * mat.quantity)}
+                      ₦{formatCurrency(totals.labor)}
                     </Text>
                   </View>
-                );
-              })}
 
-              {(totals.labor > 0 || totals.materialTotal > 0) && (
-                <>
                   <View
                     style={{
                       flexDirection: 'row',
                       justifyContent: 'space-between',
-                      marginTop: 8,
-                      paddingTop: 8,
-                      borderTopWidth: 1,
-                      borderTopColor: 'rgba(255, 255, 255, 0.3)',
+                      marginBottom: 12,
                     }}
                   >
                     <Text
                       style={{
                         fontSize: 13,
                         fontFamily: 'Poppins-Regular',
-                        color: Colors.white,
+                        color: Colors.textPrimary,
                       }}
                     >
-                      Service charge:
+                      Logistics Cost
                     </Text>
                     <Text
                       style={{
                         fontSize: 13,
                         fontFamily: 'Poppins-SemiBold',
-                        color: Colors.white,
+                        color: Colors.textPrimary,
+                      }}
+                    >
+                      ₦{formatCurrency(totals.logistics)}
+                    </Text>
+                  </View>
+
+                  {materials.map((mat) => {
+                    const price = parseFloat(mat.price.replace(/,/g, '')) || 0;
+                    if (price === 0) return null;
+                    return (
+                      <View
+                        key={mat.id}
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          marginBottom: 12,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontFamily: 'Poppins-Regular',
+                            color: Colors.textPrimary,
+                          }}
+                        >
+                          {mat.name} (Qty: {mat.quantity})
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontFamily: 'Poppins-SemiBold',
+                            color: Colors.textPrimary,
+                          }}
+                        >
+                          ₦{formatCurrency(price * mat.quantity)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'Poppins-Regular',
+                        color: Colors.textPrimary,
+                      }}
+                    >
+                      Service charge
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: Colors.textPrimary,
                       }}
                     >
                       ₦{formatCurrency(totals.platformFee)}
@@ -710,26 +827,26 @@ export default function SendQuotationScreen() {
                     style={{
                       flexDirection: 'row',
                       justifyContent: 'space-between',
-                      marginTop: 8,
+                      marginBottom: 16,
                     }}
                   >
                     <Text
                       style={{
                         fontSize: 13,
                         fontFamily: 'Poppins-Regular',
-                        color: Colors.white,
+                        color: Colors.textPrimary,
                       }}
                     >
-                      Tax:
+                      Tax
                     </Text>
                     <Text
                       style={{
                         fontSize: 13,
                         fontFamily: 'Poppins-SemiBold',
-                        color: Colors.white,
+                        color: Colors.textPrimary,
                       }}
                     >
-                      ₦0.00
+                      ₦{formatCurrency(totals.tax)}
                     </Text>
                   </View>
 
@@ -737,89 +854,178 @@ export default function SendQuotationScreen() {
                     style={{
                       flexDirection: 'row',
                       justifyContent: 'space-between',
-                      marginTop: 12,
-                      paddingTop: 12,
+                      paddingTop: 16,
                       borderTopWidth: 1,
-                      borderTopColor: 'rgba(255, 255, 255, 0.3)',
+                      borderTopColor: Colors.border,
                     }}
                   >
                     <Text
                       style={{
                         fontSize: 16,
                         fontFamily: 'Poppins-Bold',
-                        color: Colors.white,
+                        color: Colors.textPrimary,
                       }}
                     >
-                      Total Amount:
+                      Total Amount
                     </Text>
                     <Text
                       style={{
                         fontSize: 16,
                         fontFamily: 'Poppins-Bold',
-                        color: Colors.white,
+                        color: Colors.textPrimary,
                       }}
                     >
                       ₦{formatCurrency(totals.total)}
                     </Text>
                   </View>
-                </>
-              )}
-            </View>
+                </View>
+              </View>
+            </ScrollView>
 
-            {/* Bottom Buttons - Inside ScrollView */}
-            <View style={{ marginBottom: 20 }}>
-              <TouchableOpacity
-                onPress={handleSubmit}
-                disabled={!canSubmit || isSubmitting}
-                style={{
-                  backgroundColor: canSubmit && !isSubmitting ? Colors.accent : Colors.backgroundGray,
-                  borderRadius: 12,
-                  paddingVertical: 14,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 10,
-                  flexDirection: 'row',
-                  gap: 8,
-                }}
-                activeOpacity={0.8}
-              >
-                {isSubmitting && (
-                  <ActivityIndicator size="small" color={Colors.white} />
-                )}
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: canSubmit && !isSubmitting ? Colors.white : Colors.textTertiary,
-                  }}
-                >
-                  {isSubmitting ? 'Submitting...' : 'Submit Quotation'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => router.back()}
-                style={{
-                  backgroundColor: '#FEE2E2',
-                  borderRadius: 12,
-                  paddingVertical: 14,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.error,
-                  }}
-                >
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+            {/* Right Green Bar */}
+            <View style={{ width: 4, backgroundColor: Colors.accent }} />
+          </View>
         </KeyboardAvoidingView>
+
+        {/* Fixed Bottom Buttons */}
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            paddingHorizontal: 20,
+            paddingTop: 16,
+            paddingBottom: 32,
+            backgroundColor: Colors.white,
+            borderTopWidth: 1,
+            borderTopColor: Colors.border,
+          }}
+        >
+          <TouchableOpacity
+            onPress={handleSubmit}
+            disabled={!canSubmit || isSubmitting}
+            style={{
+              backgroundColor: canSubmit && !isSubmitting ? Colors.accent : Colors.backgroundGray,
+              borderRadius: BorderRadius.default,
+              paddingVertical: 14,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 12,
+            }}
+            activeOpacity={0.8}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color={Colors.textPrimary} />
+            ) : (
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-Bold',
+                  color: canSubmit && !isSubmitting ? Colors.textPrimary : Colors.textTertiary,
+                }}
+              >
+                Submit Quotation
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: BorderRadius.default,
+              borderWidth: 1,
+              borderColor: Colors.error,
+              paddingVertical: 14,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: 'Poppins-SemiBold',
+                color: Colors.error,
+              }}
+            >
+              Cancel
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Material Dropdown Modal */}
+        <Modal
+          visible={showMaterialDropdown}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            setShowMaterialDropdown(false);
+            setSelectedMaterialIndex(null);
+          }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {
+              setShowMaterialDropdown(false);
+              setSelectedMaterialIndex(null);
+            }}
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.default,
+                padding: 16,
+                width: '80%',
+                maxWidth: 300,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                  marginBottom: 16,
+                }}
+              >
+                Select Material
+              </Text>
+              {MATERIAL_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  onPress={() => {
+                    if (selectedMaterialIndex !== null && materials[selectedMaterialIndex]) {
+                      handleSelectMaterial(materials[selectedMaterialIndex].id, option);
+                    }
+                  }}
+                  style={{
+                    paddingVertical: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: Colors.border,
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textPrimary,
+                    }}
+                  >
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </View>
       <Toast
         message={toast.message}

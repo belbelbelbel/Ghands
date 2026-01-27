@@ -1,9 +1,9 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, ArrowRight, Calendar, CheckCircle, Clock, FileText, Handshake, MessageCircle, Wallet } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Calendar, CheckCircle, Clock, FileText, Handshake, MessageCircle, Wallet, X } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View, Modal } from 'react-native';
 
 interface Notification {
   id: string;
@@ -15,6 +15,10 @@ interface Notification {
   iconBgColor: string;
   isRead: boolean;
   section: 'Recent' | 'Yesterday' | 'Last week';
+  requestId?: string;
+  workOrderId?: string;
+  amount?: string;
+  clientName?: string;
 }
 
 const NOTIFICATIONS: Notification[] = [
@@ -23,22 +27,26 @@ const NOTIFICATIONS: Notification[] = [
     type: 'Job Status',
     description: 'Marcus lee marked job as completed.',
     time: '20mins ago',
-    barColor: '#4B5563',
+    barColor: '#3B82F6',
     icon: Handshake,
     iconBgColor: '#FEF3C7',
     isRead: false,
     section: 'Recent',
+    requestId: '123',
+    clientName: 'Marcus lee',
   },
   {
     id: '2',
     type: 'New message',
     description: 'Marcus lee sent you a text.',
     time: '20mins ago',
-    barColor: '#4B5563',
+    barColor: '#3B82F6',
     icon: MessageCircle,
     iconBgColor: '#E5E7EB',
     isRead: false,
     section: 'Recent',
+    requestId: '123',
+    clientName: 'Marcus lee',
   },
   {
     id: '3',
@@ -50,17 +58,20 @@ const NOTIFICATIONS: Notification[] = [
     iconBgColor: '#FEF3C7',
     isRead: true,
     section: 'Yesterday',
+    requestId: '124',
+    clientName: 'Marcus lee',
   },
   {
     id: '4',
     type: 'New Request',
     description: 'You have a new job request.',
     time: '20mins ago',
-    barColor: '#4B5563',
+    barColor: Colors.accent,
     icon: FileText,
     iconBgColor: '#DBEAFE',
     isRead: true,
     section: 'Yesterday',
+    requestId: '125',
   },
   {
     id: '5',
@@ -72,34 +83,39 @@ const NOTIFICATIONS: Notification[] = [
     iconBgColor: '#DCFCE7',
     isRead: true,
     section: 'Yesterday',
+    workOrderId: 'WO-2024-115',
   },
   {
     id: '6',
     type: 'Payment Released',
     description: '20,000 has been released for #WO-2024-1157. Funds will be available in your wallet shortly.',
     time: '20mins ago',
-    barColor: '#4B5563',
+    barColor: '#3B82F6',
     icon: Wallet,
     iconBgColor: '#DCFCE7',
-    isRead: true,
+    isRead: false,
     section: 'Last week',
+    workOrderId: 'WO-2024-1157',
+    amount: '20000',
   },
   {
     id: '7',
     type: 'Withdrawal Status',
     description: 'Your withdrawal request of 45,000 has been processed successfully.',
     time: '20mins ago',
-    barColor: '#4B5563',
+    barColor: '#3B82F6',
     icon: Clock,
     iconBgColor: '#E5E7EB',
-    isRead: true,
+    isRead: false,
     section: 'Last week',
+    amount: '45000',
   },
 ];
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const [hasNotifications] = useState(true); // Set to false to show empty state
+  const [previewNotification, setPreviewNotification] = useState<Notification | null>(null);
 
   const groupedNotifications = NOTIFICATIONS.reduce((acc, notif) => {
     if (!acc[notif.section]) {
@@ -115,6 +131,61 @@ export default function NotificationsScreen() {
 
   const handleMarkAsRead = (id: string) => {
     // Handle mark as read
+  };
+
+  const handleViewDetails = (notification: Notification) => {
+    setPreviewNotification(notification);
+  };
+
+  const handleNavigateToDetails = (notification: Notification) => {
+    setPreviewNotification(null);
+    
+    // Map notification types to appropriate screens
+    switch (notification.type) {
+      case 'Job Status':
+        if (notification.requestId) {
+          router.push({
+            pathname: '/OngoingJobDetails' as any,
+            params: { requestId: notification.requestId },
+          } as any);
+        }
+        break;
+      case 'New message':
+        if (notification.requestId && notification.clientName) {
+          router.push({
+            pathname: '/ChatScreen' as any,
+            params: {
+              clientName: notification.clientName,
+              requestId: notification.requestId,
+            },
+          } as any);
+        }
+        break;
+      case 'New Request':
+        if (notification.requestId) {
+          router.push({
+            pathname: '/ProviderJobDetailsScreen' as any,
+            params: { requestId: notification.requestId },
+          } as any);
+        }
+        break;
+      case 'Work order Issued':
+        if (notification.requestId) {
+          router.push({
+            pathname: '/ProviderJobDetailsScreen' as any,
+            params: { requestId: notification.requestId },
+          } as any);
+        }
+        break;
+      case 'Payment Released':
+        router.push('/WalletScreen' as any);
+        break;
+      case 'Withdrawal Status':
+        router.push('/WalletScreen' as any);
+        break;
+      default:
+        break;
+    }
   };
 
   if (!hasNotifications) {
@@ -282,16 +353,20 @@ export default function NotificationsScreen() {
                     key={notification.id}
                     style={{
                       flexDirection: 'row',
-                      marginBottom: index < sectionNotifications.length - 1 ? 16 : 0,
+                      marginBottom: index < sectionNotifications.length - 1 ? 12 : 0,
+                      backgroundColor: Colors.white,
+                      borderRadius: BorderRadius.xl,
+                      padding: 16,
                     }}
                   >
-                    {/* Colored Bar */}
+                    {/* Colored Bar - Blue for unread, Green for read */}
                     <View
                       style={{
                         width: 4,
-                        backgroundColor: notification.barColor,
+                        backgroundColor: notification.isRead ? Colors.accent : '#3B82F6',
                         borderRadius: 2,
                         marginRight: 12,
+                        alignSelf: 'stretch',
                       }}
                     />
 
@@ -309,8 +384,8 @@ export default function NotificationsScreen() {
                     >
                       {notification.icon && (
                         <notification.icon
-                          size={22}
-                          color={notification.barColor === Colors.accent ? Colors.accent : Colors.textSecondaryDark}
+                          size={20}
+                          color={Colors.white}
                         />
                       )}
                     </View>
@@ -339,6 +414,7 @@ export default function NotificationsScreen() {
                         {notification.description}
                       </Text>
                       <TouchableOpacity
+                        onPress={() => handleViewDetails(notification)}
                         style={{
                           alignSelf: 'flex-start',
                           marginBottom: 8,
@@ -390,6 +466,161 @@ export default function NotificationsScreen() {
             );
           })}
         </ScrollView>
+
+        {/* Preview Modal */}
+        <Modal
+          visible={!!previewNotification}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPreviewNotification(null)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingHorizontal: 20,
+            }}
+          >
+            {previewNotification && (
+              <View
+                style={{
+                  backgroundColor: Colors.white,
+                  borderRadius: BorderRadius.xl,
+                  padding: 24,
+                  width: '100%',
+                  maxWidth: 400,
+                }}
+              >
+                {/* Header */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 16,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <View
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        backgroundColor: previewNotification.iconBgColor,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 12,
+                      }}
+                    >
+                      {previewNotification.icon && (
+                        <previewNotification.icon
+                          size={22}
+                          color={previewNotification.barColor === Colors.accent ? Colors.accent : Colors.textSecondaryDark}
+                        />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontFamily: 'Poppins-Bold',
+                          color: Colors.textPrimary,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {previewNotification.type}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textSecondaryDark,
+                        }}
+                      >
+                        {previewNotification.time}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setPreviewNotification(null)}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <X size={20} color={Colors.textSecondaryDark} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Description */}
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textSecondaryDark,
+                    marginBottom: 24,
+                    lineHeight: 20,
+                  }}
+                >
+                  {previewNotification.description}
+                </Text>
+
+                {/* Action Buttons */}
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity
+                    onPress={() => setPreviewNotification(null)}
+                    style={{
+                      flex: 1,
+                      backgroundColor: Colors.backgroundGray,
+                      borderRadius: BorderRadius.default,
+                      paddingVertical: 12,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: Colors.textPrimary,
+                      }}
+                    >
+                      Close
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleNavigateToDetails(previewNotification)}
+                    style={{
+                      flex: 1,
+                      backgroundColor: Colors.accent,
+                      borderRadius: BorderRadius.default,
+                      paddingVertical: 12,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: Colors.white,
+                      }}
+                    >
+                      View Full Details
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </Modal>
       </View>
     </SafeAreaWrapper>
   );

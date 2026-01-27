@@ -295,6 +295,7 @@ export default function ProviderProfileSetupScreen() {
         
         // Send placeId or coordinates if available (more accurate than address)
         // Priority: placeId > coordinates > address
+        // IMPORTANT: This will REPLACE any existing location - only one location is stored per provider
         const locationPayload: any = {};
         
         if (locationPlaceId && locationPlaceId.trim().length > 0 && !locationPlaceId.startsWith('lat_')) {
@@ -310,6 +311,7 @@ export default function ProviderProfileSetupScreen() {
           locationPayload.address = cleanAddress;
         }
         
+        // This call REPLACES the old location with the new one
         await providerService.updateLocation(locationPayload);
         
         if (__DEV__) {

@@ -395,13 +395,20 @@ class ApiClient {
           }
           
           // For non-auth errors, throw regular error with details
+          // Note: 500 errors might be expected (e.g., provider accessing client endpoint)
+          // The calling code will handle fallback mechanisms
+          const statusCode = (error as any)?.status || response?.status;
+          const isExpected500 = statusCode === 500;
+          
           const errorObj = error instanceof Error 
             ? Object.assign(new Error(errorMessage), { 
                 message: errorMessage, 
                 isNetworkError: isNetworkErr,
                 originalError: error,
-                status: (error as any)?.status,
-                details: (error as any)?.details
+                status: statusCode,
+                details: (error as any)?.details,
+                isExpected500: isExpected500, // Flag to indicate this might be expected
+                suppressErrorLog: isExpected500, // Suppress error logging for expected 500s
               })
             : new Error(errorMessage);
           
@@ -1463,18 +1470,20 @@ export const serviceRequestService = {
       return requestData;
     } catch (error) {
       // Don't log AuthError - it will be handled by global error handler
-      // Also don't log 500 errors if they're expected (e.g., provider accessing client endpoint)
-      // The calling code will handle fallback mechanisms
+      // Also don't log 500 errors - they're often expected when providers access client endpoints
+      // The calling code (ProviderJobDetailsScreen) will handle fallback mechanisms
+      // and suppress error messages when fallback succeeds
       if (!(error instanceof AuthError)) {
         const status = (error as any)?.status || (error as any)?.response?.status;
+        const suppressErrorLog = (error as any)?.suppressErrorLog;
+        
         // Only log if it's not a 500 (which might be expected for provider access)
-        // or if we're in dev mode and want to see all errors
-        if (status !== 500 || !__DEV__) {
+        // and not marked to suppress logging
+        if (status !== 500 && !suppressErrorLog) {
           console.error('Error getting request details:', error);
-        } else if (__DEV__) {
-          // In dev mode, log but indicate it might be expected
-          console.warn('⚠️ [getRequestDetails] 500 error - may be expected for provider access, fallback will be used');
         }
+        // For 500 errors, don't log - they're expected and will be handled by fallback
+        // This prevents error spam in console when providers access client endpoints
       }
       throw error;
     }
@@ -2024,6 +2033,12 @@ export const providerService = {
 
   /**
    * Update provider location (providerId extracted from token automatically)
+   * 
+   * IMPORTANT: This REPLACES the provider's existing location with the new one.
+   * The old location is automatically removed and replaced by the new location.
+   * Only one location is stored per provider at any time.
+   * 
+   * Uses PUT method which ensures the location is fully replaced, not added.
    */
   updateLocation: async (payload: ProviderLocationPayload): Promise<{ providerId: number; location: SavedLocation; message: string }> => {
     try {
@@ -2033,6 +2048,7 @@ export const providerService = {
       }
       
       // Build request body - prioritize placeId, then coordinates, then address
+      // This will REPLACE the existing location completely
       const requestBody: any = {};
       
       if (payload.placeId && typeof payload.placeId === 'string' && payload.placeId.trim().length > 0) {
@@ -2076,19 +2092,23 @@ export const providerService = {
         throw new Error('Either placeId, coordinates (latitude/longitude), or address must be provided');
       }
       
+      // PUT method ensures the location is REPLACED, not added
+      // The backend will remove the old location and save the new one
       const response = await apiClient.put<{ data: { providerId: number; location: SavedLocation; message: string } }>(
         `/api/provider/location`,
         requestBody
       );
       
       if (__DEV__) {
-        console.log('🔍 [updateLocation] Provider location saved successfully:', {
+        console.log('✅ [updateLocation] Provider location REPLACED successfully:', {
           providerId: response.data?.providerId,
           location: response.data?.location,
           hasCoordinates: !!(response.data?.location?.latitude && response.data?.location?.longitude),
           coordinates: response.data?.location?.latitude && response.data?.location?.longitude 
             ? { lat: response.data.location.latitude, lng: response.data.location.longitude }
             : null,
+          address: response.data?.location?.formattedAddress || response.data?.location?.address,
+          note: 'Old location has been replaced with this new location',
         });
       }
       

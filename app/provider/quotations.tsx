@@ -1,21 +1,21 @@
+import { QuotationCardSkeleton } from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock, XCircle, FileText } from 'lucide-react-native';
-import React, { useState, useCallback, useMemo } from 'react';
+import Toast from '@/components/Toast';
+import { haptics } from '@/hooks/useHaptics';
+import { useToast } from '@/hooks/useToast';
+import { BorderRadius, Colors } from '@/lib/designSystem';
+import { ProviderQuotationListItem, providerService } from '@/services/api';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { ArrowRight, CheckCircle2, Clock, FileText, XCircle } from 'lucide-react-native';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
-  RefreshControl,
 } from 'react-native';
-import { providerService, ProviderQuotationListItem } from '@/services/api';
-import { useToast } from '@/hooks/useToast';
-import Toast from '@/components/Toast';
-import { haptics } from '@/hooks/useHaptics';
-import { getSpecificErrorMessage } from '@/utils/errorMessages';
-import { QuotationCardSkeleton } from '@/components/LoadingSkeleton';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('en-NG', {
@@ -322,11 +322,9 @@ export default function ProviderQuotationsScreen() {
   return (
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
       <View style={{ flex: 1 }}>
-        {/* Header */}
+        {/* Header - Title Only (No back arrow or icon since it's a tab) */}
         <View
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
             paddingHorizontal: 20,
             paddingTop: 16,
             paddingBottom: 12,
@@ -335,25 +333,11 @@ export default function ProviderQuotationsScreen() {
             backgroundColor: Colors.white,
           }}
         >
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={{
-              width: 40,
-              height: 40,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: 12,
-            }}
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={24} color={Colors.textPrimary} />
-          </TouchableOpacity>
           <Text
             style={{
               fontSize: 20,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
-              flex: 1,
             }}
           >
             My Quotations

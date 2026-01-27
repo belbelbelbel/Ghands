@@ -1,8 +1,8 @@
+import { useAuthRole } from '@/hooks/useAuth';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Platform } from 'react-native';
-import { useAuthRole } from '@/hooks/useAuth';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -109,6 +109,16 @@ export default function ProviderLayout() {
           tabBarLabel: 'Jobs',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedIcon iconName="assignment" color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="quotations"
+        options={{
+          title: 'Quotations',
+          tabBarLabel: 'Quotations',
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedIcon iconName="description" color={color} focused={focused} />
           ),
         }}
       />

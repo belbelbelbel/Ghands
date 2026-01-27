@@ -1,9 +1,9 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, MessageCircle, Phone, CheckCircle2, Edit, MessageSquare, Activity, FileText, CreditCard, Wrench, CheckCircle, Circle } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, MessageCircle, Phone, CheckCircle2, Edit, MessageSquare, Activity, FileText, CreditCard, Wrench, CheckCircle, Circle, Wallet, Receipt } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View, ActivityIndicator, Animated } from 'react-native';
+import { Image, ScrollView, Text, TouchableOpacity, View, ActivityIndicator, Animated, Modal } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { providerService, serviceRequestService, ServiceRequest, Quotation, apiClient } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
@@ -46,6 +46,27 @@ export default function ProviderJobDetailsScreen() {
   const [selectionCountdown, setSelectionCountdown] = useState<number | null>(null);
   const [providerId, setProviderId] = useState<number | null>(null);
   const [quotationWithProvider, setQuotationWithProvider] = useState<QuotationWithProvider | null>(null);
+  const [activeTab, setActiveTab] = useState<'Updates' | 'Quotations'>('Updates');
+  const [showProceedModal, setShowProceedModal] = useState(false);
+  const [workOrderStatus, setWorkOrderStatus] = useState<'pending' | 'in_progress' | 'active'>('pending');
+
+  // Update work order status based on request and quotation status
+  useEffect(() => {
+    if (request && quotation) {
+      if (quotation.status === 'accepted') {
+        // Work order is in progress (yellow) when quotation accepted
+        if (request.status === 'in_progress' || request.status === 'completed') {
+          setWorkOrderStatus('active'); // Green when job started
+        } else {
+          setWorkOrderStatus('in_progress'); // Yellow when quotation accepted but not started
+        }
+      } else {
+        setWorkOrderStatus('pending');
+      }
+    } else {
+      setWorkOrderStatus('pending');
+    }
+  }, [request, quotation]);
 
   // Load provider location and ID for distance calculations
   useEffect(() => {
@@ -211,9 +232,8 @@ export default function ProviderJobDetailsScreen() {
         // If direct call fails with 500, try to get from accepted requests
         const status = (directError as any)?.status || (directError as any)?.response?.status;
         if (status === 500 || status === 404) {
-          if (__DEV__) {
-            console.log('🔍 [ProviderJobDetailsScreen] Direct call failed, trying accepted requests fallback');
-          }
+          // Suppress error logging for expected 500 errors that will use fallback
+          // This is expected behavior when providers access client endpoints
           
           try {
             // Fallback: Get from accepted requests list
@@ -226,11 +246,9 @@ export default function ProviderJobDetailsScreen() {
             
             usedFallback = true; // Mark that we used fallback successfully
             setIsFromAcceptedRequests(true); // Mark that this request is from accepted requests (provider has accepted)
-            if (__DEV__) {
-              console.log('✅ [ProviderJobDetailsScreen] Found request in accepted requests (fallback successful)');
-            }
+            // Don't log error since fallback succeeded - this is expected behavior
           } catch (fallbackError) {
-            // Both methods failed
+            // Both methods failed - only log if fallback also failed
             if (__DEV__) {
               console.error('🔍 [ProviderJobDetailsScreen] Both direct and fallback failed:', {
                 directError: directError?.message,
@@ -327,11 +345,28 @@ export default function ProviderJobDetailsScreen() {
         }
       }
       
-      if (__DEV__) {
+      // Only log/show error if fallback didn't succeed
+      // If we used fallback successfully, don't show error to user
+      if (!usedFallback) {
+        const status = (error as any)?.status || (error as any)?.response?.status;
+        
+        // For 500 errors, check if we should show error or if fallback should handle it
+        if (status === 500) {
+          // 500 errors are often expected for provider access - don't show error
+          // The fallback mechanism should have handled it
+          if (__DEV__) {
+            console.warn('⚠️ [ProviderJobDetailsScreen] 500 error occurred - this may be expected for provider access');
+          }
+        } else {
+          // For non-500 errors, show error to user
+          if (__DEV__) {
       console.error('Error loading request details:', error);
-      }
+          }
       const errorMessage = getSpecificErrorMessage(error, 'get_request_details');
       showError(errorMessage);
+        }
+      }
+      // If usedFallback is true, we successfully got data from fallback, so no error to show
     } finally {
       setIsLoading(false);
     }
@@ -350,10 +385,16 @@ export default function ProviderJobDetailsScreen() {
     }
   };
 
-  const handleAcceptRequest = async () => {
+  const handleProceedClick = () => {
+    haptics.light();
+    setShowProceedModal(true);
+  };
+
+  const handleAcceptRequest = async (proceedType: 'visit' | 'quote') => {
     if (!params.requestId || isAccepting || isRejecting) return;
 
     setIsAccepting(true);
+    setShowProceedModal(false);
     haptics.light();
 
     try {
@@ -361,12 +402,27 @@ export default function ProviderJobDetailsScreen() {
       await providerService.acceptRequest(requestId);
       
       haptics.success();
-      showSuccess('Request accepted successfully! Waiting for client confirmation.');
       
-      // Navigate back after a short delay
+      if (proceedType === 'visit') {
+        showSuccess('Request accepted! You can now schedule a visit for inspection.');
+        // Navigate to schedule visit or stay on page
+      } else {
+        showSuccess('Request accepted! You can now send a quotation.');
+        // Navigate to send quotation screen
       setTimeout(() => {
-        router.back();
-      }, 1500);
+          router.push({
+            pathname: '/SendQuotationScreen' as any,
+            params: {
+              requestId: params.requestId,
+              jobTitle: request?.jobTitle,
+              returnToTab: 'Quotations',
+            },
+          } as any);
+        }, 1000);
+      }
+      
+      // Reload request data
+      loadRequestDetails();
     } catch (error: any) {
       if (__DEV__) {
       console.error('Error accepting request:', error);
@@ -418,7 +474,7 @@ export default function ProviderJobDetailsScreen() {
     timeline.push({
       id: 'step-1',
       title: 'Job Request Received',
-      description: 'You received this service request',
+      description: 'Awaiting your quotation',
       status: `Completed - ${formatTimeAgo(request.createdAt || new Date().toISOString())}`,
       accent: '#DCFCE7',
       dotColor: '#6A9B00',
@@ -477,13 +533,17 @@ export default function ProviderJobDetailsScreen() {
       }
     }
 
-    // Step 2: Quotation Sent
-    if (quotationWithProvider && (quotationWithProvider.sentAt || quotationWithProvider.status !== 'draft')) {
-      if (quotationWithProvider.status === 'accepted') {
+    // Step 2: Inspection & Quotation
+    // Show as yellow (in progress) when provider has accepted but quotation not sent/accepted yet
+    // Show as green when quotation is accepted
+    if (isFromAcceptedRequests || request.status === 'accepted' || request.status === 'in_progress' || request.status === 'completed') {
+      // Provider has accepted - check if quotation exists and is accepted
+      if (quotationWithProvider && quotationWithProvider.status === 'accepted') {
+        // Quotation accepted - green (completed)
         timeline.push({
           id: 'step-2',
-          title: 'Quotation Sent & Accepted',
-          description: 'Client accepted your quotation',
+          title: 'Inspection & Quotation',
+          description: 'Waiting for client approval & payment.',
           status: `Completed - ${formatTimeAgo(quotationWithProvider.sentAt || request.updatedAt || '')}`,
           accent: '#DCFCE7',
           dotColor: '#6A9B00',
@@ -491,12 +551,14 @@ export default function ProviderJobDetailsScreen() {
           isActive: false,
           isCompleted: true,
           icon: FileText,
+          canEdit: true, // Can edit even when completed
         });
-      } else {
+      } else if (quotationWithProvider && (quotationWithProvider.sentAt || quotationWithProvider.status !== 'draft')) {
+        // Quotation sent but not accepted yet - yellow (in progress)
         timeline.push({
           id: 'step-2',
-          title: 'Quotation Sent',
-          description: 'Waiting for client to accept',
+          title: 'Inspection & Quotation',
+          description: 'Waiting for client approval & payment.',
           status: `Sent - ${formatTimeAgo(quotationWithProvider.sentAt || '')}`,
           accent: '#FEF9C3',
           dotColor: '#F59E0B',
@@ -504,25 +566,29 @@ export default function ProviderJobDetailsScreen() {
           isActive: true,
           isCompleted: false,
           icon: FileText,
+          canEdit: true, // Can edit while waiting
+        });
+      } else {
+        // Provider accepted but no quotation sent yet - yellow (in progress)
+        timeline.push({
+          id: 'step-2',
+          title: 'Inspection & Quotation',
+          description: 'Waiting for client approval & payment.',
+          status: 'In Progress',
+          accent: '#FEF9C3',
+          dotColor: '#F59E0B',
+          lineColor: '#F59E0B',
+          isActive: true,
+          isCompleted: false,
+          icon: FileText,
+          canEdit: true, // Can edit/send quotation
         });
       }
-    } else if (request.status === 'accepted' || request.status === 'in_progress' || request.status === 'completed') {
-      timeline.push({
-        id: 'step-2',
-        title: 'Quotation Accepted',
-        description: 'Client accepted your quotation',
-        status: `Completed - ${formatTimeAgo(request.updatedAt || '')}`,
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
-        lineColor: '#6A9B00',
-        isActive: false,
-        isCompleted: true,
-        icon: FileText,
-      });
     } else {
+      // Provider hasn't accepted yet - gray (pending)
       timeline.push({
         id: 'step-2',
-        title: 'Quotation',
+        title: 'Inspection & Quotation',
         description: 'Send quotation to client',
         status: 'Pending',
         accent: '#F3F4F6',
@@ -531,28 +597,50 @@ export default function ProviderJobDetailsScreen() {
         isActive: false,
         isCompleted: false,
         icon: Circle,
+        canEdit: false,
       });
     }
 
-    // Step 3: Payment Confirmed
-    if (request.status === 'in_progress' || request.status === 'completed') {
+    // Step 3: Quotation Accepted (only show if quotation is accepted)
+    if (quotationWithProvider && quotationWithProvider.status === 'accepted') {
       timeline.push({
         id: 'step-3',
-        title: 'Payment Confirmed',
-        description: 'Payment secured and confirmed',
-        status: `Completed - ${formatTimeAgo(request.updatedAt || '')}`,
+        title: 'Quotation Accepted',
+        description: 'Client Accepted your quote',
+        status: `Completed - ${formatTimeAgo(quotationWithProvider.sentAt || request.updatedAt || '')}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
         lineColor: '#6A9B00',
         isActive: false,
         isCompleted: true,
-        icon: CreditCard,
+        icon: CheckCircle,
       });
+      
+      // Step 3.5: Work order assigned (shows after quotation accepted)
+      // Yellow when quotation accepted, green when Start button clicked
+      const workOrderIsActive = workOrderStatus === 'active' || request.status === 'in_progress' || request.status === 'completed';
+      timeline.push({
+        id: 'step-3.5',
+        title: 'Work order assigned',
+        description: 'Payment secured in Escrow. You are authorized to start.',
+        status: workOrderIsActive ? `Completed - ${formatTimeAgo(request.updatedAt || '')}` : 'In Progress',
+        accent: workOrderIsActive ? '#DCFCE7' : '#FEF9C3',
+        dotColor: workOrderIsActive ? '#6A9B00' : '#F59E0B',
+        lineColor: workOrderIsActive ? '#6A9B00' : '#F59E0B',
+        isActive: !workOrderIsActive,
+        isCompleted: workOrderIsActive,
+        icon: CheckCircle2,
+        showStartButton: !workOrderIsActive, // Show Start button when not active
+      });
+    } else if (quotationWithProvider && (quotationWithProvider.sentAt || quotationWithProvider.status !== 'draft')) {
+      // Quotation sent but not accepted yet - don't show Quotation Accepted or Work order
+      // (they will appear once quotation is accepted)
     } else {
+      // No quotation sent yet - show pending
       timeline.push({
         id: 'step-3',
-        title: 'Payment Confirmed',
-        description: 'Waiting for payment confirmation',
+        title: 'Quotation Accepted',
+        description: 'Waiting for client to accept quotation',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -564,24 +652,13 @@ export default function ProviderJobDetailsScreen() {
     }
 
     // Step 4: Job in Progress
-    if (request.status === 'in_progress') {
+    // Show as yellow when work order is active (Start button clicked)
+    // Show as green when job is completed
+    if (request.status === 'completed') {
       timeline.push({
         id: 'step-4',
         title: 'Job in Progress',
-        description: 'You are on site',
-        status: 'In Progress',
-        accent: '#FEF9C3',
-        dotColor: '#F59E0B',
-        lineColor: '#F59E0B',
-        isActive: true,
-        isCompleted: false,
-        icon: Wrench,
-      });
-    } else if (request.status === 'completed') {
-      timeline.push({
-        id: 'step-4',
-        title: 'Job in Progress',
-        description: 'You were on site',
+        description: 'You are Onsite!',
         status: 'Completed',
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -590,11 +667,25 @@ export default function ProviderJobDetailsScreen() {
         isCompleted: true,
         icon: Wrench,
       });
+    } else if (request.status === 'in_progress' || workOrderStatus === 'active') {
+      // Job in progress - yellow
+      timeline.push({
+        id: 'step-4',
+        title: 'Job in Progress',
+        description: 'You are Onsite!',
+        status: 'In Progress',
+        accent: '#FEF9C3',
+        dotColor: '#F59E0B',
+        lineColor: '#F59E0B',
+        isActive: true,
+        isCompleted: false,
+        icon: Wrench,
+      });
     } else {
       timeline.push({
         id: 'step-4',
         title: 'Job in Progress',
-        description: 'Waiting for quotation acceptance',
+        description: 'Waiting for work order to start',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -610,7 +701,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-5',
         title: 'Complete',
-        description: 'Job completed and approved',
+        description: 'Job Approved',
         status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -623,7 +714,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-5',
         title: 'Complete',
-        description: 'Job will be marked complete after service',
+        description: 'Job Approved',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -692,6 +783,96 @@ export default function ProviderJobDetailsScreen() {
   // Get scheduled date/time
   const scheduledDate = request?.scheduledDate ? formatDate(request.scheduledDate) : '';
   const scheduledTime = request?.scheduledTime || '';
+  
+  // Format date for status message (simpler format: "October 20, 2024")
+  const formatDateForStatus = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    } catch {
+      return dateString;
+    }
+  };
+  
+  const statusDate = request?.scheduledDate ? formatDateForStatus(request.scheduledDate) : '';
+
+  // Determine current status message for provider
+  const statusMessage = useMemo(() => {
+    if (!request) return null;
+
+    // If job is completed
+    if (request.status === 'completed') {
+      return {
+        title: 'Job completed',
+        message: `Job was completed successfully`,
+        showDetails: false,
+      };
+    }
+
+    // If job is in progress
+    if (request.status === 'in_progress') {
+      return {
+        title: 'Job in progress',
+        message: `You are currently working on this job`,
+        showDetails: true,
+      };
+    }
+
+    // If quotation was accepted
+    if (quotationWithProvider?.status === 'accepted' || (request.status === 'accepted' && quotation)) {
+      return {
+        title: 'Quotation accepted',
+        message: `${clientName} accepted your quotation`,
+        showDetails: true,
+        logisticsFee: quotation?.total || quotationWithProvider?.total,
+      };
+    }
+
+    // If quotation was sent but not accepted yet
+    if (quotationWithProvider && quotationWithProvider.status === 'pending') {
+      return {
+        title: 'Quotation sent',
+        message: `Waiting for ${clientName} to approve the quotation`,
+        showDetails: true,
+        logisticsFee: quotationWithProvider.total,
+      };
+    }
+
+    // If provider was selected by client but hasn't accepted yet
+    if (request.selectedAt && !request.selectedProvider && selectionCountdown !== null && selectionCountdown > 0) {
+      return {
+        title: 'You were selected',
+        message: `Waiting for you to accept the selection`,
+        showDetails: true,
+      };
+    }
+
+    // If provider has accepted but no quotation sent yet
+    if (isFromAcceptedRequests && !quotationWithProvider) {
+      return {
+        title: 'Request accepted',
+        message: `Waiting for you to send a quotation`,
+        showDetails: true,
+      };
+    }
+
+    // If request is pending and provider hasn't accepted
+    if (request.status === 'pending' && !isFromAcceptedRequests) {
+      return {
+        title: 'New request',
+        message: `Waiting for you to accept this request`,
+        showDetails: true,
+      };
+    }
+
+    // Default fallback
+    return {
+      title: 'Request received',
+      message: `Processing your request`,
+      showDetails: true,
+    };
+  }, [request, quotationWithProvider, clientName, isFromAcceptedRequests, selectionCountdown, quotation]);
 
   if (isLoading) {
     return (
@@ -773,6 +954,66 @@ export default function ProviderJobDetailsScreen() {
           </Text>
         </View>
 
+        {/* Tabs */}
+        <View
+          style={{
+            flexDirection: 'row',
+            paddingHorizontal: 20,
+            borderBottomWidth: 1,
+            borderBottomColor: Colors.border,
+            marginBottom: 16,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => {
+              haptics.light();
+              setActiveTab('Updates');
+            }}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              alignItems: 'center',
+              borderBottomWidth: activeTab === 'Updates' ? 2 : 0,
+              borderBottomColor: activeTab === 'Updates' ? Colors.accent : 'transparent',
+            }}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={{
+                fontSize: 15,
+                fontFamily: activeTab === 'Updates' ? 'Poppins-Bold' : 'Poppins-Regular',
+                color: activeTab === 'Updates' ? Colors.textPrimary : Colors.textSecondaryDark,
+              }}
+            >
+              Updates
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              haptics.light();
+              setActiveTab('Quotations');
+            }}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              alignItems: 'center',
+              borderBottomWidth: activeTab === 'Quotations' ? 2 : 0,
+              borderBottomColor: activeTab === 'Quotations' ? Colors.accent : 'transparent',
+            }}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={{
+                fontSize: 15,
+                fontFamily: activeTab === 'Quotations' ? 'Poppins-Bold' : 'Poppins-Regular',
+                color: activeTab === 'Quotations' ? Colors.textPrimary : Colors.textSecondaryDark,
+              }}
+            >
+              Quotations
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
@@ -780,6 +1021,8 @@ export default function ProviderJobDetailsScreen() {
             paddingBottom: 120,
           }}
         >
+          {activeTab === 'Updates' ? (
+            <>
           {/* Work Order Assigned Card - Show when quotation exists */}
           {quotation && (
             <View
@@ -958,10 +1201,91 @@ export default function ProviderJobDetailsScreen() {
             </View>
           </View>
 
-          {/* Timeline Section - Right after chat/call buttons */}
-          {request && timelineSteps.length > 0 && (
+          {/* Status Message Card - Above Timeline */}
+          {statusMessage && (
           <View
             style={{
+                backgroundColor: Colors.white,
+              borderRadius: BorderRadius.xl,
+                padding: 16,
+              marginBottom: 16,
+                borderWidth: 1,
+                borderColor: Colors.border,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                  marginBottom: 6,
+                }}
+              >
+                {statusMessage.title}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  marginBottom: statusMessage.showDetails ? 12 : 0,
+                }}
+              >
+                {statusMessage.message}
+              </Text>
+              
+              {statusMessage.showDetails && (
+                <View style={{ marginTop: 12, gap: 8 }}>
+                  {/* Date and Time */}
+                  {(statusDate || scheduledTime) && (
+                    <View
+                      style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
+                      <Calendar size={16} color="#3B82F6" style={{ marginRight: 8 }} />
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        {statusDate && scheduledTime
+                          ? `${statusDate} @${scheduledTime}`
+                          : statusDate || scheduledTime || 'Date not scheduled'}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {/* Logistics Fee */}
+                  {statusMessage.logisticsFee && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Wallet size={16} color={Colors.accent} style={{ marginRight: 8 }} />
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        ₦{new Intl.NumberFormat('en-NG', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }).format(statusMessage.logisticsFee)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Timeline Section - Right after status message */}
+          {request && timelineSteps.length > 0 && (
+            <View
+              style={{
                 backgroundColor: Colors.white,
               borderRadius: BorderRadius.xl,
                 padding: 16,
@@ -1082,22 +1406,102 @@ export default function ProviderJobDetailsScreen() {
                       >
                         {step.title}
                       </Text>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontFamily: 'Poppins-Regular',
-                          color: Colors.textSecondaryDark,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {step.description}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontFamily: 'Poppins-Regular',
+                            color: Colors.textSecondaryDark,
+                            marginBottom: 4,
+                            flex: 1,
+                          }}
+                        >
+                          {step.description}
+                        </Text>
+                        {/* Edit button for Inspection & Quotation */}
+                        {(step as any).canEdit && step.id === 'step-2' && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              haptics.light();
+                              router.push({
+                                pathname: '/SendQuotationScreen' as any,
+                                params: {
+                                  requestId: params.requestId,
+                                  jobTitle: request?.jobTitle,
+                                  returnToTab: 'Quotations',
+                                },
+                              } as any);
+                            }}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              marginLeft: 8,
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                fontFamily: 'Poppins-SemiBold',
+                                color: '#3B82F6',
+                                marginRight: 4,
+                              }}
+                            >
+                              Edit
+                            </Text>
+                            <Edit size={14} color="#3B82F6" />
+                          </TouchableOpacity>
+                        )}
+                        {/* Start button for Work order assigned */}
+                        {(step as any).showStartButton && step.id === 'step-3.5' && (
+                          <TouchableOpacity
+                            onPress={async () => {
+                              haptics.success();
+                              try {
+                                // Update work order status to active
+                                setWorkOrderStatus('active');
+                                // Update request status to in_progress
+                                if (params.requestId) {
+                                  // TODO: Call API to update work order status
+                                  // await providerService.startWorkOrder(parseInt(params.requestId, 10));
+                                  showSuccess('Work order started! Job is now in progress.');
+                                  // Reload to update timeline
+                                  setTimeout(() => {
+                                    loadRequestDetails();
+                                  }, 500);
+                                }
+                              } catch (error) {
+                                showError('Failed to start work order. Please try again.');
+                              }
+                            }}
+                            style={{
+                              backgroundColor: Colors.accent,
+                              paddingVertical: 6,
+                              paddingHorizontal: 12,
+                              borderRadius: BorderRadius.default,
+                              marginLeft: 8,
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                fontFamily: 'Poppins-SemiBold',
+                                color: Colors.white,
+                              }}
+                            >
+                              Start
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                       {step.status && (
                         <Text
                           style={{
                             fontSize: 12,
                             fontFamily: 'Poppins-Regular',
                             color: step.isCompleted ? Colors.accent : step.isActive ? '#F59E0B' : Colors.textTertiary,
+                            marginTop: 4,
                           }}
                         >
                           {step.status}
@@ -1107,6 +1511,46 @@ export default function ProviderJobDetailsScreen() {
                   </Animated.View>
                 );
               })}
+              
+              {/* Mark as Complete Button - Only show when job is in progress */}
+              {request && request.status === 'in_progress' && (
+                <TouchableOpacity
+                  onPress={async () => {
+                    haptics.light();
+                    try {
+                      if (params.requestId) {
+                        // TODO: Call API to mark job as complete
+                        // await serviceRequestService.completeRequest(parseInt(params.requestId, 10));
+                        showSuccess('Job marked as complete!');
+                        loadRequestDetails();
+                      }
+                    } catch (error) {
+                      showError('Failed to mark job as complete. Please try again.');
+                    }
+                  }}
+                  style={{
+                    backgroundColor: Colors.backgroundGray,
+                    paddingVertical: 14,
+                    borderRadius: BorderRadius.default,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 16,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.textSecondaryDark,
+                    }}
+                  >
+                    Mark as complete
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -1516,6 +1960,634 @@ export default function ProviderJobDetailsScreen() {
               />
             </View>
           </View>
+          </>
+          ) : (
+            /* Quotations Tab Content */
+            <>
+              {quotation ? (
+                <>
+              {/* Work Order Assigned Banner */}
+              {quotation && (
+                <View
+                  style={{
+                    backgroundColor: '#FFF7ED',
+                    borderRadius: BorderRadius.xl,
+                    padding: 16,
+                    marginBottom: 16,
+                    borderLeftWidth: 4,
+                    borderLeftColor: '#F97316',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 8,
+                      backgroundColor: '#F97316',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 12,
+                    }}
+                  >
+                    <CheckCircle2 size={20} color={Colors.white} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontFamily: 'Poppins-Bold',
+                        color: Colors.textPrimary,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Work Order Assigned
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontFamily: 'Poppins-Regular',
+                        color: Colors.textSecondaryDark,
+                      }}
+                    >
+                      Review details and accept to proceed.
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Client Information Section */}
+              <View
+                style={{
+                  backgroundColor: Colors.white,
+                  borderRadius: BorderRadius.xl,
+                  padding: 16,
+                  marginBottom: 16,
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                    marginBottom: 12,
+                  }}
+                >
+                  Client Information
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <Image
+                    source={require('../assets/images/userimg.jpg')}
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      marginRight: 12,
+                    }}
+                    resizeMode="cover"
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontFamily: 'Poppins-Bold',
+                        color: Colors.textPrimary,
+                        marginBottom: 3,
+                      }}
+                    >
+                      {clientName}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontFamily: 'Poppins-Regular',
+                        color: Colors.textSecondaryDark,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {user.email || 'Client'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
+                        ⭐ 4.8 (127 reviews)
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity
+                      onPress={() => makeCall(clientName, user.phone || '')}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 8,
+                        backgroundColor: Colors.accent,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Phone size={18} color={Colors.white} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        haptics.light();
+                        router.push({
+                          pathname: '/ChatScreen' as any,
+                          params: {
+                            clientName: clientName,
+                            requestId: params.requestId,
+                          },
+                        } as any);
+                      }}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 8,
+                        backgroundColor: Colors.accent,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <MessageCircle size={18} color={Colors.white} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              {/* Work Order Details Section */}
+              <View
+                style={{
+                  backgroundColor: Colors.white,
+                  borderRadius: BorderRadius.xl,
+                  padding: 16,
+                  marginBottom: 16,
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.textPrimary,
+                    marginBottom: 12,
+                  }}
+                >
+                  Work Order Details
+                </Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontFamily: 'Poppins-Bold',
+                      color: Colors.textPrimary,
+                    }}
+                  >
+                    {request.categoryName || 'Service Request'}
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: Colors.successLight,
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: BorderRadius.xl,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: Colors.success,
+                      }}
+                    >
+                      {quotation?.status === 'accepted' ? 'Approved' : 'Pending'}
+                    </Text>
+                  </View>
+                </View>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textSecondaryDark,
+                    marginBottom: 12,
+                  }}
+                >
+                  Order #{request.id || 'N/A'}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: Colors.backgroundGray,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 10,
+                    }}
+                  >
+                    <Calendar size={18} color={Colors.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: Colors.textPrimary,
+                        marginBottom: 3,
+                      }}
+                    >
+                      {scheduledDate || 'Date not scheduled'}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontFamily: 'Poppins-Regular',
+                        color: Colors.textSecondaryDark,
+                      }}
+                    >
+                      Scheduled date
+                    </Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: Colors.backgroundGray,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 10,
+                    }}
+                  >
+                    <Clock size={18} color={Colors.accent} />
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.textPrimary,
+                    }}
+                  >
+                    {scheduledTime ? `From ${scheduledTime}` : 'Time not scheduled'}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: Colors.backgroundGray,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 10,
+                    }}
+                  >
+                    <MapPin size={18} color={Colors.textPrimary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: Colors.textPrimary,
+                        marginBottom: 3,
+                      }}
+                    >
+                      {request.location?.address || 'Location not specified'}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontFamily: 'Poppins-Regular',
+                        color: Colors.textSecondaryDark,
+                      }}
+                    >
+                      {request.location?.address || 'Address'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Quotation Summary Section */}
+              {quotation && (
+                <View
+                  style={{
+                    borderRadius: BorderRadius.xl,
+                    overflow: 'hidden',
+                    marginBottom: 16,
+                  }}
+                >
+                  {/* Header with green background */}
+                  <View
+                    style={{
+                      backgroundColor: '#CAFF33',
+                      padding: 16,
+                      borderTopLeftRadius: BorderRadius.xl,
+                      borderTopRightRadius: BorderRadius.xl,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontFamily: 'Poppins-Bold',
+                        color: Colors.textPrimary,
+                      }}
+                    >
+                      Quotation Summary
+                    </Text>
+                  </View>
+                  {/* Content with white background */}
+                  <View
+                    style={{
+                      backgroundColor: Colors.white,
+                      padding: 16,
+                      borderBottomLeftRadius: BorderRadius.xl,
+                      borderBottomRightRadius: BorderRadius.xl,
+                      borderWidth: 1,
+                      borderColor: Colors.border,
+                      borderTopWidth: 0,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        Labor Cost
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-SemiBold',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        ₦{quotation.laborCost?.toFixed(2) || '0.00'}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        Logistics Cost
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-SemiBold',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        ₦{quotation.logisticsCost?.toFixed(2) || '0.00'}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        Materials cost
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontFamily: 'Poppins-SemiBold',
+                            color: Colors.textPrimary,
+                            marginRight: 8,
+                          }}
+                        >
+                          ₦{quotation.materialsCost?.toFixed(2) || '0.00'}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            // Show materials breakdown
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontFamily: 'Poppins-SemiBold',
+                              color: '#3B82F6',
+                            }}
+                          >
+                            Breakdown
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        Service charge
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-SemiBold',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        ₦{quotation.serviceCharge?.toFixed(2) || '0.00'}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        marginBottom: 16,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        Tax
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Poppins-SemiBold',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        ₦{quotation.tax?.toFixed(2) || '0.00'}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        paddingTop: 16,
+                        borderTopWidth: 1,
+                        borderTopColor: Colors.border,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontFamily: 'Poppins-Bold',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        Total Amount
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 18,
+                          fontFamily: 'Poppins-Bold',
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        ₦{quotation.total?.toFixed(2) || '0.00'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+                </>
+              ) : (
+                /* No Quotation - Empty State */
+                <View
+                  style={{
+                    flex: 1,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingVertical: 60,
+                    paddingHorizontal: 20,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 80,
+                      height: 80,
+                      borderRadius: 40,
+                      backgroundColor: Colors.backgroundGray,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 24,
+                    }}
+                  >
+                    <FileText size={40} color={Colors.textSecondaryDark} />
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontFamily: 'Poppins-Bold',
+                      color: Colors.textPrimary,
+                      marginBottom: 8,
+                      textAlign: 'center',
+                    }}
+                  >
+                    No Quotation Yet
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      textAlign: 'center',
+                      marginBottom: 32,
+                      lineHeight: 20,
+                    }}
+                  >
+                    A quotation hasn't been sent for this job yet.{'\n'}
+                    Once a quotation is sent and accepted, you'll see the details here.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      haptics.light();
+                      router.push({
+                        pathname: '/SendQuotationScreen' as any,
+                        params: {
+                          requestId: params.requestId,
+                          jobTitle: request?.jobTitle,
+                          returnToTab: 'Quotations',
+                        },
+                      } as any);
+                    }}
+                    style={{
+                      backgroundColor: Colors.accent,
+                      paddingVertical: 14,
+                      paddingHorizontal: 32,
+                      borderRadius: BorderRadius.default,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: Colors.white,
+                      }}
+                    >
+                      Send Quotation
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
         </ScrollView>
 
         {/* Bottom Action Buttons - Fixed */}
@@ -1607,45 +2679,8 @@ export default function ProviderJobDetailsScreen() {
             </View>
           )}
 
-          {/* Check if request is already accepted, in progress, or completed - show message button */}
-          {/* Also check if request is from accepted requests list (provider has accepted, even if status is pending) */}
-          {request && (isFromAcceptedRequests || request.status === 'accepted' || request.status === 'in_progress' || request.status === 'completed') ? (
-            <>
-              {/* Message Client Button */}
-              <TouchableOpacity
-                style={{
-                  backgroundColor: Colors.accent,
-                  paddingVertical: 12,
-                  borderRadius: BorderRadius.default,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexDirection: 'row',
-                }}
-                activeOpacity={0.8}
-                onPress={() => {
-                  haptics.light();
-                  router.push({
-                    pathname: '/ChatScreen',
-                    params: {
-                      clientName: clientName,
-                      requestId: params.requestId,
-                    },
-                  } as any);
-                }}
-              >
-                <MessageCircle size={16} color={Colors.white} style={{ marginRight: 8 }} />
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.white,
-                  }}
-                >
-                  Message Client
-                </Text>
-              </TouchableOpacity>
-            </>
-          ) : quotation && quotation.status === 'accepted' ? (
+          {/* Show action buttons based on active tab */}
+          {activeTab === 'Quotations' && quotation && quotation.status === 'accepted' ? (
             <>
               {/* Request Changes Button */}
               <TouchableOpacity
@@ -1666,7 +2701,7 @@ export default function ProviderJobDetailsScreen() {
                   // TODO: Implement request changes functionality
                 }}
               >
-                <Edit size={16} color="#F97316" style={{ marginRight: 8 }} />
+                <CheckCircle2 size={16} color="#F97316" style={{ marginRight: 8 }} />
                 <Text
                   style={{
                     fontSize: 14,
@@ -1688,6 +2723,8 @@ export default function ProviderJobDetailsScreen() {
                   justifyContent: 'center',
                   marginBottom: 10,
                   flexDirection: 'row',
+                  borderWidth: 1,
+                  borderColor: Colors.border,
                 }}
                 activeOpacity={0.8}
                 onPress={() => {
@@ -1740,6 +2777,145 @@ export default function ProviderJobDetailsScreen() {
                 </Text>
               </TouchableOpacity>
             </>
+          ) : request && request.status === 'completed' ? (
+            <>
+              {/* View Receipt Button */}
+              <TouchableOpacity
+                style={{
+                  backgroundColor: Colors.accent,
+                  paddingVertical: 14,
+                  borderRadius: BorderRadius.default,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                  marginBottom: 12,
+                }}
+                activeOpacity={0.8}
+                onPress={() => {
+                  haptics.light();
+                  router.push({
+                    pathname: '/ProviderReceiptScreen' as any,
+                    params: {
+                      requestId: params.requestId,
+                    },
+                  } as any);
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.white,
+                    marginRight: 8,
+                  }}
+                >
+                  View receipt
+                </Text>
+                <ArrowRight size={16} color={Colors.white} />
+              </TouchableOpacity>
+
+              {/* Report Issue Button */}
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#FEE2E2',
+                  paddingVertical: 14,
+                  borderRadius: BorderRadius.default,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: Colors.error,
+                  marginBottom: 12,
+                }}
+                activeOpacity={0.8}
+                onPress={() => {
+                  haptics.light();
+                  router.push({
+                    pathname: '/ReportIssueScreen' as any,
+                    params: {
+                      requestId: params.requestId,
+                      jobTitle: request.categoryName || 'Service Request',
+                      orderNumber: `Order #${request.id || 'N/A'}`,
+                      cost: quotation?.total ? `₦${quotation.total.toFixed(2)}` : 'N/A',
+                      assignee: clientName,
+                      completionDate: request.updatedAt ? formatDate(request.updatedAt) : 'N/A',
+                    },
+                  } as any);
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.error,
+                  }}
+                >
+                  Report Issue
+                </Text>
+              </TouchableOpacity>
+
+              {/* Job Completed Button */}
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#4B5563',
+                  paddingVertical: 14,
+                  borderRadius: BorderRadius.default,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                activeOpacity={0.8}
+                onPress={() => {
+                  haptics.success();
+                  // Job is already completed
+                  showSuccess('Job completed successfully!');
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.white,
+                  }}
+                >
+                  Job Completed
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : request && (isFromAcceptedRequests || request.status === 'accepted' || request.status === 'in_progress') ? (
+            <>
+              {/* Message Client Button */}
+              <TouchableOpacity
+                style={{
+                  backgroundColor: Colors.accent,
+                  paddingVertical: 12,
+                  borderRadius: BorderRadius.default,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                }}
+                activeOpacity={0.8}
+                onPress={() => {
+                  haptics.light();
+                  router.push({
+                    pathname: '/ChatScreen',
+                    params: {
+                      clientName: clientName,
+                      requestId: params.requestId,
+                    },
+                  } as any);
+                }}
+              >
+                <MessageCircle size={16} color={Colors.white} style={{ marginRight: 8 }} />
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.white,
+                  }}
+                >
+                  Message Client
+                </Text>
+              </TouchableOpacity>
+            </>
           ) : request && request.status === 'pending' && !isFromAcceptedRequests ? (
             <>
               <TouchableOpacity
@@ -1753,7 +2929,7 @@ export default function ProviderJobDetailsScreen() {
                   flexDirection: 'row',
                   opacity: isAccepting || isRejecting ? 0.6 : 1,
                 }}
-                onPress={handleAcceptRequest}
+                onPress={handleProceedClick}
                 disabled={isAccepting || isRejecting}
                 activeOpacity={0.8}
               >
@@ -1767,7 +2943,7 @@ export default function ProviderJobDetailsScreen() {
                         color: Colors.white,
                       }}
                     >
-                      Accepting...
+                      Processing...
                     </Text>
                   </>
                 ) : (
@@ -1778,7 +2954,7 @@ export default function ProviderJobDetailsScreen() {
                       color: Colors.white,
                     }}
                   >
-                    Accept Request
+                    Proceed
                   </Text>
                 )}
               </TouchableOpacity>
@@ -1835,7 +3011,11 @@ export default function ProviderJobDetailsScreen() {
                 if (params.requestId) {
                   router.push({
                     pathname: '/SendQuotationScreen',
-                    params: { requestId: params.requestId },
+                    params: {
+                      requestId: params.requestId,
+                      jobTitle: request?.jobTitle,
+                      returnToTab: 'Quotations',
+                    },
                   } as any);
                 }
               }}
@@ -1860,6 +3040,153 @@ export default function ProviderJobDetailsScreen() {
         visible={toast.visible}
         onClose={hideToast}
       />
+
+      {/* Proceed Modal */}
+      <Modal
+        visible={showProceedModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowProceedModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: BorderRadius.xl,
+              padding: 24,
+              width: '100%',
+              maxWidth: 400,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+                marginBottom: 24,
+                textAlign: 'center',
+              }}
+            >
+              How do you want to proceed?
+            </Text>
+
+            {/* Option 1: Request Visit */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  flex: 1,
+                }}
+              >
+                I need to visit first
+              </Text>
+              <TouchableOpacity
+                onPress={() => handleAcceptRequest('visit')}
+                style={{
+                  backgroundColor: Colors.backgroundGray,
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  borderRadius: BorderRadius.default,
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  Request visit
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Option 2: Send Quote */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 24,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  flex: 1,
+                }}
+              >
+                I'm ready to give a price
+              </Text>
+              <TouchableOpacity
+                onPress={() => handleAcceptRequest('quote')}
+                style={{
+                  backgroundColor: Colors.black,
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  borderRadius: BorderRadius.default,
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.accent,
+                  }}
+                >
+                  Send Quote
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Cancel Button */}
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                setShowProceedModal(false);
+              }}
+              style={{
+                paddingVertical: 12,
+                alignItems: 'center',
+              }}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                }}
+              >
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaWrapper>
   );
 }

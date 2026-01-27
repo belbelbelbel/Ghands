@@ -235,6 +235,8 @@ export default function RootLayout() {
         <Stack.Screen name="SecurityScreen" options={{ headerShown: false }} />
         <Stack.Screen name="CreatePINScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderActivityScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="YourServicesScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="AddCustomServiceScreen" options={{ headerShown: false }} />
           </Stack>
         </AuthErrorBoundary>
       </QueryProvider>

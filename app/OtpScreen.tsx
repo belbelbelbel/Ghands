@@ -1,10 +1,9 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { Button } from '@/components/ui/Button';
+import { Colors } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Button } from '@/components/ui/Button';
-import { Colors, Spacing } from '@/lib/designSystem';
 
 export default function OtpScreen() {
   const router = useRouter();
@@ -129,7 +128,7 @@ export default function OtpScreen() {
           >
             <ArrowLeft size={20} color={Colors.textPrimary} />
           </View>
-        </TouchableOpacity> */}
+        </TouchableOpacity>
 
         {/* Title */}
         <Text

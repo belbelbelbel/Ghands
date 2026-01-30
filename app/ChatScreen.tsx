@@ -15,6 +15,7 @@ import {
   Animated,
 } from 'react-native';
 import { haptics } from '@/hooks/useHaptics';
+import { providerService } from '@/services/api';
 
 interface Message {
   id: string;
@@ -55,15 +56,53 @@ const AUTO_RESPONSES = [
 
 export default function ChatScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ providerName?: string; providerId?: string; clientName?: string }>();
+  const params = useLocalSearchParams<{ 
+    providerName?: string; 
+    providerId?: string; 
+    clientName?: string;
+    requestId?: string;
+  }>();
   const providerName = params.providerName || 'AquaFix Solutions';
   const clientName = params.clientName || 'Client';
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [message, setMessage] = useState('');
   const flatListRef = useRef<FlatList>(null);
+  const [hasQuotation, setHasQuotation] = useState<boolean>(false);
+  const [isCheckingQuotation, setIsCheckingQuotation] = useState<boolean>(false);
 
   // Determine if this is provider view (has clientName) or user view
   const isProviderView = !!params.clientName;
+
+  // Check if quotation already exists for this request
+  useEffect(() => {
+    const checkQuotation = async () => {
+      if (!isProviderView || !params.requestId) {
+        return;
+      }
+
+      const requestId = parseInt(params.requestId, 10);
+      if (isNaN(requestId)) {
+        return;
+      }
+
+      setIsCheckingQuotation(true);
+      try {
+        const quotation = await providerService.getQuotation(requestId);
+        if (quotation && quotation.id) {
+          setHasQuotation(true);
+        } else {
+          setHasQuotation(false);
+        }
+      } catch (error: any) {
+        // Quotation doesn't exist or error - that's OK, just means no quotation sent yet
+        setHasQuotation(false);
+      } finally {
+        setIsCheckingQuotation(false);
+      }
+    };
+
+    checkQuotation();
+  }, [isProviderView, params.requestId]);
 
   // Format time helper
   const formatTime = (date: Date): string => {
@@ -433,13 +472,18 @@ export default function ChatScreen() {
           style={{ flex: 1, backgroundColor: '#F9FAFB' }}
         />
 
-        {/* Send Quotation Button - Only show for providers */}
-        {isProviderView && (
+        {/* Send Quotation Button - Only show for providers if quotation hasn't been sent yet */}
+        {isProviderView && !hasQuotation && !isCheckingQuotation && (
           <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm }}>
             <TouchableOpacity
               onPress={() => {
                 haptics.light();
-                router.push('/SendQuotationScreen' as any);
+                router.push({
+                  pathname: '/SendQuotationScreen' as any,
+                  params: {
+                    requestId: params.requestId,
+                  },
+                });
               }}
               style={{
                 backgroundColor: '#EFF6FF',

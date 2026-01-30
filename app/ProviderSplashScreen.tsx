@@ -193,14 +193,15 @@ const styles = StyleSheet.create({
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.4, // Increased shadow for better visibility
-    shadowRadius: 10, // Increased shadow radius
-    elevation: 10, // Increased elevation for Android
-    overflow: 'hidden', // Ensure logo doesn't overflow container
+    shadowOpacity: 0.5, // Increased shadow for better visibility
+    shadowRadius: 12, // Increased shadow radius
+    elevation: 12, // Increased elevation for Android
+    overflow: 'visible', // Allow shadow to be visible
+    padding: 8, // Add padding to ensure logo doesn't touch edges
   },
   icon: {
-    width: '90%', // Increased from 75% for better visibility
-    height: '90%', // Increased from 75% for better visibility
+    width: '100%', // Full width within padding
+    height: '100%', // Full height within padding
   },
   tagline: {
     fontFamily: 'Poppins-SemiBold',

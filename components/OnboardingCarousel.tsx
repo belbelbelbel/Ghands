@@ -36,6 +36,11 @@ export default function OnboardingCarousel({
 
   return (
     <View style={styles.container}>
+      {/* Skip Button - Top Right */}
+      <Pressable style={styles.skipButton} onPress={onSkip}>
+        <Text style={styles.skipText}>Skip</Text>
+      </Pressable>
+
       <View style={styles.carouselContainer}>
         <Animated.View
           style={[
@@ -79,6 +84,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A0E07',
   },
+  skipButton: {
+    position: 'absolute',
+    top: 50,
+    right: 24,
+    zIndex: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  skipText: {
+    fontSize: 15,
+    fontFamily: 'Poppins-SemiBold',
+    color: Colors.white,
+    letterSpacing: 0.5,
+  },
   carouselContainer: {
     flex: 1,
   },
@@ -120,6 +148,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   ctaText: {
     fontSize: 16,

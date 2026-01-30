@@ -1,194 +1,330 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
+import { BorderRadius, Colors } from '@/lib/designSystem';
+import { Notification, notificationService } from '@/services/api';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, ArrowRight, Calendar, CheckCircle, Clock, FileText, Handshake, MessageCircle, Wallet, X } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View, Modal } from 'react-native';
+import { ArrowLeft, Calendar, Clock, FileText, Handshake, MessageCircle, Wallet, X } from 'lucide-react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-interface Notification {
-  id: string;
+type UINotificationSection = 'Recent' | 'Yesterday' | 'Last week';
+
+interface UINotification {
+  id: number;
+  isRead: boolean;
+  createdAt: string;
+  requestId?: number | null;
+  quotationId?: number | null;
+  transactionId?: number | null;
   type: string;
   description: string;
-  time: string;
   barColor: string;
   icon: any;
   iconBgColor: string;
-  isRead: boolean;
-  section: 'Recent' | 'Yesterday' | 'Last week';
-  requestId?: string;
-  workOrderId?: string;
-  amount?: string;
-  clientName?: string;
+  iconColor: string;
+  time: string;
+  section: UINotificationSection;
+  raw: Notification;
 }
-
-const NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    type: 'Job Status',
-    description: 'Marcus lee marked job as completed.',
-    time: '20mins ago',
-    barColor: '#3B82F6',
-    icon: Handshake,
-    iconBgColor: '#FEF3C7',
-    isRead: false,
-    section: 'Recent',
-    requestId: '123',
-    clientName: 'Marcus lee',
-  },
-  {
-    id: '2',
-    type: 'New message',
-    description: 'Marcus lee sent you a text.',
-    time: '20mins ago',
-    barColor: '#3B82F6',
-    icon: MessageCircle,
-    iconBgColor: '#E5E7EB',
-    isRead: false,
-    section: 'Recent',
-    requestId: '123',
-    clientName: 'Marcus lee',
-  },
-  {
-    id: '3',
-    type: 'Job Status',
-    description: 'Marcus lee marked job as completed.',
-    time: '20mins ago',
-    barColor: Colors.accent,
-    icon: Handshake,
-    iconBgColor: '#FEF3C7',
-    isRead: true,
-    section: 'Yesterday',
-    requestId: '124',
-    clientName: 'Marcus lee',
-  },
-  {
-    id: '4',
-    type: 'New Request',
-    description: 'You have a new job request.',
-    time: '20mins ago',
-    barColor: Colors.accent,
-    icon: FileText,
-    iconBgColor: '#DBEAFE',
-    isRead: true,
-    section: 'Yesterday',
-    requestId: '125',
-  },
-  {
-    id: '5',
-    type: 'Work order Issued',
-    description: 'Work order for #WO-2024-115 has been issued. Start date: Dec 12, 2024.',
-    time: '20mins ago',
-    barColor: Colors.accent,
-    icon: Calendar,
-    iconBgColor: '#DCFCE7',
-    isRead: true,
-    section: 'Yesterday',
-    workOrderId: 'WO-2024-115',
-  },
-  {
-    id: '6',
-    type: 'Payment Released',
-    description: '20,000 has been released for #WO-2024-1157. Funds will be available in your wallet shortly.',
-    time: '20mins ago',
-    barColor: '#3B82F6',
-    icon: Wallet,
-    iconBgColor: '#DCFCE7',
-    isRead: false,
-    section: 'Last week',
-    workOrderId: 'WO-2024-1157',
-    amount: '20000',
-  },
-  {
-    id: '7',
-    type: 'Withdrawal Status',
-    description: 'Your withdrawal request of 45,000 has been processed successfully.',
-    time: '20mins ago',
-    barColor: '#3B82F6',
-    icon: Clock,
-    iconBgColor: '#E5E7EB',
-    isRead: false,
-    section: 'Last week',
-    amount: '45000',
-  },
-];
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const [hasNotifications] = useState(true); // Set to false to show empty state
-  const [previewNotification, setPreviewNotification] = useState<Notification | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [previewNotification, setPreviewNotification] = useState<UINotification | null>(null);
 
-  const groupedNotifications = NOTIFICATIONS.reduce((acc, notif) => {
-    if (!acc[notif.section]) {
-      acc[notif.section] = [];
+  const hasNotifications = notifications.length > 0;
+
+  const formatTimeAgo = (isoDate: string): string => {
+    try {
+      const created = new Date(isoDate).getTime();
+      const now = Date.now();
+      const diffMs = Math.max(0, now - created);
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMinutes / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffMinutes < 1) return 'Just now';
+      if (diffMinutes < 60) return `${diffMinutes}mins ago`;
+      if (diffHours < 24) return `${diffHours}hrs ago`;
+      if (diffDays === 1) return 'Yesterday';
+      return `${diffDays} days ago`;
+    } catch {
+      return '';
     }
-    acc[notif.section].push(notif);
-    return acc;
-  }, {} as Record<string, Notification[]>);
-
-  const handleClearAll = () => {
-    // Handle clear all
   };
 
-  const handleMarkAsRead = (id: string) => {
-    // Handle mark as read
+  const getSectionFromDate = (isoDate: string): UINotificationSection => {
+    try {
+      const created = new Date(isoDate);
+      const now = new Date();
+      const diffMs = now.getTime() - created.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) return 'Recent';
+      if (diffDays === 1) return 'Yesterday';
+      return 'Last week';
+    } catch {
+      return 'Recent';
+    }
   };
 
-  const handleViewDetails = (notification: Notification) => {
-    setPreviewNotification(notification);
+  // Map backend notification type to UI presentation
+  const mapNotificationToUI = (notification: Notification): UINotification => {
+    // Default UI values
+    let typeLabel = notification.title || 'Notification';
+    let description = notification.description || notification.message || '';
+    let barColor = Colors.accent;
+    let IconComponent: any = FileText;
+    let iconBgColor = '#E5E7EB';
+    let iconColor = Colors.textPrimary;
+
+    switch (notification.type) {
+      case 'deposit_success': {
+        typeLabel = 'Deposit Successful';
+        const amount = notification.metadata?.amount ?? notification.metadata?.total;
+        const amountText =
+          typeof amount === 'number'
+            ? `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 0 })}`
+            : '';
+        description =
+          description ||
+          (amountText
+            ? `${amountText} has been successfully deposited to your wallet.`
+            : 'Your deposit has been successfully completed and added to your wallet balance.');
+        barColor = '#16A34A';
+        IconComponent = Wallet;
+        iconBgColor = '#DCFCE7';
+        iconColor = '#15803D'; // rich green
+        break;
+      }
+      case 'quotation_sent': {
+        typeLabel = 'Quotation Sent';
+        const total = notification.metadata?.total;
+        const totalText =
+          typeof total === 'number'
+            ? `₦${total.toLocaleString('en-NG', { minimumFractionDigits: 0 })}`
+            : '';
+        description =
+          description ||
+          (totalText
+            ? `A provider has sent you a quotation with a total amount of ${totalText}.`
+            : 'A provider has sent you a new quotation. Please review and decide whether to accept or decline.');
+        barColor = Colors.accent;
+        IconComponent = FileText;
+        iconBgColor = '#DBEAFE';
+        iconColor = '#1D4ED8'; // blue
+        break;
+      }
+      case 'request_accepted': {
+        // Client-side view: provider accepted their request
+        typeLabel = 'Request Accepted';
+        {
+          const providerName = notification.metadata?.providerName || 'A provider';
+          description =
+            description ||
+            `${providerName} has accepted your request. They will review the details and send you a quotation shortly.`;
+        }
+        barColor = '#3B82F6';
+        IconComponent = Handshake;
+        iconBgColor = '#FEF3C7';
+        iconColor = '#92400E'; // warm brown
+        break;
+      }
+      case 'request_received':
+      case 'new_request': {
+        // Provider-side view: they received a new job request
+        typeLabel = 'New Request';
+        description =
+          description ||
+          'You have a new job request. Review the details and decide whether to proceed.';
+        barColor = Colors.accent;
+        IconComponent = FileText;
+        iconBgColor = '#DBEAFE';
+        iconColor = '#1D4ED8';
+        break;
+      }
+      case 'work_order_issued':
+      case 'work_order_created': {
+        typeLabel = 'Work order issued';
+        description =
+          description ||
+          'A work order has been issued for this job. Check the schedule and get ready to start.';
+        barColor = Colors.accent;
+        IconComponent = Calendar;
+        iconBgColor = '#DCFCE7';
+        iconColor = '#15803D';
+        break;
+      }
+      case 'payment_released':
+      case 'payout_released':
+      case 'job_payment_released': {
+        typeLabel = 'Payment Released';
+        const amount = notification.metadata?.amount ?? notification.metadata?.total;
+        const amountText =
+          typeof amount === 'number'
+            ? `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 0 })}`
+            : '';
+        description =
+          description ||
+          (amountText
+            ? `${amountText} has been released for this job. Funds will be available in your wallet shortly.`
+            : 'Payment has been released for this job. Funds will be available in your wallet shortly.');
+        barColor = '#3B82F6';
+        IconComponent = Wallet;
+        iconBgColor = '#DCFCE7';
+        iconColor = '#15803D';
+        break;
+      }
+      case 'withdrawal_success':
+      case 'withdrawal_processed':
+      case 'withdrawal_completed': {
+        typeLabel = 'Withdrawal Status';
+        const amount = notification.metadata?.amount ?? notification.metadata?.total;
+        const amountText =
+          typeof amount === 'number'
+            ? `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 0 })}`
+            : '';
+        description =
+          description ||
+          (amountText
+            ? `Your withdrawal request of ${amountText} has been processed successfully.`
+            : 'Your withdrawal request has been processed successfully.');
+        barColor = '#3B82F6';
+        IconComponent = Clock;
+        iconBgColor = '#E5E7EB';
+        iconColor = '#1F2937';
+        break;
+      }
+      default: {
+        // Fallback styling
+        if (notification.type === 'message' || notification.type === 'chat_new') {
+          typeLabel = 'New message';
+          barColor = '#3B82F6';
+          IconComponent = MessageCircle;
+          iconBgColor = '#E5E7EB';
+          iconColor = '#1F2937'; // dark gray
+        }
+        break;
+      }
+    }
+
+    return {
+      id: notification.id,
+      isRead: notification.status === 'read',
+      createdAt: notification.createdAt,
+      requestId: notification.requestId,
+      quotationId: notification.quotationId,
+      transactionId: notification.transactionId,
+      type: typeLabel,
+      description,
+      barColor,
+      icon: IconComponent,
+      iconBgColor,
+      iconColor,
+      time: formatTimeAgo(notification.createdAt),
+      section: getSectionFromDate(notification.createdAt),
+      raw: notification,
+    };
   };
 
-  const handleNavigateToDetails = (notification: Notification) => {
+  const uiNotifications = useMemo<UINotification[]>(
+    () => notifications.map(mapNotificationToUI),
+    [notifications]
+  );
+
+  const groupedNotifications = useMemo(() => {
+    const groups: Record<UINotificationSection, UINotification[]> = {
+      Recent: [],
+      Yesterday: [],
+      'Last week': [],
+    };
+
+    uiNotifications.forEach((notif) => {
+      const section = notif.section;
+      groups[section].push(notif);
+    });
+
+    return groups;
+  }, [uiNotifications]);
+
+  const loadNotifications = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch all notifications (both read and unread) to show full history
+      // Increase limit to get more notifications
+      const result = await notificationService.getNotifications({ limit: 100, offset: 0 });
+      setNotifications(result.notifications || []);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error loading notifications:', error);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const handleClearAll = async () => {
+    if (!hasNotifications || isClearing) return;
+    setIsClearing(true);
+    try {
+      await notificationService.deleteAllNotifications();
+      setNotifications([]);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error clearing notifications:', error);
+      }
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  const handleMarkAsRead = async (id: number) => {
+    try {
+      await notificationService.markAsRead(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, status: 'read' } : n))
+      );
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error marking notification as read:', error);
+      }
+    }
+  };
+
+  // Navigate to the correct screen for a backend notification
+  const handleNavigateToDetails = (notification: Notification | UINotification) => {
     setPreviewNotification(null);
     
-    // Map notification types to appropriate screens
-    switch (notification.type) {
-      case 'Job Status':
-        if (notification.requestId) {
+    // Extract raw notification if it's a UINotification
+    const rawNotification = 'raw' in notification ? notification.raw : notification;
+
+    switch (rawNotification.type) {
+      case 'request_accepted':
+      case 'quotation_sent':
+        if (rawNotification.requestId) {
           router.push({
             pathname: '/OngoingJobDetails' as any,
-            params: { requestId: notification.requestId },
+            params: { requestId: String(rawNotification.requestId) },
           } as any);
         }
         break;
-      case 'New message':
-        if (notification.requestId && notification.clientName) {
-          router.push({
-            pathname: '/ChatScreen' as any,
-            params: {
-              clientName: notification.clientName,
-              requestId: notification.requestId,
-            },
-          } as any);
-        }
-        break;
-      case 'New Request':
-        if (notification.requestId) {
-          router.push({
-            pathname: '/ProviderJobDetailsScreen' as any,
-            params: { requestId: notification.requestId },
-          } as any);
-        }
-        break;
-      case 'Work order Issued':
-        if (notification.requestId) {
-          router.push({
-            pathname: '/ProviderJobDetailsScreen' as any,
-            params: { requestId: notification.requestId },
-          } as any);
-        }
-        break;
-      case 'Payment Released':
-        router.push('/WalletScreen' as any);
-        break;
-      case 'Withdrawal Status':
+      case 'deposit_success':
         router.push('/WalletScreen' as any);
         break;
       default:
+        // For other notification types, show preview modal
+        const uiNotif = 'raw' in notification ? notification : mapNotificationToUI(rawNotification);
+        setPreviewNotification(uiNotif);
         break;
     }
   };
 
-  if (!hasNotifications) {
+  if (!isLoading && !hasNotifications) {
     return (
       <SafeAreaWrapper backgroundColor={Colors.white}>
         <View style={{ flex: 1 }}>
@@ -329,6 +465,72 @@ export default function NotificationsScreen() {
             paddingBottom: 100,
           }}
         >
+          {/* Simple skeleton while loading and list is empty */}
+          {isLoading && !hasNotifications && (
+            <View style={{ marginBottom: 24 }}>
+              {[1, 2, 3].map((i) => (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: 'row',
+                    marginBottom: i < 3 ? 12 : 0,
+                    backgroundColor: Colors.white,
+                    borderRadius: BorderRadius.xl,
+                    padding: 16,
+                    opacity: 0.6,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 4,
+                      backgroundColor: '#E5E7EB',
+                      borderRadius: 2,
+                      marginRight: 12,
+                      alignSelf: 'stretch',
+                    }}
+                  />
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      backgroundColor: '#E5E7EB',
+                      marginRight: 12,
+                    }}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <View
+                      style={{
+                        width: '40%',
+                        height: 12,
+                        borderRadius: 6,
+                        backgroundColor: '#E5E7EB',
+                        marginBottom: 8,
+                      }}
+                    />
+                    <View
+                      style={{
+                        width: '90%',
+                        height: 10,
+                        borderRadius: 6,
+                        backgroundColor: '#E5E7EB',
+                        marginBottom: 6,
+                      }}
+                    />
+                    <View
+                      style={{
+                        width: '60%',
+                        height: 10,
+                        borderRadius: 6,
+                        backgroundColor: '#E5E7EB',
+                      }}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           {(['Recent', 'Yesterday', 'Last week'] as const).map((section) => {
             const sectionNotifications = groupedNotifications[section] || [];
             if (sectionNotifications.length === 0) return null;
@@ -353,20 +555,25 @@ export default function NotificationsScreen() {
                     key={notification.id}
                     style={{
                       flexDirection: 'row',
-                      marginBottom: index < sectionNotifications.length - 1 ? 12 : 0,
+                      marginBottom: index < sectionNotifications.length - 1 ? 14 : 0,
                       backgroundColor: Colors.white,
                       borderRadius: BorderRadius.xl,
-                      padding: 16,
+                      paddingVertical: 16,
+                      paddingHorizontal: 10,
+                      borderLeftWidth: 3,
+                      borderColor: notification.isRead ? Colors.accent : '#3B82F6',
+                      
                     }}
                   >
                     {/* Colored Bar - Blue for unread, Green for read */}
                     <View
                       style={{
-                        width: 4,
+                        width: 0,
                         backgroundColor: notification.isRead ? Colors.accent : '#3B82F6',
                         borderRadius: 2,
                         marginRight: 12,
                         alignSelf: 'stretch',
+                        
                       }}
                     />
 
@@ -384,8 +591,8 @@ export default function NotificationsScreen() {
                     >
                       {notification.icon && (
                         <notification.icon
-                          size={20}
-                          color={Colors.white}
+                          size={30}
+                          color={notification.iconColor}
                         />
                       )}
                     </View>
@@ -414,7 +621,12 @@ export default function NotificationsScreen() {
                         {notification.description}
                       </Text>
                       <TouchableOpacity
-                        onPress={() => handleViewDetails(notification)}
+                        onPress={() => {
+                          // When user taps "View details", mark as read and navigate
+                          handleMarkAsRead(notification.id);
+                          // Show preview modal for notifications that don't have direct navigation
+                          setPreviewNotification(notification);
+                        }}
                         style={{
                           alignSelf: 'flex-start',
                           marginBottom: 8,

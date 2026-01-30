@@ -62,35 +62,41 @@ const formatTimeAgo = (dateString: string): string => {
 };
 
 // Map API status to JobStatus
-// IMPORTANT: If a request is in getAcceptedRequests(), it means provider has already accepted it
-// So even if status is "pending" (waiting for client selection), treat it as "Ongoing"
+// Behaviour:
+// - For ACCEPTED list (isFromAcceptedList = true):
+//   - "completed"  -> Completed
+//   - anything else (pending / accepted / in_progress) -> Ongoing
+//   This means: once provider has accepted, it always lives under Ongoing/Completed.
+// - For AVAILABLE list (isFromAcceptedList = false):
+//   - "completed"  -> Completed (theoretical)
+//   - "accepted"/"in_progress" -> Ongoing
+//   - "pending"   -> Pending  (provider has NOT accepted yet)
 const mapApiStatusToJobStatus = (apiStatus: string, isFromAcceptedList: boolean = true): JobStatus => {
-  // FIRST check if it's completed - this should always be 'Completed' regardless of other conditions
-  if (apiStatus?.toLowerCase() === 'completed') {
+  const status = apiStatus?.toLowerCase();
+
+  // Completed always wins
+  if (status === 'completed') {
     return 'Completed';
   }
-  
-  // If this is from accepted requests list, provider has already accepted
-  // So treat "pending" as "Ongoing" (waiting for client to confirm)
-  if (isFromAcceptedList && apiStatus?.toLowerCase() === 'pending') {
+
+  // From accepted list: provider has already accepted, even if backend still says "pending"
+  if (isFromAcceptedList) {
     return 'Ongoing';
   }
-  
-  switch (apiStatus?.toLowerCase()) {
+
+  // From available list: true Pending vs Ongoing
+  switch (status) {
     case 'accepted':
     case 'in_progress':
       return 'Ongoing';
     case 'pending':
-      return 'Pending';
-    case 'completed':
-      return 'Completed';
     default:
-      return 'Ongoing'; // Default to Ongoing if from accepted list
+      return 'Pending';
   }
 };
 
-// Map API request to JobItem format
-const mapRequestToJobItem = (request: ServiceRequest): JobItem => {
+// Map ACCEPTED request (provider has already accepted) to JobItem format
+const mapAcceptedRequestToJobItem = (request: ServiceRequest): JobItem => {
   const user = request.user || {};
   const firstName = user.firstName || '';
   const lastName = user.lastName || '';
@@ -104,10 +110,45 @@ const mapRequestToJobItem = (request: ServiceRequest): JobItem => {
   const scheduledDate = request.scheduledDate ? formatDate(request.scheduledDate) : '';
   const scheduledTime = request.scheduledTime || '';
   
-  // Since this is from getAcceptedRequests(), provider has already accepted
-  // So isFromAcceptedList = true
   const status = mapApiStatusToJobStatus(request.status || 'pending', true);
   
+  return {
+    id: request.id?.toString() || '',
+    clientName,
+    service: request.jobTitle || request.categoryName || 'Service Request',
+    date: scheduledDate,
+    time: scheduledTime,
+    location,
+    status,
+    matchedTime: status === 'Pending' ? formatTimeAgo(request.createdAt || '') : undefined,
+    completedTime: status === 'Completed' ? formatTimeAgo(request.updatedAt || request.createdAt || '') : undefined,
+    images: [
+      require('../../assets/images/jobcardimg.png'),
+      require('../../assets/images/jobcardimg.png'),
+      require('../../assets/images/jobcardimg.png'),
+    ],
+    requestId: request.id,
+  };
+};
+
+// Map AVAILABLE (not yet accepted by this provider) request to JobItem format
+const mapAvailableRequestToJobItem = (request: ServiceRequest): JobItem => {
+  const user = request.user || {};
+  const firstName = user.firstName || '';
+  const lastName = user.lastName || '';
+  const clientName = `${firstName} ${lastName}`.trim() || 'Client';
+  
+  const location = request.location?.formattedAddress || 
+                   request.location?.address || 
+                   `${request.location?.city || ''}, ${request.location?.state || ''}`.trim() || 
+                   'Location not specified';
+  
+  const scheduledDate = request.scheduledDate ? formatDate(request.scheduledDate) : '';
+  const scheduledTime = request.scheduledTime || '';
+
+  // From available list, treat "pending" as Pending (provider not yet accepted)
+  const status = mapApiStatusToJobStatus(request.status || 'pending', false);
+
   return {
     id: request.id?.toString() || '',
     clientName,
@@ -136,19 +177,33 @@ export default function ProviderJobsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Load accepted requests from API
+  // Load provider jobs from API:
+  // - accepted requests  -> Ongoing / Completed
+  // - available requests -> Pending (not yet accepted)
   const loadAcceptedRequests = useCallback(async () => {
     setIsLoading(true);
     try {
-      const requests = await providerService.getAcceptedRequests();
-      const requestsArray = Array.isArray(requests) ? requests : [];
-      
-      // Map to job items only if we have valid requests
-      const jobItems = requestsArray.length > 0
-        ? requestsArray.map((req) => mapRequestToJobItem(req))
-        : [];
-      
-      setAllJobs(jobItems);
+      const [acceptedRaw, availableRaw] = await Promise.all([
+        providerService.getAcceptedRequests(),
+        providerService.getAvailableRequests(),
+      ]);
+
+      const acceptedArray = Array.isArray(acceptedRaw) ? acceptedRaw : [];
+      const availableArray = Array.isArray(availableRaw) ? availableRaw : [];
+
+      const acceptedJobs: JobItem[] =
+        acceptedArray.length > 0 ? acceptedArray.map((req) => mapAcceptedRequestToJobItem(req)) : [];
+
+      const pendingFromAvailable: JobItem[] =
+        availableArray.length > 0 ? availableArray.map((req) => mapAvailableRequestToJobItem(req)) : [];
+
+      // Ensure we don't duplicate any job that exists in accepted list
+      const acceptedIds = new Set(acceptedJobs.map((j) => j.requestId?.toString() || j.id));
+      const filteredPending = pendingFromAvailable.filter(
+        (job) => !acceptedIds.has(job.requestId?.toString() || job.id)
+      );
+
+      setAllJobs([...acceptedJobs, ...filteredPending]);
     } catch (error: any) {
       // If AuthError, redirect immediately (silent - no logs, no errors shown)
       if (error instanceof AuthError) {
@@ -297,27 +352,64 @@ export default function ProviderJobsScreen() {
       </View>
 
       {job.status === 'Ongoing' ? (
+        // Ongoing jobs: single primary button to check updates
+        <TouchableOpacity
+          style={{
+            backgroundColor: Colors.black,
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderRadius: BorderRadius.default,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+          }}
+          onPress={() => {
+            haptics.light();
+            
+            // Validate requestId before navigating
+            const requestId = job.requestId || job.id;
+            if (!requestId) {
+              showError('Invalid job ID');
+              return;
+            }
+            
+            router.push({
+              pathname: '/ProviderJobDetailsScreen',
+              params: {
+                requestId: requestId.toString(),
+              },
+            } as any);
+          }}
+        >
+          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: Spacing.xs }}>
+            Check Updates
+          </Text>
+          <ArrowRight size={14} color={Colors.white} />
+        </TouchableOpacity>
+      ) : job.status === 'Pending' ? (
+        // Pending jobs: Show "View Details" and "Decline" buttons
+        <View style={{ flexDirection: 'column', gap: 8, width: '100%' }}>
           <TouchableOpacity
             style={{
-              backgroundColor: Colors.black,
+              width: '100%',
               paddingVertical: 12,
               paddingHorizontal: 16,
               borderRadius: BorderRadius.default,
+              borderWidth: 1,
+              borderColor: Colors.border,
+              backgroundColor: Colors.white,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '100%',
             }}
             onPress={() => {
               haptics.light();
-              
-              // Validate requestId before navigating
               const requestId = job.requestId || job.id;
               if (!requestId) {
                 showError('Invalid job ID');
                 return;
               }
-              
               router.push({
                 pathname: '/ProviderJobDetailsScreen',
                 params: {
@@ -326,14 +418,48 @@ export default function ProviderJobsScreen() {
               } as any);
             }}
           >
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: Spacing.xs }}>
-              Check Updates
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
+              View Details
             </Text>
-            <ArrowRight size={14} color={Colors.white} />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              width: '100%',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderRadius: BorderRadius.default,
+              borderWidth: 1,
+              borderColor: Colors.errorBorder,
+              backgroundColor: Colors.errorLight,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onPress={async () => {
+              haptics.warning();
+              const requestId = job.requestId || job.id;
+              if (!requestId) {
+                showError('Invalid job ID');
+                return;
+              }
+              try {
+                await providerService.rejectRequest(Number(requestId));
+                haptics.success();
+                showSuccess('Request declined. The client has been notified.');
+                await loadAcceptedRequests();
+              } catch (error: any) {
+                haptics.error();
+                const errorMessage = getSpecificErrorMessage(error, 'reject_request');
+                showError(errorMessage);
+              }
+            }}
+          >
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.error }}>
+              Decline
+            </Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        // For accepted requests (status is "Ongoing" or "Pending" but provider has accepted)
-        // Only show "Check Updates" button - never show "Decline"
+        // Completed or any other status: simple "Check Updates" / details button
         <TouchableOpacity
           style={{
             width: '100%',
@@ -348,7 +474,6 @@ export default function ProviderJobsScreen() {
           onPress={() => {
             haptics.light();
             
-            // Validate requestId before navigating
             const requestId = job.requestId || job.id;
             if (!requestId) {
               showError('Invalid job ID');

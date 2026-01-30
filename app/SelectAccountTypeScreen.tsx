@@ -57,8 +57,8 @@ export default function SelectAccountTypeScreen() {
       // Navigate to client onboarding
       router.replace('/onboarding');
     } else {
-      // Navigate to provider splash screen first, then onboarding
-      router.replace('/ProviderSplashScreen');
+      // Navigate directly to provider onboarding (skip splash screen)
+      router.replace('/provider-onboarding');
     }
   };
 

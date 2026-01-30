@@ -1,0 +1,72 @@
+Developer Documentation: Job Timeline Logic & State Transitions
+1. Overview
+The "Job Timeline" is a stepper component that serves as the visual source of truth for the job's progress. It relies on a single database field: job_status.
+Core Logic:
+* The Timeline is Linear (Step 1 - Step 5).
+* Provider App: Focuses on Action (e.g., "Send Quote", "Start Job").
+* Client App: Focuses on Status (e.g., "Review Quote", "Confirm Work").
+* Edge Cases: Disputes and Cancellations interrupt the linear flow.
+
+2. State Mapping Table
+This table maps the backend status to the active Timeline Step.
+Database StatusActive Timeline StepMain Action PendingProvider: Request Received
+Client: Request submittedBoth:Decline / Cancel RequestInspectingProvider: Inspection & Quote
+Client: Inspection & QuoteProvider: Schedule visit /Cancel 
+Client: Cancel/ decline visit
+QuotingProvider: Inspection & Quote (yellow)
+Client: Inspection & Quote (Yellow)Provider: Send/ edit quote
+Client: Accept/Decline QuoteScheduledProvider: Work order assigned (Yellow)
+Client: Inspection & Quote (Green)Provider: Request VO
+Client: Accept VOIn ProgressProvider&Client: Job in Progress (Yellow)Provider: Mark as Complete/ Request VO
+Client: Accept VOReviewingProvider&Client: Completed (Yellow)Client&Provider: Mark as completeCompletedProvider&Client: Completed (Green)Client: Rate & Review3. Detailed Step-by-Step Logic
+Phase 1: Initiation
+Status: Pending
+* Logic: The system has matched the job, but no agreement has been made.
+* Developer Note: Both provider and client can cancel at this stage. If the provider declines here, the job status moves to Cancelled. The client can contact admin to assign a new provider.
+Phase 2: Negotiation
+Status: Inspecting OR Quoting
+* Trigger: Provider chooses to proceed with either a visit or sending a quote
+* Logic:
+o Inspecting: Logic applies if the Provider requested a visit fee and Client paid it.
+o Quoting: Logic applies if Provider has finished the visit and is ready to set price or skipped visit entirely after clicking "Proceed button".
+* Developer note: Both client and provider can still cancel at this stage
+Phase 3: Agreement (The Pivot Point)
+Status: Scheduled
+* Trigger: Client accepts quote AND payment gateway returns success (Escrow Funded).
+* Button Logic:
+o Provider App: The "Start" button appears.
+* Developer note: Noone can cancel at this stage
+Phase 4: Execution
+Status: In Progress
+* Trigger: Provider taps "Start" button.
+* Timeline UI:
+o Provider View: "Start" button disappears. "Mark as Complete" button becomes Active (Green).
+o Client View: Sees timestamp: "Started at 10:00 AM".
+Phase 5: Verification
+Status: Reviewing
+* Trigger: Provider taps "Mark as Complete".
+* Logic: The work is done physically, but the money is still frozen.
+* Client Action: The Client's main button becomes "Mark as complete".
+Phase 6: Closure
+Status: Completed
+* Trigger: Client taps "Mark as complete".
+* Logic: Escrow moves to Provider Wallet.
+
+4. Handling Edge Cases
+A. The "Disputed" Status
+Trigger: Client clicks "Report Issue" during the Reviewing phase, OR Provider reports issue during In Progress.
+* UI Behavior:
+o The Timeline stops updating.
+o A Red Alert Banner appears above the timeline: "Job is currently under dispute. Funds are frozen."
+o Main Action Button becomes: "View Dispute".
+B. The "Cancelled" Status
+Trigger: Job cancelled before In Progress.
+* UI Behavior:
+o Timeline turns Grey.
+o Status badge displays "Cancelled" (Red).
+o Bottom text: "This job was cancelled on [Date]."
+
+5. Visual Component Rules (CSS/Logic)
+1. The Date Stamp:
+o Every time a status changes (e.g., Scheduled -> In Progress), capture the timestamp and display it under the timeline step header (e.g., "Completed - 2 hours ago").
+

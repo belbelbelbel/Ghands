@@ -2,7 +2,7 @@ import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
 import { analytics } from '@/services/analytics';
-import { serviceRequestService, ServiceRequest, QuotationWithProvider } from '@/services/api';
+import { serviceRequestService, ServiceRequest, QuotationWithProvider, walletService } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from '@expo/vector-icons';
@@ -165,21 +165,24 @@ interface ExtendedQuotation extends Quotation {
 
 export default function OngoingJobDetails() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ requestId?: string }>();
+  const params = useLocalSearchParams<{ requestId?: string; paymentStatus?: string }>();
   const { toast, showError, showSuccess, hideToast } = useToast();
 
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [acceptedProviders, setAcceptedProviders] = useState<any[]>([]);
   const [quotations, setQuotations] = useState<QuotationWithProvider[]>([]);
+  const [paymentTransaction, setPaymentTransaction] = useState<any | null>(null); // Track payment transaction from wallet
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingQuotations, setIsLoadingQuotations] = useState(false);
   const [activeTab, setActiveTab] = useState<'Updates' | 'Quotations'>('Updates');
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const quoteCardAnim = useRef(new Animated.Value(1)).current;
-  
+
   // Selection flow state
   const [isSelectingProvider, setIsSelectingProvider] = useState(false);
   const [selectionCountdown, setSelectionCountdown] = useState<number | null>(null);
+
+  const cameFromPaymentSuccess = params.paymentStatus === 'success';
 
   // Generate timeline from request data - Shows all steps with proper status colors
   const timelineSteps = useMemo(() => {
@@ -208,7 +211,7 @@ export default function OngoingJobDetails() {
     if (request?.selectedProvider || request?.selectedAt) {
       if (request.status === 'accepted' && request.selectedProvider) {
         // Provider accepted selection
-        timeline.push({
+      timeline.push({
           id: 'step-1.5',
           title: 'Provider Selected',
           description: `${request.selectedProvider.name} accepted your selection`,
@@ -229,7 +232,7 @@ export default function OngoingJobDetails() {
           description: `Waiting for provider to accept (${mins}:${secs.toString().padStart(2, '0')} remaining)`,
           status: 'In Progress',
           accent: '#FEF9C3',
-          dotColor: '#F59E0B',
+        dotColor: '#F59E0B',
           isActive: true,
           isCompleted: false,
           icon: Clock,
@@ -251,7 +254,17 @@ export default function OngoingJobDetails() {
     }
 
     // Step 2: Provider Acceptance (NEW STEP - shows when providers accept)
-    const hasAcceptedProviders = acceptedProviders && acceptedProviders.length > 0;
+    // IMPORTANT: Use multiple indicators to determine if providers have accepted:
+    // 1. acceptedProviders array has items
+    // 2. Request status is beyond "pending" (in_progress, scheduled, completed) - means providers MUST have accepted
+    // 3. Quotation exists (can't have quotation without provider accepting)
+    const hasAcceptedProvidersFromAPI = acceptedProviders && acceptedProviders.length > 0;
+    const hasAcceptedProvidersFromStatus = request.status === 'in_progress' || 
+                                           request.status === 'scheduled' || 
+                                           request.status === 'completed' ||
+                                           request.status === 'accepted' ||
+                                           quotations.length > 0; // If quotations exist, providers must have accepted
+    const hasAcceptedProviders = hasAcceptedProvidersFromAPI || hasAcceptedProvidersFromStatus;
     
     // Show provider acceptance step if providers have accepted
     if (hasAcceptedProviders) {
@@ -264,11 +277,17 @@ export default function OngoingJobDetails() {
         ? Math.max(...acceptanceTimes)
         : Date.now();
       
+      // Use actual count if available, otherwise infer from status
+      const providerCount = hasAcceptedProvidersFromAPI ? acceptedProviders.length : 1;
+      const acceptanceTime = latestAcceptance || request.updatedAt || request.createdAt || new Date().toISOString();
+      
       timeline.push({
         id: 'step-2',
         title: 'Provider Accepted',
-        description: `${acceptedProviders.length} ${acceptedProviders.length === 1 ? 'provider has' : 'providers have'} accepted your request`,
-        status: `Completed - ${formatTimeAgo(new Date(latestAcceptance).toISOString())}`,
+        description: hasAcceptedProvidersFromAPI 
+          ? `${providerCount} ${providerCount === 1 ? 'provider has' : 'providers have'} accepted your request`
+          : 'Provider has accepted your request',
+        status: `Completed - ${formatTimeAgo(acceptanceTime)}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
         isActive: false,
@@ -304,59 +323,94 @@ export default function OngoingJobDetails() {
       }
     }
 
-    // Step 3: Inspection & Quotation
-    // Only count quotations that have been sent (have sentAt or status is not null/draft)
+    // Step 3: Inspection & Quotation / Quotation Accepted
+    // According to docs: When payment is completed (status becomes "scheduled" or "in_progress"),
+    // this step should be GREEN (completed). Before that, it should clearly communicate
+    // when a quotation has been SENT vs when it has been ACCEPTED.
+    // - No quotation yet  -> "Inspection & Quotation" (yellow, waiting for provider)
+    // - Quotation sent    -> "Inspection & Quotation" (yellow, waiting for you to accept)
+    // - Quotation accepted, no payment -> "Quotation Accepted" (yellow, waiting for payment)
+    // - Quotation accepted + payment   -> "Quotation Accepted" (green, completed)
     const hasQuotationSent = quotations.some(q => q.sentAt || (q.status && q.status !== 'draft' && q.status !== null));
     const quotationAccepted = quotations.some(q => q.status === 'accepted');
+    const acceptedQuotation = quotations.find(q => q.status === 'accepted');
     
-    // Priority 1: If quotation is accepted OR request status moved forward, show completed
-    if (quotationAccepted || request.status === 'accepted' || request.status === 'in_progress' || request.status === 'completed') {
+    // Check if payment is completed
+    // According to docs: "Scheduled" = Client accepts quote AND payment gateway returns success.
+    // After payment, status becomes "scheduled" or "in_progress" (provider can start).
+    // If status is "in_progress" or "completed" AND quotation is accepted, payment must be done.
+    // 
+    // IMPORTANT: We check wallet transactions as a fallback if backend hasn't updated status yet.
+    // This ensures the timeline reflects payment status immediately after payment, even if
+    // the backend request.status hasn't been updated to "scheduled" or "in_progress" yet.
+    const hasPaymentTransaction = paymentTransaction && paymentTransaction.status === 'completed';
+    const isPaymentCompleted = quotationAccepted && (
+      request.status === 'scheduled' || 
+      request.status === 'in_progress' || 
+      request.status === 'completed' ||
+      cameFromPaymentSuccess ||
+      hasPaymentTransaction // ✅ Check wallet transaction as fallback
+    );
+    
+    // IMPORTANT: Only show this step as active/completed if providers have accepted FIRST.
+    // This ensures the timeline order is logical:
+    // Provider Acceptance → Inspection & Quotation → Quotation Accepted → Job in Progress.
+    if (hasAcceptedProviders) {
+      if (isPaymentCompleted) {
+        // Payment completed after quotation acceptance - show GREEN (completed) per docs
       timeline.push({
         id: 'step-3',
-        title: 'Inspection & Quotation',
-        description: quotationAccepted 
-          ? 'Quotation accepted by you' 
-          : request.status === 'accepted' 
-            ? 'Provider selected and quotation accepted'
-            : 'Inspection completed and quotation accepted',
-        status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
-        isActive: false,
-        isCompleted: true,
-        icon: FileText,
-      });
-    } 
-    // Priority 2: If quotation has been sent, show "waiting for client to accept"
-    else if (hasQuotationSent) {
-      timeline.push({
-        id: 'step-3',
-        title: 'Inspection & Quotation',
-        description: 'Quotation sent - waiting for you to accept',
-        status: 'In Progress',
-        accent: '#FEF9C3',
-        dotColor: '#F59E0B',
-        isActive: true,
-        isCompleted: false,
-        icon: Clock,
-      });
-    } 
-    // Priority 3: If providers have accepted but no quotation yet, show "waiting for inspection & quotation"
-    else if (hasAcceptedProviders) {
-      timeline.push({
-        id: 'step-3',
-        title: 'Inspection & Quotation',
-        description: 'Waiting for provider to inspect and send quotation',
-        status: 'In Progress',
-        accent: '#FEF9C3',
-        dotColor: '#F59E0B',
-        isActive: true,
-        isCompleted: false,
-        icon: Clock,
-      });
-    } 
-    // Priority 4: No providers accepted yet - show pending
-    else {
+          title: 'Quotation Accepted',
+          description: 'Quotation accepted and payment confirmed',
+          status: `Completed - ${formatTimeAgo(acceptedQuotation?.acceptedAt || acceptedQuotation?.sentAt || request.updatedAt || new Date().toISOString())}`,
+          accent: '#DCFCE7',
+          dotColor: '#6A9B00',
+          isActive: false,
+          isCompleted: true,
+          icon: FileText,
+        });
+      } else if (quotationAccepted) {
+        // Quotation accepted but payment not yet completed - show yellow (waiting for payment)
+        timeline.push({
+          id: 'step-3',
+          title: 'Quotation Accepted',
+          description: 'Quotation accepted - waiting for payment confirmation',
+          status: 'In Progress',
+          accent: '#FEF9C3',
+          dotColor: '#F59E0B',
+          isActive: true,
+          isCompleted: false,
+          icon: Clock,
+        });
+      } else if (hasQuotationSent) {
+        // Providers accepted AND quotation sent - waiting for client to accept
+        timeline.push({
+          id: 'step-3',
+          title: 'Inspection & Quotation',
+          description: 'Quotation sent - waiting for you to accept',
+          status: 'In Progress',
+          accent: '#FEF9C3',
+          dotColor: '#F59E0B',
+          isActive: true,
+          isCompleted: false,
+          icon: Clock,
+        });
+      } else {
+        // Providers accepted but no quotation yet - waiting for inspection & quotation
+        timeline.push({
+          id: 'step-3',
+          title: 'Inspection & Quotation',
+          description: 'Waiting for provider to inspect and send quotation',
+          status: 'In Progress',
+          accent: '#FEF9C3',
+          dotColor: '#F59E0B',
+          isActive: true,
+          isCompleted: false,
+          icon: Clock,
+        });
+      }
+    } else {
+      // No providers accepted yet - show pending
       timeline.push({
         id: 'step-3',
         title: 'Inspection & Quotation',
@@ -371,7 +425,16 @@ export default function OngoingJobDetails() {
     }
 
     // Step 4: Job in Progress
+    // According to docs:
+    // - After payment (Scheduled status) → Client: Job in Progress should be PENDING (waiting for provider to start)
+    // - "In Progress" status → Client: Job in Progress should be YELLOW (in progress)
+    // - "Completed" status → Client: Job in Progress should be GREEN (completed)
+    
+    // Reuse isPaymentCompleted from Step 3 - no need to redeclare
+    const isPaymentPending = quotationAccepted && hasAcceptedProviders && !isPaymentCompleted;
+    
     if (request.status === 'in_progress') {
+      // Provider has started the job - show yellow (in progress)
       timeline.push({
         id: 'step-4',
         title: 'Job in Progress',
@@ -384,6 +447,7 @@ export default function OngoingJobDetails() {
         icon: Wrench,
       });
     } else if (request.status === 'completed') {
+      // Job completed - show green
       timeline.push({
         id: 'step-4',
         title: 'Job in Progress',
@@ -395,12 +459,41 @@ export default function OngoingJobDetails() {
         isCompleted: true,
         icon: Wrench,
       });
+    } else if (isPaymentCompleted && request.status !== 'in_progress' && request.status !== 'completed') {
+      // Payment completed (status is 'scheduled' or 'accepted' after payment), waiting for provider to start - show pending (grey)
+      // Docs say: After payment (Scheduled status) → Client: Job in Progress should be PENDING
+      timeline.push({
+        id: 'step-4',
+        title: 'Job in Progress',
+        description: 'Waiting for provider to start the job',
+        status: 'Pending',
+        accent: '#F3F4F6',
+        dotColor: '#9CA3AF',
+        isActive: false,
+        isCompleted: false,
+        icon: Circle,
+      });
+    } else if (isPaymentPending) {
+      // Quotation accepted but payment not completed - show yellow (waiting for payment)
+      timeline.push({
+        id: 'step-4',
+        title: 'Job in Progress',
+        description: 'Waiting for payment to proceed',
+        status: 'Payment Pending',
+        accent: '#FEF9C3',
+        dotColor: '#F59E0B',
+        isActive: true,
+        isCompleted: false,
+        icon: Clock,
+      });
     } else {
       // Not started yet - grayed out
       timeline.push({
         id: 'step-4',
         title: 'Job in Progress',
-        description: 'Waiting for quotation acceptance and payment',
+        description: quotationAccepted && hasAcceptedProviders
+          ? 'Waiting for payment to proceed'
+          : 'Waiting for quotation acceptance and payment',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -439,7 +532,85 @@ export default function OngoingJobDetails() {
     }
 
     return timeline;
-  }, [request, acceptedProviders, quotations, selectionCountdown]);
+  }, [request, acceptedProviders, quotations, selectionCountdown, cameFromPaymentSuccess, paymentTransaction]);
+
+  // High-level header description above the timeline to explain current phase
+  const timelineHeader = useMemo(() => {
+    if (!request) return null;
+
+    const hasAcceptedProviders = (acceptedProviders && acceptedProviders.length > 0) || !!request.selectedProvider;
+    const hasQuotationSent = quotations.some(q => q.sentAt || (q.status && q.status !== 'draft' && q.status !== null));
+    const acceptedQuotation = quotations.find(q => q.status === 'accepted');
+    const quotationAccepted = !!acceptedQuotation;
+
+    const formatCurrency = (value: number | undefined | null): string => {
+      const amount = typeof value === 'number' ? value : 0;
+      return amount.toLocaleString('en-NG', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    };
+
+    if (request.status === 'completed') {
+      return {
+        title: 'Job completed',
+        subtitle: 'Your job has been marked complete and funds have been released to your provider. Thank you for using G-Hands.',
+      };
+    }
+
+    if (request.status === 'in_progress') {
+      return {
+        title: 'Job in progress',
+        subtitle: 'Your provider is currently on site working on this job. You can mark it as complete once you are satisfied with the work.',
+      };
+    }
+
+    // Check if payment is completed (from status, paymentStatus param, or wallet transaction)
+    const hasPaymentTransaction = paymentTransaction && paymentTransaction.status === 'completed';
+    const isPaymentConfirmed = cameFromPaymentSuccess || 
+      (quotationAccepted && (request.status === 'scheduled' || request.status === 'accepted')) ||
+      hasPaymentTransaction;
+    
+    if (isPaymentConfirmed) {
+      const amountText = acceptedQuotation ? `₦${formatCurrency(acceptedQuotation.total)}` : '';
+      return {
+        title: 'Payment confirmed',
+        subtitle: amountText
+          ? `Your payment of ${amountText} has been processed securely and placed in escrow. Your provider will now be able to start the job at the scheduled time.`
+          : 'Your payment has been processed securely and placed in escrow. Your provider will now be able to start the job at the scheduled time.',
+      };
+    }
+
+    if (quotationAccepted) {
+      const amountText = acceptedQuotation ? `₦${formatCurrency(acceptedQuotation.total)}` : '';
+      return {
+        title: 'Quotation accepted – payment required',
+        subtitle: amountText
+          ? `You accepted a quotation of ${amountText}. Please complete your payment so we can reserve this amount in escrow and allow your provider to start the job.`
+          : 'You accepted a quotation. Please complete your payment so we can reserve the amount in escrow and allow your provider to start the job.',
+      };
+    }
+
+    if (hasQuotationSent) {
+      return {
+        title: 'Quotation received',
+        subtitle: 'Review the cost breakdown, materials, and work summary carefully before you accept or decline the quotation.',
+      };
+    }
+
+    if (hasAcceptedProviders) {
+      return {
+        title: 'Provider accepted your request',
+        subtitle: 'Your provider is reviewing your request. They will inspect (if needed) and send you a detailed quotation for approval.',
+      };
+    }
+
+    // Default: waiting for providers
+    return {
+      title: 'Waiting for providers',
+      subtitle: 'We are notifying nearby providers about your request. You will see updates here as soon as someone accepts.',
+    };
+  }, [request, acceptedProviders, quotations, cameFromPaymentSuccess, paymentTransaction]);
 
   // Load quotations from API (6.3 endpoint)
   const loadQuotations = useCallback(async () => {
@@ -669,7 +840,7 @@ export default function OngoingJobDetails() {
     [mappedProviders]
   );
 
-  // Load request details and accepted providers on mount
+  // Load request details, accepted providers and quotations on mount
   useEffect(() => {
     if (params.requestId) {
       loadRequestData();
@@ -677,18 +848,57 @@ export default function OngoingJobDetails() {
   }, [params.requestId]);
 
   // Refresh data when screen comes into focus (e.g., returning from another screen)
-  // This ensures timeline and status are always up to date
+  // This ensures timeline and status are always up to date with NO mid‑load glitches.
   useFocusEffect(
     useCallback(() => {
       if (params.requestId) {
-        // Small delay to avoid unnecessary refreshes during navigation
         const timer = setTimeout(() => {
           loadRequestData();
-        }, 300); // Increased delay to ensure API has time to update
+        }, 500); // small delay to let backend settle after actions like payment
         return () => clearTimeout(timer);
       }
     }, [params.requestId, loadRequestData])
   );
+
+  // Check wallet transactions for payment status
+  const checkPaymentTransaction = useCallback(async (requestId: number) => {
+    try {
+      const result = await walletService.getTransactions({ limit: 100, offset: 0 });
+      // Find payment transaction for this request
+      // Payment transactions have type 'payment' and requestId in description or metadata
+      const paymentTx = result.transactions.find((tx: any) => {
+        if (tx.type !== 'payment') return false;
+        if (tx.status !== 'completed') return false;
+        // Check if transaction is for this request
+        if (tx.requestId === requestId) return true;
+        // Also check description for request ID
+        if (tx.description && tx.description.includes(`request #${requestId}`)) return true;
+        if (tx.description && tx.description.includes(`Request ${requestId}`)) return true;
+        return false;
+      });
+      
+      if (paymentTx) {
+        setPaymentTransaction(paymentTx);
+        if (__DEV__) {
+          console.log('✅ [OngoingJobDetails] Found payment transaction:', {
+            requestId,
+            transactionId: paymentTx.id,
+            amount: paymentTx.amount,
+            status: paymentTx.status,
+            completedAt: paymentTx.completedAt,
+          });
+        }
+      } else {
+        setPaymentTransaction(null);
+      }
+    } catch (error: any) {
+      if (__DEV__) {
+        console.error('Error checking payment transaction:', error);
+      }
+      // Don't show error to user, just silently fail
+      setPaymentTransaction(null);
+    }
+  }, []);
 
   const loadRequestData = useCallback(async () => {
     if (!params.requestId) return;
@@ -697,33 +907,35 @@ export default function OngoingJobDetails() {
     try {
       const requestId = parseInt(params.requestId, 10);
 
-      // Load request details
+      // 1) Load core request details
       const requestDetails = await serviceRequestService.getRequestDetails(requestId);
       setRequest(requestDetails);
 
-      // Load accepted providers (for Updates tab) - ALWAYS load if status allows
-      // This ensures we have accurate data for the timeline communication flow
-      // IMPORTANT: Always try to load accepted providers, even if status is pending
-      // because providers might have accepted but request status hasn't updated yet
-      try {
-        const providers = await serviceRequestService.getAcceptedProviders(requestId);
+      // 2) Check wallet transactions for payment (in parallel, don't block)
+      checkPaymentTransaction(requestId).catch(() => {
+        // Silently fail, don't block loading
+      });
+
+      // 3) Load accepted providers (needed for timeline / provider cards)
+        try {
+          const providers = await serviceRequestService.getAcceptedProviders(requestId);
         const providersArray = Array.isArray(providers) ? providers : [];
         setAcceptedProviders(providersArray);
-        
+
         if (__DEV__) {
           console.log('🔍 [OngoingJobDetails] Loaded accepted providers:', {
             requestId,
             requestStatus: requestDetails.status,
             count: providersArray.length,
-            providers: providersArray.map(p => ({ 
-              id: p.provider?.id, 
+            providers: providersArray.map((p) => ({
+              id: p.provider?.id,
               name: p.provider?.name,
-              acceptedAt: p.acceptance?.acceptedAt 
+              acceptedAt: p.acceptance?.acceptedAt,
             })),
             hasAcceptedProviders: providersArray.length > 0,
           });
         }
-      } catch (error: any) {
+        } catch (error: any) {
         if (__DEV__) {
           console.error('❌ [OngoingJobDetails] Error loading accepted providers:', {
             requestId,
@@ -731,22 +943,22 @@ export default function OngoingJobDetails() {
             status: error?.status,
           });
         }
-        // If no providers accepted yet or endpoint fails, set empty array
-        setAcceptedProviders([]);
-      }
+          setAcceptedProviders([]);
+        }
 
-      // Load quotations (6.3 endpoint) - for Quotations tab
+      // 4) Load quotations (needed for quotation tab and payment state)
       await loadQuotations();
     } catch (error: any) {
       if (__DEV__) {
-        console.error('Error loading request data:', error);
+      console.error('Error loading request data:', error);
       }
       const errorMessage = getSpecificErrorMessage(error, 'get_request_details');
       showError(errorMessage);
     } finally {
+      // Only show the page after everything is ready, to avoid flicker/glitches
       setIsLoading(false);
     }
-  }, [params.requestId, loadQuotations, showError]);
+  }, [params.requestId, loadQuotations, showError, checkPaymentTransaction]);
 
   // Handle accept quotation (6.4 endpoint)
   const handleAcceptQuotation = async (quotationId: number) => {
@@ -1251,11 +1463,12 @@ export default function OngoingJobDetails() {
             <Ionicons name="arrow-back" size={24} color="#000000" />
           </TouchableOpacity>
           <Text className="text-xl text-black" style={{ fontFamily: 'Poppins-Bold' }}>
-            {activeTab === 'Updates' ? 'Updates' : 'Quotations'}
+            Job Details
           </Text>
         </View>
 
-        <View className="flex-row mb-4 border-b border-gray-200">
+        {/* Full-width tabs with green underline for active tab */}
+        <View className="flex-row border-b border-gray-200" style={{ width: '100%', marginBottom: 24 }}>
           {TAB_ITEMS.map((tab) => {
             const isActive = tab === activeTab;
             return (
@@ -1265,17 +1478,30 @@ export default function OngoingJobDetails() {
                   haptics.selection();
                   setActiveTab(tab);
                 }}
-                className="mr-6 pb-2"
+                style={{
+                  flex: 1,
+                  paddingBottom: 8,
+                  alignItems: 'center',
+                }}
                 activeOpacity={0.85}
               >
                 <Text
-                  className={`text-base ${isActive ? 'text-black' : 'text-gray-400'}`}
-                  style={{ fontFamily: 'Poppins-SemiBold' }}
+                  style={{
+                    fontSize: 16,
+                    fontFamily: isActive ? 'Poppins-Bold' : 'Poppins-Medium',
+                    color: isActive ? '#000000' : '#9CA3AF',
+                  }}
                 >
                   {tab}
                 </Text>
                 <View
-                  className={`h-0.5 mt-2 rounded-full ${isActive ? 'bg-[#6A9B00]' : 'bg-transparent'}`}
+                  style={{
+                    height: 2,
+                    width: '100%',
+                    marginTop: 8,
+                    backgroundColor: isActive ? '#6A9B00' : 'transparent',
+                    borderRadius: 1,
+                  }}
                 />
               </TouchableOpacity>
             );
@@ -1309,28 +1535,13 @@ export default function OngoingJobDetails() {
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
             {activeTab === 'Updates' ? (
               <>
-                {renderTimeline()}
-                <TouchableOpacity
-                  disabled={request.status !== 'in_progress' || isLoading}
-                  className={`rounded-xl py-4 items-center justify-center mb-8 ${request.status === 'in_progress' && !isLoading ? 'bg-[#6A9B00]' : 'bg-gray-200'
-                    }`}
-                  activeOpacity={request.status === 'in_progress' && !isLoading ? 0.85 : 1}
-                  onPress={handleCompleteJob}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator size="small" color="white" />
-                  ) : (
-                  <Text
-                    className={`text-sm ${request.status === 'in_progress' ? 'text-white' : 'text-gray-500'}`}
-                    style={{ fontFamily: 'Poppins-Medium' }}
-                  >
-                    {request.status === 'completed' ? 'Job Completed' : 'Mark as complete'}
-                  </Text>
-                  )}
-                </TouchableOpacity>
+                {/* Provider / quotation section is shown ABOVE the timeline for better visibility */}
                 {mappedProviders.length > 0 ? (
                   mappedProviders.map((provider, index) => renderProviderCard(provider, index))
                 ) : (
+                  // Only show "No providers" message if status is truly pending
+                  // If status is in_progress/scheduled/completed, providers HAVE accepted (even if API didn't return them)
+                  request?.status === 'pending' ? (
                   <View className="items-center justify-center py-12">
                     <Ionicons name="people-outline" size={48} color="#9CA3AF" />
                     <Text className="text-gray-600 mt-4 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
@@ -1340,10 +1551,54 @@ export default function OngoingJobDetails() {
                       Providers will appear here once they accept your request.
                     </Text>
                   </View>
+                  ) : null // Don't show message if job is in progress - providers have accepted
                 )}
+
+                {/* High-level status description above the timeline */}
+                {timelineHeader && (
+                  <View className="mb-5 rounded-2xl bg-gray-50 px-4 py-3">
+                    <Text
+                      className="text-sm text-gray-900 mb-1"
+                      style={{ fontFamily: 'Poppins-Bold' }}
+                    >
+                      {timelineHeader.title}
+                    </Text>
+                    {timelineHeader.subtitle ? (
+                      <Text
+                        className="text-xs text-gray-600"
+                        style={{ fontFamily: 'Poppins-Regular' }}
+                      >
+                        {timelineHeader.subtitle}
+                      </Text>
+                    ) : null}
+                  </View>
+                )}
+
+                {renderTimeline()}
+
+                <TouchableOpacity
+                  disabled={request.status !== 'in_progress' || isLoading}
+                  className={`rounded-xl py-4 items-center justify-center mb-8 ${
+                    request.status === 'in_progress' && !isLoading ? 'bg-[#6A9B00]' : 'bg-gray-200'
+                  }`}
+                  activeOpacity={request.status === 'in_progress' && !isLoading ? 0.85 : 1}
+                  onPress={handleCompleteJob}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <Text
+                      className={`text-sm ${
+                        request.status === 'in_progress' ? 'text-white' : 'text-gray-500'
+                      }`}
+                      style={{ fontFamily: 'Poppins-Medium' }}
+                    >
+                      {request.status === 'completed' ? 'Job Completed' : 'Mark as complete'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </>
-            ) :
-            (
+            ) : (
               <View className="flex-1">
                 {/* Info Banner */}
                 <View className="rounded-2xl bg-[#E0F2FE] px-4 py-3 mb-4 flex-row items-start">
@@ -1611,17 +1866,49 @@ export default function OngoingJobDetails() {
 
                       {/* Status Badge - Show if quotation is accepted */}
                       {quotations[currentQuoteIndex]?.status === 'accepted' && (
-                        <View className="bg-[#DCFCE7] rounded-xl py-3 px-4 items-center justify-center mt-2">
-                          <View className="flex-row items-center">
-                            <Ionicons name="checkmark-circle" size={20} color="#16A34A" style={{ marginRight: 8 }} />
-                            <Text className="text-[#16A34A] text-sm" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                              Quotation Accepted
+                        <>
+                          <View className="bg-[#DCFCE7] rounded-xl py-3 px-4 items-center justify-center mt-2">
+                            <View className="flex-row items-center">
+                              <Ionicons name="checkmark-circle" size={20} color="#16A34A" style={{ marginRight: 8 }} />
+                              <Text className="text-[#16A34A] text-sm" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                                Quotation Accepted
+                              </Text>
+                            </View>
+                            <Text className="text-[#16A34A] text-xs mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
+                              {request?.status === 'accepted' ? 'Proceed to payment to start the job' : 'Payment completed'}
                             </Text>
                           </View>
-                          <Text className="text-[#16A34A] text-xs mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
-                            You can now proceed to payment
-                          </Text>
-                        </View>
+                          
+                          {/* Pay Now Button - Show if quotation accepted but payment not completed */}
+                          {request?.status === 'accepted' && (
+                            <TouchableOpacity
+                              activeOpacity={0.85}
+                              className="bg-[#6A9B00] rounded-xl py-4 items-center justify-center mt-3"
+                              onPress={async () => {
+                                const currentQuote = quotations[currentQuoteIndex];
+                                if (currentQuote && currentQuote.id) {
+                                  haptics.light();
+                                  router.push({
+                                    pathname: '/PaymentMethodsScreen' as any,
+                                    params: {
+                                      requestId: params.requestId,
+                                      amount: currentQuote.total.toString(),
+                                      quotationId: currentQuote.id.toString(),
+                                      providerName: currentQuote.provider.name,
+                                      serviceName: request?.jobTitle || 'Service Request',
+                                    },
+                                  } as any);
+                                } else {
+                                  showError('Invalid quotation. Please try again.');
+                                }
+                              }}
+                            >
+                              <Text className="text-white text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                                Pay Now
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </>
                       )}
 
                       {/* Status Badge - Show if quotation is rejected */}

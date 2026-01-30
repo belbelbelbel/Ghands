@@ -665,131 +665,9 @@ export default function ProviderHomeScreen() {
               paddingVertical: 12,
               paddingHorizontal: 16,
               borderRadius: BorderRadius.default,
-              backgroundColor: Colors.accent,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            onPress={async () => {
-              if (!job.requestId) {
-                showError('Invalid request ID');
-                return;
-              }
-              
-              haptics.light();
-              try {
-                // Get job location details for modal
-                const jobRequest = pendingJobs.find(j => j.requestId === job.requestId);
-                let jobLocationData = {
-                  address: job.location || 'Location not specified',
-                  city: '',
-                  latitude: 0,
-                  longitude: 0,
-                };
-                let distanceKm: number | undefined;
-                let travelTimeMinutes: number | undefined;
-
-                // Try to get location from the original request data
-                try {
-                  const requestDetails = await serviceRequestService.getRequestDetails(job.requestId);
-                  
-                  if (requestDetails?.location) {
-                    jobLocationData = {
-                      address: requestDetails.location.formattedAddress || requestDetails.location.address || job.location,
-                      city: requestDetails.location.city || '',
-                      latitude: requestDetails.location.latitude || 0,
-                      longitude: requestDetails.location.longitude || 0,
-                    };
-
-                    // Calculate distance if we have both provider and job locations
-                    if (providerLocation && jobLocationData.latitude && jobLocationData.longitude) {
-                      distanceKm = calculateDistance(
-                        providerLocation.latitude,
-                        providerLocation.longitude,
-                        jobLocationData.latitude,
-                        jobLocationData.longitude
-                      );
-                      travelTimeMinutes = estimateTravelTime(distanceKm);
-                    } else if (job.distanceKm !== undefined) {
-                      // Use distance from API if available
-                      distanceKm = job.distanceKm;
-                      travelTimeMinutes = job.minutesAway;
-                    }
-                  } else if (job.distanceKm !== undefined) {
-                    // Use distance from job card if available
-                    distanceKm = job.distanceKm;
-                    travelTimeMinutes = job.minutesAway;
-                  }
-                } catch (error) {
-                  // If we can't get location details, use what we have from job card
-                  if (job.distanceKm !== undefined) {
-                    distanceKm = job.distanceKm;
-                    travelTimeMinutes = job.minutesAway;
-                  }
-                }
-
-                // Optimistically remove from available requests immediately
-                setPendingJobs(prev => prev.filter(j => j.requestId !== job.requestId));
-                
-                await providerService.acceptRequest(job.requestId);
-                haptics.success();
-                
-                // Show modal with location and navigation options
-                // Show modal if we have address (even without coordinates) or if we have valid coordinates
-                if (jobLocationData.address && jobLocationData.address !== 'Location not specified') {
-                  // If we have valid coordinates, use them; otherwise use default (0,0) but still show modal
-                  if (jobLocationData.latitude === 0 || jobLocationData.longitude === 0) {
-                    // Try to get coordinates from the job card if available
-                    const jobWithLocation = pendingJobs.find(j => j.requestId === job.requestId);
-                    // If still no coordinates, modal will show but navigation won't work
-                  }
-                  
-                  setAcceptedJobModal({
-                    visible: true,
-                    jobLocation: {
-                      address: jobLocationData.address,
-                      city: jobLocationData.city,
-                      latitude: jobLocationData.latitude || 0,
-                      longitude: jobLocationData.longitude || 0,
-                    },
-                    distanceKm,
-                    travelTimeMinutes,
-                    requestId: job.requestId,
-                  });
-                } else {
-                  // Fallback to toast if no location data at all
-                  showSuccess('Request accepted! Waiting for client confirmation.');
-                }
-                
-                // Load accepted requests FIRST to update the ref
-                await loadAcceptedRequests();
-                
-                // Then load available requests (which will filter out the accepted one)
-                await loadAvailableRequests();
-              } catch (error: any) {
-                if (__DEV__) {
-                  // Silent error handling - no logs
-                }
-                haptics.error();
-                const errorMessage = getSpecificErrorMessage(error, 'accept_request');
-                showError(errorMessage);
-              }
-            }}
-          >
-            <Text style={{ color: Colors.textPrimary, fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
-              Accept Request
-            </Text>
-            <ArrowRight size={14} color={Colors.textPrimary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              width: '100%',
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              borderRadius: BorderRadius.default,
               borderWidth: 1,
-              borderColor: Colors.errorBorder,
-              backgroundColor: Colors.errorLight,
+              borderColor: Colors.border,
+              backgroundColor: Colors.white,
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -803,8 +681,48 @@ export default function ProviderHomeScreen() {
               } as any);
             }}
           >
-            <Text style={{ color: Colors.error, fontFamily: 'Poppins-SemiBold', fontSize: 12 }}>
+            <Text style={{ color: Colors.textPrimary, fontFamily: 'Poppins-SemiBold', fontSize: 12 }}>
               View Details
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              width: '100%',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderRadius: BorderRadius.default,
+              borderWidth: 1,
+              borderColor: Colors.errorBorder,
+              backgroundColor: Colors.errorLight,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onPress={async () => {
+              if (!job.requestId) {
+                showError('Invalid request ID');
+                return;
+              }
+              
+              haptics.warning();
+              try {
+                await providerService.rejectRequest(job.requestId);
+                haptics.success();
+                showSuccess('Request declined. The client has been notified.');
+                
+                // Remove from pending jobs immediately
+                setPendingJobs(prev => prev.filter(j => j.requestId !== job.requestId));
+                
+                // Reload available requests
+                await loadAvailableRequests();
+              } catch (error: any) {
+                haptics.error();
+                const errorMessage = getSpecificErrorMessage(error, 'reject_request');
+                showError(errorMessage);
+              }
+            }}
+          >
+            <Text style={{ color: Colors.error, fontFamily: 'Poppins-SemiBold', fontSize: 12 }}>
+              Decline
             </Text>
           </TouchableOpacity>
         </View>
@@ -1082,13 +1000,65 @@ export default function ProviderHomeScreen() {
               }}
               activeOpacity={0.7}
             >
-              see this <Users size={16} color={Colors.black} />
+              <Users size={16} color={Colors.black} />
               <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.black, marginLeft: 6 }}>
                 Invite Friends
               </Text>
             </TouchableOpacity>
           </View>
         </View>
+        {isLoadingPending ? (
+          <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <View style={{ width: 140, height: 16, backgroundColor: Colors.border, borderRadius: 8 }} />
+              <View style={{ width: 60, height: 12, backgroundColor: Colors.border, borderRadius: 6 }} />
+            </View>
+            {[1, 2, 3].map((i) => (
+              <JobCardSkeleton key={i} />
+            ))}
+          </View>
+        ) : Array.isArray(pendingJobs) && pendingJobs.length > 0 ? (
+          <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Available Requests</Text>
+              {pendingJobs.length > 2 && (
+                <TouchableOpacity onPress={() => router.push('/provider/jobs')}>
+                  <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
+                    View all <ArrowRight size={12} color={Colors.accent} />
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {pendingJobs.slice(0, 2).map((job) => renderJobCard(job, false))}
+          </View>
+        ) : !isLoadingPending && (
+          <View style={{ paddingHorizontal: 16, marginBottom: 24, alignItems: 'center', paddingVertical: 20 }}>
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 8 }}>
+              No available requests
+            </Text>
+            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 12 }}>
+              New service requests will appear here when they match your registered categories and are within your location radius.
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                router.push('/ProviderProfileSetupScreen' as any);
+              }}
+              style={{
+                backgroundColor: Colors.accent,
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: BorderRadius.default,
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+                Update Profile
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {isLoadingActive ? (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -1122,58 +1092,6 @@ export default function ProviderHomeScreen() {
         ) : !isLoadingActive && (
           // Empty state for active jobs will be shown below if no pending jobs either
           null
-        )}
-
-        {isLoadingPending ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <View style={{ width: 140, height: 16, backgroundColor: Colors.border, borderRadius: 8 }} />
-              <View style={{ width: 60, height: 12, backgroundColor: Colors.border, borderRadius: 6 }} />
-            </View>
-            {[1, 2, 3].map((i) => (
-              <JobCardSkeleton key={i} />
-            ))}
-          </View>
-        ) : Array.isArray(pendingJobs) && pendingJobs.length > 0 ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Available Requests</Text>
-              {pendingJobs.length > 3 && (
-                <TouchableOpacity onPress={() => router.push('/provider/jobs')}>
-                  <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
-                    View all <ArrowRight size={12} color={Colors.accent} />
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            {pendingJobs.slice(0, 3).map((job) => renderJobCard(job, false))}
-          </View>
-        ) : !isLoadingPending && (
-          <View style={{ paddingHorizontal: 16, marginBottom: 24, alignItems: 'center', paddingVertical: 20 }}>
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 8 }}>
-              No available requests
-            </Text>
-            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 12 }}>
-              New service requests will appear here when they match your registered categories and are within your location radius.
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                haptics.light();
-                router.push('/ProviderProfileSetupScreen' as any);
-              }}
-              style={{
-                backgroundColor: Colors.accent,
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: BorderRadius.default,
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
-                Update Profile
-              </Text>
-            </TouchableOpacity>
-          </View>
         )}
 
         {/* Show empty state only if both sections are empty and not loading */}

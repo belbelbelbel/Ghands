@@ -6,49 +6,87 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowRight, Bell, ChevronRight, CreditCard, HelpCircle, MapPin, Settings, Share2, Star, Trash2, User, Wallet } from 'lucide-react-native';
 import React, { useState, useCallback } from 'react';
 import { Alert, Dimensions, Image, ScrollView, Share, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { profileService } from '@/services/api';
+import { profileService, walletService } from '@/services/api';
 
 const ProfileScreen = () => {
   const router = useRouter();
   const { logout, switchRole } = useAuthRole();
   const { location } = useUserLocation();
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [userData, setUserData] = useState({
     name: 'Loading...',
     location: location || 'New York, NY',
     rating: 4.8,
     reviews: 24,
-    balance: 12847.50,
+    balance: 0,
     referralCode: 'SARAH2024',
   });
+
+  // Load wallet balance
+  const loadWalletBalance = useCallback(async () => {
+    try {
+      setIsLoadingBalance(true);
+      const wallet = await walletService.getWallet();
+      const balanceValue = typeof wallet.balance === 'number' 
+        ? wallet.balance 
+        : parseFloat(String(wallet.balance)) || 0;
+      
+      setUserData(prev => ({
+        ...prev,
+        balance: balanceValue,
+      }));
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error loading wallet balance:', error);
+      }
+      // Keep current balance on error
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  }, []);
 
   // Load user profile from API
   const loadUserProfile = useCallback(async () => {
     try {
       setIsLoading(true);
-      const profile = await profileService.getCurrentUserProfile();
       
-      // Extract user data from API response
-      const firstName = profile?.firstName || profile?.data?.firstName || '';
-      const lastName = profile?.lastName || profile?.data?.lastName || '';
-      const fullName = firstName && lastName 
-        ? `${firstName} ${lastName}`.trim()
-        : firstName || lastName || 'User';
-      
-      setUserData(prev => ({
-        ...prev,
-        name: fullName,
-        location: location || prev.location,
-      }));
+      // Load profile and wallet balance in parallel
+      await Promise.all([
+        (async () => {
+          try {
+            const profile = await profileService.getCurrentUserProfile();
+            
+            // Extract user data from API response
+            const firstName = profile?.firstName || profile?.data?.firstName || '';
+            const lastName = profile?.lastName || profile?.data?.lastName || '';
+            const fullName = firstName && lastName 
+              ? `${firstName} ${lastName}`.trim()
+              : firstName || lastName || 'User';
+            
+            setUserData(prev => ({
+              ...prev,
+              name: fullName,
+              location: location || prev.location,
+            }));
+          } catch (error) {
+            if (__DEV__) {
+              console.error('Error loading user profile:', error);
+            }
+          }
+        })(),
+        loadWalletBalance(), // Also load wallet balance
+      ]);
     } catch (error: any) {
       if (__DEV__) {
-        console.error('Error loading user profile:', error);
+        console.error('Error loading user data:', error);
       }
-      // Keep default/previous data on error
+      // Still try to load wallet balance even if profile fails
+      await loadWalletBalance();
     } finally {
       setIsLoading(false);
     }
-  }, [location]);
+  }, [location, loadWalletBalance]);
 
   // Load profile when screen comes into focus
   useFocusEffect(
@@ -423,18 +461,34 @@ const ProfileScreen = () => {
               >
                 Current balance
               </Text>
-              <Text
-                style={{
-                  fontSize: Math.min(36, Dimensions.get('window').width * 0.09),
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.white,
-                }}
-              >
-                ₦{userData.balance.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </Text>
+              {isLoadingBalance ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={Colors.white} style={{ marginRight: 8 }} />
+                  <Text
+                    style={{
+                      fontSize: Math.min(36, Dimensions.get('window').width * 0.09),
+                      fontFamily: 'Poppins-Bold',
+                      color: Colors.white,
+                      opacity: 0.7,
+                    }}
+                  >
+                    Loading...
+                  </Text>
+                </View>
+              ) : (
+                <Text
+                  style={{
+                    fontSize: Math.min(36, Dimensions.get('window').width * 0.09),
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.white,
+                  }}
+                >
+                  ₦{userData.balance.toLocaleString('en-NG', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </Text>
+              )}
             </View>
             <Wallet size={28} color={Colors.white} opacity={0.9} />
           </View>

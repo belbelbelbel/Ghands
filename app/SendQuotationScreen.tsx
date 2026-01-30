@@ -7,7 +7,7 @@ import { providerService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ChevronDown, ChevronUp, Minus, Plus, X } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface MaterialItem {
@@ -61,7 +61,7 @@ export default function SendQuotationScreen() {
     }, 0);
     const subtotal = labor + logistics + materialTotal;
     const platformFee = subtotal * (PLATFORM_FEE_PERCENTAGE / 100);
-    const tax = 0;
+    const tax = 10; // Fixed tax of ₦10
     const calculatedTotal = subtotal + platformFee + tax;
     
     return { labor, logistics, materialTotal, subtotal, platformFee, tax, total: calculatedTotal };
@@ -187,7 +187,7 @@ export default function SendQuotationScreen() {
         materials: materialsPayload.length > 0 ? materialsPayload : undefined,
         findingsAndWorkRequired: findings.trim(),
         serviceCharge: serviceCharge,
-        tax: 0,
+        tax: 10, // Fixed tax of ₦10
       };
 
       await providerService.sendQuotation(requestId, payload);

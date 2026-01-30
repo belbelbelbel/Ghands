@@ -1,29 +1,29 @@
-import CoachMarks, { CoachMarkStep } from '@/components/CoachMarks';
 import { CoachMarkTarget } from '@/components/CoachMarkTarget';
+import CoachMarks, { CoachMarkStep } from '@/components/CoachMarks';
 import LiveSupportScreen from '@/components/LiveSupportScreen';
-import LocationSearchModal from '@/components/LocationSearchModal';
 import { JobCardSkeleton } from '@/components/LoadingSkeleton';
+import LocationSearchModal from '@/components/LocationSearchModal';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import JobActivityCard from '@/components/home/JobActivityCard';
 import PromoCodeCard from '@/components/home/PromoCodeCard';
 import RecommendedCard from '@/components/home/RecommendedCard';
 import TodoCard from '@/components/home/TodoCard';
-import { promoCodes, quickActions, recommendedServices, todoItems, type QuickAction, type JobActivity } from '@/components/home/data';
+import { promoCodes, quickActions, recommendedServices, todoItems, type JobActivity, type QuickAction } from '@/components/home/data';
 import useCoachMarks from '@/hooks/useCoachMarks';
 import { haptics } from '@/hooks/useHaptics';
+import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
+import { Colors } from '@/lib/designSystem';
+import { ServiceRequest, authService, serviceRequestService } from '@/services/api';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import { getCategoryIcon } from '@/utils/categoryIcons';
+import { AuthError } from '@/utils/errors';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { ServiceCategory, homeScreenCategories } from '../../data/serviceCategories';
-import { serviceRequestService, ServiceRequest, authService } from '@/services/api';
-import { getCategoryIcon } from '@/utils/categoryIcons';
-import { Colors, BorderRadius, Spacing, SHADOWS } from '@/lib/designSystem';
-import { AuthError } from '@/utils/errors';
-import { handleAuthErrorRedirect } from '@/utils/authRedirect';
-import { useTokenGuard } from '@/hooks/useTokenGuard';
+import { ServiceCategory } from '../../data/serviceCategories';
 
 const CategoryItem = React.memo(({
   category,
@@ -70,7 +70,7 @@ const HomeScreen = React.memo(() => {
   const { location, isLoading, refreshLocation } = useUserLocation();
   const [jobActivities, setJobActivities] = useState<JobActivity[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
-  
+
   // Coach marks configuration
   const coachMarkSteps: CoachMarkStep[] = [
     {
@@ -202,7 +202,7 @@ const HomeScreen = React.memo(() => {
     const categoryDisplayName = request.categoryName
       ? request.categoryName.charAt(0).toUpperCase() + request.categoryName.slice(1).replace(/([A-Z])/g, ' $1')
       : 'Service';
-    
+
     // Map status: If providers have accepted, show "In Progress" even if request status is "pending"
     let status: 'Completed' | 'In Progress' | 'Pending' = 'Pending';
     if (request.status === 'completed') {
@@ -237,54 +237,37 @@ const HomeScreen = React.memo(() => {
     try {
       // Fetch all requests
       const requests = await serviceRequestService.getUserRequests();
-      
+
       if (!Array.isArray(requests) || requests.length === 0) {
         setJobActivities([]);
         return;
       }
 
-      // Filter out requests that are still in the booking flow (not confirmed yet)
-      // Also filter out cancelled/deleted requests - they should only show in Jobs tab
-      // Only show requests that have been confirmed/booked AND sent to providers
+      // Filter out requests that are clearly incomplete or cancelled
+      // We want Job Activity to always reflect what the user has tried to book,
+      // even if the backend hasn't yet attached nearbyProviders.
       const confirmedRequests = requests.filter((request) => {
         // Exclude cancelled requests - they should only show in Jobs tab
         if (request.status === 'cancelled') {
           return false;
         }
-        
+
         // Must have both jobTitle and description
         const hasJobTitle = request.jobTitle && request.jobTitle.trim().length > 0;
         const hasDescription = request.description && request.description.trim().length > 0;
         if (!hasJobTitle || !hasDescription) {
           return false;
         }
-        
-        // For "pending" status: Only show if booking has been sent to providers
-        // A booking is sent to providers when:
-        // 1. It has location (request was sent to providers via updateJobDetails)
-        // OR it has scheduled date/time (user confirmed booking in DateTimeScreen)
-        // This ensures user has completed the booking flow and seen providers
-        // but is still waiting for provider response (status is still "pending", not "accepted")
-        // Note: When a provider is selected, status changes to "accepted", so if status is "pending",
-        // it means no provider has been selected yet
-        if (request.status === 'pending') {
-          const hasScheduledDateTime = !!(request.scheduledDate && request.scheduledTime);
-          const hasLocation = !!(request.location?.latitude && request.location?.longitude);
-          const hasLocationText = !!(request.location?.formattedAddress || request.location?.address);
-          
-          // Show "pending" if booking has been sent to providers (has location OR date/time)
-          // This means user has completed the booking flow and confirmed booking
-          // Status being "pending" already means no provider has been selected yet
-          // (if provider was selected, status would be "accepted")
-          return hasScheduledDateTime || hasLocation || hasLocationText;
-        }
-        
-        // Show all other statuses (accepted, in_progress, completed) - these are confirmed
+
+        // For Job Activity we now allow all non‑cancelled statuses (including "pending")
+        // so the user always sees their recent bookings, even if nearbyProviders is empty.
         return true;
       });
 
-      // Map to JobActivity format - Load accepted providers for each request to determine correct status
-      const activities = await Promise.all(
+      // Map to JobActivity format for ALL confirmed requests,
+      // so we can sort by both status (In Progress > Pending > Completed)
+      // and recency (latest createdAt first), then pick the top 2.
+      const activityEntries = await Promise.all(
         confirmedRequests.map(async (request) => {
           // Check if providers have accepted this request
           let acceptedProvidersCount = 0;
@@ -297,22 +280,28 @@ const HomeScreen = React.memo(() => {
               console.log(`Could not load accepted providers for request ${request.id}:`, error);
             }
           }
-          
-          return mapRequestToJobActivity(request, acceptedProvidersCount);
+
+          const activity = mapRequestToJobActivity(request, acceptedProvidersCount);
+          const createdAtMs = request?.createdAt ? new Date(request.createdAt).getTime() : 0;
+          return { activity, createdAtMs };
         })
       );
 
-      // Sort by date (most recent first) and limit to 2 most recent
-      const sortedActivities = activities
+      // Sort by status priority first, then by recency using createdAt
+      const statusPriority: Record<JobActivity['status'], number> = {
+        'In Progress': 0,
+        'Pending': 1,
+        'Completed': 2,
+      };
+
+      const sortedActivities = activityEntries
         .sort((a, b) => {
-          // Sort by status priority: In Progress > Pending > Completed
-          const statusPriority = { 'In Progress': 0, 'Pending': 1, 'Completed': 2 };
-          const priorityDiff = statusPriority[a.status] - statusPriority[b.status];
-          if (priorityDiff !== 0) return priorityDiff;
-          // Then by ID (most recent first)
-          return parseInt(b.id) - parseInt(a.id);
+          const statusDiff = statusPriority[a.activity.status] - statusPriority[b.activity.status];
+          if (statusDiff !== 0) return statusDiff;
+          return b.createdAtMs - a.createdAtMs;
         })
-        .slice(0, 2); // Show only 2 most recent
+        .slice(0, 2) // show only 2 most important/recent
+        .map(entry => entry.activity);
 
       setJobActivities(sortedActivities);
     } catch (error: any) {
@@ -321,19 +310,19 @@ const HomeScreen = React.memo(() => {
         await handleAuthErrorRedirect(router);
         return;
       }
-      
+
       // Check if it's a network error
-      const isNetworkError = error?.isNetworkError || 
-                            error?.message?.includes('Network') || 
-                            error?.message?.includes('Failed to fetch') ||
-                            error?.message?.includes('Network request failed');
-      
+      const isNetworkError = error?.isNetworkError ||
+        error?.message?.includes('Network') ||
+        error?.message?.includes('Failed to fetch') ||
+        error?.message?.includes('Network request failed');
+
       if (isNetworkError) {
         // Don't show error for network issues on home screen - just show empty state
         setJobActivities([]);
         return;
       }
-      
+
       // Check if it's a 500 error - might indicate invalid/expired token
       const status = (error as any)?.status;
       if (status === 500) {
@@ -352,7 +341,7 @@ const HomeScreen = React.memo(() => {
           return;
         }
       }
-      
+
       if (__DEV__ && !(error instanceof AuthError)) {
         console.error('Error loading job activities:', error?.message || error);
       }
@@ -400,12 +389,12 @@ const HomeScreen = React.memo(() => {
   const loadCategoriesFromAPI = async () => {
     try {
       const categories = await serviceRequestService.getCategories();
-      
+
       if (!Array.isArray(categories) || categories.length === 0) {
         // If API fails or returns empty, keep dummy data
         return;
       }
-      
+
       // Map API categories to ServiceCategory format with icons
       const categoriesWithIcons: ServiceCategory[] = categories
         .map((cat) => {
@@ -416,13 +405,13 @@ const HomeScreen = React.memo(() => {
             icon: IconComponent,
           };
         });
-      
+
       // Shuffle categories for random order on home page
       const shuffledCategories = shuffleArray(categoriesWithIcons);
-      
+
       // Limit to 8 for home screen (same as dummy data)
       const limitedCategories = shuffledCategories.slice(0, 8);
-      
+
       // Replace dummy data with API data
       setApiCategories(limitedCategories);
     } catch (error: any) {
@@ -431,7 +420,7 @@ const HomeScreen = React.memo(() => {
         await handleAuthErrorRedirect(router);
         return;
       }
-      
+
       // On error, clear categories to show empty state
       setApiCategories([]);
       if (__DEV__) {
@@ -459,33 +448,26 @@ const HomeScreen = React.memo(() => {
     if (searchQuery.trim()) {
       router.push({
         pathname: '/(tabs)/categories',
-        params: { searchQuery: searchQuery.trim()},
+        params: { searchQuery: searchQuery.trim() },
       });
     }
   }, [searchQuery, router]);
 
-  // Use API categories if available, otherwise use dummy data (shuffled)
-  // Memoize shuffled dummy categories so they don't re-shuffle on every render
-  const shuffledDummyCategories = useMemo(() => {
-    return shuffleArray([...homeScreenCategories]);
-  }, []); // Only shuffle once on mount
-
   const filteredCategories = useMemo(() => {
-    const categoriesToUse = apiCategories.length > 0 ? apiCategories : shuffledDummyCategories;
-    
+    const categoriesToUse = apiCategories.length > 0 ? apiCategories : [];
+
     if (!searchQuery.trim()) {
       return categoriesToUse;
     }
-    
+
     const query = searchQuery.toLowerCase().trim();
     const filtered = categoriesToUse.filter(
       (category) =>
         category.title.toLowerCase().includes(query) ||
         category.id.toLowerCase().includes(query)
     );
-    // If no results found, show all categories instead of empty
-    return filtered.length > 0 ? filtered : categoriesToUse;
-  }, [searchQuery, apiCategories, shuffledDummyCategories]);
+    return filtered;
+  }, [searchQuery, apiCategories]);
 
   const handleNotificationPress = useCallback(() => {
     router.push('../NotificationsScreen' as any);
@@ -516,25 +498,25 @@ const HomeScreen = React.memo(() => {
     const personalized = uniqueCategories.map((category, index) => {
       // Map category names to category IDs
       const categoryMap: { [key: string]: { id: string; title: string; image: any } } = {
-        'plumbing': { 
-          id: 'plumber', 
-          title: 'Plumbing', 
-          image: require('../../assets/images/plumbericon2.png') 
+        'plumbing': {
+          id: 'plumber',
+          title: 'Plumbing',
+          image: require('../../assets/images/plumbericon2.png')
         },
-        'electrical': { 
-          id: 'electrician', 
-          title: 'Electrical', 
-          image: require('../../assets/images/electricianicon2.png') 
+        'electrical': {
+          id: 'electrician',
+          title: 'Electrical',
+          image: require('../../assets/images/electricianicon2.png')
         },
-        'cleaning': { 
-          id: 'cleaning', 
-          title: 'Cleaning', 
-          image: require('../../assets/images/cleanericon2.png') 
+        'cleaning': {
+          id: 'cleaning',
+          title: 'Cleaning',
+          image: require('../../assets/images/cleanericon2.png')
         },
-        'painting': { 
-          id: 'painter', 
-          title: 'Painting', 
-          image: require('../../assets/images/paintericon2.png') 
+        'painting': {
+          id: 'painter',
+          title: 'Painting',
+          image: require('../../assets/images/paintericon2.png')
         },
       };
 
@@ -638,150 +620,190 @@ const HomeScreen = React.memo(() => {
                 className="bg-gray-100 rounded-xl px-4 py-0 flex-row items-center"
                 style={searchBarStyle}
               >
-              <TextInput
-                placeholder="Search for services"
-                value={searchQuery}
-                onChangeText={handleSearchQueryChange}
-                onSubmitEditing={handleSearch}
-                returnKeyType="search"
-                className="flex-1 text-black text-base"
-                placeholderTextColor="#666"
-                style={{ fontFamily: 'Poppins-Medium' }}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity 
-                  onPress={() => setSearchQuery('')}
-                  className="w-8 h-8 items-center justify-center mr-2"
-                  activeOpacity={0.7}
+                <TextInput
+                  placeholder="Search for services"
+                  value={searchQuery}
+                  onChangeText={handleSearchQueryChange}
+                  onSubmitEditing={handleSearch}
+                  returnKeyType="search"
+                  className="flex-1 text-black text-base"
+                  placeholderTextColor="#666"
+                  style={{ fontFamily: 'Poppins-Medium' }}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setSearchQuery('')}
+                    className="w-8 h-8 items-center justify-center mr-2"
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name='close-outline' size={20} color="#666" />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  className="w-10 h-10 bg-black rounded-lg items-center justify-center ml-2"
+                  onPress={handleSearch}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name='close-outline' size={20} color="#666" />
+                  <Search size={18} color="#9bd719ff" />
                 </TouchableOpacity>
-              )}
-              <TouchableOpacity 
-                className="w-10 h-10 bg-black rounded-lg items-center justify-center ml-2"
-                onPress={handleSearch}
-                activeOpacity={0.8}
-              >
-                <Search size={18} color="#9bd719ff" />
-              </TouchableOpacity>
               </View>
             </CoachMarkTarget>
           </View>
-          <CoachMarkTarget name="categories-section">
-            <View className="px-4 pt-6 mb-0">
-            <View className="flex-row pb-2 items-center justify-between mb-4">
-              <Text
-                className="text-lg font-bold text-black"
-                style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
-              >
-                Categories
-              </Text>
-              <TouchableOpacity
-                onPress={handleViewAllCategories}
-                className="px-3 py-1 flex-row items-center"
-              >
+            <CoachMarkTarget name="categories-section">
+            <View className="px-4 pt-4 mb-0">
+              <View className="flex-row pb-1 items-center justify-between mb-2">
                 <Text
-                  className="text-sm text-black"
-                  style={{ fontFamily: 'Poppins-SemiBold' }}
+                  className="text-lg font-bold text-black"
+                  style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
                 >
-                  View all
+                  Categories
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color="black" />
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  onPress={handleViewAllCategories}
+                  className="px-3 py-1 flex-row items-center"
+                >
+                  <Text
+                    className="text-sm text-black"
+                    style={{ fontFamily: 'Poppins-SemiBold' }}
+                  >
+                    View all
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color="black" />
+                </TouchableOpacity>
+              </View>
 
-            <Animated.View style={{ opacity: categoriesFadeAnim }}>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingRight: 16 }}
-                style={{ marginTop: 5, marginBottom: 28 }}
-              >
-                {filteredCategories.map((category) => (
-                  <CategoryItem
-                    key={category.id}
-                    category={category}
-                    onPress={handleCategoryPress}
-                  />
-                ))}
-              </ScrollView>
-            </Animated.View>
+              <Animated.View style={{ opacity: categoriesFadeAnim }}>
+                {filteredCategories.length === 0 ? (
+                  // Skeleton line for categories when nothing is loaded yet - matches actual CategoryItem size
+                  <View style={{ flexDirection: 'row', marginTop: 2, marginBottom: 18 }}>
+                    {[1, 2, 3, 4].map((i) => (
+                      <View key={i} style={{ width: 100, marginRight: 12 }}>
+                        <View
+                          style={{
+                            borderRadius: 16,
+                            backgroundColor: '#F3F4F6',
+                            paddingVertical: 8,
+                            paddingHorizontal: 12,
+                            alignItems: 'center',
+                            borderWidth: 0,
+                          }}
+                        >
+                          {/* Icon skeleton */}
+                          <View
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: 8,
+                              backgroundColor: '#E5E7EB',
+                              marginBottom: 8,
+                            }}
+                          />
+                          {/* Text skeleton */}
+                          <View
+                            style={{
+                              width: 60,
+                              height: 12,
+                              borderRadius: 6,
+                              backgroundColor: '#E5E7EB',
+                            }}
+                          />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingRight: 16 }}
+                    style={{ marginTop: 2, marginBottom: 18 }}
+                  >
+                    {filteredCategories.map((category) => (
+                      <CategoryItem
+                        key={category.id}
+                        category={category}
+                        onPress={handleCategoryPress}
+                      />
+                    ))}
+                  </ScrollView>
+                )}
+              </Animated.View>
             </View>
           </CoachMarkTarget>
 
           {/* Quick Actions */}
           <CoachMarkTarget name="quick-actions">
-            <View className="px-4 mb-8">
-            <Text
-              className="text-lg font-bold text-black mb-4"
-              style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
-            >
-              Quick Actions
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingRight: 16 }}
-            >
-              {(quickActions || []).map((action: QuickAction) => (
-                <TouchableOpacity
-                  key={action.id}
-                  onPress={() => {
-                    haptics.light();
-                    if (action.id === 'emergency') {
-                      router.push({
-                        pathname: '/(tabs)/categories',
-                        params: { emergency: 'true' },
-                      });
-                    } else if (action.id === 'book-again') {
-                      router.push('/(tabs)/jobs' as any);
-                    } else if (action.id === 'wallet') {
-                      router.push('/WalletScreen' as any);
-                    }
-                  }}
-                  activeOpacity={0.8}
-                  style={{
-                    minWidth: 140,
-                    marginRight: 12,
-                    backgroundColor: '#F3F4F6',
-                    borderRadius: 16,
-                    padding: 16,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: 1,
-                    borderColor: '#E5E7EB',
-                  }}
-                >
-                  <View
+            <View className="px-4 mt-3 mb-8">
+              <Text
+                className="text-lg font-bold text-black mb-4"
+                style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
+              >
+                Quick Actions
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingRight: 16 }}
+              >
+                {(quickActions || []).map((action: QuickAction) => (
+                  <TouchableOpacity
+                    key={action.id}
+                    onPress={() => {
+                      haptics.light();
+                      if (action.id === 'emergency') {
+                        router.push({
+                          pathname: '/(tabs)/categories',
+                          params: { emergency: 'true' },
+                        });
+                      } else if (action.id === 'book-again') {
+                        router.push('/(tabs)/jobs' as any);
+                      } else if (action.id === 'wallet') {
+                        router.push('/WalletScreen' as any);
+                      }
+                    }}
+                    activeOpacity={0.8}
                     style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 24,
-                      backgroundColor: '#FFFFFF',
+                      minWidth: 140,
+                      marginRight: 12,
+                      backgroundColor: '#F3F4F6',
+                      borderRadius: 16,
+                      padding: 16,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginBottom: 10,
+                      borderWidth: 1,
+                      borderColor: '#E5E7EB',
                     }}
                   >
-                    <Ionicons 
-                      name={action.iconName} 
-                      size={24} 
-                      color={action.id === 'emergency' ? '#DC2626' : '#000000'} 
-                    />
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontFamily: 'Poppins-SemiBold',
-                      color: '#000000',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {action.title}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+                    <View
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                        backgroundColor: '#FFFFFF',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Ionicons
+                        name={action.iconName}
+                        size={24}
+                        color={action.id === 'emergency' ? '#DC2626' : '#000000'}
+                      />
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: '#000000',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {action.title}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           </CoachMarkTarget>
 
@@ -857,7 +879,7 @@ const HomeScreen = React.memo(() => {
                         paddingVertical: 10,
                         paddingHorizontal: 14,
                         borderWidth: 1,
-                        borderColor: 'rgba(0, 0, 0, 0.2)',
+                        borderColor: 'rgba(0, 0, 0, 0.2)', 
                       }}
                       onPress={() => {
                         haptics.light();
@@ -914,80 +936,80 @@ const HomeScreen = React.memo(() => {
                 >
                   Job Activity
                 </Text>
-              <TouchableOpacity 
-                className="flex-row items-center"
-                onPress={handleViewAllJobs}
-                activeOpacity={0.7}
-              >
-                <Text
-                  className="text-sm text-black"
-                  style={{ fontFamily: 'Poppins-SemiBold' }}
+                <TouchableOpacity
+                  className="flex-row items-center"
+                  onPress={handleViewAllJobs}
+                  activeOpacity={0.7}
                 >
-                  View all
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color="black" />
-              </TouchableOpacity>
-            </View>
-            {isLoadingJobs ? (
-              <>
-                <JobCardSkeleton />
-                <JobCardSkeleton />
-              </>
-            ) : jobActivities.length > 0 ? (
-              jobActivities.map((activity, index) => (
-                <View key={activity.id} style={{ marginBottom: index < jobActivities.length - 1 ? 16 : 0 }}>
-                  <JobActivityCard activity={activity} />
-                </View>
-              ))
-            ) : (
-              <View
-                style={{
-                  backgroundColor: Colors.white,
-                  borderRadius: 20,
-                  padding: 32,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                }}
-              >
+                  <Text
+                    className="text-sm text-black"
+                    style={{ fontFamily: 'Poppins-SemiBold' }}
+                  >
+                    View all
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color="black" />
+                </TouchableOpacity>
+              </View>
+              {isLoadingJobs ? (
+                <>
+                  <JobCardSkeleton />
+                  <JobCardSkeleton />
+                </>
+              ) : jobActivities.length > 0 ? (
+                jobActivities.map((activity, index) => (
+                  <View key={activity.id} style={{ marginBottom: index < jobActivities.length - 1 ? 16 : 0 }}>
+                    <JobActivityCard activity={activity} />
+                  </View>
+                ))
+              ) : (
                 <View
                   style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    backgroundColor: '#F2F7EC',
+                    backgroundColor: Colors.white,
+                    borderRadius: 20,
+                    padding: 32,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: 16,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
                   }}
                 >
-                  <Ionicons name="briefcase-outline" size={32} color="#6A9B00" />
+                  <View
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      backgroundColor: '#F2F7EC',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 16,
+                    }}
+                  >
+                    <Ionicons name="briefcase-outline" size={32} color="#6A9B00" />
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.textPrimary,
+                      marginBottom: 8,
+                      textAlign: 'center',
+                    }}
+                  >
+                    No jobs yet
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      textAlign: 'center',
+                      lineHeight: 20,
+                    }}
+                  >
+                    Your recent job activity will appear here
+                  </Text>
                 </View>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.textPrimary,
-                    marginBottom: 8,
-                    textAlign: 'center',
-                  }}
-                >
-                  No jobs yet
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.textSecondaryDark,
-                    textAlign: 'center',
-                    lineHeight: 20,
-                  }}
-                >
-                  Your recent job activity will appear here
-                </Text>
-              </View>
-            )}
+              )}
             </View>
           </CoachMarkTarget>
 

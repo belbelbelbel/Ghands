@@ -95,37 +95,18 @@ export default function JobsScreen() {
       // Ensure requests is always an array
       const requestsArray = Array.isArray(requests) ? requests : [];
       
-      // Filter out requests that are still in the booking flow (not confirmed yet)
-      // Only show requests that have been confirmed/booked AND sent to providers
       const confirmedRequests = requestsArray.filter((request) => {
-        // Must have both jobTitle and description
+        // Must have both jobTitle and description or we ignore it as noise
         const hasJobTitle = request.jobTitle && request.jobTitle.trim().length > 0;
         const hasDescription = request.description && request.description.trim().length > 0;
         if (!hasJobTitle || !hasDescription) {
           return false;
         }
-        
-        // For "pending" status: Only show if booking has been sent to providers
-        // A booking is sent to providers when:
-        // 1. It has location (request was sent to providers via updateJobDetails)
-        // OR it has scheduled date/time (user confirmed booking in DateTimeScreen)
-        // This ensures user has completed the booking flow and seen providers
-        // but is still waiting for provider response (status is still "pending", not "accepted")
-        // Note: When a provider is selected, status changes to "accepted", so if status is "pending",
-        // it means no provider has been selected yet
-        if (request.status === 'pending') {
-          const hasScheduledDateTime = !!(request.scheduledDate && request.scheduledTime);
-          const hasLocation = !!(request.location?.latitude && request.location?.longitude);
-          const hasLocationText = !!(request.location?.formattedAddress || request.location?.address);
-          
-          // Show "pending" if booking has been sent to providers (has location OR date/time)
-          // This means user has completed the booking flow and confirmed booking
-          // Status being "pending" already means no provider has been selected yet
-          // (if provider was selected, status would be "accepted")
-          return hasScheduledDateTime || hasLocation || hasLocationText;
-        }
-        
-        // Show all other statuses (accepted, in_progress, completed, cancelled) - these are confirmed
+
+        // Bring back the original behaviour:
+        // - Do NOT depend on nearbyProviders here.
+        // - Allow all statuses (pending, accepted, in_progress, completed, cancelled).
+        // The visual status handling happens later in mapRequestToJobItem.
         return true;
       });
       
@@ -314,25 +295,31 @@ export default function JobsScreen() {
                 <View className="flex-row items-center gap-2">
                   <AnimatedStatusChip
                     status={job.status}
+                    // Use blue for "In Progress" to match home activity cards,
+                    // keep yellow for pending, green for completed, gray for cancelled.
                     statusColor={
-                      activeTab === 'Ongoing'
-                        ? '#FEF9C3'
-                        : activeTab === 'Completed'
-                          ? '#DCFCE7'
-                          : '#F3F4F6'
+                      job.status === 'In Progress'
+                        ? '#E4ECFF' // blue background
+                        : job.status === 'Completed'
+                          ? '#DCFCE7' // green background
+                          : activeTab === 'Cancelled'
+                            ? '#F3F4F6' // gray background
+                            : '#FEF9C3' // yellow for pending
                     }
                     textColor={
-                      activeTab === 'Ongoing'
-                        ? '#92400E'
-                        : activeTab === 'Completed'
-                          ? '#166534'
-                          : '#6B7280'
+                      job.status === 'In Progress'
+                        ? '#2750B8' // blue text
+                        : job.status === 'Completed'
+                          ? '#166534' // green text
+                          : activeTab === 'Cancelled'
+                            ? '#6B7280' // gray text
+                            : '#92400E' // brown/yellow text for pending
                     }
                     size="small"
                     animated={true}
                   />
-                  {/* Cancel Request button in header - only show if no providers accepted */}
-                  {activeTab === 'Ongoing' && job.acceptedProvidersCount === 0 && (
+                  {/* Cancel Request button in header - only show while job is still pending AND no providers have accepted */}
+                  {activeTab === 'Ongoing' && job.status === 'Pending' && (job.acceptedProvidersCount ?? 0) === 0 && (
                     <TouchableOpacity
                       className="bg-red-50 border border-red-500 py-1.5 px-3 rounded-lg"
                       activeOpacity={0.85}
@@ -341,7 +328,15 @@ export default function JobsScreen() {
                         setPendingCancelJob(job);
                       }}
                     >
-                      <Ionicons name="close-circle" size={16} color="#FF2C2C" />
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontFamily: 'Poppins-SemiBold',
+                          color: '#FF2C2C',
+                        }}
+                      >
+                        Cancel
+                      </Text>
                     </TouchableOpacity>
                   )}
                 </View>

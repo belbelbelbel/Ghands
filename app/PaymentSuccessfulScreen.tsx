@@ -2,9 +2,56 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, CheckCircle, Download, Lock, Share2, User } from 'lucide-react-native';
-import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View, Share, Alert, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ScrollView, Text, TouchableOpacity, View, Share, Alert, Image, ActivityIndicator } from 'react-native';
 import { Button } from '@/components/ui/Button';
+import { serviceRequestService, providerService } from '@/services/api';
+
+// Helper function to format dates
+const formatDate = (date: Date, format: string = 'MMM dd, yyyy'): string => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fullMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  
+  const day = date.getDate();
+  const month = date.getMonth();
+  const year = date.getFullYear();
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+  const displayMinutes = minutes.toString().padStart(2, '0');
+  
+  if (format.includes('MMMM')) {
+    return format
+      .replace('MMMM', fullMonths[month])
+      .replace('dd', day.toString().padStart(2, '0'))
+      .replace('yyyy', year.toString())
+      .replace('MMM', months[month])
+      .replace('MM', (month + 1).toString().padStart(2, '0'))
+      .replace('h:mm a', `${displayHours}:${displayMinutes} ${period}`);
+  }
+  
+  return format
+    .replace('MMM', months[month])
+    .replace('MM', (month + 1).toString().padStart(2, '0'))
+    .replace('dd', day.toString().padStart(2, '0'))
+    .replace('yyyy', year.toString())
+    .replace('h:mm a', `${displayHours}:${displayMinutes} ${period}`);
+};
+
+interface TransactionData {
+  transactionId: string;
+  jobTitle: string;
+  providerName: string;
+  serviceDate: string;
+  serviceTime: string;
+  serviceFee: string;
+  platformFee: string;
+  tax: string;
+  totalAmount: string;
+  paymentMethod: string;
+  paymentDate: string;
+}
 
 export default function PaymentSuccessfulScreen() {
   const router = useRouter();
@@ -12,21 +59,118 @@ export default function PaymentSuccessfulScreen() {
     transactionId?: string;
     providerName?: string;
     serviceName?: string;
+    requestId?: string;
+    amount?: string;
+    quotationId?: string;
   }>();
+  
+  const [transactionData, setTransactionData] = useState<TransactionData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const transactionData = {
-    transactionId: params.transactionId || 'TXN-2024-001547',
-    jobTitle: params.serviceName || 'Pipe Repair & Installation',
-    providerName: params.providerName || 'Elite Plumbing Services',
-    serviceDate: 'December 15, 2024',
-    serviceTime: '2:30 PM - 5:45 PM',
-    serviceFee: '450.00',
-    platformFee: '25.00',
-    tax: '10.00',
-    totalAmount: '485.00',
-    paymentMethod: 'Credit Card •••• 4532',
-    paymentDate: 'Dec 15, 2024 at 6:12 PM',
-  };
+  // Load transaction data from API
+  const loadTransactionData = useCallback(async () => {
+    if (!params.requestId) {
+      // Use params if available, otherwise use defaults
+      const data: TransactionData = {
+        transactionId: params.transactionId || `TXN-${Date.now()}`,
+        jobTitle: params.serviceName || 'Service',
+        providerName: params.providerName || 'Provider',
+        serviceDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+        serviceTime: 'N/A',
+        serviceFee: params.amount || '0.00',
+        platformFee: '0.00',
+        tax: '10.00',
+        totalAmount: params.amount || '0.00',
+        paymentMethod: 'Wallet',
+        paymentDate: formatDate(new Date(), 'MMM dd, yyyy \'at\' h:mm a'),
+      };
+      setTransactionData(data);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const requestId = parseInt(params.requestId, 10);
+      if (isNaN(requestId)) {
+        throw new Error('Invalid request ID');
+      }
+
+      // Fetch request details and quotation in parallel
+      const [request, quotations] = await Promise.all([
+        serviceRequestService.getRequestDetails(requestId).catch(() => null),
+        serviceRequestService.getQuotations(requestId).catch(() => []),
+      ]);
+
+      // Find the accepted quotation or use the first one
+      const quotation = quotations.find((q: any) => q.status === 'accepted') || quotations[0] || null;
+
+      if (!request) {
+        throw new Error('Unable to load transaction data');
+      }
+
+      // Format dates
+      const serviceDate = request.scheduledDate 
+        ? formatDate(new Date(request.scheduledDate), 'MMMM dd, yyyy')
+        : request.createdAt 
+        ? formatDate(new Date(request.createdAt), 'MMMM dd, yyyy')
+        : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      
+      const serviceTime = request.scheduledTime || 'N/A';
+      
+      const paymentDate = quotation?.acceptedAt
+        ? formatDate(new Date(quotation.acceptedAt), 'MMM dd, yyyy \'at\' h:mm a')
+        : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+      // Calculate amounts from quotation or use params
+      const laborCost = quotation?.laborCost || 0;
+      const logisticsCost = quotation?.logisticsCost || 0;
+      const materialsCost = quotation?.materials?.reduce((sum: number, mat: any) => sum + ((mat.unitPrice || 0) * (mat.quantity || 0)), 0) || 0;
+      const serviceFee = laborCost + logisticsCost + materialsCost;
+      const platformFee = quotation?.serviceCharge || 0;
+      const tax = quotation?.tax || 10;
+      const totalAmount = quotation?.total || parseFloat(params.amount || '0');
+
+      const data: TransactionData = {
+        transactionId: params.transactionId || `TXN-${requestId}-${Date.now().toString().slice(-6)}`,
+        jobTitle: request.jobTitle || request.description || params.serviceName || 'Service Request',
+        providerName: quotation?.provider?.name || params.providerName || 'Provider',
+        serviceDate,
+        serviceTime,
+        serviceFee: serviceFee.toFixed(2),
+        platformFee: platformFee.toFixed(2),
+        tax: tax.toFixed(2),
+        totalAmount: totalAmount.toFixed(2),
+        paymentMethod: 'Wallet',
+        paymentDate,
+      };
+
+      setTransactionData(data);
+    } catch (error: any) {
+      console.error('Error loading transaction data:', error);
+      // Use params as fallback
+      const data: TransactionData = {
+        transactionId: params.transactionId || `TXN-${Date.now()}`,
+        jobTitle: params.serviceName || 'Service',
+        providerName: params.providerName || 'Provider',
+        serviceDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+        serviceTime: 'N/A',
+        serviceFee: params.amount || '0.00',
+        platformFee: '0.00',
+        tax: '10.00',
+        totalAmount: params.amount || '0.00',
+        paymentMethod: 'Wallet',
+        paymentDate: formatDate(new Date(), 'MMM dd, yyyy \'at\' h:mm a'),
+      };
+      setTransactionData(data);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [params.requestId, params.transactionId, params.providerName, params.serviceName, params.amount]);
+
+  useEffect(() => {
+    loadTransactionData();
+  }, [loadTransactionData]);
 
   const handleDownloadReceipt = () => {
     // Handle PDF download
@@ -34,6 +178,10 @@ export default function PaymentSuccessfulScreen() {
   };
 
   const handleShareReceipt = async () => {
+    if (!transactionData) {
+      Alert.alert('Error', 'Transaction data not available');
+      return;
+    }
     try {
       await Share.share({
         message: `Payment Receipt\nTransaction ID: ${transactionData.transactionId}\nAmount: ₦${transactionData.totalAmount}`,
@@ -43,6 +191,20 @@ export default function PaymentSuccessfulScreen() {
       Alert.alert('Error', 'Failed to share receipt');
     }
   };
+
+  // Show loading state
+  if (isLoading || !transactionData) {
+    return (
+      <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
+          <ActivityIndicator size="large" color={Colors.accent} />
+          <Text style={{ marginTop: 16, fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
+            Loading transaction details...
+          </Text>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
@@ -57,7 +219,20 @@ export default function PaymentSuccessfulScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => {
+            // Navigate back to job details if requestId is available, so data reloads
+            if (params.requestId) {
+              router.replace({
+                pathname: '/OngoingJobDetails' as any,
+                params: {
+                  requestId: params.requestId,
+                  paymentStatus: 'success',
+                },
+              } as any);
+            } else {
+              router.back();
+            }
+          }}
           style={{
             width: 40,
             height: 40,

@@ -59,7 +59,7 @@ const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
 
   return (
     <TouchableOpacity
-      className="bg-white rounded-2xl px-4 py-6 border border-gray-100 shadow-[0px_6px_18px_rgba(16,24,40,0.04)]"
+      className="bg-white rounded-2xl px-4 py-7 border border-gray-100 shadow-[0px_6px_18px_rgba(16,24,40,0.04)]"
       activeOpacity={0.7}
       onPress={handlePress}
     >

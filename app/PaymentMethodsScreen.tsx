@@ -1,15 +1,15 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { Colors, BorderRadius } from '@/lib/designSystem';
+import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
+import { useToast } from '@/hooks/useToast';
+import { BorderRadius, Colors } from '@/lib/designSystem';
+import { walletService } from '@/services/api';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronRight, Plus, CheckCircle, Lock, RefreshCw, X } from 'lucide-react-native';
-import React, { useEffect, useState, useRef } from 'react';
-import { Modal, ScrollView, Text, TouchableOpacity, View, Animated, TextInput, ActivityIndicator } from 'react-native';
-import { walletService } from '@/services/api';
-import { useToast } from '@/hooks/useToast';
-import Toast from '@/components/Toast';
-import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { CheckCircle, ChevronRight, Lock, Plus, RefreshCw, X } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const PAYMENT_METHODS = [
   {
@@ -55,6 +55,11 @@ export default function PaymentMethodsScreen() {
   const [selectedMethod, setSelectedMethod] = useState<typeof PAYMENT_METHODS[0] | null>(null);
   const [pin, setPin] = useState(['', '', '', '']);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  // Persistent payment error state - stays visible until user dismisses or retries
+  const [paymentError, setPaymentError] = useState<{
+    message: string;
+    isInsufficientBalance: boolean;
+  } | null>(null);
   const pinInputRefs = useRef<TextInput[]>([]);
   const spinAnim = useRef(new Animated.Value(0)).current;
   const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -67,6 +72,8 @@ export default function PaymentMethodsScreen() {
   const handlePaymentMethodSelect = (method: typeof PAYMENT_METHODS[0]) => {
     haptics.selection();
     setSelectedMethod(method);
+    // Clear any previous payment errors when user selects a new payment method
+    setPaymentError(null);
     // Show PIN modal first
     setShowPinModal(true);
     setPin(['', '', '', '']);
@@ -102,8 +109,24 @@ export default function PaymentMethodsScreen() {
   };
 
   const handleProcessPayment = async (pinValue: string) => {
+    // Validate PIN first - must be exactly 4 digits
+    if (!pinValue || pinValue.length !== 4 || !/^\d{4}$/.test(pinValue)) {
+      showError('Please enter a valid 4-digit PIN.');
+      return;
+    }
+
+    // Validate payment parameters
     if (!params.requestId || !params.amount) {
       showError('Missing payment information. Please try again.');
+      return;
+    }
+
+    const requestId = parseInt(params.requestId, 10);
+    const amount = parseFloat(params.amount);
+
+    // Validate requestId and amount are valid numbers
+    if (isNaN(requestId) || isNaN(amount) || amount <= 0) {
+      showError('Invalid payment information. Please check the amount and try again.');
       return;
     }
 
@@ -113,12 +136,6 @@ export default function PaymentMethodsScreen() {
     setPaymentStep('processing');
 
     try {
-      const requestId = parseInt(params.requestId, 10);
-      const amount = parseFloat(params.amount);
-
-      if (isNaN(requestId) || isNaN(amount)) {
-        throw new Error('Invalid payment information');
-      }
 
       // Call the payment API
       const response = await walletService.payForService({
@@ -160,34 +177,63 @@ export default function PaymentMethodsScreen() {
     } catch (error: any) {
       console.error('Error processing payment:', error);
       
-      // Handle payment failure
-      setTimeout(() => {
-        setShowProcessingModal(false);
-        const errorMessage = error?.message || error?.details?.data?.error || 'Payment processing failed';
-        
-        // Navigate to transaction failed screen
-        router.replace({
-          pathname: '/TransactionFailedScreen' as any,
-          params: {
-            transactionId: `TXN-${Date.now()}`,
-            amount: params.amount,
-            providerName: params.providerName || 'Service Provider',
-            serviceFee: (parseFloat(params.amount || '0') * 0.93).toFixed(2),
-            platformFee: (parseFloat(params.amount || '0') * 0.07).toFixed(2),
-            totalAmount: params.amount,
-            paymentMethod: '**** **** **** 4532',
-            initiatedDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-          },
-        });
-      }, 2000);
       setIsProcessingPayment(false);
       setShowProcessingModal(false);
       setShowPinModal(false);
       setPin(['', '', '', '']);
       
-      const errorMessage = getSpecificErrorMessage(error, 'pay_for_service');
-      showError(errorMessage);
+      const errorMessage = error?.message || error?.details?.data?.error || '';
+      const isPinError = errorMessage.toLowerCase().includes('pin') || 
+                        errorMessage.toLowerCase().includes('wrong pin') ||
+                        errorMessage.toLowerCase().includes('invalid pin') ||
+                        errorMessage.toLowerCase().includes('pin not set');
+      
+      // If PIN error, redirect to Create PIN screen with return path
+      if (isPinError) {
+        haptics.error();
+        showError('PIN is incorrect or not set. Please create or update your PIN.');
+        setTimeout(() => {
+          router.push({
+            pathname: '/CreatePINScreen' as any,
+            params: {
+              // Pass return path so user can come back to payment after creating PIN
+              returnTo: '/PaymentMethodsScreen',
+              returnParams: JSON.stringify({
+                requestId: params.requestId,
+                amount: params.amount,
+                quotationId: params.quotationId,
+                providerName: params.providerName,
+                serviceName: params.serviceName,
+              }),
+            },
+          } as any);
+        }, 1500);
+        return;
+      }
+      
+      // Handle other payment failures - STAY on payment screen, show persistent error
+      const errorMsg = getSpecificErrorMessage(error, 'pay_for_service') || errorMessage || 'Payment failed. Please try again.';
+      const isInsufficientBalance = errorMessage.toLowerCase().includes('insufficient') || 
+                                    errorMessage.toLowerCase().includes('balance') ||
+                                    errorMsg.toLowerCase().includes('insufficient') ||
+                                    errorMsg.toLowerCase().includes('balance');
+      
       haptics.error();
+      showError(errorMsg);
+      
+      // Set persistent error state - stays visible until user dismisses or retries
+      setPaymentError({
+        message: isInsufficientBalance 
+          ? 'Insufficient wallet balance. Please top up your wallet to continue with payment.'
+          : errorMsg,
+        isInsufficientBalance,
+      });
+      
+      // DO NOT navigate away - user stays on payment screen to:
+      // 1. See the error clearly
+      // 2. Top up wallet if needed (via banner button)
+      // 3. Retry payment after fixing the issue
+      // This prevents timeline from showing incorrect states
     }
   };
 
@@ -195,6 +241,8 @@ export default function PaymentMethodsScreen() {
     setShowPinModal(false);
     setPin(['', '', '', '']);
     setSelectedMethod(null);
+    // Clear payment error when user cancels PIN entry
+    setPaymentError(null);
   };
 
 
@@ -266,6 +314,126 @@ export default function PaymentMethodsScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Persistent Payment Error Banner - Professional Design */}
+        {paymentError && (
+          <View
+            style={{
+              backgroundColor: paymentError.isInsufficientBalance ? '#FEF2F2' : '#FFF4E6',
+              borderLeftWidth: 4,
+              borderLeftColor: paymentError.isInsufficientBalance ? Colors.error : '#F59E0B',
+              borderRadius: BorderRadius.md,
+              padding: 16,
+              marginTop: 16,
+              marginBottom: 8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: paymentError.isInsufficientBalance ? 12 : 0 }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: paymentError.isInsufficientBalance ? Colors.error : '#F59E0B',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 8,
+                    }}
+                  >
+                    <X size={14} color={Colors.white} />
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: paymentError.isInsufficientBalance ? Colors.error : '#F59E0B',
+                    }}
+                  >
+                    Payment Error
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textPrimary,
+                    lineHeight: 20,
+                    marginLeft: 32,
+                  }}
+                >
+                  {paymentError.message}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setPaymentError(null)}
+                style={{
+                  padding: 4,
+                  borderRadius: 12,
+                  backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                }}
+                activeOpacity={0.7}
+              >
+                <X size={18} color={Colors.textSecondaryDark} />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Top Up Wallet Button - Only shown for insufficient balance */}
+            {paymentError.isInsufficientBalance && (
+              <TouchableOpacity
+                onPress={() => {
+                  haptics.light();
+                  // Pass return path so user can come back to payment after topping up
+                  router.push({
+                    pathname: '/TopUpScreen' as any,
+                    params: {
+                      returnTo: '/PaymentMethodsScreen',
+                      returnParams: JSON.stringify({
+                        requestId: params.requestId,
+                        amount: params.amount,
+                        quotationId: params.quotationId,
+                        providerName: params.providerName,
+                        serviceName: params.serviceName,
+                      }),
+                    },
+                  } as any);
+                }}
+                style={{
+                  marginTop: 12,
+                  backgroundColor: Colors.accent,
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  borderRadius: BorderRadius.md,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: Colors.accent,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 4,
+                  elevation: 4,
+                }}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  Top Up Wallet
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {PAYMENT_METHODS.map((method) => (
           <TouchableOpacity
             key={method.id}

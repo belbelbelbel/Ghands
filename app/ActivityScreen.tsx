@@ -1,10 +1,11 @@
 import FilterTransactionsModal from '@/components/FilterTransactionsModal';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
-import { useRouter } from 'expo-router';
+import { walletService } from '@/services/api';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, CheckCircle, Clock, Filter, Receipt, Search, XCircle } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { ScrollView, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 
 interface Transaction {
   id: string;
@@ -16,69 +17,131 @@ interface Transaction {
   status: 'completed' | 'pending' | 'failed';
 }
 
-const MOCK_TRANSACTIONS: Transaction[] = [
-  {
-    id: '1',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'completed',
-  },
-  {
-    id: '2',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'completed',
-  },
-  {
-    id: '3',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'pending',
-  },
-  {
-    id: '4',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'pending',
-  },
-  {
-    id: '5',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'failed',
-  },
-];
-
 export default function ActivityScreen() {
   const router = useRouter();
   const [selectedTab, setSelectedTab] = useState<'completed' | 'pending' | 'failed'>('completed');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const totalSpent = 12847.50;
-  const totalTransactions = 28;
-  const completedCount = 24;
-  const pendingCount = 3;
-  const failedCount = 1;
+  // Helper function to format date
+  const formatDate = useCallback((dateString: string): { date: string; time: string } => {
+    try {
+      const date = new Date(dateString);
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      return { date: dateStr, time: timeStr };
+    } catch {
+      return { date: 'N/A', time: 'N/A' };
+    }
+  }, []);
 
-  const filteredTransactions = MOCK_TRANSACTIONS.filter(
-    (transaction) => transaction.status === selectedTab
+  // Helper function to map API transaction to UI transaction
+  const mapTransactionToUI = useCallback((apiTransaction: any): Transaction | null => {
+    try {
+      // Extract service name from description or use default
+      let serviceName = 'Service Payment';
+      let serviceDescription = apiTransaction.description || 'Wallet transaction';
+      
+      // Try to extract service name from description
+      if (apiTransaction.description) {
+        const desc = apiTransaction.description.toLowerCase();
+        if (desc.includes('service request')) {
+          serviceName = `Service Request #${apiTransaction.requestId || 'N/A'}`;
+          serviceDescription = apiTransaction.description;
+        } else if (desc.includes('deposit')) {
+          serviceName = 'Wallet Deposit';
+          serviceDescription = 'Funds added to wallet';
+        } else if (desc.includes('withdrawal')) {
+          serviceName = 'Withdrawal';
+          serviceDescription = 'Funds withdrawn to bank';
+        } else if (desc.includes('earnings')) {
+          serviceName = 'Earnings';
+          serviceDescription = 'Payment received for completed service';
+        } else if (desc.includes('refund')) {
+          serviceName = 'Refund';
+          serviceDescription = apiTransaction.description;
+        }
+      }
+
+      const { date, time } = formatDate(apiTransaction.createdAt || apiTransaction.completedAt || new Date().toISOString());
+      
+      // Map API status to UI status
+      let status: 'completed' | 'pending' | 'failed' = 'pending';
+      if (apiTransaction.status === 'completed') {
+        status = 'completed';
+      } else if (apiTransaction.status === 'failed' || apiTransaction.status === 'cancelled') {
+        status = 'failed';
+      } else {
+        status = 'pending';
+      }
+      
+      return {
+        id: String(apiTransaction.id || apiTransaction.reference || Math.random()),
+        serviceName,
+        serviceDescription,
+        date,
+        time,
+        amount: Math.abs(apiTransaction.amount || 0), // Use absolute value for display
+        status,
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error mapping transaction:', error);
+      }
+      return null;
+    }
+  }, [formatDate]);
+
+  // Load transactions
+  const loadTransactions = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const result = await walletService.getTransactions({ limit: 100, offset: 0 });
+      const mappedTransactions = result.transactions
+        .map(mapTransactionToUI)
+        .filter((t): t is Transaction => t !== null);
+      setTransactions(mappedTransactions);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error loading transactions:', error);
+      }
+      setTransactions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [mapTransactionToUI]);
+
+  // Load transactions on mount
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
+
+  // Refresh transactions when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadTransactions();
+    }, [loadTransactions])
   );
+
+  // Calculate stats from real transactions
+  const totalSpent = transactions
+    .filter(t => t.status === 'completed')
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalTransactions = transactions.length;
+  const completedCount = transactions.filter(t => t.status === 'completed').length;
+  const pendingCount = transactions.filter(t => t.status === 'pending').length;
+  const failedCount = transactions.filter(t => t.status === 'failed').length;
+
+  // Filter transactions by selected tab and search query
+  const filteredTransactions = transactions.filter((transaction) => {
+    const matchesTab = transaction.status === selectedTab;
+    const matchesSearch = searchQuery.trim() === '' || 
+      transaction.serviceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      transaction.serviceDescription.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesTab && matchesSearch;
+  });
 
   const handleViewDetails = (transaction: Transaction) => {
     if (transaction.status === 'completed') {
@@ -382,7 +445,49 @@ export default function ActivityScreen() {
 
         {/* Transaction List */}
         <View style={{ gap: 12 }}>
-          {filteredTransactions.map((transaction) => (
+          {isLoading ? (
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
+              <ActivityIndicator size="large" color={Colors.accent} />
+              <Text style={{ marginTop: 16, fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
+                Loading transactions...
+              </Text>
+            </View>
+          ) : filteredTransactions.length === 0 ? (
+            <View
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.xl,
+                padding: 32,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: Colors.border,
+              }}
+            >
+              <Receipt size={48} color={Colors.textSecondaryDark} style={{ marginBottom: 16 }} />
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.textPrimary,
+                  marginBottom: 8,
+                }}
+              >
+                No {selectedTab} transactions
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  textAlign: 'center',
+                }}
+              >
+                {searchQuery ? 'No transactions match your search' : `You don't have any ${selectedTab} transactions yet`}
+              </Text>
+            </View>
+          ) : (
+            filteredTransactions.map((transaction) => (
             <View
               key={transaction.id}
               style={{
@@ -548,7 +653,8 @@ export default function ActivityScreen() {
                 </TouchableOpacity>
               ) : null}
             </View>
-          ))}
+          ))
+          )}
         </View>
       </ScrollView>
 

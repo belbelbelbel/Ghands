@@ -1,30 +1,139 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
 import { BorderRadius, Colors } from '@/lib/designSystem';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Download, FileText, Share2 } from 'lucide-react-native';
-import React from 'react';
-import { Alert, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Alert, ScrollView, Share, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { providerService, serviceRequestService } from '@/services/api';
+
+// Helper function to format dates
+const formatDate = (date: Date, format: string = 'MMM dd, yyyy'): string => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fullMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  
+  const day = date.getDate();
+  const month = date.getMonth();
+  const year = date.getFullYear();
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+  const displayMinutes = minutes.toString().padStart(2, '0');
+  
+  if (format.includes('MMMM')) {
+    return format
+      .replace('MMMM', fullMonths[month])
+      .replace('dd', day.toString().padStart(2, '0'))
+      .replace('yyyy', year.toString())
+      .replace('MMM', months[month])
+      .replace('MM', (month + 1).toString().padStart(2, '0'))
+      .replace('h:mm a', `${displayHours}:${displayMinutes} ${period}`);
+  }
+  
+  return format
+    .replace('MMM', months[month])
+    .replace('MM', (month + 1).toString().padStart(2, '0'))
+    .replace('dd', day.toString().padStart(2, '0'))
+    .replace('yyyy', year.toString())
+    .replace('h:mm a', `${displayHours}:${displayMinutes} ${period}`);
+};
+
+interface ReceiptData {
+  receiptNumber: string;
+  jobTitle: string;
+  clientName: string;
+  serviceDate: string;
+  serviceTime: string;
+  laborCost: number;
+  materials: Array<{ name: string; quantity: number; price: number }>;
+  platformFee: number;
+  tax: number;
+  totalAmount: number;
+  paymentStatus: string;
+  paymentDate: string;
+}
 
 export default function ProviderReceiptScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ requestId?: string }>();
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const receiptData = {
-    receiptNumber: 'RCP-2024-001547',
-    jobTitle: 'Kitchen pipe leak repair',
-    clientName: 'Lawal Johnson',
-    serviceDate: 'October 20, 2024',
-    serviceTime: '2:00 PM - 4:30 PM',
-    laborCost: 450.00,
-    materials: [
-      { name: 'Pipe Connector', quantity: 1, price: 450.00 },
-      { name: "Plumber's Tape", quantity: 3, price: 150.00 },
-    ],
-    platformFee: 25.00,
-    totalAmount: 1075.00,
-    paymentStatus: 'Paid',
-    paymentDate: 'Oct 20, 2024 at 4:45 PM',
-  };
+  // Load receipt data from API
+  const loadReceiptData = useCallback(async () => {
+    if (!params.requestId) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const requestId = parseInt(params.requestId, 10);
+      if (isNaN(requestId)) {
+        throw new Error('Invalid request ID');
+      }
+
+      // Fetch request details and quotation in parallel
+      const [request, quotation] = await Promise.all([
+        serviceRequestService.getRequestDetails(requestId).catch(() => null),
+        providerService.getQuotation(requestId).catch(() => null),
+      ]);
+
+      if (!request || !quotation) {
+        throw new Error('Unable to load receipt data');
+      }
+
+      // Format dates
+      const serviceDate = request.scheduledDate 
+        ? formatDate(new Date(request.scheduledDate), 'MMMM dd, yyyy')
+        : request.createdAt 
+        ? formatDate(new Date(request.createdAt), 'MMMM dd, yyyy')
+        : 'N/A';
+      
+      const serviceTime = request.scheduledTime || 'N/A';
+      
+      const paymentDate = quotation.acceptedAt
+        ? formatDate(new Date(quotation.acceptedAt), 'MMM dd, yyyy \'at\' h:mm a')
+        : quotation.sentAt
+        ? formatDate(new Date(quotation.sentAt), 'MMM dd, yyyy \'at\' h:mm a')
+        : 'N/A';
+
+      // Calculate materials total
+      const materials = (quotation.materials || []).map((mat) => ({
+        name: mat.name || 'Material',
+        quantity: mat.quantity || 0,
+        price: mat.unitPrice || 0,
+      }));
+
+      // Build receipt data
+      const receipt: ReceiptData = {
+        receiptNumber: `RCP-${requestId}-${Date.now().toString().slice(-6)}`,
+        jobTitle: request.jobTitle || request.description || 'Service Request',
+        clientName: request.clientName || 'Client',
+        serviceDate,
+        serviceTime,
+        laborCost: quotation.laborCost || 0,
+        materials,
+        platformFee: quotation.serviceCharge || 0,
+        tax: quotation.tax || 0,
+        totalAmount: quotation.total || 0,
+        paymentStatus: quotation.status === 'accepted' ? 'Paid' : quotation.status === 'pending' ? 'Pending' : 'Unpaid',
+        paymentDate,
+      };
+
+      setReceiptData(receipt);
+    } catch (error: any) {
+      console.error('Error loading receipt data:', error);
+      Alert.alert('Error', 'Failed to load receipt data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [params.requestId]);
+
+  useEffect(() => {
+    loadReceiptData();
+  }, [loadReceiptData]);
 
   const materialTotal = receiptData.materials.reduce(
     (sum, mat) => sum + mat.price * mat.quantity,

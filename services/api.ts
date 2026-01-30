@@ -1591,8 +1591,17 @@ export const serviceRequestService = {
       }>(`/api/request-service/requests/${requestId}/quotations`);
       
       return extractResponseData<QuotationWithProvider[]>(response) || [];
-    } catch (error) {
-      console.error('Error getting quotations:', error);
+    } catch (error: any) {
+      // Don't log expected errors (500 from provider accessing client endpoint, 404, etc.)
+      const errorMessage = error?.message || '';
+      const status = error?.status || error?.response?.status;
+      const isExpectedError = status === 500 || 
+                              status === 404 ||
+                              errorMessage.includes('Request failed with status 500');
+      
+      if (!isExpectedError && __DEV__) {
+        console.error('Error getting quotations:', error);
+      }
       throw error;
     }
   },
@@ -1715,6 +1724,167 @@ export interface PayForServiceResponse {
 
 export const walletService = {
   /**
+   * Get wallet balance and information
+   * Endpoint 5.1: GET /api/wallet
+   */
+  getWallet: async (): Promise<{
+    id: number;
+    balance: number;
+    currency: string;
+    isPinSet: boolean;
+  }> => {
+    try {
+      const response = await apiClient.get<any>(`/api/wallet`);
+      
+      // Extract response data - handle nested structure
+      const responseData = extractResponseData<any>(response);
+      
+      // Handle different response structures
+      const walletData = responseData?.data || responseData;
+      
+      if (!walletData) {
+        throw new Error('Invalid response from wallet API.');
+      }
+      
+      // Ensure balance is a number
+      const balance = typeof walletData.balance === 'number' 
+        ? walletData.balance 
+        : parseFloat(walletData.balance) || 0;
+      
+      return {
+        id: walletData.id || 0,
+        balance: balance,
+        currency: walletData.currency || 'NGN',
+        isPinSet: walletData.isPinSet || false,
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error getting wallet:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Set wallet PIN (first time setup)
+   * Endpoint 5.2: POST /api/wallet/pin
+   */
+  setPin: async (payload: { pin: string; confirmPin: string }): Promise<{ message: string }> => {
+    try {
+      const response = await apiClient.post<{
+        data: { message: string };
+      }>(`/api/wallet/pin`, payload);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error setting PIN:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Change wallet PIN
+   * Endpoint 5.3: PUT /api/wallet/pin
+   */
+  changePin: async (payload: { oldPin: string; newPin: string; confirmPin: string }): Promise<{ message: string }> => {
+    try {
+      const response = await apiClient.put<{
+        data: { message: string };
+      }>(`/api/wallet/pin`, payload);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error changing PIN:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Initialize deposit (top up wallet via card payment)
+   * Endpoint 5.5: POST /api/wallet/deposit
+   * 
+   * WHAT HAPPENS:
+   * - Creates a payment link via Kora payment gateway
+   * - Returns authorizationUrl to redirect user for payment
+   * - Returns reference to verify payment later
+   */
+  initializeDeposit: async (payload: {
+    amount: number;
+    email: string;
+    name?: string;
+    phone?: string;
+  }): Promise<{
+    authorizationUrl: string;
+    reference: string;
+  }> => {
+    try {
+      const response = await apiClient.post<any>(`/api/wallet/deposit`, payload);
+      
+      // Extract response data - handle nested structure
+      const responseData = extractResponseData<any>(response);
+      
+      // Handle different response structures
+      const depositData = responseData?.data || responseData;
+      
+      if (!depositData?.authorizationUrl || !depositData?.reference) {
+        throw new Error('Invalid response from deposit API. Missing authorizationUrl or reference.');
+      }
+      
+      return {
+        authorizationUrl: depositData.authorizationUrl,
+        reference: depositData.reference,
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error initializing deposit:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Verify deposit transaction
+   * Endpoint 5.6: GET /api/wallet/deposit/verify/:reference
+   * 
+   * WHAT HAPPENS:
+   * - Verifies if deposit payment was successful
+   * - Returns updated wallet balance
+   * - Called after user returns from payment gateway
+   */
+  verifyDeposit: async (reference: string): Promise<{
+    reference: string;
+    status: 'completed' | 'pending' | 'failed';
+    amount: number;
+    balance: number;
+  }> => {
+    try {
+      const response = await apiClient.get<any>(`/api/wallet/deposit/verify/${reference}`);
+      
+      // Extract response data - handle nested structure
+      const responseData = extractResponseData<any>(response);
+      
+      // Handle different response structures
+      const verificationData = responseData?.data || responseData;
+      
+      if (!verificationData) {
+        throw new Error('Invalid response from verification API.');
+      }
+      
+      return {
+        reference: verificationData.reference || reference,
+        status: verificationData.status || 'pending',
+        amount: verificationData.amount || 0,
+        balance: verificationData.balance || 0,
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error verifying deposit:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
    * Pay for a service request using wallet balance
    * Endpoint 5.8: POST /api/wallet/pay
    * 
@@ -1733,6 +1903,215 @@ export const walletService = {
       return response.data;
     } catch (error) {
       console.error('Error paying for service:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get wallet transaction history
+   * Endpoint 5.9: GET /api/wallet/transactions
+   * 
+   * WHAT HAPPENS:
+   * - Returns list of all wallet transactions (deposits, payments, withdrawals, etc.)
+   * - Supports pagination with limit and offset
+   * - Returns transaction type, status, amount, and timestamps
+   */
+  getTransactions: async (options?: { limit?: number; offset?: number }): Promise<{
+    transactions: Array<{
+      id: number;
+      reference: string;
+      type: 'deposit' | 'withdrawal' | 'payment' | 'earnings' | 'refund' | 'transfer';
+      status: 'pending' | 'completed' | 'failed' | 'cancelled';
+      amount: number;
+      balanceBefore: number;
+      balanceAfter: number;
+      description: string;
+      createdAt: string;
+      completedAt?: string | null;
+      requestId?: number | null;
+    }>;
+    total: number;
+    limit: number;
+    offset: number;
+  }> => {
+    try {
+      const limit = options?.limit ?? 50;
+      const offset = options?.offset ?? 0;
+      const query = `?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`;
+      
+      const response = await apiClient.get<any>(`/api/wallet/transactions${query}`);
+      const responseData = extractResponseData<any>(response);
+      const inner = responseData?.data?.data || responseData?.data || responseData;
+      
+      return {
+        transactions: inner?.transactions || [],
+        total: inner?.total ?? (inner?.transactions || []).length,
+        limit: inner?.limit ?? limit,
+        offset: inner?.offset ?? offset,
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error fetching transactions:', error);
+      }
+      throw error;
+    }
+  },
+};
+
+// ============================================================================
+// NOTIFICATION SERVICE
+// ============================================================================
+
+export interface Notification {
+  id: number;
+  userId: number;
+  providerId?: number | null;
+  companyId?: number | null;
+  type: string;
+  status: 'unread' | 'read';
+  title: string;
+  message: string;
+  description?: string | null;
+  requestId?: number | null;
+  transactionId?: number | null;
+  quotationId?: number | null;
+  metadata?: Record<string, any> | null;
+  readAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationsListResult {
+  notifications: Notification[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export const notificationService = {
+  /**
+   * Get notifications list
+   * GET /api/notifications?limit=50&offset=0&status=unread
+   */
+  getNotifications: async (options?: {
+    limit?: number;
+    offset?: number;
+    status?: 'unread' | 'read' | 'all';
+  }): Promise<NotificationsListResult> => {
+    const { limit = 50, offset = 0, status = 'unread' } = options || {};
+
+    try {
+      const baseQuery = `?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`;
+      const statusQuery =
+        status && status !== 'all'
+          ? `${baseQuery}&status=${encodeURIComponent(status)}`
+          : baseQuery;
+
+      // First attempt: respect requested status (typically "unread")
+      let response = await apiClient.get<any>(`/api/notifications${statusQuery}`);
+
+      // Handle nested response: { success, message, data: { data: { notifications, total, limit, offset } } }
+      let responseData = extractResponseData<any>(response);
+      let innerData = responseData?.data?.data || responseData?.data || responseData;
+
+      let notifications: Notification[] = innerData?.notifications || [];
+
+      // Fallback: if asking for unread returned nothing, try again without status filter
+      if (notifications.length === 0 && status === 'unread') {
+        response = await apiClient.get<any>(`/api/notifications${baseQuery}`);
+        responseData = extractResponseData<any>(response);
+        innerData = responseData?.data?.data || responseData?.data || responseData;
+        notifications = innerData?.notifications || [];
+      }
+
+      return {
+        notifications,
+        total: innerData?.total ?? notifications.length,
+        limit: innerData?.limit ?? limit,
+        offset: innerData?.offset ?? offset,
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error getting notifications:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Get unread notifications count
+   * GET /api/notifications/unread-count
+   */
+  getUnreadCount: async (): Promise<number> => {
+    try {
+      const response = await apiClient.get<any>('/api/notifications/unread-count');
+      const responseData = extractResponseData<any>(response);
+      const innerData = responseData?.data?.data || responseData?.data || responseData;
+      return innerData?.unreadCount ?? 0;
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error getting unread notification count:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Mark single notification as read
+   * PATCH /api/notifications/:notificationId/read
+   */
+  markAsRead: async (notificationId: number): Promise<void> => {
+    try {
+      await apiClient.patch<any>(`/api/notifications/${notificationId}/read`, {});
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error marking notification as read:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Mark all notifications as read
+   * PATCH /api/notifications/read-all
+   */
+  markAllAsRead: async (): Promise<void> => {
+    try {
+      await apiClient.patch<any>('/api/notifications/read-all', {});
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error marking all notifications as read:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Delete single notification
+   * DELETE /api/notifications/:notificationId
+   */
+  deleteNotification: async (notificationId: number): Promise<void> => {
+    try {
+      await apiClient.delete<any>(`/api/notifications/${notificationId}`);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error deleting notification:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Delete all notifications
+   * DELETE /api/notifications
+   */
+  deleteAllNotifications: async (): Promise<void> => {
+    try {
+      await apiClient.delete<any>('/api/notifications');
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error deleting all notifications:', error);
+      }
       throw error;
     }
   },
@@ -2250,7 +2629,7 @@ export const providerService = {
           maxDistanceKm,
         });
       }
-      
+        
       const response = await apiClient.get<any>(
         `/api/provider/requests/available?maxDistanceKm=${maxDistanceKm}`
       );
@@ -2434,9 +2813,72 @@ export const providerService = {
         data: Quotation;
       }>(`/api/request-service/requests/${requestId}/quotation`);
       
-      return response.data;
-    } catch (error) {
-      console.error('Error getting quotation:', error);
+      // Extract data - handle both response.data and nested response.data.data
+      // Type assertion needed because response structure may vary
+      const responseAny = response as any;
+      const rawData = responseAny?.data?.data || responseAny?.data || responseAny;
+      
+      // Helper to safely parse numeric values (handles strings, numbers, null, undefined)
+      const parseNumber = (value: any): number => {
+        if (value === null || value === undefined) return 0;
+        if (typeof value === 'number') return isNaN(value) ? 0 : value;
+        if (typeof value === 'string') {
+          const cleaned = value.replace(/,/g, '').trim();
+          const parsed = parseFloat(cleaned);
+          return isNaN(parsed) ? 0 : parsed;
+        }
+        return 0;
+      };
+      
+      // Parse and normalize all numeric fields
+      const quotationData: Quotation = {
+        ...rawData,
+        id: rawData.id || 0,
+        requestId: rawData.requestId || requestId,
+        laborCost: parseNumber(rawData.laborCost),
+        logisticsCost: parseNumber(rawData.logisticsCost),
+        serviceCharge: parseNumber(rawData.serviceCharge),
+        tax: parseNumber(rawData.tax),
+        total: parseNumber(rawData.total),
+        findingsAndWorkRequired: rawData.findingsAndWorkRequired || '',
+        status: rawData.status || 'pending',
+        sentAt: rawData.sentAt || new Date().toISOString(),
+        acceptedAt: rawData.acceptedAt || null,
+        rejectedAt: rawData.rejectedAt || null,
+        message: rawData.message,
+        // Parse materials array with proper numeric values
+        materials: (rawData.materials || []).map((mat: any) => ({
+          name: mat.name || '',
+          quantity: parseNumber(mat.quantity),
+          unitPrice: parseNumber(mat.unitPrice),
+          total: parseNumber(mat.total) || (parseNumber(mat.unitPrice) * parseNumber(mat.quantity)),
+        })),
+      };
+      
+      if (__DEV__) {
+        console.log('📊 [getQuotation] Parsed quotation data:', {
+          requestId,
+          laborCost: quotationData.laborCost,
+          logisticsCost: quotationData.logisticsCost,
+          serviceCharge: quotationData.serviceCharge,
+          tax: quotationData.tax,
+          total: quotationData.total,
+          materialsCount: quotationData.materials.length,
+        });
+      }
+      
+      return quotationData;
+    } catch (error: any) {
+      // Don't log expected errors (quotation not found, 404, etc.)
+      const errorMessage = error?.message || '';
+      const isExpectedError = errorMessage.includes('not found') || 
+                              errorMessage.includes('Quotation not found') ||
+                              error?.status === 404 ||
+                              error?.response?.status === 404;
+      
+      if (!isExpectedError && __DEV__) {
+        console.error('Error getting quotation:', error);
+      }
       throw error;
     }
   },

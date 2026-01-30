@@ -199,6 +199,7 @@ export default function RootLayout() {
         <Stack.Screen name="ProviderUpdatesScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderCompletedJobScreen" options={{ headerShown: false }} />
         <Stack.Screen name="SendQuotationScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="RequestVisitScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ProviderReceiptScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ReportIssueScreen" options={{ headerShown: false }} />
         <Stack.Screen name="PhotosGalleryScreen" options={{ headerShown: false }} />

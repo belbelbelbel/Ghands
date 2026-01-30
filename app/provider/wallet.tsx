@@ -2,8 +2,10 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Bell, Check, Clock, Receipt, TrendingUp, Wallet } from 'lucide-react-native';
-import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ScrollView, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { walletService } from '@/services/api';
+import { useFocusEffect } from 'expo-router';
 
 interface ActivityItem {
   id: string;
@@ -15,38 +17,124 @@ interface ActivityItem {
   status: 'pending' | 'completed';
 }
 
-const ACTIVITIES: ActivityItem[] = [
-  {
-    id: '1',
-    serviceName: 'Elite Plumbing Services',
-    serviceType: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: '₦485.00',
-    status: 'pending',
-  },
-  {
-    id: '2',
-    serviceName: 'Elite Plumbing Services',
-    serviceType: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: '₦485.00',
-    status: 'completed',
-  },
-  {
-    id: '3',
-    serviceName: 'Elite Plumbing Services',
-    serviceType: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: '₦485.00',
-    status: 'completed',
-  },
-];
-
 export default function ProviderWalletScreen() {
   const router = useRouter();
+  const [balance, setBalance] = useState<number>(0);
+  const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [isLoadingActivities, setIsLoadingActivities] = useState<boolean>(true);
+
+  // Helper function to format date
+  const formatDate = useCallback((dateString: string): { date: string; time: string } => {
+    try {
+      const date = new Date(dateString);
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      return { date: dateStr, time: timeStr };
+    } catch {
+      return { date: 'N/A', time: 'N/A' };
+    }
+  }, []);
+
+  // Helper function to map API transaction to UI activity
+  const mapTransactionToActivity = useCallback((apiTransaction: any): ActivityItem | null => {
+    try {
+      // Extract service name from description or use default
+      let serviceName = 'Service Payment';
+      let serviceType = apiTransaction.description || 'Wallet transaction';
+      
+      // Try to extract service name from description
+      if (apiTransaction.description) {
+        const desc = apiTransaction.description.toLowerCase();
+        if (desc.includes('earnings')) {
+          serviceName = 'Earnings';
+          serviceType = 'Payment received for completed service';
+        } else if (desc.includes('withdrawal')) {
+          serviceName = 'Withdrawal';
+          serviceType = 'Funds withdrawn to bank';
+        } else if (desc.includes('service request')) {
+          serviceName = `Service Request #${apiTransaction.requestId || 'N/A'}`;
+          serviceType = apiTransaction.description;
+        } else if (desc.includes('deposit')) {
+          serviceName = 'Deposit';
+          serviceType = 'Funds added to wallet';
+        } else if (desc.includes('refund')) {
+          serviceName = 'Refund';
+          serviceType = apiTransaction.description;
+        }
+      }
+
+      const { date, time } = formatDate(apiTransaction.createdAt || apiTransaction.completedAt || new Date().toISOString());
+      
+      return {
+        id: String(apiTransaction.id || apiTransaction.reference || Math.random()),
+        serviceName,
+        serviceType,
+        date,
+        time,
+        amount: `₦${Math.abs(apiTransaction.amount || 0).toLocaleString('en-NG', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
+        status: apiTransaction.status === 'completed' ? 'completed' : 'pending',
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error mapping transaction:', error);
+      }
+      return null;
+    }
+  }, [formatDate]);
+
+  // Load activities
+  const loadActivities = useCallback(async () => {
+    try {
+      setIsLoadingActivities(true);
+      const result = await walletService.getTransactions({ limit: 10, offset: 0 });
+      const mappedActivities = result.transactions
+        .map(mapTransactionToActivity)
+        .filter((a): a is ActivityItem => a !== null);
+      setActivities(mappedActivities);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error loading activities:', error);
+      }
+      setActivities([]);
+    } finally {
+      setIsLoadingActivities(false);
+    }
+  }, [mapTransactionToActivity]);
+
+  // Load wallet balance
+  const loadWalletBalance = useCallback(async () => {
+    try {
+      setIsLoadingBalance(true);
+      const wallet = await walletService.getWallet();
+      const balanceValue = typeof wallet.balance === 'number' 
+        ? wallet.balance 
+        : parseFloat(String(wallet.balance)) || 0;
+      setBalance(balanceValue);
+    } catch (error) {
+      console.error('Error loading wallet balance:', error);
+      // Keep current balance on error
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  }, []);
+
+  // Load balance and activities on mount
+  useEffect(() => {
+    loadWalletBalance();
+    loadActivities();
+  }, [loadWalletBalance, loadActivities]);
+
+  // Refresh balance and activities when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadWalletBalance();
+      loadActivities();
+    }, [loadWalletBalance, loadActivities])
+  );
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.white}>
@@ -169,16 +257,35 @@ export default function ProviderWalletScreen() {
           >
             Current balance
           </Text>
-          <Text
-            style={{
-              fontSize: 28,
-              fontFamily: 'Poppins-Bold',
-              color: Colors.white,
-              marginBottom: 16,
-            }}
-          >
-            ₦12,847.50
-          </Text>
+          {isLoadingBalance ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <ActivityIndicator size="small" color={Colors.white} style={{ marginRight: 8 }} />
+              <Text
+                style={{
+                  fontSize: 28,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.white,
+                  opacity: 0.7,
+                }}
+              >
+                Loading...
+              </Text>
+            </View>
+          ) : (
+            <Text
+              style={{
+                fontSize: 28,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.white,
+                marginBottom: 16,
+              }}
+            >
+              ₦{balance.toLocaleString('en-NG', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </Text>
+          )}
 
           {/* Pending Earnings */}
           <Text
@@ -291,8 +398,50 @@ export default function ProviderWalletScreen() {
         </View>
 
         {/* Activity Cards */}
-        {ACTIVITIES.map((activity) => (
+        {isLoadingActivities ? (
+          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
+            <ActivityIndicator size="large" color={Colors.accent} />
+            <Text style={{ marginTop: 16, fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
+              Loading activities...
+            </Text>
+          </View>
+        ) : activities.length === 0 ? (
           <View
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: BorderRadius.xl,
+              padding: 32,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: Colors.border,
+            }}
+          >
+            <Receipt size={48} color={Colors.textSecondaryDark} style={{ marginBottom: 16 }} />
+            <Text
+              style={{
+                fontSize: 16,
+                fontFamily: 'Poppins-SemiBold',
+                color: Colors.textPrimary,
+                marginBottom: 8,
+              }}
+            >
+              No activities yet
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.textSecondaryDark,
+                textAlign: 'center',
+              }}
+            >
+              Your recent wallet activity will appear here
+            </Text>
+          </View>
+        ) : (
+          activities.map((activity) => (
+            <View
             key={activity.id}
             style={{
               backgroundColor: Colors.white,
@@ -438,7 +587,8 @@ export default function ProviderWalletScreen() {
               </TouchableOpacity>
             )}
           </View>
-        ))}
+          ))
+        )}
       </ScrollView>
     </SafeAreaWrapper>
   );

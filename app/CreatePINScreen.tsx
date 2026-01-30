@@ -1,20 +1,45 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Colors, BorderRadius } from '@/lib/designSystem';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Check, Shield } from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
-import { Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import { Modal, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { walletService } from '@/services/api';
+import { useToast } from '@/hooks/useToast';
+import { haptics } from '@/hooks/useHaptics';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
 
 export default function CreatePINScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    returnTo?: string;
+    returnParams?: string;
+  }>();
+  const { toast, showError, showSuccess, hideToast } = useToast();
   const [pin, setPin] = useState(['', '', '', '']);
   const [confirmPin, setConfirmPin] = useState(['', '', '', '']);
   const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isSavingPin, setIsSavingPin] = useState(false);
+  const [isPinSet, setIsPinSet] = useState<boolean | null>(null);
 
   const inputRefs = useRef<TextInput[]>([]);
   const confirmInputRefs = useRef<TextInput[]>([]);
+
+  // Check if PIN is already set
+  useEffect(() => {
+    const checkPinStatus = async () => {
+      try {
+        const wallet = await walletService.getWallet();
+        setIsPinSet(wallet.isPinSet);
+      } catch (error) {
+        // If error, assume PIN is not set (for first time setup)
+        setIsPinSet(false);
+      }
+    };
+    checkPinStatus();
+  }, []);
 
   const handlePinChange = (value: string, index: number) => {
     const numericValue = value.replace(/[^0-9]/g, '');
@@ -34,7 +59,11 @@ export default function CreatePINScreen() {
         // Check if PIN is complete
         if (index === 3 && numericValue) {
           if (newConfirmPin.join('') === pin.join('')) {
-            setShowSuccessModal(true);
+            // PINs match - save to backend (call without await since onChangeText is sync)
+            handleSavePin(pin.join(''), newConfirmPin.join('')).catch((err) => {
+              // Error is already handled in handleSavePin
+              console.error('Error saving PIN:', err);
+            });
           } else {
             setError('PIN mismatch');
             setConfirmPin(['', '', '', '']);
@@ -78,9 +107,65 @@ export default function CreatePINScreen() {
     }
   };
 
+  const handleSavePin = async (pinValue: string, confirmPinValue: string) => {
+    if (pinValue.length !== 4 || confirmPinValue.length !== 4) {
+      setError('PIN must be exactly 4 digits');
+      return;
+    }
+
+    if (pinValue !== confirmPinValue) {
+      setError('PINs do not match');
+      return;
+    }
+
+    setIsSavingPin(true);
+    setError(null);
+    haptics.light();
+
+    try {
+      // Save PIN to backend
+      await walletService.setPin({
+        pin: pinValue,
+        confirmPin: confirmPinValue,
+      });
+
+      haptics.success();
+      setShowSuccessModal(true);
+      setIsPinSet(true);
+    } catch (error: any) {
+      haptics.error();
+      const errorMessage = getSpecificErrorMessage(error, 'set_pin') || error?.message || 'Failed to save PIN. Please try again.';
+      
+      // Check if PIN is already set - offer to change it
+      if (errorMessage.toLowerCase().includes('already set') || errorMessage.toLowerCase().includes('change pin')) {
+        setError('PIN is already set. Please use "Change PIN" from Security settings.');
+      } else {
+        setError(errorMessage);
+        // Reset confirmation PIN on error
+        setConfirmPin(['', '', '', '']);
+        confirmInputRefs.current[0]?.focus();
+      }
+    } finally {
+      setIsSavingPin(false);
+    }
+  };
+
   const handleSuccessClose = () => {
     setShowSuccessModal(false);
-    router.back();
+    // If there's a return path, navigate back to it (e.g., payment screen)
+    if (params.returnTo && params.returnParams) {
+      try {
+        const returnParams = JSON.parse(params.returnParams);
+        router.replace({
+          pathname: params.returnTo as any,
+          params: returnParams,
+        } as any);
+      } catch {
+        router.back();
+      }
+    } else {
+      router.back();
+    }
   };
 
   const currentPin = isConfirming ? confirmPin : pin;
@@ -196,6 +281,7 @@ export default function CreatePINScreen() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: Colors.white,
+                  opacity: isSavingPin ? 0.5 : 1,
                 }}
               >
                 <TextInput
@@ -216,10 +302,28 @@ export default function CreatePINScreen() {
                   }}
                   selectTextOnFocus
                   autoFocus={index === 0 && !isConfirming}
+                  editable={!isSavingPin}
                 />
               </View>
             ))}
           </View>
+
+          {/* Loading indicator when saving PIN */}
+          {isSavingPin && (
+            <View style={{ alignItems: 'center', marginTop: 16, marginBottom: 16 }}>
+              <ActivityIndicator size="small" color={Colors.accent} />
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  marginTop: 8,
+                }}
+              >
+                Saving PIN...
+              </Text>
+            </View>
+          )}
 
           {/* Error Message and Forgot PIN */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>

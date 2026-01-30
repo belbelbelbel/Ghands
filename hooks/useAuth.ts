@@ -121,15 +121,16 @@ export function useAuthRole(): UseAuthRoleReturn {
         '@ghands:company_phone',
         '@ghands:profile_complete', // Provider profile completion status
       ];
-      
-      // Clear role, onboarding status, and provider data
-      await AsyncStorage.multiRemove([
-        AUTH_ROLE_KEY,
-        ONBOARDING_STORAGE_KEY,
-        ...providerKeys,
-      ]);
-      
-      setRoleState(null);
+     
+      // IMPORTANT:
+      // Do NOT clear AUTH_ROLE_KEY or ONBOARDING_STORAGE_KEY on logout.
+      // - Role tells us whether this user is a client or provider so we can
+      //   send them straight to the correct login screen.
+      // - Onboarding complete should stay true so they never get bounced back
+      //   to the SelectAccountTypeScreen after logging out.
+      //
+      // We only clear provider-specific cached data here.
+      await AsyncStorage.multiRemove(providerKeys);
       
       // Redirect to appropriate login screen based on role
       // User is signing out, so they're not a first-timer - go to login, not role selection

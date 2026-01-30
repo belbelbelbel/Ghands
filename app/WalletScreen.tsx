@@ -1,10 +1,11 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Colors } from '@/lib/designSystem';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, ArrowRight, Bell, CheckCircle, Clock, Plus, Receipt, Wallet } from 'lucide-react-native';
-import React, { useState, useCallback, useMemo } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { ScrollView, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { TransactionCardSkeleton } from '@/components/LoadingSkeleton';
+import { walletService } from '@/services/api';
 
 interface Transaction {
   id: string;
@@ -16,49 +17,131 @@ interface Transaction {
   status: 'pending' | 'completed';
 }
 
-const MOCK_TRANSACTIONS: Transaction[] = [
-  {
-    id: '1',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'pending',
-  },
-  {
-    id: '2',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'completed',
-  },
-  {
-    id: '3',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'completed',
-  },
-];
-
 export default function WalletScreen() {
   const router = useRouter();
-  const [balance] = useState(12847.50);
+  const [balance, setBalance] = useState<number>(0);
+  const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState<boolean>(true);
   const walletId = 'GH-WLT-92837451';
 
-  const [isLoading] = useState(false); // Add loading state for when real data is implemented
+  // Helper function to format date
+  const formatDate = useCallback((dateString: string): { date: string; time: string } => {
+    try {
+      const date = new Date(dateString);
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      return { date: dateStr, time: timeStr };
+    } catch {
+      return { date: 'N/A', time: 'N/A' };
+    }
+  }, []);
+
+  // Helper function to map API transaction to UI transaction
+  const mapTransactionToUI = useCallback((apiTransaction: any): Transaction | null => {
+    try {
+      // Extract service name from description or use default
+      let serviceName = 'Service Payment';
+      let serviceDescription = apiTransaction.description || 'Wallet transaction';
+      
+      // Try to extract service name from description
+      if (apiTransaction.description) {
+        const desc = apiTransaction.description.toLowerCase();
+        if (desc.includes('service request')) {
+          serviceName = `Service Request #${apiTransaction.requestId || 'N/A'}`;
+          serviceDescription = apiTransaction.description;
+        } else if (desc.includes('deposit')) {
+          serviceName = 'Wallet Deposit';
+          serviceDescription = 'Funds added to wallet';
+        } else if (desc.includes('withdrawal')) {
+          serviceName = 'Withdrawal';
+          serviceDescription = 'Funds withdrawn to bank';
+        } else if (desc.includes('earnings')) {
+          serviceName = 'Earnings';
+          serviceDescription = 'Payment received for completed service';
+        } else if (desc.includes('refund')) {
+          serviceName = 'Refund';
+          serviceDescription = apiTransaction.description;
+        }
+      }
+
+      const { date, time } = formatDate(apiTransaction.createdAt || apiTransaction.completedAt || new Date().toISOString());
+      
+      return {
+        id: String(apiTransaction.id || apiTransaction.reference || Math.random()),
+        serviceName,
+        serviceDescription,
+        date,
+        time,
+        amount: Math.abs(apiTransaction.amount || 0), // Use absolute value for display
+        status: apiTransaction.status === 'completed' ? 'completed' : 'pending',
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error mapping transaction:', error);
+      }
+      return null;
+    }
+  }, [formatDate]);
+
+  // Load transactions
+  const loadTransactions = useCallback(async () => {
+    try {
+      setIsLoadingTransactions(true);
+      const result = await walletService.getTransactions({ limit: 10, offset: 0 });
+      const mappedTransactions = result.transactions
+        .map(mapTransactionToUI)
+        .filter((t): t is Transaction => t !== null);
+      setTransactions(mappedTransactions);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error loading transactions:', error);
+      }
+      setTransactions([]);
+    } finally {
+      setIsLoadingTransactions(false);
+    }
+  }, [mapTransactionToUI]);
+
+  // Load wallet balance
+  const loadWalletBalance = useCallback(async () => {
+    try {
+      setIsLoadingBalance(true);
+      const wallet = await walletService.getWallet();
+      const balanceValue = typeof wallet.balance === 'number' 
+        ? wallet.balance 
+        : parseFloat(String(wallet.balance)) || 0;
+      setBalance(balanceValue);
+    } catch (error) {
+      console.error('Error loading wallet balance:', error);
+      // Keep current balance on error
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  }, []);
+
+  // Load balance and transactions on mount
+  useEffect(() => {
+    loadWalletBalance();
+    loadTransactions();
+  }, [loadWalletBalance, loadTransactions]);
+
+  // Refresh balance and transactions when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadWalletBalance();
+      loadTransactions();
+    }, [loadWalletBalance, loadTransactions])
+  );
 
   const handleAddFunds = useCallback(() => {
     router.push('/TopUpScreen' as any);
   }, [router]);
 
   const handlePay = useCallback(() => {
-    router.push('/PaymentMethodsScreen' as any);
+    // Navigate to jobs screen to see pending service requests that need payment
+    // The Pay button should show pending payments, not just go to payment methods
+    router.push('/(tabs)/jobs' as any);
   }, [router]);
 
   const handleViewAll = useCallback(() => {
@@ -290,23 +373,39 @@ export default function WalletScreen() {
                 >
                   ₦
                 </Text>
-                <Text
-                  style={{
-                    fontSize: 64,
-                    fontFamily: 'Poppins-Bold',
-                    color: Colors.white,
-                    letterSpacing: -2,
-                    lineHeight: 72,
-                    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-                    textShadowOffset: { width: 0, height: 2 },
-                    textShadowRadius: 4,
-                  }}
-                >
-                  {balance.toLocaleString('en-NG', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  }).replace('₦', '')}
-                </Text>
+                {isLoadingBalance ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                    <ActivityIndicator size="small" color={Colors.white} style={{ marginRight: 12 }} />
+                    <Text
+                      style={{
+                        fontSize: 24,
+                        fontFamily: 'Poppins-Bold',
+                        color: Colors.white,
+                        opacity: 0.7,
+                      }}
+                    >
+                      Loading...
+                    </Text>
+                  </View>
+                ) : (
+                  <Text
+                    style={{
+                      fontSize: 64,
+                      fontFamily: 'Poppins-Bold',
+                      color: Colors.white,
+                      letterSpacing: -2,
+                      lineHeight: 72,
+                      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                      textShadowOffset: { width: 0, height: 2 },
+                      textShadowRadius: 4,
+                    }}
+                  >
+                    {balance.toLocaleString('en-NG', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }).replace('₦', '')}
+                  </Text>
+                )}
               </View>
             </View>
 
@@ -340,7 +439,7 @@ export default function WalletScreen() {
                     color: Colors.white,
                   }}
                 >
-                  {MOCK_TRANSACTIONS.length}
+                  {isLoadingTransactions ? '...' : transactions.length}
                 </Text>
               </View>
               <View
@@ -529,14 +628,48 @@ export default function WalletScreen() {
           </View>
 
           {/* Transaction Cards */}
-          {isLoading ? (
+          {isLoadingTransactions ? (
             <>
               <TransactionCardSkeleton />
               <TransactionCardSkeleton />
               <TransactionCardSkeleton />
             </>
+          ) : transactions.length === 0 ? (
+            <View
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: 18,
+                padding: 32,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: Colors.border,
+              }}
+            >
+              <Receipt size={48} color={Colors.textSecondaryDark} style={{ marginBottom: 16 }} />
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.textPrimary,
+                  marginBottom: 8,
+                }}
+              >
+                No transactions yet
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  textAlign: 'center',
+                }}
+              >
+                Your recent wallet activity will appear here
+              </Text>
+            </View>
           ) : (
-            MOCK_TRANSACTIONS.map((transaction) => (
+            transactions.map((transaction) => (
             <View
               key={transaction.id}
               style={{

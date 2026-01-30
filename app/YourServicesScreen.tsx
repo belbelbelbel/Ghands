@@ -199,9 +199,9 @@ export default function YourServicesScreen() {
                   gap: 10,
                 }}
               >
-                {yourServices.map((service) => (
+                {yourServices.map((service, index) => (
                   <View
-                    key={service.id}
+                    key={`${service.id}-${service.name}-${index}`}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -328,14 +328,14 @@ export default function YourServicesScreen() {
                   gap: 12,
                 }}
               >
-                {availableServices.map((service) => {
+                {availableServices.map((service, index) => {
                   // Use 'name' field for matching (this is what provider categories use)
                   const serviceName = service.name || '';
                   const displayName = service.displayName || serviceName;
                   const isSelected = selectedServices.includes(serviceName);
                   return (
                     <TouchableOpacity
-                      key={service.id || serviceName}
+                      key={`${service.id || serviceName}-${index}`}
                       onPress={() => handleToggleAvailableService(serviceName)}
                       style={{
                         flexDirection: 'row',

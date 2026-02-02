@@ -47,8 +47,11 @@ app-example
 # Build files (should never be committed)
 *.aab
 *.apk
+*.apks
 *.ipa
+*.jar
 build-*.aab
 build-*.apk
 /eas-build-*.aab
 /eas-build-*.apk
+bundletool-*.jar

@@ -29,6 +29,7 @@ interface UIMessage {
   time: string;
   status?: 'sending' | 'sent' | 'delivered' | 'read';
   isRead?: boolean;
+  isFromCurrentUser?: boolean; // Whether this message is from the current user
 }
 
 /**
@@ -124,6 +125,7 @@ export default function ChatScreen() {
         ? (apiMessage.isRead || apiMessage.readAt ? 'read' : 'delivered')
         : undefined,
       isRead: apiMessage.isRead || !!apiMessage.readAt,
+      isFromCurrentUser, // Store this for alignment logic
     };
   }, [formatTime]);
 
@@ -252,6 +254,7 @@ export default function ChatScreen() {
       timestamp: new Date().toISOString(),
       time: formatTime(new Date().toISOString()),
       status: 'sending',
+      isFromCurrentUser: true, // Optimistic messages are always from current user
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
@@ -379,13 +382,15 @@ export default function ChatScreen() {
    * Render a single message
    */
   const renderMessage = ({ item }: { item: UIMessage }) => {
-    // In provider view: 'user' sender = client, 'provider' sender = provider
-    // In user view: 'user' sender = user, 'provider' sender = provider
+    // Determine alignment: messages from current user go to the right, received messages go to the left
+    const isFromCurrentUser = item.isFromCurrentUser ?? false;
+    
+    // For avatar and styling purposes, determine if it's from client or provider
     const isFromClient = isProviderView ? item.sender === 'user' : item.sender === 'user';
     const isFromProvider = isProviderView ? item.sender === 'provider' : item.sender === 'provider';
     
     const getStatusIcon = () => {
-      if (!isFromClient || !item.status) return null;
+      if (!isFromCurrentUser || !item.status) return null;
       switch (item.status) {
         case 'sending':
           return <ActivityIndicator size="small" color={Colors.textSecondaryDark} style={{ marginLeft: 4 }} />;
@@ -408,11 +413,11 @@ export default function ChatScreen() {
           alignItems: 'flex-end',
           marginBottom: Spacing.md,
           marginHorizontal: Spacing.md,
-          justifyContent: isFromClient ? 'flex-end' : 'flex-start',
+          justifyContent: isFromCurrentUser ? 'flex-end' : 'flex-start',
         }}
       >
-        {/* Avatar on left for provider messages */}
-        {isFromProvider && (
+        {/* Avatar on left for received messages (not from current user) */}
+        {!isFromCurrentUser && (
           <View
             style={{
               width: 36,
@@ -425,9 +430,11 @@ export default function ChatScreen() {
               ...SHADOWS.sm,
             }}
           >
-            <Image
-              source={require('../assets/images/plumbericon2.png')}
-              style={{
+          <Image
+            source={isFromProvider 
+              ? require('../assets/images/plumbericon2.png') 
+              : require('../assets/images/userimg.jpg')}
+            style={{
                 width: 36,
                 height: 36,
                 borderRadius: 18,
@@ -440,16 +447,16 @@ export default function ChatScreen() {
         <View
           style={{
             maxWidth: '75%',
-            alignItems: isFromClient ? 'flex-end' : 'flex-start',
-          }}
-        >
+              alignItems: isFromCurrentUser ? 'flex-end' : 'flex-start',
+            }}
+          >
           {/* Message Bubble */}
           <View
             style={{
-              backgroundColor: isFromClient ? Colors.accent : Colors.white,
-              borderRadius: BorderRadius.lg,
-              borderTopLeftRadius: isFromProvider ? 4 : BorderRadius.lg,
-              borderTopRightRadius: isFromClient ? 4 : BorderRadius.lg,
+                backgroundColor: isFromCurrentUser ? Colors.accent : Colors.white,
+                borderRadius: BorderRadius.lg,
+                borderTopLeftRadius: !isFromCurrentUser && isFromProvider ? 4 : BorderRadius.lg,
+                borderTopRightRadius: isFromCurrentUser ? 4 : BorderRadius.lg,
               paddingHorizontal: Spacing.md,
               paddingVertical: Spacing.sm + 2,
               ...(isFromProvider ? SHADOWS.small : {}),
@@ -461,7 +468,7 @@ export default function ChatScreen() {
               style={{
                 fontSize: 15,
                 fontFamily: 'Poppins-Regular',
-                color: isFromClient ? Colors.white : Colors.textPrimary,
+                color: isFromCurrentUser ? Colors.white : Colors.textPrimary,
                 lineHeight: 20,
               }}
             >
@@ -491,8 +498,8 @@ export default function ChatScreen() {
           </View>
         </View>
 
-        {/* Avatar on right for user messages */}
-        {isFromClient && (
+        {/* Avatar on right for messages sent by current user */}
+        {isFromCurrentUser && (
           <View
             style={{
               width: 36,
@@ -505,9 +512,9 @@ export default function ChatScreen() {
               ...SHADOWS.sm,
             }}
           >
-            <Image
-              source={require('../assets/images/userimg.jpg')}
-              style={{
+          <Image
+            source={isProviderView ? require('../assets/images/plumbericon2.png') : require('../assets/images/userimg.jpg')}
+            style={{
                 width: 36,
                 height: 36,
                 borderRadius: 18,
@@ -525,8 +532,11 @@ export default function ChatScreen() {
     return (
       <SafeAreaWrapper backgroundColor={Colors.white}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl }}>
-          <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, textAlign: 'center' }}>
-            Invalid request ID. Please go back and try again.
+          <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.sm }}>
+            Request ID not found
+          </Text>
+          <Text style={{ fontSize: 14, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center' }}>
+            Please go back and try again.
           </Text>
         </View>
       </SafeAreaWrapper>

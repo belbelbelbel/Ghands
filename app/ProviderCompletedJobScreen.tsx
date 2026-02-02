@@ -1,6 +1,6 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, MessageCircle, Phone, CheckCircle2, FileText, Wrench, CheckCircle, CreditCard, Circle } from 'lucide-react-native';
 import React from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -76,6 +76,7 @@ const TIMELINE_STEPS = [
 
 export default function ProviderCompletedJobScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ requestId?: string }>();
   
   // Create animation values for each timeline step
   const timelineAnimations = useMemo(
@@ -224,8 +225,8 @@ export default function ProviderCompletedJobScreen() {
                     router.push({
                       pathname: '/ChatScreen',
                       params: {
-                        clientName: 'Lawal Johnson',
-                        providerId: 'provider-1',
+                        clientName: 'Client',
+                        requestId: params.requestId,
                       },
                     } as any);
                   }}

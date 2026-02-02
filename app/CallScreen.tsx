@@ -148,6 +148,7 @@ export default function CallScreen() {
         providerName: isProvider ? undefined : callerName,
         clientName: isProvider ? callerName : undefined,
         providerId: params.callerId,
+        requestId: params.requestId,
       },
     } as any);
   };

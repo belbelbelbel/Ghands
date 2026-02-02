@@ -1426,8 +1426,8 @@ export default function ProviderJobDetailsScreen() {
                   router.push({
                     pathname: '/ChatScreen',
                     params: {
-                      clientName: 'Lawal Johnson',
-                      providerId: 'provider-1',
+                      clientName: request?.client?.name || 'Client',
+                      requestId: params.requestId,
                     },
                   } as any);
                 }}

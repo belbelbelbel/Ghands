@@ -410,6 +410,7 @@ export default function CompletedJobDetail() {
                             params: {
                               providerName: selectedProvider.name || 'Provider',
                               providerId: selectedProvider.id?.toString() || '',
+                              requestId: params.requestId,
                             },
                           } as any);
                         }

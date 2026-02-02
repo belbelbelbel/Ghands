@@ -1,3 +1,4 @@
+
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
@@ -1346,6 +1347,7 @@ export default function OngoingJobDetails() {
                 params: {
                   providerName: provider.name,
                   providerId: provider.providerId?.toString() || provider.id,
+                  requestId: params.requestId,
                 },
               });
             }}

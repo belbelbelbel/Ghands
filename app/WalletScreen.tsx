@@ -1,11 +1,11 @@
+import { TransactionCardSkeleton } from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Colors } from '@/lib/designSystem';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { ArrowLeft, ArrowRight, Bell, CheckCircle, Clock, Plus, Receipt, Wallet } from 'lucide-react-native';
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { ScrollView, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { TransactionCardSkeleton } from '@/components/LoadingSkeleton';
 import { walletService } from '@/services/api';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { ArrowLeft, ArrowRight, Bell, CheckCircle, Clock, Plus, Receipt, Wallet } from 'lucide-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 interface Transaction {
   id: string;
@@ -327,7 +327,7 @@ export default function WalletScreen() {
             <Wallet size={32} color={Colors.white} />
           </View>
 
-          <View style={{ padding: 32 }}>
+          <View style={{ padding: 20 }}>
             {/* Wallet ID */}
             <Text
               style={{
@@ -390,7 +390,7 @@ export default function WalletScreen() {
                 ) : (
                   <Text
                     style={{
-                      fontSize: 64,
+                      fontSize: 54,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.white,
                       letterSpacing: -2,
@@ -514,9 +514,9 @@ export default function WalletScreen() {
             style={{
               flex: 1,
               backgroundColor: Colors.accent,
-              borderRadius: 16,
-              paddingVertical: 16,
-              paddingHorizontal: 20,
+              borderRadius: 10,
+              paddingVertical: 13,
+              paddingHorizontal: 10,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
@@ -534,7 +534,7 @@ export default function WalletScreen() {
             <Plus size={18} color={Colors.white} />
             <Text
               style={{
-                fontSize: 15,
+                fontSize: 14.5,
                 fontFamily: 'Poppins-SemiBold',
                 color: Colors.white,
                 marginLeft: 8,
@@ -551,9 +551,9 @@ export default function WalletScreen() {
             style={{
               flex: 1,
               backgroundColor: '#1a1a1a',
-              borderRadius: 16,
-              paddingVertical: 16,
-              paddingHorizontal: 20,
+              borderRadius: 10,
+              paddingVertical: 13,
+              paddingHorizontal: 10,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
@@ -572,7 +572,7 @@ export default function WalletScreen() {
           >
             <Text
               style={{
-                fontSize: 15,
+                fontSize: 14.5,
                 fontFamily: 'Poppins-SemiBold',
                 color: Colors.white,
                 marginRight: 8,

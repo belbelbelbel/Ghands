@@ -26,6 +26,7 @@ export default {
         NSPhotoLibraryUsageDescription: 'This app needs access to photo library to select profile photos.',
         NSAllowsArbitraryLoads: true,
       },
+      usesAppleSignIn: false,
     },
     android: {
       adaptiveIcon: {
@@ -40,6 +41,8 @@ export default {
         'android.permission.CAMERA',
         'android.permission.READ_EXTERNAL_STORAGE',
         'android.permission.WRITE_EXTERNAL_STORAGE',
+        'android.permission.POST_NOTIFICATIONS',
+        'android.permission.VIBRATE',
       ],
       config: {
         googleMaps: {
@@ -63,6 +66,15 @@ export default {
     plugins: [
       'expo-router',
       'expo-font',
+      [
+        'expo-notifications',
+        {
+          icon: './assets/images/icon.png',
+          color: '#6A9B00',
+          sounds: [],
+          mode: 'production',
+        },
+      ],
       [
         'expo-navigation-bar',
         {

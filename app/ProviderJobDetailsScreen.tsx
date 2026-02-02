@@ -628,7 +628,7 @@ export default function ProviderJobDetailsScreen() {
     timeline.push({
       id: 'step-1',
       title: 'Job Request Received',
-      description: 'Awaiting your quotation',
+      description: 'You have received a new job request from a client. Review the job details and decide whether to accept and provide a quotation.',
       status: `Completed - ${formatTimeAgo(request.createdAt || new Date().toISOString())}`,
       accent: '#DCFCE7',
       dotColor: '#6A9B00',
@@ -707,7 +707,7 @@ export default function ProviderJobDetailsScreen() {
         timeline.push({
           id: 'step-2',
           title: 'Inspection & Quotation',
-          description: 'Quotation sent to client',
+          description: 'You have completed the inspection and sent a detailed quotation to the client. The quotation includes cost breakdown, materials needed, and work summary for their review.',
           status: `Completed - ${formatTimeAgo(quotationWithProvider?.sentAt || quotation?.sentAt || request.updatedAt || '')}`,
           accent: '#DCFCE7',
           dotColor: '#6A9B00',
@@ -722,7 +722,7 @@ export default function ProviderJobDetailsScreen() {
         timeline.push({
           id: 'step-2',
           title: 'Inspection & Quotation',
-          description: 'Send quotation to client',
+          description: 'You have accepted this job request. Now you need to inspect the job (if required) and prepare a detailed quotation with cost breakdown, materials, and work summary to send to the client.',
           status: 'In Progress',
           accent: '#FEF9C3',
           dotColor: '#F59E0B',
@@ -751,16 +751,19 @@ export default function ProviderJobDetailsScreen() {
     }
 
     // Step 3: Quotation Accepted
-    // Check if quotation is accepted (not payment - that's next step)
+    // Check if quotation is accepted
     const isQuotationAccepted = (quotationWithProvider && quotationWithProvider.status === 'accepted') ||
                                 (quotation && quotation.status === 'accepted') ||
                                 requestIndicatesQuotationAccepted; // If scheduled/in_progress/completed, quotation was accepted
+    
+    // Check if quotation was sent (needed to show yellow while waiting)
+    const quotationSent = quotation || (quotationWithProvider && (quotationWithProvider.sentAt || (quotationWithProvider.status && quotationWithProvider.status !== 'draft' && quotationWithProvider.status !== null)));
     
     if (isQuotationAccepted) {
       timeline.push({
         id: 'step-3',
         title: 'Quotation Accepted',
-        description: 'Client accepted your quotation',
+        description: 'Client has reviewed and accepted your quotation. They will now proceed with payment to secure the job.',
         status: `Completed - ${formatTimeAgo(quotationWithProvider?.sentAt || quotation?.sentAt || request.updatedAt || '')}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -769,88 +772,26 @@ export default function ProviderJobDetailsScreen() {
         isCompleted: true,
         icon: CheckCircle,
       });
-    } else {
-      // Quotation not accepted yet - show pending
+    } else if (quotationSent) {
+      // Quotation sent but not accepted yet - YELLOW (waiting for client to accept)
       timeline.push({
         id: 'step-3',
         title: 'Quotation Accepted',
-        description: 'Waiting for client to accept quotation',
-        status: 'Pending',
-        accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
-        lineColor: '#9CA3AF',
-        isActive: false,
-        isCompleted: false,
-        icon: Circle,
-      });
-    }
-    
-    // Step 4: Payment (NEW - separate step for payment)
-    // Payment is received when request.status is 'scheduled', 'in_progress', or 'completed'
-    // This is the key indicator that payment gateway returned success and escrow is funded
-    // 
-    // IMPORTANT: Request status is the ONLY reliable source of truth for payment.
-    // When client pays, backend updates request.status to 'scheduled' or 'in_progress'.
-    // We cannot check client's wallet transactions (provider can't see them).
-    // Provider's wallet only shows earnings AFTER job completion, not when payment is made.
-    const isPaymentReceived = request.status === 'scheduled' || 
-                              request.status === 'in_progress' || 
-                              request.status === 'completed';
-    
-    if (__DEV__) {
-      console.log('💰 [ProviderJobDetails] Payment status check:', {
-        requestStatus: request.status,
-        isPaymentReceived,
-        isQuotationAccepted,
-        quotationStatus: quotation?.status,
-        quotationWithProviderStatus: quotationWithProvider?.status,
-      });
-    }
-    
-    if (__DEV__) {
-      console.log('💰 [ProviderJobDetails] Payment step check:', {
-        requestStatus: request.status,
-        isPaymentReceived,
-        isQuotationAccepted,
-        quotationStatus: quotation?.status,
-        quotationWithProviderStatus: quotationWithProvider?.status,
-      });
-    }
-    
-    if (isPaymentReceived) {
-      // Payment received - green (completed)
-      timeline.push({
-        id: 'step-4',
-        title: 'Payment',
-        description: 'Payment received and secured in escrow',
-        status: `Completed - ${formatTimeAgo(request.updatedAt || '')}`,
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
-        lineColor: '#6A9B00',
-        isActive: false,
-        isCompleted: true,
-        icon: Wallet,
-      });
-    } else if (isQuotationAccepted) {
-      // Quotation accepted but payment not received yet - yellow (waiting for payment)
-      timeline.push({
-        id: 'step-4',
-        title: 'Payment',
-        description: 'Waiting for client to complete payment',
+        description: 'Your quotation has been sent to the client. Waiting for them to review and accept it before proceeding with payment.',
         status: 'In Progress',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
         lineColor: '#F59E0B',
         isActive: true,
         isCompleted: false,
-        icon: CreditCard,
+        icon: Clock,
       });
     } else {
-      // Quotation not accepted yet - grey (pending)
+      // Quotation not sent yet - grey (pending)
       timeline.push({
-        id: 'step-4',
-        title: 'Payment',
-        description: 'Waiting for quotation acceptance',
+        id: 'step-3',
+        title: 'Quotation Accepted',
+        description: 'Waiting for quotation to be sent to client for review',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -861,7 +802,12 @@ export default function ProviderJobDetailsScreen() {
       });
     }
     
-    // Step 5: Work order assigned
+    // Step 4: Work order assigned (merged with payment info)
+    // Payment is received when request.status is 'scheduled', 'in_progress', or 'completed'
+    const isPaymentReceived = request.status === 'scheduled' || 
+                              request.status === 'in_progress' || 
+                              request.status === 'completed';
+    
     // Show Start button - GREEN when payment received, GRAY/DISABLED when payment not received
     const workOrderIsActive = request.status === 'in_progress' || 
                               request.status === 'completed' || 
@@ -870,9 +816,9 @@ export default function ProviderJobDetailsScreen() {
     if (workOrderIsActive) {
       // Start button clicked - green (completed)
       timeline.push({
-        id: 'step-5',
-        title: 'Work order assigned',
-        description: 'You are authorized to start the job',
+        id: 'step-4',
+        title: 'Work Order Assigned',
+        description: 'You have successfully started the job and are now authorized to work on site. The client has been notified that work is in progress.',
         status: `Completed - ${formatTimeAgo(request.updatedAt || '')}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -885,9 +831,9 @@ export default function ProviderJobDetailsScreen() {
     } else if (isPaymentReceived) {
       // Payment received but Start not clicked - show Start button (GREEN/ENABLED)
       timeline.push({
-        id: 'step-5',
-        title: 'Work order assigned',
-        description: 'Payment secured. Click Start to begin work',
+        id: 'step-4',
+        title: 'Work Order Assigned',
+        description: 'Payment has been received and secured in escrow. You are now authorized to start the job. Click the Start button below to begin work on site.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -898,12 +844,28 @@ export default function ProviderJobDetailsScreen() {
         showStartButton: true,
         startButtonEnabled: true, // GREEN button - payment received, can start
       });
-    } else {
-      // Payment not received yet - show Start button (GRAY/DISABLED)
+    } else if (isQuotationAccepted) {
+      // Quotation accepted but payment not received yet - YELLOW (waiting for payment)
       timeline.push({
-        id: 'step-5',
-        title: 'Work order assigned',
-        description: 'Waiting for payment to be secured',
+        id: 'step-4',
+        title: 'Work Order Assigned',
+        description: 'Client has accepted your quotation. Waiting for them to complete payment. Once payment is secured in escrow, you will be able to start the job.',
+        status: 'In Progress',
+        accent: '#FEF9C3',
+        dotColor: '#F59E0B',
+        lineColor: '#F59E0B',
+        isActive: true,
+        isCompleted: false,
+        icon: Clock,
+        showStartButton: true,
+        startButtonEnabled: false, // GRAY button - payment not received, cannot start
+      });
+    } else {
+      // Quotation not accepted yet - grey (pending)
+      timeline.push({
+        id: 'step-4',
+        title: 'Work Order Assigned',
+        description: 'Waiting for quotation to be accepted and payment to be secured before work can begin',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -916,14 +878,14 @@ export default function ProviderJobDetailsScreen() {
       });
     }
 
-    // Step 6: Job in Progress
+    // Step 5: Job in Progress
     // Show as yellow when work order is active (Start button clicked)
     // Show as green when job is completed
     if (request.status === 'completed') {
       timeline.push({
-        id: 'step-6',
+        id: 'step-5',
         title: 'Job in Progress',
-        description: 'You are Onsite!',
+        description: 'You have successfully completed all work on site. The client will review the completed work and mark the job as complete once satisfied.',
         status: 'Completed',
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -935,9 +897,9 @@ export default function ProviderJobDetailsScreen() {
     } else if (request.status === 'in_progress' || workOrderStatus === 'active') {
       // Job in progress - yellow
       timeline.push({
-        id: 'step-6',
+        id: 'step-5',
         title: 'Job in Progress',
-        description: 'You are Onsite!',
+        description: 'You are currently on site working on this job. Continue with the work and update the client on progress as needed. Once finished, the client will review and mark as complete.',
         status: 'In Progress',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
@@ -948,9 +910,9 @@ export default function ProviderJobDetailsScreen() {
       });
     } else {
       timeline.push({
-        id: 'step-6',
+        id: 'step-5',
         title: 'Job in Progress',
-        description: 'Waiting for work order to start',
+        description: 'Waiting for you to start the work order. Once payment is secured and you click Start, this step will become active.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -961,12 +923,12 @@ export default function ProviderJobDetailsScreen() {
       });
     }
 
-    // Step 7: Complete
+    // Step 6: Complete
     if (request.status === 'completed') {
       timeline.push({
-        id: 'step-7',
+        id: 'step-6',
         title: 'Complete',
-        description: 'Job Approved',
+        description: 'The job has been successfully completed and approved by the client. Payment has been released from escrow to your account. Thank you for your excellent work!',
         status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -977,9 +939,9 @@ export default function ProviderJobDetailsScreen() {
       });
     } else {
       timeline.push({
-        id: 'step-7',
+        id: 'step-6',
         title: 'Complete',
-        description: 'Job Approved',
+        description: 'Once you finish the work and the client approves it, the job will be marked as complete and payment will be released to your account.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -1489,20 +1451,21 @@ export default function ProviderJobDetailsScreen() {
             >
               <Text
                 style={{
-                  fontSize: 20,
+                  fontSize: 22,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.textPrimary,
-                  marginBottom: 6,
+                  marginBottom: 8,
                 }}
               >
                 {statusMessage.title}
               </Text>
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: 16,
                   fontFamily: 'Poppins-Regular',
                   color: Colors.textSecondaryDark,
                   marginBottom: statusMessage.showDetails ? 12 : 0,
+                  lineHeight: 24,
                 }}
               >
                 {statusMessage.message}
@@ -1562,7 +1525,7 @@ export default function ProviderJobDetailsScreen() {
               style={{
                 backgroundColor: Colors.white,
               borderRadius: BorderRadius.xl,
-                padding: 16,
+                padding: 20,
               marginBottom: 16,
                 borderWidth: 1,
                 borderColor: Colors.border,
@@ -1590,7 +1553,7 @@ export default function ProviderJobDetailsScreen() {
                     key={step.id} 
                     style={{ 
               flexDirection: 'row',
-                      marginBottom: isLast ? 0 : 12,
+                      marginBottom: isLast ? 0 : 24,
                       opacity: animation.interpolate({
                         inputRange: [0, 1],
                         outputRange: [0, 1],
@@ -1644,7 +1607,7 @@ export default function ProviderJobDetailsScreen() {
                             backgroundColor: step.isCompleted ? step.lineColor : step.isActive ? step.lineColor : '#E5E7EB',
                             marginTop: 8,
                             borderRadius: 2,
-                            minHeight: 40,
+                            minHeight: 70,
                             opacity: lineAnim ? lineAnim.interpolate({
                               inputRange: [0, 1],
                               outputRange: [0, 1],
@@ -1675,12 +1638,12 @@ export default function ProviderJobDetailsScreen() {
                           fontSize: 14,
                           fontFamily: 'Poppins-Bold',
                           color: Colors.textPrimary,
-                          marginBottom: 4,
+                          marginBottom: 6,
                         }}
                       >
                         {step.title}
                       </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
                         <View style={{ flex: 1, marginRight: 12 }}>
                           <Text
                             style={{
@@ -1731,7 +1694,7 @@ export default function ProviderJobDetailsScreen() {
                         )}
                         {/* Large Start button for Work order assigned - positioned to the right */}
                         {/* Button is GREEN when payment received (enabled), GRAY when payment not received (disabled) */}
-                        {(step as any).showStartButton && step.id === 'step-5' && (
+                        {(step as any).showStartButton && step.id === 'step-4' && (
                           <TouchableOpacity
                             onPress={async () => {
                               if (!(step as any).startButtonEnabled) {

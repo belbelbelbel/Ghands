@@ -4,8 +4,9 @@ import { useRouter } from 'expo-router';
 import { ArrowRight, Bell, Check, Clock, Receipt, TrendingUp, Wallet } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { walletService } from '@/services/api';
+import { walletService, providerService, authService } from '@/services/api';
 import { useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface ActivityItem {
   id: string;
@@ -23,6 +24,9 @@ export default function ProviderWalletScreen() {
   const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState<boolean>(true);
+  const [walletId, setWalletId] = useState<number | null>(null);
+  const [pendingEarnings, setPendingEarnings] = useState<number>(0);
+  const [providerInitials, setProviderInitials] = useState<string>('PR');
 
   // Helper function to format date
   const formatDate = useCallback((dateString: string): { date: string; time: string } => {
@@ -86,26 +90,41 @@ export default function ProviderWalletScreen() {
     }
   }, [formatDate]);
 
-  // Load activities
+  // Load activities and calculate pending earnings
   const loadActivities = useCallback(async () => {
     try {
       setIsLoadingActivities(true);
-      const result = await walletService.getTransactions({ limit: 10, offset: 0 });
+      const result = await walletService.getTransactions({ limit: 50, offset: 0 }); // Get more to calculate pending
       const mappedActivities = result.transactions
         .map(mapTransactionToActivity)
         .filter((a): a is ActivityItem => a !== null);
-      setActivities(mappedActivities);
+      setActivities(mappedActivities.slice(0, 10)); // Show only first 10 in UI
+      
+      // Calculate pending earnings from transactions with status 'pending' and type 'earnings'
+      const pendingTotal = result.transactions
+        .filter((tx: any) => {
+          const desc = (tx.description || '').toLowerCase();
+          return tx.status === 'pending' && (
+            desc.includes('earnings') || 
+            desc.includes('payment') ||
+            desc.includes('service request')
+          );
+        })
+        .reduce((sum: number, tx: any) => sum + Math.abs(tx.amount || 0), 0);
+      
+      setPendingEarnings(pendingTotal);
     } catch (error) {
       if (__DEV__) {
         console.error('Error loading activities:', error);
       }
       setActivities([]);
+      setPendingEarnings(0);
     } finally {
       setIsLoadingActivities(false);
     }
   }, [mapTransactionToActivity]);
 
-  // Load wallet balance
+  // Load wallet balance and ID
   const loadWalletBalance = useCallback(async () => {
     try {
       setIsLoadingBalance(true);
@@ -114,6 +133,7 @@ export default function ProviderWalletScreen() {
         ? wallet.balance 
         : parseFloat(String(wallet.balance)) || 0;
       setBalance(balanceValue);
+      setWalletId(wallet.id || null);
     } catch (error) {
       console.error('Error loading wallet balance:', error);
       // Keep current balance on error
@@ -122,18 +142,60 @@ export default function ProviderWalletScreen() {
     }
   }, []);
 
-  // Load balance and activities on mount
+  // Load provider name for initials
+  const loadProviderName = useCallback(async () => {
+    try {
+      const providerId = await authService.getCompanyId();
+      if (providerId) {
+        const provider = await providerService.getProvider(providerId);
+        if (provider?.name) {
+          const initials = provider.name
+            .split(' ')
+            .map((word: string) => word[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 2);
+          setProviderInitials(initials || 'PR');
+          return;
+        }
+      }
+      
+      // Fallback to business name from storage
+      const businessName = await AsyncStorage.getItem('@ghands:business_name');
+      if (businessName) {
+        const initials = businessName
+          .split(' ')
+          .map((word: string) => word[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2);
+        setProviderInitials(initials || 'PR');
+        return;
+      }
+      
+      setProviderInitials('PR');
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error loading provider name:', error);
+      }
+      setProviderInitials('PR');
+    }
+  }, []);
+
+  // Load balance, activities, and provider name on mount
   useEffect(() => {
     loadWalletBalance();
     loadActivities();
-  }, [loadWalletBalance, loadActivities]);
+    loadProviderName();
+  }, [loadWalletBalance, loadActivities, loadProviderName]);
 
   // Refresh balance and activities when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadWalletBalance();
       loadActivities();
-    }, [loadWalletBalance, loadActivities])
+      loadProviderName();
+    }, [loadWalletBalance, loadActivities, loadProviderName])
   );
 
   return (
@@ -166,7 +228,7 @@ export default function ProviderWalletScreen() {
               color: Colors.textSecondaryDark,
             }}
           >
-            JD
+            {providerInitials}
           </Text>
         </View>
         <Text
@@ -233,17 +295,19 @@ export default function ProviderWalletScreen() {
           </View>
 
           {/* Wallet ID */}
-          <Text
-            style={{
-              fontSize: 12,
-              fontFamily: 'Poppins-Regular',
-              color: Colors.white,
-              opacity: 0.7,
-              marginBottom: 8,
-            }}
-          >
-            Id: GH-WLT-92837451
-          </Text>
+          {walletId && (
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.white,
+                opacity: 0.7,
+                marginBottom: 8,
+              }}
+            >
+              Id: GH-WLT-{String(walletId).padStart(8, '0')}
+            </Text>
+          )}
 
           {/* Current Balance */}
           <Text
@@ -288,16 +352,21 @@ export default function ProviderWalletScreen() {
           )}
 
           {/* Pending Earnings */}
-          <Text
-            style={{
-              fontSize: 13,
-              fontFamily: 'Poppins-Regular',
-              color: Colors.white,
-              opacity: 0.8,
-            }}
-          >
-            Pending Earnings (Escrow): ₦4,200.00
-          </Text>
+          {pendingEarnings > 0 && (
+            <Text
+              style={{
+                fontSize: 13,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.white,
+                opacity: 0.8,
+              }}
+            >
+              Pending Earnings (Escrow): ₦{pendingEarnings.toLocaleString('en-NG', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </Text>
+          )}
         </View>
 
         {/* Action Buttons */}

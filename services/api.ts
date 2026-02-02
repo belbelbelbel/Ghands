@@ -397,7 +397,7 @@ class ApiClient {
           // For non-auth errors, throw regular error with details
           // Note: 500 errors might be expected (e.g., provider accessing client endpoint)
           // The calling code will handle fallback mechanisms
-          const statusCode = (error as any)?.status || response?.status;
+          const statusCode = (error as any)?.status || (error as any)?.response?.status;
           const isExpected500 = statusCode === 500;
           
           const errorObj = error instanceof Error 
@@ -2115,6 +2115,25 @@ export const notificationService = {
       throw error;
     }
   },
+
+  /**
+   * Register device for push notifications
+   * POST /api/notifications/register-device
+   */
+  registerDevice: async (payload: {
+    pushToken: string;
+    platform: string;
+    deviceId?: string;
+  }): Promise<void> => {
+    try {
+      await apiClient.post<any>('/api/notifications/register-device', payload);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error registering device for push notifications:', error);
+      }
+      throw error;
+    }
+  },
 };
 
 // ============================================================================
@@ -2896,6 +2915,259 @@ export const providerService = {
       return extractResponseData<ProviderQuotationListItem[]>(response) || [];
     } catch (error) {
       console.error('Error getting provider quotations:', error);
+      throw error;
+    }
+  },
+};
+
+// ============================================================================
+// COMMUNICATION SERVICE - Messaging/Chat functionality
+// ============================================================================
+
+/**
+ * Message interface matching backend response
+ */
+export interface Message {
+  id: number;
+  requestId: number;
+  senderId: number;
+  senderType: 'user' | 'provider' | 'company';
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  readAt?: string | null;
+  isRead?: boolean;
+}
+
+/**
+ * Send message payload
+ */
+export interface SendMessagePayload {
+  content: string;
+}
+
+/**
+ * Send message response
+ */
+export interface SendMessageResponse {
+  id: number;
+  requestId: number;
+  senderId: number;
+  senderType: 'user' | 'provider' | 'company';
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Get messages response with pagination
+ */
+export interface GetMessagesResponse {
+  messages: Message[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+/**
+ * Unread count response
+ */
+export interface UnreadCountResponse {
+  count: number;
+}
+
+/**
+ * Communication Service
+ * 
+ * Handles all messaging/chat functionality for service requests.
+ * Works for both users and providers - automatically detects from auth token.
+ * 
+ * Endpoints:
+ * - POST /api/communication/requests/:requestId/messages - Send a message
+ * - GET /api/communication/requests/:requestId/messages - Get messages (with pagination)
+ * - PATCH /api/communication/requests/:requestId/messages/read - Mark messages as read
+ * - GET /api/communication/requests/:requestId/messages/unread-count - Get unread count
+ */
+export const communicationService = {
+  /**
+   * Send a message in a service request chat
+   * 
+   * POST /api/communication/requests/:requestId/messages
+   * 
+   * @param requestId - The service request ID
+   * @param payload - Message content
+   * @returns The created message
+   * 
+   * Example:
+   * ```typescript
+   * const message = await communicationService.sendMessage(123, {
+   *   content: "Hello, when can you start?"
+   * });
+   * ```
+   */
+  sendMessage: async (
+    requestId: number,
+    payload: SendMessagePayload
+  ): Promise<SendMessageResponse> => {
+    try {
+      const response = await apiClient.post<{
+        data: SendMessageResponse;
+      }>(`/api/communication/requests/${requestId}/messages`, payload);
+
+      const messageData = extractResponseData<SendMessageResponse>(response);
+      
+      if (!messageData) {
+        throw new Error('Invalid response from send message API.');
+      }
+
+      return messageData;
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error sending message:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Get messages for a service request
+   * 
+   * GET /api/communication/requests/:requestId/messages?limit=50&offset=0
+   * 
+   * @param requestId - The service request ID
+   * @param options - Pagination options (limit, offset)
+   * @returns Messages with pagination info
+   * 
+   * Example:
+   * ```typescript
+   * const result = await communicationService.getMessages(123, {
+   *   limit: 50,
+   *   offset: 0
+   * });
+   * console.log(result.messages); // Array of messages
+   * console.log(result.hasMore); // true if more messages available
+   * ```
+   */
+  getMessages: async (
+    requestId: number,
+    options: { limit?: number; offset?: number } = {}
+  ): Promise<GetMessagesResponse> => {
+    try {
+      const { limit = 50, offset = 0 } = options;
+      
+      // Build URL with query parameters
+      const queryParams = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+      const endpoint = `/api/communication/requests/${requestId}/messages?${queryParams.toString()}`;
+      
+      const response = await apiClient.get<{
+        data: {
+          messages: Message[];
+          total: number;
+          limit: number;
+          offset: number;
+        };
+      }>(endpoint);
+
+      const responseData = extractResponseData<{
+        messages: Message[];
+        total: number;
+        limit: number;
+        offset: number;
+      }>(response);
+
+      if (!responseData) {
+        throw new Error('Invalid response from get messages API.');
+      }
+
+      // Calculate if there are more messages
+      const hasMore = (responseData.offset + responseData.messages.length) < responseData.total;
+
+      return {
+        messages: responseData.messages || [],
+        total: responseData.total || 0,
+        limit: responseData.limit || limit,
+        offset: responseData.offset || offset,
+        hasMore,
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error getting messages:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Mark messages as read for a service request
+   * 
+   * PATCH /api/communication/requests/:requestId/messages/read
+   * 
+   * @param requestId - The service request ID
+   * @returns Success response
+   * 
+   * Example:
+   * ```typescript
+   * await communicationService.markMessagesAsRead(123);
+   * ```
+   */
+  markMessagesAsRead: async (requestId: number): Promise<{ message: string }> => {
+    try {
+      const response = await apiClient.patch<{
+        data: { message: string };
+      }>(`/api/communication/requests/${requestId}/messages/read`);
+
+      const responseData = extractResponseData<{ message: string }>(response);
+
+      if (!responseData) {
+        throw new Error('Invalid response from mark messages as read API.');
+      }
+
+      return responseData;
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error marking messages as read:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Get unread message count for a service request
+   * 
+   * GET /api/communication/requests/:requestId/messages/unread-count
+   * 
+   * @param requestId - The service request ID
+   * @returns Unread message count
+   * 
+   * Example:
+   * ```typescript
+   * const { count } = await communicationService.getUnreadCount(123);
+   * console.log(`You have ${count} unread messages`);
+   * ```
+   */
+  getUnreadCount: async (requestId: number): Promise<UnreadCountResponse> => {
+    try {
+      const response = await apiClient.get<{
+        data: UnreadCountResponse;
+      }>(`/api/communication/requests/${requestId}/messages/unread-count`);
+
+      const responseData = extractResponseData<UnreadCountResponse>(response);
+
+      if (!responseData) {
+        throw new Error('Invalid response from unread count API.');
+      }
+
+      return {
+        count: responseData.count || 0,
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error getting unread count:', error);
+      }
       throw error;
     }
   },

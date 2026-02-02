@@ -1,15 +1,15 @@
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
-import { analytics } from '@/services/analytics';
-import { serviceRequestService, ServiceRequest, QuotationWithProvider, walletService } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
+import { Colors } from '@/lib/designSystem';
+import { analytics } from '@/services/analytics';
+import { QuotationWithProvider, ServiceRequest, serviceRequestService, walletService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Colors } from '@/lib/designSystem';
-import { CheckCircle2, FileText, Wrench, CheckCircle, Clock, Circle } from 'lucide-react-native';
+import { CheckCircle, CheckCircle2, Circle, Clock, FileText, Wrench } from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -197,8 +197,8 @@ export default function OngoingJobDetails() {
       id: 'step-1',
       title: 'Job Request Submitted',
       description: totalProvidersSentTo > 0 
-        ? `Request sent to ${totalProvidersSentTo} ${totalProvidersSentTo === 1 ? 'provider' : 'providers'}`
-        : 'Job request submitted successfully',
+        ? `Your job request has been successfully submitted and sent to ${totalProvidersSentTo} nearby ${totalProvidersSentTo === 1 ? 'provider' : 'providers'} in your area. They will review your request and respond shortly.`
+        : 'Your job request has been successfully submitted. Nearby providers will be notified and can accept your request to provide a quotation.',
       status: `Completed - ${formatTimeAgo(request.createdAt || new Date().toISOString())}`,
       accent: '#DCFCE7',
       dotColor: '#6A9B00',
@@ -260,7 +260,7 @@ export default function OngoingJobDetails() {
     // 3. Quotation exists (can't have quotation without provider accepting)
     const hasAcceptedProvidersFromAPI = acceptedProviders && acceptedProviders.length > 0;
     const hasAcceptedProvidersFromStatus = request.status === 'in_progress' || 
-                                           request.status === 'scheduled' || 
+                                           (request.status as any) === 'scheduled' || 
                                            request.status === 'completed' ||
                                            request.status === 'accepted' ||
                                            quotations.length > 0; // If quotations exist, providers must have accepted
@@ -285,9 +285,9 @@ export default function OngoingJobDetails() {
         id: 'step-2',
         title: 'Provider Accepted',
         description: hasAcceptedProvidersFromAPI 
-          ? `${providerCount} ${providerCount === 1 ? 'provider has' : 'providers have'} accepted your request`
-          : 'Provider has accepted your request',
-        status: `Completed - ${formatTimeAgo(acceptanceTime)}`,
+          ? `${providerCount} ${providerCount === 1 ? 'provider has' : 'providers have'} accepted your job request. ${providerCount === 1 ? 'They will' : 'They will'} now inspect the job (if required) and prepare a detailed quotation with cost breakdown and work summary for your review.`
+          : 'A provider has accepted your job request. They will now inspect the job (if required) and prepare a detailed quotation with cost breakdown and work summary for your review.',
+        status: `Completed - ${formatTimeAgo(String(acceptanceTime))}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
         isActive: false,
@@ -306,7 +306,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-2',
         title: 'Provider Acceptance',
-        description: 'Waiting for providers to accept your request',
+        description: 'Your job request has been sent to nearby providers. Waiting for them to review your request details and accept it. You will be notified as soon as a provider accepts.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -323,98 +323,46 @@ export default function OngoingJobDetails() {
       }
     }
 
-    // Step 3: Inspection & Quotation / Quotation Accepted
-    // According to docs: When payment is completed (status becomes "scheduled" or "in_progress"),
-    // this step should be GREEN (completed). Before that, it should clearly communicate
-    // when a quotation has been SENT vs when it has been ACCEPTED.
-    // - No quotation yet  -> "Inspection & Quotation" (yellow, waiting for provider)
-    // - Quotation sent    -> "Inspection & Quotation" (yellow, waiting for you to accept)
-    // - Quotation accepted, no payment -> "Quotation Accepted" (yellow, waiting for payment)
-    // - Quotation accepted + payment   -> "Quotation Accepted" (green, completed)
-    const hasQuotationSent = quotations.some(q => q.sentAt || (q.status && q.status !== 'draft' && q.status !== null));
-    const quotationAccepted = quotations.some(q => q.status === 'accepted');
-    const acceptedQuotation = quotations.find(q => q.status === 'accepted');
+    // Step 3: Inspection & Quotation
+    // Provider inspects the job and sends quotation
+    // This is separate from quotation acceptance - focus on provider's action
+    const hasQuotationSent = quotations.some(q => q.sentAt || (q.status && q.status !== null));
     
-    // Check if payment is completed
-    // According to docs: "Scheduled" = Client accepts quote AND payment gateway returns success.
-    // After payment, status becomes "scheduled" or "in_progress" (provider can start).
-    // If status is "in_progress" or "completed" AND quotation is accepted, payment must be done.
-    // 
-    // IMPORTANT: We check wallet transactions as a fallback if backend hasn't updated status yet.
-    // This ensures the timeline reflects payment status immediately after payment, even if
-    // the backend request.status hasn't been updated to "scheduled" or "in_progress" yet.
-    const hasPaymentTransaction = paymentTransaction && paymentTransaction.status === 'completed';
-    const isPaymentCompleted = quotationAccepted && (
-      request.status === 'scheduled' || 
-      request.status === 'in_progress' || 
-      request.status === 'completed' ||
-      cameFromPaymentSuccess ||
-      hasPaymentTransaction // ✅ Check wallet transaction as fallback
-    );
-    
-    // IMPORTANT: Only show this step as active/completed if providers have accepted FIRST.
-    // This ensures the timeline order is logical:
-    // Provider Acceptance → Inspection & Quotation → Quotation Accepted → Job in Progress.
     if (hasAcceptedProviders) {
-      if (isPaymentCompleted) {
-        // Payment completed after quotation acceptance - show GREEN (completed) per docs
-      timeline.push({
-        id: 'step-3',
-          title: 'Quotation Accepted',
-          description: 'Quotation accepted and payment confirmed',
-          status: `Completed - ${formatTimeAgo(acceptedQuotation?.acceptedAt || acceptedQuotation?.sentAt || request.updatedAt || new Date().toISOString())}`,
+      if (hasQuotationSent) {
+        // Quotation sent - green (completed)
+        const quotation = quotations.find(q => q.sentAt || (q.status && q.status !== null));
+        timeline.push({
+          id: 'step-3',
+        title: 'Inspection & Quotation',
+          description: 'The provider has completed the inspection (if required) and sent you a detailed quotation. The quotation includes cost breakdown, materials needed, labor fees, and a complete work summary. Review it carefully before accepting or declining.',
+          status: `Completed - ${formatTimeAgo(quotation?.sentAt || request.updatedAt || '')}`,
           accent: '#DCFCE7',
           dotColor: '#6A9B00',
           isActive: false,
           isCompleted: true,
           icon: FileText,
         });
-      } else if (quotationAccepted) {
-        // Quotation accepted but payment not yet completed - show yellow (waiting for payment)
-        timeline.push({
-          id: 'step-3',
-          title: 'Quotation Accepted',
-          description: 'Quotation accepted - waiting for payment confirmation',
-          status: 'In Progress',
-          accent: '#FEF9C3',
-          dotColor: '#F59E0B',
-          isActive: true,
-          isCompleted: false,
-          icon: Clock,
-        });
-      } else if (hasQuotationSent) {
-        // Providers accepted AND quotation sent - waiting for client to accept
-        timeline.push({
-          id: 'step-3',
-          title: 'Inspection & Quotation',
-          description: 'Quotation sent - waiting for you to accept',
-          status: 'In Progress',
-          accent: '#FEF9C3',
-          dotColor: '#F59E0B',
-          isActive: true,
-          isCompleted: false,
-          icon: Clock,
-        });
       } else {
-        // Providers accepted but no quotation yet - waiting for inspection & quotation
+        // Providers accepted but no quotation sent yet - yellow (in progress)
         timeline.push({
           id: 'step-3',
           title: 'Inspection & Quotation',
-          description: 'Waiting for provider to inspect and send quotation',
+          description: 'The provider is currently inspecting your job (if required) and preparing a detailed quotation. This will include cost breakdown, materials, labor fees, and work summary. You will receive it shortly for your review.',
           status: 'In Progress',
           accent: '#FEF9C3',
-          dotColor: '#F59E0B',
+        dotColor: '#F59E0B',
           isActive: true,
           isCompleted: false,
           icon: Clock,
-        });
+      });
       }
     } else {
       // No providers accepted yet - show pending
       timeline.push({
         id: 'step-3',
         title: 'Inspection & Quotation',
-        description: 'Waiting for providers to accept your request',
+        description: 'Waiting for providers to accept your job request. Once accepted, they will inspect the job and send you a detailed quotation for review.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -424,21 +372,64 @@ export default function OngoingJobDetails() {
       });
     }
 
-    // Step 4: Job in Progress
-    // According to docs:
-    // - After payment (Scheduled status) → Client: Job in Progress should be PENDING (waiting for provider to start)
-    // - "In Progress" status → Client: Job in Progress should be YELLOW (in progress)
-    // - "Completed" status → Client: Job in Progress should be GREEN (completed)
+    // Step 4: Quotation Accepted
+    // Client accepts the quotation (separate from payment)
+    const quotationAccepted = quotations.some(q => q.status === 'accepted');
+    const acceptedQuotation = quotations.find(q => q.status === 'accepted');
     
-    // Reuse isPaymentCompleted from Step 3 - no need to redeclare
-    const isPaymentPending = quotationAccepted && hasAcceptedProviders && !isPaymentCompleted;
-    
-    if (request.status === 'in_progress') {
-      // Provider has started the job - show yellow (in progress)
+    if (quotationAccepted) {
       timeline.push({
         id: 'step-4',
+        title: 'Quotation Accepted',
+        description: 'You have reviewed and accepted the provider\'s quotation. Please proceed with payment to secure the amount in escrow. Once payment is confirmed, the provider will be authorized to start the job.',
+        status: `Completed - ${formatTimeAgo((acceptedQuotation as any)?.acceptedAt || acceptedQuotation?.sentAt || request.updatedAt || '')}`,
+        accent: '#DCFCE7',
+        dotColor: '#6A9B00',
+        isActive: false,
+        isCompleted: true,
+        icon: CheckCircle,
+      });
+    } else if (hasQuotationSent) {
+      // Quotation sent but not accepted yet - YELLOW (waiting for client to accept)
+      timeline.push({
+        id: 'step-4',
+        title: 'Quotation Accepted',
+        description: 'A quotation has been sent to you. Please review the cost breakdown, materials, and work summary carefully. Accept it if you agree with the terms, or decline if you need changes. Once accepted, you can proceed with payment.',
+        status: 'In Progress',
+        accent: '#FEF9C3',
+        dotColor: '#F59E0B',
+        isActive: true,
+        isCompleted: false,
+        icon: Clock,
+      });
+    } else {
+      // No quotation sent yet - grey (pending)
+      timeline.push({
+        id: 'step-4',
+        title: 'Quotation Accepted',
+        description: 'Waiting for the provider to send you a quotation. Once received, you can review and decide whether to accept or decline it.',
+        status: 'Pending',
+        accent: '#F3F4F6',
+        dotColor: '#9CA3AF',
+        isActive: false,
+        isCompleted: false,
+        icon: Circle,
+      });
+    }
+
+    // Step 5: Job in Progress
+    // This step ONLY becomes active when provider clicks "Start" button (status becomes 'in_progress')
+    // Payment is NOT part of this timeline - it's handled separately
+    // - Status 'in_progress' → YELLOW (provider has started, job ongoing)
+    // - Status 'completed' → GREEN (job completed)
+    // - Status 'scheduled' (payment done) → GREY (waiting for provider to click Start)
+    
+    if (request.status === 'in_progress') {
+      // Provider has clicked Start button - job is in progress - show yellow
+      timeline.push({
+        id: 'step-5',
         title: 'Job in Progress',
-        description: 'Provider is on site',
+        description: 'The provider has started the job and is currently on site working. You can track their progress and communicate with them through the chat feature. Once they finish, you can review the work and mark it as complete.',
         status: 'In Progress',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
@@ -449,9 +440,9 @@ export default function OngoingJobDetails() {
     } else if (request.status === 'completed') {
       // Job completed - show green
       timeline.push({
-        id: 'step-4',
+        id: 'step-5',
         title: 'Job in Progress',
-        description: 'Provider was on site',
+        description: 'The provider has completed all the work on site. Please review the completed work carefully. If you are satisfied, you can mark the job as complete, which will release payment from escrow to the provider.',
         status: 'Completed',
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -459,13 +450,12 @@ export default function OngoingJobDetails() {
         isCompleted: true,
         icon: Wrench,
       });
-    } else if (isPaymentCompleted && request.status !== 'in_progress' && request.status !== 'completed') {
-      // Payment completed (status is 'scheduled' or 'accepted' after payment), waiting for provider to start - show pending (grey)
-      // Docs say: After payment (Scheduled status) → Client: Job in Progress should be PENDING
+    } else if ((request.status as any) === 'scheduled') {
+      // Payment completed, waiting for provider to click Start - show grey (pending)
       timeline.push({
-        id: 'step-4',
+        id: 'step-5',
         title: 'Job in Progress',
-        description: 'Waiting for provider to start the job',
+        description: 'Your payment has been secured in escrow. The provider has been notified and is authorized to start the job. They will begin work shortly and you will be notified when they start.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -473,27 +463,14 @@ export default function OngoingJobDetails() {
         isCompleted: false,
         icon: Circle,
       });
-    } else if (isPaymentPending) {
-      // Quotation accepted but payment not completed - show yellow (waiting for payment)
-      timeline.push({
-        id: 'step-4',
-        title: 'Job in Progress',
-        description: 'Waiting for payment to proceed',
-        status: 'Payment Pending',
-        accent: '#FEF9C3',
-        dotColor: '#F59E0B',
-        isActive: true,
-        isCompleted: false,
-        icon: Clock,
-      });
     } else {
-      // Not started yet - grayed out
+      // Not ready yet - grey (pending)
       timeline.push({
-        id: 'step-4',
+        id: 'step-5',
         title: 'Job in Progress',
-        description: quotationAccepted && hasAcceptedProviders
-          ? 'Waiting for payment to proceed'
-          : 'Waiting for quotation acceptance and payment',
+        description: quotationAccepted
+          ? 'Waiting for you to complete payment. Once payment is secured in escrow, the provider will be authorized to start the job.'
+          : 'Waiting for quotation acceptance and payment. Once you accept the quotation and complete payment, the provider can start the job.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -503,12 +480,12 @@ export default function OngoingJobDetails() {
       });
     }
 
-    // Step 5: Complete
+    // Step 6: Complete
     if (request.status === 'completed') {
       timeline.push({
-        id: 'step-5',
+        id: 'step-6',
         title: 'Complete',
-        description: 'Review the job and provide feedback',
+        description: 'The job has been successfully completed and approved. Payment has been released from escrow to the provider. Thank you for using G-Hands! You can leave a review and provide feedback to help improve our service.',
         status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -517,11 +494,11 @@ export default function OngoingJobDetails() {
         icon: CheckCircle,
       });
     } else {
-      // Not started yet - grayed out
+      // Not completed yet - grey (pending)
       timeline.push({
-        id: 'step-5',
+        id: 'step-6',
         title: 'Complete',
-        description: 'Job will be marked complete after service',
+        description: 'Once the provider finishes the work and you are satisfied with the results, you can mark the job as complete. This will release payment from escrow to the provider.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -532,14 +509,14 @@ export default function OngoingJobDetails() {
     }
 
     return timeline;
-  }, [request, acceptedProviders, quotations, selectionCountdown, cameFromPaymentSuccess, paymentTransaction]);
+  }, [request, acceptedProviders, quotations, selectionCountdown]);
 
   // High-level header description above the timeline to explain current phase
   const timelineHeader = useMemo(() => {
     if (!request) return null;
 
     const hasAcceptedProviders = (acceptedProviders && acceptedProviders.length > 0) || !!request.selectedProvider;
-    const hasQuotationSent = quotations.some(q => q.sentAt || (q.status && q.status !== 'draft' && q.status !== null));
+    const hasQuotationSent = quotations.some(q => q.sentAt || (q.status && q.status !== null));
     const acceptedQuotation = quotations.find(q => q.status === 'accepted');
     const quotationAccepted = !!acceptedQuotation;
 
@@ -565,29 +542,30 @@ export default function OngoingJobDetails() {
       };
     }
 
-    // Check if payment is completed (from status, paymentStatus param, or wallet transaction)
-    const hasPaymentTransaction = paymentTransaction && paymentTransaction.status === 'completed';
+    // Check if payment is completed (from status or paymentStatus param)
+    // Payment is separate from timeline - we check status to show appropriate header message
     const isPaymentConfirmed = cameFromPaymentSuccess || 
-      (quotationAccepted && (request.status === 'scheduled' || request.status === 'accepted')) ||
-      hasPaymentTransaction;
+      (quotationAccepted && ((request.status as any) === 'scheduled' || (request.status as any) === 'in_progress' || (request.status as any) === 'completed'));
     
-    if (isPaymentConfirmed) {
+    if (isPaymentConfirmed && (request.status as any) === 'scheduled') {
+      // Payment confirmed, waiting for provider to start
       const amountText = acceptedQuotation ? `₦${formatCurrency(acceptedQuotation.total)}` : '';
       return {
         title: 'Payment confirmed',
         subtitle: amountText
-          ? `Your payment of ${amountText} has been processed securely and placed in escrow. Your provider will now be able to start the job at the scheduled time.`
-          : 'Your payment has been processed securely and placed in escrow. Your provider will now be able to start the job at the scheduled time.',
+          ? `Your payment of ${amountText} has been processed securely and placed in escrow. Waiting for your provider to start the job.`
+          : 'Your payment has been processed securely and placed in escrow. Waiting for your provider to start the job.',
       };
     }
 
-    if (quotationAccepted) {
+    if (quotationAccepted && !isPaymentConfirmed) {
+      // Quotation accepted but payment not completed yet
       const amountText = acceptedQuotation ? `₦${formatCurrency(acceptedQuotation.total)}` : '';
       return {
         title: 'Quotation accepted – payment required',
         subtitle: amountText
-          ? `You accepted a quotation of ${amountText}. Please complete your payment so we can reserve this amount in escrow and allow your provider to start the job.`
-          : 'You accepted a quotation. Please complete your payment so we can reserve the amount in escrow and allow your provider to start the job.',
+          ? `You accepted a quotation of ${amountText}. Please complete your payment so we can secure this amount in escrow and allow your provider to start the job.`
+          : 'You accepted a quotation. Please complete your payment so we can secure the amount in escrow and allow your provider to start the job.',
       };
     }
 
@@ -610,7 +588,7 @@ export default function OngoingJobDetails() {
       title: 'Waiting for providers',
       subtitle: 'We are notifying nearby providers about your request. You will see updates here as soon as someone accepts.',
     };
-  }, [request, acceptedProviders, quotations, cameFromPaymentSuccess, paymentTransaction]);
+  }, [request, acceptedProviders, quotations, cameFromPaymentSuccess]);
 
   // Load quotations from API (6.3 endpoint)
   const loadQuotations = useCallback(async () => {
@@ -638,227 +616,6 @@ export default function OngoingJobDetails() {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
-
-  // Handle provider selection
-  const handleSelectProvider = useCallback(async (providerId: number) => {
-    if (!params.requestId || isSelectingProvider) return;
-
-    setIsSelectingProvider(true);
-    haptics.light();
-
-    try {
-      const requestId = parseInt(params.requestId, 10);
-      const response = await serviceRequestService.selectProvider(requestId, providerId);
-      
-      haptics.success();
-      showSuccess(response.message || 'Provider selected! They have 5 minutes to accept.');
-      
-      // Reload request data to get updated selection info
-      await loadRequestData();
-    } catch (error: any) {
-      if (__DEV__) {
-        console.error('Error selecting provider:', error);
-      }
-      haptics.error();
-      const errorMessage = getSpecificErrorMessage(error, 'select_provider');
-      showError(errorMessage);
-    } finally {
-      setIsSelectingProvider(false);
-    }
-  }, [params.requestId, isSelectingProvider, showSuccess, showError, loadRequestData]);
-
-  // Countdown timer for selection
-  // Uses backend's selectionTimeoutAt if available, otherwise calculates from selectedAt + 5 minutes
-  const startCountdownTimer = useCallback(() => {
-    if (!request?.selectedAt) {
-      setSelectionCountdown(null);
-      return;
-    }
-
-    const updateCountdown = () => {
-      try {
-        // Prefer backend's selectionTimeoutAt if available, otherwise calculate it
-        let timeoutTime: number;
-        if (request.selectionTimeoutAt) {
-          // Use backend's timeout time (more accurate)
-          timeoutTime = new Date(request.selectionTimeoutAt).getTime();
-        } else {
-          // Fallback: calculate from selectedAt + 5 minutes
-          const selectedTime = new Date(request.selectedAt!).getTime();
-          timeoutTime = selectedTime + (5 * 60 * 1000); // 5 minutes
-        }
-        
-        const now = Date.now();
-        const remaining = Math.max(0, Math.floor((timeoutTime - now) / 1000)); // seconds
-
-        if (remaining > 0) {
-          setSelectionCountdown(remaining);
-        } else {
-          setSelectionCountdown(null);
-          // Selection timed out - reload to get updated status from backend
-          loadRequestData();
-        }
-      } catch (error) {
-        setSelectionCountdown(null);
-      }
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-
-    return () => clearInterval(interval);
-  }, [request?.selectedAt, request?.selectionTimeoutAt, loadRequestData]);
-
-  // Start countdown when selection is active
-  useEffect(() => {
-    if (request?.selectedAt && !request.selectedProvider && request.status === 'pending') {
-      const cleanup = startCountdownTimer();
-      return cleanup;
-    } else {
-      setSelectionCountdown(null);
-    }
-  }, [request?.selectedAt, request?.selectedProvider, request?.status, request?.selectionTimeoutAt, startCountdownTimer]);
-
-  // Map accepted providers to provider cards format
-  // Use actual quotation data instead of random logic
-  const mappedProviders = useMemo(() => {
-    if (!acceptedProviders || acceptedProviders.length === 0) return [];
-
-    return acceptedProviders.map((item) => {
-      // Check if this provider has actually sent a quotation
-      const providerQuotation = quotations.find(q => q.provider?.id === item.provider.id);
-      const hasQuotationSent = !!providerQuotation && (providerQuotation.sentAt || (providerQuotation.status && providerQuotation.status !== 'draft'));
-      const quotationAccepted = providerQuotation?.status === 'accepted';
-      
-      // Check selection status
-      const isSelected = request?.selectedProvider?.id === item.provider.id;
-      const isSelectionPending = isSelected && !request?.selectedProvider && request?.selectedAt;
-      const isSelectionAccepted = isSelected && request?.status === 'accepted';
-      const hasActiveSelection = request?.selectedAt && !request?.selectedProvider;
-      const isThisProviderSelected = hasActiveSelection && request?.selectedAt; // Check if this provider was selected
-      
-      // Determine status based on selection flow
-      let status = 'Provider accepted';
-      let statusColor = '#FEF9C3';
-      let statusTextColor = '#92400E';
-      let quoteDetails = 'Provider has accepted your request. Waiting for inspection and quotation.';
-      let inspectionStatus = `Accepted ${formatTimeAgo(item.acceptance.acceptedAt)}`;
-      // Provider selection now happens in ServiceMapScreen during booking confirmation
-      // No need to select providers here - canSelect is always false
-      let canSelect = false;
-
-      // Priority 1: Selection accepted
-      if (isSelectionAccepted) {
-        status = 'Provider accepted selection';
-        statusColor = '#DCFCE7';
-        statusTextColor = '#166534';
-        quoteDetails = 'Provider has accepted your selection. They can now send quotation.';
-        inspectionStatus = `Selection accepted ${formatTimeAgo(request.updatedAt || request.selectedAt || '')}`;
-        canSelect = false;
-      }
-      // Priority 2: Selection pending with countdown
-      else if (isSelected && selectionCountdown !== null && selectionCountdown > 0) {
-        status = 'Selected - waiting for response';
-        statusColor = '#DBEAFE';
-        statusTextColor = '#1E40AF';
-        quoteDetails = `Provider selected. Waiting for their response. ${formatCountdown(selectionCountdown)} remaining.`;
-        inspectionStatus = `Selected ${formatTimeAgo(request.selectedAt || '')}`;
-        canSelect = false;
-      }
-      // Priority 3: Selection pending (no countdown)
-      else if (isSelected && request?.selectedAt) {
-        status = 'Selected - waiting for response';
-        statusColor = '#DBEAFE';
-        statusTextColor = '#1E40AF';
-        quoteDetails = 'Provider selected. Waiting for their response (5 minutes).';
-        inspectionStatus = `Selected ${formatTimeAgo(request.selectedAt)}`;
-        canSelect = false;
-      }
-      // Priority 4: Quotation accepted
-      else if (quotationAccepted) {
-        status = 'Quote accepted';
-        statusColor = '#DCFCE7';
-        statusTextColor = '#166534';
-        quoteDetails = 'Quotation accepted. Provider will proceed with the job.';
-        inspectionStatus = `Quote accepted ${formatTimeAgo(request?.updatedAt || providerQuotation.sentAt || '')}`;
-        canSelect = false;
-      }
-      // Priority 5: Quotation sent
-      else if (hasQuotationSent) {
-        status = 'Quote submitted';
-        statusColor = '#DBEAFE';
-        statusTextColor = '#1E40AF';
-        quoteDetails = providerQuotation.findingsAndWorkRequired || 'Professional service with high-quality materials. Includes parts and labor with warranty.';
-        inspectionStatus = `Quote submitted ${formatTimeAgo(providerQuotation.sentAt || '')}`;
-        canSelect = false;
-      }
-      // Priority 6: Another provider is selected
-      else if (hasActiveSelection && !isSelected) {
-        status = 'Provider accepted';
-        statusColor = '#F3F4F6';
-        statusTextColor = '#6B7280';
-        quoteDetails = 'Another provider has been selected. Waiting for their response.';
-        inspectionStatus = `Accepted ${formatTimeAgo(item.acceptance.acceptedAt)}`;
-        canSelect = false;
-      }
-
-      return {
-        id: `provider-${item.provider.id}`,
-        name: item.provider.name,
-        role: 'Professional Service Provider',
-        image: require('../assets/images/plumbericon2.png'),
-        status,
-        statusColor,
-        statusTextColor,
-        badgeColor: '#CFFAFE',
-        quote: hasQuotationSent ? `$${providerQuotation.total?.toFixed(2) || '0.00'}` : null,
-        quoteDetails,
-        duration: hasQuotationSent ? '2-3 hours' : null,
-        inspectionStatus,
-        cta: hasQuotationSent ? 'View full quote' : null,
-        providerId: item.provider.id,
-        distanceKm: item.distanceKm,
-        minutesAway: item.minutesAway,
-        isSelected,
-        canSelect,
-      };
-    });
-  }, [acceptedProviders, quotations, request, selectionCountdown, formatCountdown]);
-
-  const timelineAnimations = useMemo(
-    () => timelineSteps.map(() => new Animated.Value(0)),
-    [timelineSteps]
-  );
-
-  const lineAnimations = useMemo(
-    () => timelineSteps.slice(0, -1).map(() => new Animated.Value(0)),
-    [timelineSteps]
-  );
-
-  const providerAnimations = useMemo(
-    () => mappedProviders.map(() => new Animated.Value(0)),
-    [mappedProviders]
-  );
-
-  // Load request details, accepted providers and quotations on mount
-  useEffect(() => {
-    if (params.requestId) {
-      loadRequestData();
-    }
-  }, [params.requestId]);
-
-  // Refresh data when screen comes into focus (e.g., returning from another screen)
-  // This ensures timeline and status are always up to date with NO mid‑load glitches.
-  useFocusEffect(
-    useCallback(() => {
-      if (params.requestId) {
-        const timer = setTimeout(() => {
-          loadRequestData();
-        }, 500); // small delay to let backend settle after actions like payment
-        return () => clearTimeout(timer);
-      }
-    }, [params.requestId, loadRequestData])
-  );
 
   // Check wallet transactions for payment status
   const checkPaymentTransaction = useCallback(async (requestId: number) => {
@@ -960,6 +717,227 @@ export default function OngoingJobDetails() {
     }
   }, [params.requestId, loadQuotations, showError, checkPaymentTransaction]);
 
+  // Handle provider selection
+  const handleSelectProvider = useCallback(async (providerId: number) => {
+    if (!params.requestId || isSelectingProvider) return;
+
+    setIsSelectingProvider(true);
+    haptics.light();
+
+    try {
+      const requestId = parseInt(params.requestId, 10);
+      const response = await serviceRequestService.selectProvider(requestId, providerId);
+      
+      haptics.success();
+      showSuccess(response.message || 'Provider selected! They have 5 minutes to accept.');
+      
+      // Reload request data to get updated selection info
+      await loadRequestData();
+    } catch (error: any) {
+      if (__DEV__) {
+        console.error('Error selecting provider:', error);
+      }
+      haptics.error();
+      const errorMessage = getSpecificErrorMessage(error, 'select_provider');
+      showError(errorMessage);
+    } finally {
+      setIsSelectingProvider(false);
+    }
+  }, [params.requestId, isSelectingProvider, showSuccess, showError, loadRequestData]);
+
+  // Countdown timer for selection
+  // Uses backend's selectionTimeoutAt if available, otherwise calculates from selectedAt + 5 minutes
+  const startCountdownTimer = useCallback(() => {
+    if (!request?.selectedAt) {
+      setSelectionCountdown(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      try {
+        // Prefer backend's selectionTimeoutAt if available, otherwise calculate it
+        let timeoutTime: number;
+        if (request.selectionTimeoutAt) {
+          // Use backend's timeout time (more accurate)
+          timeoutTime = new Date(request.selectionTimeoutAt).getTime();
+        } else {
+          // Fallback: calculate from selectedAt + 5 minutes
+          const selectedTime = new Date(request.selectedAt!).getTime();
+          timeoutTime = selectedTime + (5 * 60 * 1000); // 5 minutes
+        }
+        
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((timeoutTime - now) / 1000)); // seconds
+
+        if (remaining > 0) {
+          setSelectionCountdown(remaining);
+        } else {
+          setSelectionCountdown(null);
+          // Selection timed out - reload to get updated status from backend
+          loadRequestData();
+        }
+      } catch (error) {
+        setSelectionCountdown(null);
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [request?.selectedAt, request?.selectionTimeoutAt, loadRequestData]);
+
+  // Start countdown when selection is active
+  useEffect(() => {
+    if (request?.selectedAt && !request.selectedProvider && request.status === 'pending') {
+      const cleanup = startCountdownTimer();
+      return cleanup;
+    } else {
+      setSelectionCountdown(null);
+    }
+  }, [request?.selectedAt, request?.selectedProvider, request?.status, request?.selectionTimeoutAt, startCountdownTimer]);
+
+  // Map accepted providers to provider cards format
+  // Use actual quotation data instead of random logic
+  const mappedProviders = useMemo(() => {
+    if (!acceptedProviders || acceptedProviders.length === 0) return [];
+
+    return acceptedProviders.map((item) => {
+      // Check if this provider has actually sent a quotation
+      const providerQuotation = quotations.find(q => q.provider?.id === item.provider.id);
+      const hasQuotationSent = !!providerQuotation && (providerQuotation.sentAt || (providerQuotation.status && providerQuotation.status !== null));
+      const quotationAccepted = providerQuotation?.status === 'accepted';
+      
+      // Check selection status
+      const isSelected = request?.selectedProvider?.id === item.provider.id;
+      const isSelectionPending = isSelected && !request?.selectedProvider && request?.selectedAt;
+      const isSelectionAccepted = isSelected && request?.status === 'accepted';
+      const hasActiveSelection = request?.selectedAt && !request?.selectedProvider;
+      const isThisProviderSelected = hasActiveSelection && request?.selectedAt; // Check if this provider was selected
+      
+      // Determine status based on selection flow
+      let status = 'Provider accepted';
+      let statusColor = '#FEF9C3';
+      let statusTextColor = '#92400E';
+      let quoteDetails = 'Provider has accepted your request. Waiting for inspection and quotation.';
+      let inspectionStatus = `Accepted ${formatTimeAgo(item.acceptance.acceptedAt)}`;
+      // Provider selection now happens in ServiceMapScreen during booking confirmation
+      // No need to select providers here - canSelect is always false
+      let canSelect = false;
+
+      // Priority 1: Selection accepted
+      if (isSelectionAccepted) {
+        status = 'Provider accepted selection';
+        statusColor = '#DCFCE7';
+        statusTextColor = '#166534';
+        quoteDetails = 'Provider has accepted your selection. They can now send quotation.';
+        inspectionStatus = `Selection accepted ${formatTimeAgo(request.updatedAt || request.selectedAt || '')}`;
+        canSelect = false;
+      }
+      // Priority 2: Selection pending with countdown
+      else if (isSelected && selectionCountdown !== null && selectionCountdown > 0) {
+        status = 'Selected - waiting for response';
+        statusColor = '#DBEAFE';
+        statusTextColor = '#1E40AF';
+        quoteDetails = `Provider selected. Waiting for their response. ${formatCountdown(selectionCountdown)} remaining.`;
+        inspectionStatus = `Selected ${formatTimeAgo(request?.selectedAt || '')}`;
+        canSelect = false;
+      }
+      // Priority 3: Selection pending (no countdown)
+      else if (isSelected && request?.selectedAt) {
+        status = 'Selected - waiting for response';
+        statusColor = '#DBEAFE';
+        statusTextColor = '#1E40AF';
+        quoteDetails = 'Provider selected. Waiting for their response (5 minutes).';
+        inspectionStatus = `Selected ${formatTimeAgo(request.selectedAt)}`;
+        canSelect = false;
+      }
+      // Priority 4: Quotation accepted
+      else if (quotationAccepted) {
+        status = 'Quote accepted';
+        statusColor = '#DCFCE7';
+        statusTextColor = '#166534';
+        quoteDetails = 'Quotation accepted. Provider will proceed with the job.';
+        inspectionStatus = `Quote accepted ${formatTimeAgo(request?.updatedAt || providerQuotation.sentAt || '')}`;
+        canSelect = false;
+      }
+      // Priority 5: Quotation sent
+      else if (hasQuotationSent) {
+        status = 'Quote submitted';
+        statusColor = '#DBEAFE';
+        statusTextColor = '#1E40AF';
+        quoteDetails = providerQuotation.findingsAndWorkRequired || 'Professional service with high-quality materials. Includes parts and labor with warranty.';
+        inspectionStatus = `Quote submitted ${formatTimeAgo(providerQuotation.sentAt || '')}`;
+        canSelect = false;
+      }
+      // Priority 6: Another provider is selected
+      else if (hasActiveSelection && !isSelected) {
+        status = 'Provider accepted';
+        statusColor = '#F3F4F6';
+        statusTextColor = '#6B7280';
+        quoteDetails = 'Another provider has been selected. Waiting for their response.';
+        inspectionStatus = `Accepted ${formatTimeAgo(item.acceptance.acceptedAt)}`;
+        canSelect = false;
+      }
+
+      return {
+        id: `provider-${item.provider.id}`,
+        name: item.provider.name,
+        role: 'Professional Service Provider',
+        image: require('../assets/images/plumbericon2.png'),
+        status,
+        statusColor,
+        statusTextColor,
+        badgeColor: '#CFFAFE',
+        quote: hasQuotationSent ? `$${providerQuotation.total?.toFixed(2) || '0.00'}` : null,
+        quoteDetails,
+        duration: hasQuotationSent ? '2-3 hours' : null,
+        inspectionStatus,
+        cta: hasQuotationSent ? 'View full quote' : null,
+        providerId: item.provider.id,
+        distanceKm: item.distanceKm,
+        minutesAway: item.minutesAway,
+        isSelected,
+        canSelect,
+      };
+    });
+  }, [acceptedProviders, quotations, request, selectionCountdown, formatCountdown]);
+
+  const timelineAnimations = useMemo(
+    () => timelineSteps.map(() => new Animated.Value(0)),
+    [timelineSteps]
+  );
+
+  const lineAnimations = useMemo(
+    () => timelineSteps.slice(0, -1).map(() => new Animated.Value(0)),
+    [timelineSteps]
+  );
+
+  const providerAnimations = useMemo(
+    () => mappedProviders.map(() => new Animated.Value(0)),
+    [mappedProviders]
+  );
+
+  // Load request details, accepted providers and quotations on mount
+  useEffect(() => {
+    if (params.requestId) {
+      loadRequestData();
+    }
+  }, [params.requestId]);
+
+  // Refresh data when screen comes into focus (e.g., returning from another screen)
+  // This ensures timeline and status are always up to date with NO mid‑load glitches.
+  useFocusEffect(
+    useCallback(() => {
+      if (params.requestId) {
+        const timer = setTimeout(() => {
+          loadRequestData();
+        }, 500); // small delay to let backend settle after actions like payment
+        return () => clearTimeout(timer);
+      }
+    }, [params.requestId, loadRequestData])
+  );
+
   // Handle accept quotation (6.4 endpoint)
   const handleAcceptQuotation = async (quotationId: number) => {
     if (!params.requestId) return;
@@ -987,7 +965,7 @@ export default function OngoingJobDetails() {
           },
         } as any);
       }
-    } catch (error: any) {
+        } catch (error: any) {
       if (__DEV__) {
         console.error('Error accepting quotation:', error);
       }
@@ -1058,6 +1036,7 @@ export default function OngoingJobDetails() {
               setIsLoading(true);
               haptics.light();
 
+      if (!params.requestId) return;
       const requestId = parseInt(params.requestId, 10);
               const response = await serviceRequestService.completeServiceRequest(requestId);
 
@@ -1187,7 +1166,7 @@ export default function OngoingJobDetails() {
           const iconSize = step.isCompleted || step.isActive ? 20 : 16;
 
           return (
-            <View key={step.id} className="flex-row mb-4">
+            <View key={step.id} className="flex-row" style={{ marginBottom: 24 }}>
               <View className="items-center mr-5">
                 <Animated.View
                   style={{
@@ -1239,13 +1218,13 @@ export default function OngoingJobDetails() {
                         : '#E5E7EB',
                       marginTop: 8,
                       borderRadius: 2,
-                      minHeight: 40,
+                      minHeight: 70,
                       height: lineAnim
                         ? lineAnim.interpolate({
                           inputRange: [0, 1],
-                            outputRange: [0, 50],
+                            outputRange: [0, 70],
                         })
-                        : 50,
+                        : 70,
                     }}
                   />
                 )}
@@ -1266,19 +1245,21 @@ export default function OngoingJobDetails() {
                 }}
               >
                 <Text 
-                  className="text-base mb-2" 
                   style={{ 
+                    fontSize: 14,
                     fontFamily: 'Poppins-Bold',
                     color: step.isCompleted || step.isActive ? Colors.textPrimary : Colors.textSecondaryDark,
+                    marginBottom: 6,
                   }}
                 >
                   {step.title}
                 </Text>
                 <Text 
-                  className="text-sm mb-3" 
                   style={{ 
+                    fontSize: 13,
                     fontFamily: 'Poppins-Regular',
                     color: step.isCompleted || step.isActive ? Colors.textSecondaryDark : Colors.textTertiary,
+                    marginBottom: 6,
                   }}
                 >
                   {step.description}
@@ -1407,7 +1388,7 @@ export default function OngoingJobDetails() {
                 onPress={() => {
                   haptics.light();
                   setActiveTab('Quotations');
-                  const quoteIndex = quotations.findIndex(q => q.providerId === provider.providerId);
+                  const quoteIndex = quotations.findIndex(q => q.provider?.id === provider.providerId);
                   if (quoteIndex >= 0) {
                     setCurrentQuoteIndex(quoteIndex);
                   }
@@ -1558,15 +1539,23 @@ export default function OngoingJobDetails() {
                 {timelineHeader && (
                   <View className="mb-5 rounded-2xl bg-gray-50 px-4 py-3">
                     <Text
-                      className="text-sm text-gray-900 mb-1"
-                      style={{ fontFamily: 'Poppins-Bold' }}
+                      style={{ 
+                        fontSize: 18,
+                        fontFamily: 'Poppins-Bold',
+                        color: Colors.textPrimary,
+                        marginBottom: 6,
+                      }}
                     >
                       {timelineHeader.title}
                     </Text>
                     {timelineHeader.subtitle ? (
                       <Text
-                        className="text-xs text-gray-600"
-                        style={{ fontFamily: 'Poppins-Regular' }}
+                        style={{ 
+                          fontSize: 15,
+                          fontFamily: 'Poppins-Regular',
+                          color: Colors.textSecondaryDark,
+                          lineHeight: 22,
+                        }}
                       >
                         {timelineHeader.subtitle}
                       </Text>

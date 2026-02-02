@@ -116,6 +116,25 @@ export default function NotificationsScreen() {
         iconColor = '#1D4ED8'; // blue
         break;
       }
+      case 'quotation_accepted': {
+        // Client-side view: quotation was accepted
+        typeLabel = 'Quotation Accepted';
+        const total = notification.metadata?.total;
+        const totalText =
+          typeof total === 'number'
+            ? `₦${total.toLocaleString('en-NG', { minimumFractionDigits: 0 })}`
+            : '';
+        description =
+          description ||
+          (totalText
+            ? `You have accepted a quotation for ${totalText}. Proceed to payment to start the job.`
+            : 'You have accepted a quotation. Proceed to payment to start the job.');
+        barColor = '#16A34A';
+        IconComponent = Handshake;
+        iconBgColor = '#DCFCE7';
+        iconColor = '#15803D'; // rich green
+        break;
+      }
       case 'request_accepted': {
         // Client-side view: provider accepted their request
         typeLabel = 'Request Accepted';
@@ -306,16 +325,21 @@ export default function NotificationsScreen() {
     switch (rawNotification.type) {
       case 'request_accepted':
       case 'quotation_sent':
+      case 'quotation_accepted':
+      case 'work_order_issued':
+      case 'work_order_created':
+        // Navigate to job details timeline for client
         if (rawNotification.requestId) {
           router.push({
             pathname: '/OngoingJobDetails' as any,
             params: { requestId: String(rawNotification.requestId) },
           } as any);
+          return;
         }
         break;
       case 'deposit_success':
         router.push('/WalletScreen' as any);
-        break;
+        return;
       default:
         // For other notification types, show preview modal
         const uiNotif = 'raw' in notification ? notification : mapNotificationToUI(rawNotification);
@@ -624,8 +648,8 @@ export default function NotificationsScreen() {
                         onPress={() => {
                           // When user taps "View details", mark as read and navigate
                           handleMarkAsRead(notification.id);
-                          // Show preview modal for notifications that don't have direct navigation
-                          setPreviewNotification(notification);
+                          // Navigate directly to the appropriate screen
+                          handleNavigateToDetails(notification);
                         }}
                         style={{
                           alignSelf: 'flex-start',

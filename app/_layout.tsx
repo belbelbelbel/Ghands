@@ -14,6 +14,8 @@ import { crashReporting } from '@/services/crashReporting';
 import { AuthError } from '@/utils/errors';
 import { handleTokenExpiration } from '@/utils/tokenExpirationHandler';
 import { authService } from '@/services/authService';
+import { useNotifications } from '@/hooks/useNotifications';
+import * as Notifications from 'expo-notifications';
 
 // ErrorUtils is a global in React Native, not exported from react-native
 declare const ErrorUtils: {
@@ -25,6 +27,8 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const router = useRouter();
+  const { notification } = useNotifications();
+  
   const [fontsLoaded] = useFonts({
     'Outfit-Regular': require('../assets/fonts/Outfit/static/Outfit-Regular.ttf'),
     'Outfit-Medium': require('../assets/fonts/Outfit/static/Outfit-Medium.ttf'),
@@ -142,6 +146,35 @@ export default function RootLayout() {
       }
     };
   }, [router]);
+
+  // Handle notification navigation
+  useEffect(() => {
+    if (!notification) return;
+
+    const data = notification.request.content.data;
+    if (!data) return;
+
+    // Navigate based on notification type and data
+    if (data.requestId) {
+      // Job-related notifications
+      if (data.type === 'quotation_accepted' || 
+          data.type === 'quotation_sent' || 
+          data.type === 'request_accepted' ||
+          data.type === 'work_order_issued' ||
+          data.type === 'work_order_created') {
+        // Check if user is provider or client based on notification type
+        const isProviderNotification = data.type === 'quotation_sent' || data.type === 'work_order_issued';
+        const screen = isProviderNotification ? '/ProviderJobDetailsScreen' : '/OngoingJobDetails';
+        
+        router.push({
+          pathname: screen as any,
+          params: { requestId: String(data.requestId) },
+        } as any);
+      }
+    } else if (data.type === 'deposit_success') {
+      router.push('/WalletScreen' as any);
+    }
+  }, [notification, router]);
 
   // Note: AuthError handling is now done by AuthErrorBoundary component
   // ApiClient throws AuthError, AuthErrorBoundary catches it and handles navigation + toast

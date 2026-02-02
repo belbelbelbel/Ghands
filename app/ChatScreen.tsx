@@ -1,8 +1,8 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Spacing, SHADOWS } from '@/lib/designSystem';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, FileText, Image as ImageIcon, Mic, Phone, Send, User, MoreVertical, Check, CheckCheck } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   FlatList,
   Image,
@@ -12,48 +12,45 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Animated,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { haptics } from '@/hooks/useHaptics';
-import { providerService } from '@/services/api';
+import { providerService, communicationService, authService, Message as ApiMessage } from '@/services/api';
 
-interface Message {
+/**
+ * UI Message interface - adapted from API message for display
+ */
+interface UIMessage {
   id: string;
   text: string;
   sender: 'user' | 'provider';
   timestamp: string;
   time: string;
   status?: 'sending' | 'sent' | 'delivered' | 'read';
+  isRead?: boolean;
 }
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: '1',
-    text: 'Hello, I need help with my plumbing issue',
-    sender: 'user',
-    timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    time: '2:10pm',
-    status: 'read',
-  },
-  {
-    id: '2',
-    text: 'Sure, I can help! Could you describe the issue in more detail?',
-    sender: 'provider',
-    timestamp: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
-    time: '2:15pm',
-  },
-];
-
-// Auto-response messages for demo
-const AUTO_RESPONSES = [
-  "Thank you for your message! I'll get back to you shortly.",
-  "I understand. Let me help you with that.",
-  "That's a great question. Here's what I recommend...",
-  "I see what you mean. Let me explain...",
-  "Perfect! I can definitely help with that.",
-  "Thanks for the details. Here's what we can do...",
-];
-
+/**
+ * ChatScreen Component
+ * 
+ * Real-time messaging interface for service requests.
+ * Works for both users and providers - automatically detects from route params.
+ * 
+ * Features:
+ * - Load messages from API
+ * - Send messages via API
+ * - Auto-refresh messages every 5 seconds
+ * - Mark messages as read when viewing
+ * - Show unread count
+ * - Pull-to-refresh
+ * 
+ * Route Params:
+ * - requestId: Service request ID (required)
+ * - providerName: Provider name (for user view)
+ * - providerId: Provider ID (optional)
+ * - clientName: Client name (for provider view)
+ */
 export default function ChatScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ 
@@ -62,122 +59,326 @@ export default function ChatScreen() {
     clientName?: string;
     requestId?: string;
   }>();
-  const providerName = params.providerName || 'AquaFix Solutions';
+
+  // Extract and validate requestId
+  const requestId = params.requestId ? parseInt(params.requestId, 10) : null;
+  const isValidRequestId = requestId !== null && !isNaN(requestId);
+
+  // UI State
+  const providerName = params.providerName || 'Service Provider';
   const clientName = params.clientName || 'Client';
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   const [message, setMessage] = useState('');
-  const flatListRef = useRef<FlatList>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [hasQuotation, setHasQuotation] = useState<boolean>(false);
   const [isCheckingQuotation, setIsCheckingQuotation] = useState<boolean>(false);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+
+  // Refs
+  const flatListRef = useRef<FlatList>(null);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isMarkingAsReadRef = useRef(false);
 
   // Determine if this is provider view (has clientName) or user view
   const isProviderView = !!params.clientName;
 
-  // Check if quotation already exists for this request
-  useEffect(() => {
-    const checkQuotation = async () => {
-      if (!isProviderView || !params.requestId) {
-        return;
-      }
-
-      const requestId = parseInt(params.requestId, 10);
-      if (isNaN(requestId)) {
-        return;
-      }
-
-      setIsCheckingQuotation(true);
-      try {
-        const quotation = await providerService.getQuotation(requestId);
-        if (quotation && quotation.id) {
-          setHasQuotation(true);
-        } else {
-          setHasQuotation(false);
-        }
-      } catch (error: any) {
-        // Quotation doesn't exist or error - that's OK, just means no quotation sent yet
-        setHasQuotation(false);
-      } finally {
-        setIsCheckingQuotation(false);
-      }
-    };
-
-    checkQuotation();
-  }, [isProviderView, params.requestId]);
-
-  // Format time helper
-  const formatTime = (date: Date): string => {
+  /**
+   * Format date to time string (e.g., "2:30pm")
+   */
+  const formatTime = useCallback((dateString: string): string => {
+    try {
+      const date = new Date(dateString);
     const hours = date.getHours();
     const minutes = date.getMinutes();
     const period = hours >= 12 ? 'pm' : 'am';
     const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
     return `${displayHours}:${minutes.toString().padStart(2, '0')}${period}`;
-  };
+    } catch {
+      return '';
+    }
+  }, []);
 
-  // Simulate auto-response for demo
-  useEffect(() => {
-    // Only auto-respond if last message is from user and it's not provider view
-    if (messages.length > 0 && !isProviderView) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.sender === 'user') {
-        const timeout = setTimeout(() => {
-          const randomResponse = AUTO_RESPONSES[Math.floor(Math.random() * AUTO_RESPONSES.length)];
-          const newMessage: Message = {
-            id: `response-${Date.now()}`,
-            text: randomResponse,
-            sender: 'provider',
-            timestamp: new Date().toISOString(),
-            time: formatTime(new Date()),
-          };
-          setMessages((prev) => [...prev, newMessage]);
-          haptics.light();
-        }, 2000); // 2 second delay for realistic feel
+  /**
+   * Convert API message to UI message format
+   */
+  const mapApiMessageToUI = useCallback((apiMessage: ApiMessage, currentUserId: number | null): UIMessage => {
+    // Determine sender type based on senderType from API
+    // If senderType is 'user', it's from the client
+    // If senderType is 'provider' or 'company', it's from the provider
+    const isFromClient = apiMessage.senderType === 'user';
+    const sender: 'user' | 'provider' = isFromClient ? 'user' : 'provider';
 
-        return () => clearTimeout(timeout);
+    // Determine if message is from current user
+    const isFromCurrentUser = currentUserId !== null && apiMessage.senderId === currentUserId;
+
+    return {
+      id: String(apiMessage.id),
+      text: apiMessage.content,
+      sender,
+      timestamp: apiMessage.createdAt,
+      time: formatTime(apiMessage.createdAt),
+      status: isFromCurrentUser 
+        ? (apiMessage.isRead || apiMessage.readAt ? 'read' : 'delivered')
+        : undefined,
+      isRead: apiMessage.isRead || !!apiMessage.readAt,
+    };
+  }, [formatTime]);
+
+  /**
+   * Load messages from API
+   */
+  const loadMessages = useCallback(async (showLoading = true) => {
+    if (!isValidRequestId) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      if (showLoading) {
+        setIsLoading(true);
+      }
+
+      const result = await communicationService.getMessages(requestId!, {
+        limit: 50,
+        offset: 0,
+      });
+
+      // Get current user ID to determine message sender
+      let userId: number | null = null;
+      try {
+        userId = await authService.getUserId();
+        setCurrentUserId(userId);
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error getting user ID:', error);
+        }
+      }
+
+      // Convert API messages to UI format
+      const uiMessages = result.messages.map((msg) => mapApiMessageToUI(msg, userId));
+
+      // Sort by timestamp (oldest first)
+      uiMessages.sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+      setMessages(uiMessages);
+
+      // Scroll to bottom after loading
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error loading messages:', error);
+      }
+      // Keep existing messages on error
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [isValidRequestId, requestId, mapApiMessageToUI]);
+
+  /**
+   * Mark messages as read
+   */
+  const markMessagesAsRead = useCallback(async () => {
+    if (!isValidRequestId || isMarkingAsReadRef.current) {
+      return;
+    }
+
+    try {
+      isMarkingAsReadRef.current = true;
+      await communicationService.markMessagesAsRead(requestId!);
+      
+      // Update local message state to reflect read status
+      setMessages((prev) =>
+        prev.map((msg) => ({
+          ...msg,
+          isRead: true,
+          status: msg.status === 'delivered' ? 'read' : msg.status,
+        }))
+      );
+      
+      // Refresh unread count
+      loadUnreadCount();
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error marking messages as read:', error);
+      }
+    } finally {
+      isMarkingAsReadRef.current = false;
+    }
+  }, [isValidRequestId, requestId]);
+
+  /**
+   * Load unread message count
+   */
+  const loadUnreadCount = useCallback(async () => {
+    if (!isValidRequestId) {
+      return;
+    }
+
+    try {
+      const result = await communicationService.getUnreadCount(requestId!);
+      setUnreadCount(result.count);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error loading unread count:', error);
       }
     }
-  }, [messages, isProviderView]);
+  }, [isValidRequestId, requestId]);
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
+  /**
+   * Send a message
+   */
+  const handleSend = useCallback(async () => {
+    if (!message.trim() || !isValidRequestId || isSending) {
+      return;
+    }
+
+    const messageText = message.trim();
+    setMessage('');
+    setIsSending(true);
+
+    // Optimistically add message to UI
+    const optimisticMessage: UIMessage = {
+      id: `temp-${Date.now()}`,
+      text: messageText,
+      sender: isProviderView ? 'provider' : 'user',
+      timestamp: new Date().toISOString(),
+      time: formatTime(new Date().toISOString()),
+      status: 'sending',
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    haptics.selection();
+
+    // Scroll to bottom
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
-  }, [messages]);
 
-  const handleSend = () => {
-    if (message.trim()) {
-      const newMessage: Message = {
-        id: `msg-${Date.now()}`,
-        text: message.trim(),
-        sender: isProviderView ? 'provider' : 'user',
-        timestamp: new Date().toISOString(),
-        time: formatTime(new Date()),
-        status: 'sent',
-      };
-      setMessages((prev) => [...prev, newMessage]);
-      setMessage('');
-      haptics.selection();
-      
-      // Simulate message status progression
-      setTimeout(() => {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === newMessage.id ? { ...msg, status: 'delivered' as const } : msg
-          )
-        );
-      }, 1000);
-      
-      setTimeout(() => {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === newMessage.id ? { ...msg, status: 'read' as const } : msg
-          )
-        );
-      }, 2000);
+    try {
+      // Send message to API
+      const sentMessage = await communicationService.sendMessage(requestId!, {
+        content: messageText,
+      });
+
+      // Replace optimistic message with real message
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === optimisticMessage.id
+            ? mapApiMessageToUI(sentMessage as ApiMessage, currentUserId)
+            : msg
+        )
+      );
+
+      // Refresh messages to get latest
+      await loadMessages(false);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error sending message:', error);
+      }
+
+      // Remove failed message from UI
+      setMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessage.id));
+
+      // Show error (you can add toast notification here)
+      // For now, just log it
+    } finally {
+      setIsSending(false);
     }
-  };
+  }, [message, isValidRequestId, isSending, isProviderView, formatTime, mapApiMessageToUI, currentUserId, requestId, loadMessages]);
 
-  const renderMessage = ({ item }: { item: Message }) => {
+  /**
+   * Check if quotation exists (for provider view)
+   */
+  const checkQuotation = useCallback(async () => {
+    if (!isProviderView || !isValidRequestId) {
+      return;
+    }
+
+    setIsCheckingQuotation(true);
+    try {
+      const quotation = await providerService.getQuotation(requestId!);
+      setHasQuotation(!!(quotation && quotation.id));
+    } catch (error: any) {
+      // Quotation doesn't exist or error - that's OK
+      setHasQuotation(false);
+    } finally {
+      setIsCheckingQuotation(false);
+    }
+  }, [isProviderView, isValidRequestId, requestId]);
+
+  /**
+   * Handle pull-to-refresh
+   */
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      loadMessages(false),
+      loadUnreadCount(),
+      checkQuotation(),
+    ]);
+  }, [loadMessages, loadUnreadCount, checkQuotation]);
+
+  // Load messages and unread count on mount
+  useEffect(() => {
+    if (isValidRequestId) {
+      loadMessages();
+      loadUnreadCount();
+      checkQuotation();
+    }
+  }, [isValidRequestId, loadMessages, loadUnreadCount, checkQuotation]);
+
+  // Mark messages as read when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (isValidRequestId) {
+        markMessagesAsRead();
+        loadUnreadCount();
+      }
+    }, [isValidRequestId, markMessagesAsRead, loadUnreadCount])
+  );
+
+  // Auto-refresh messages every 5 seconds
+  useEffect(() => {
+    if (!isValidRequestId) {
+      return;
+    }
+
+    // Set up interval for auto-refresh
+    refreshIntervalRef.current = setInterval(() => {
+      loadMessages(false);
+      loadUnreadCount();
+    }, 5000); // Refresh every 5 seconds
+
+    // Cleanup interval on unmount
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+    };
+  }, [isValidRequestId, loadMessages, loadUnreadCount]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+    }
+  }, [messages.length]);
+
+  /**
+   * Render a single message
+   */
+  const renderMessage = ({ item }: { item: UIMessage }) => {
     // In provider view: 'user' sender = client, 'provider' sender = provider
     // In user view: 'user' sender = user, 'provider' sender = provider
     const isFromClient = isProviderView ? item.sender === 'user' : item.sender === 'user';
@@ -187,7 +388,7 @@ export default function ChatScreen() {
       if (!isFromClient || !item.status) return null;
       switch (item.status) {
         case 'sending':
-          return <View style={{ width: 12, height: 12 }} />;
+          return <ActivityIndicator size="small" color={Colors.textSecondaryDark} style={{ marginLeft: 4 }} />;
         case 'sent':
           return <Check size={12} color={Colors.textSecondaryDark} style={{ marginLeft: 4 }} />;
         case 'delivered':
@@ -230,9 +431,9 @@ export default function ChatScreen() {
                 width: 36,
                 height: 36,
                 borderRadius: 18,
-              }}
-              resizeMode="cover"
-            />
+            }}
+            resizeMode="cover"
+          />
           </View>
         )}
 
@@ -310,14 +511,27 @@ export default function ChatScreen() {
                 width: 36,
                 height: 36,
                 borderRadius: 18,
-              }}
-              resizeMode="cover"
-            />
+            }}
+            resizeMode="cover"
+          />
           </View>
         )}
       </View>
     );
   };
+
+  // Show error if requestId is invalid
+  if (!isValidRequestId) {
+    return (
+      <SafeAreaWrapper backgroundColor={Colors.white}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl }}>
+          <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, textAlign: 'center' }}>
+            Invalid request ID. Please go back and try again.
+          </Text>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.white}>
@@ -382,15 +596,15 @@ export default function ChatScreen() {
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text
-                style={{
+          <Text
+            style={{
                   fontSize: 16,
                   fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                }}
-              >
-                {isProviderView ? clientName : providerName}
-              </Text>
+              color: Colors.textPrimary,
+            }}
+          >
+            {isProviderView ? clientName : providerName}
+          </Text>
               <Text
                 style={{
                   fontSize: 12,
@@ -400,6 +614,7 @@ export default function ChatScreen() {
                 }}
               >
                 {isProviderView ? 'Client' : 'Service Provider'}
+                {unreadCount > 0 && ` • ${unreadCount} unread`}
               </Text>
             </View>
           </View>
@@ -437,12 +652,12 @@ export default function ChatScreen() {
             >
               <Phone size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => {
-                haptics.light();
+          <TouchableOpacity 
+            onPress={() => {
+              haptics.light();
                 // More options
-              }} 
-              activeOpacity={0.7}
+            }} 
+            activeOpacity={0.7}
               style={{
                 width: 40,
                 height: 40,
@@ -453,24 +668,41 @@ export default function ChatScreen() {
               }}
             >
               <MoreVertical size={20} color={Colors.textPrimary} />
-            </TouchableOpacity>
+          </TouchableOpacity>
           </View>
         </View>
 
         {/* Messages Area */}
+        {isLoading && messages.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={Colors.accent} />
+            <Text style={{ marginTop: Spacing.md, fontSize: 14, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
+              Loading messages...
+            </Text>
+          </View>
+        ) : (
         <FlatList
           ref={flatListRef}
           data={messages}
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ 
-            paddingVertical: Spacing.md,
-            paddingBottom: Spacing.xl,
-          }}
+            contentContainerStyle={{ 
+              paddingVertical: Spacing.md,
+              paddingBottom: Spacing.xl,
+            }}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          style={{ flex: 1, backgroundColor: '#F9FAFB' }}
-        />
+            style={{ flex: 1, backgroundColor: '#F9FAFB' }}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={Colors.accent}
+                colors={[Colors.accent]}
+              />
+            }
+          />
+        )}
 
         {/* Send Quotation Button - Only show for providers if quotation hasn't been sent yet */}
         {isProviderView && !hasQuotation && !isCheckingQuotation && (
@@ -572,9 +804,10 @@ export default function ChatScreen() {
               maxLength={500}
               onSubmitEditing={handleSend}
               returnKeyType="send"
+              editable={!isSending}
             />
             
-            {message.trim() ? (
+            {message.trim() && !isSending ? (
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={handleSend}
@@ -591,6 +824,19 @@ export default function ChatScreen() {
               >
                 <Send size={18} color={Colors.white} />
               </TouchableOpacity>
+            ) : isSending ? (
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginLeft: Spacing.sm,
+                }}
+              >
+                <ActivityIndicator size="small" color={Colors.accent} />
+              </View>
             ) : (
               <TouchableOpacity
                 activeOpacity={0.7}

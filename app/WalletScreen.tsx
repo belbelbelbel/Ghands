@@ -23,7 +23,7 @@ export default function WalletScreen() {
   const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState<boolean>(true);
-  const walletId = 'GH-WLT-92837451';
+  const [walletId, setWalletId] = useState<number | null>(null);
 
   // Helper function to format date
   const formatDate = useCallback((dateString: string): { date: string; time: string } => {
@@ -103,7 +103,7 @@ export default function WalletScreen() {
     }
   }, [mapTransactionToUI]);
 
-  // Load wallet balance
+  // Load wallet balance and ID
   const loadWalletBalance = useCallback(async () => {
     try {
       setIsLoadingBalance(true);
@@ -112,6 +112,7 @@ export default function WalletScreen() {
         ? wallet.balance 
         : parseFloat(String(wallet.balance)) || 0;
       setBalance(balanceValue);
+      setWalletId(wallet.id || null);
     } catch (error) {
       console.error('Error loading wallet balance:', error);
       // Keep current balance on error
@@ -328,19 +329,21 @@ export default function WalletScreen() {
           </View>
 
           <View style={{ padding: 20 }}>
-            {/* Wallet ID */}
-            <Text
-              style={{
-                fontSize: 11,
-                fontFamily: 'Poppins-Medium',
-                color: Colors.white,
-                opacity: 0.65,
-                marginBottom: 20,
-                letterSpacing: 1,
-              }}
-            >
-              WALLET ID: {walletId}
-            </Text>
+            {/* Wallet ID - only show when available from API */}
+            {walletId != null && (
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontFamily: 'Poppins-Medium',
+                  color: Colors.white,
+                  opacity: 0.65,
+                  marginBottom: 20,
+                  letterSpacing: 1,
+                }}
+              >
+                WALLET ID: GH-WLT-{String(walletId).padStart(8, '0')}
+              </Text>
+            )}
 
             {/* Current Balance Label - Enhanced */}
             <Text

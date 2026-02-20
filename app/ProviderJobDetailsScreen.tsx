@@ -628,7 +628,7 @@ export default function ProviderJobDetailsScreen() {
     timeline.push({
       id: 'step-1',
       title: 'Job Request Received',
-      description: 'You have received a new job request from a client. Review the job details and decide whether to accept and provide a quotation.',
+      description: 'Review job details and send a quotation.',
       status: `Completed - ${formatTimeAgo(request.createdAt || new Date().toISOString())}`,
       accent: '#DCFCE7',
       dotColor: '#6A9B00',
@@ -647,7 +647,7 @@ export default function ProviderJobDetailsScreen() {
         timeline.push({
           id: 'step-1.5',
           title: 'You Were Selected',
-          description: 'Client selected you and you accepted',
+          description: 'You were selected and accepted.',
           status: `Completed - ${formatTimeAgo(request.updatedAt || request.selectedAt || '')}`,
           accent: '#DCFCE7',
           dotColor: '#6A9B00',
@@ -662,7 +662,7 @@ export default function ProviderJobDetailsScreen() {
         timeline.push({
           id: 'step-1.5',
           title: 'You Were Selected',
-          description: `Client selected you. Accept within ${mins}:${secs.toString().padStart(2, '0')}`,
+          description: `Accept within ${mins}:${secs.toString().padStart(2, '0')}`,
           status: 'In Progress',
           accent: '#FEF9C3',
           dotColor: '#F59E0B',
@@ -707,7 +707,7 @@ export default function ProviderJobDetailsScreen() {
         timeline.push({
           id: 'step-2',
           title: 'Inspection & Quotation',
-          description: 'You have completed the inspection and sent a detailed quotation to the client. The quotation includes cost breakdown, materials needed, and work summary for their review.',
+          description: 'Quotation sent. Awaiting client review.',
           status: `Completed - ${formatTimeAgo(quotationWithProvider?.sentAt || quotation?.sentAt || request.updatedAt || '')}`,
           accent: '#DCFCE7',
           dotColor: '#6A9B00',
@@ -722,7 +722,7 @@ export default function ProviderJobDetailsScreen() {
         timeline.push({
           id: 'step-2',
           title: 'Inspection & Quotation',
-          description: 'You have accepted this job request. Now you need to inspect the job (if required) and prepare a detailed quotation with cost breakdown, materials, and work summary to send to the client.',
+          description: 'Inspect the job and send a quotation.',
           status: 'In Progress',
           accent: '#FEF9C3',
           dotColor: '#F59E0B',
@@ -763,7 +763,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-3',
         title: 'Quotation Accepted',
-        description: 'Client has reviewed and accepted your quotation. They will now proceed with payment to secure the job.',
+        description: 'Client accepted. Awaiting payment.',
         status: `Completed - ${formatTimeAgo(quotationWithProvider?.sentAt || quotation?.sentAt || request.updatedAt || '')}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -777,7 +777,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-3',
         title: 'Quotation Accepted',
-        description: 'Your quotation has been sent to the client. Waiting for them to review and accept it before proceeding with payment.',
+        description: 'Quotation sent. Waiting for client to accept.',
         status: 'In Progress',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
@@ -791,7 +791,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-3',
         title: 'Quotation Accepted',
-        description: 'Waiting for quotation to be sent to client for review',
+        description: 'Send quotation to client.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -818,7 +818,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-4',
         title: 'Work Order Assigned',
-        description: 'You have successfully started the job and are now authorized to work on site. The client has been notified that work is in progress.',
+        description: 'Job started. Client notified.',
         status: `Completed - ${formatTimeAgo(request.updatedAt || '')}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -833,7 +833,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-4',
         title: 'Work Order Assigned',
-        description: 'Payment has been received and secured in escrow. You are now authorized to start the job. Click the Start button below to begin work on site.',
+        description: 'Payment received. Click Start to begin.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -849,7 +849,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-4',
         title: 'Work Order Assigned',
-        description: 'Client has accepted your quotation. Waiting for them to complete payment. Once payment is secured in escrow, you will be able to start the job.',
+        description: 'Waiting for client to complete payment.',
         status: 'In Progress',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
@@ -865,7 +865,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-4',
         title: 'Work Order Assigned',
-        description: 'Waiting for quotation to be accepted and payment to be secured before work can begin',
+        description: 'Waiting for quotation acceptance and payment.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -885,7 +885,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
-        description: 'You have successfully completed all work on site. The client will review the completed work and mark the job as complete once satisfied.',
+        description: 'Work done. Client will review and mark complete.',
         status: 'Completed',
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -899,7 +899,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
-        description: 'You are currently on site working on this job. Continue with the work and update the client on progress as needed. Once finished, the client will review and mark as complete.',
+        description: 'On site. Update client on progress. Client will mark complete when done.',
         status: 'In Progress',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
@@ -912,7 +912,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
-        description: 'Waiting for you to start the work order. Once payment is secured and you click Start, this step will become active.',
+        description: 'Click Start once payment is secured.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -928,7 +928,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-6',
         title: 'Complete',
-        description: 'The job has been successfully completed and approved by the client. Payment has been released from escrow to your account. Thank you for your excellent work!',
+        description: 'Job completed. Payment released to your account. Thank you!',
         status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -941,7 +941,7 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-6',
         title: 'Complete',
-        description: 'Once you finish the work and the client approves it, the job will be marked as complete and payment will be released to your account.',
+        description: 'Finish work. Client will approve and release payment.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -1647,7 +1647,7 @@ export default function ProviderJobDetailsScreen() {
                         <View style={{ flex: 1, marginRight: 12 }}>
                           <Text
                             style={{
-                              fontSize: 13,
+                              fontSize: 12,
                               fontFamily: 'Poppins-Regular',
                               color: Colors.textSecondaryDark,
                             }}

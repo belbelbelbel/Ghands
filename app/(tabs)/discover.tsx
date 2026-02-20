@@ -4,7 +4,7 @@ import { getCategoryIcon } from '@/utils/categoryIcons';
 import { Colors, BorderRadius, Spacing } from '@/lib/designSystem';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { MapPin, ShieldCheck, Star, TrendingUp } from 'lucide-react-native';
+import { MapPin, TrendingUp } from 'lucide-react-native';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -15,18 +15,6 @@ interface TrendingService {
   bookings: number;
   image: any;
   categoryId: string;
-}
-
-interface FeaturedProvider {
-  id: string;
-  name: string;
-  category: string;
-  rating: number;
-  reviews: number;
-  distance: string;
-  image: any;
-  badge?: string;
-  isVerified: boolean;
 }
 
 interface SpecialOffer {
@@ -80,52 +68,6 @@ const trendingServices: TrendingService[] = [
     bookings: 156,
     image: require('../../assets/images/paintericon2.png'),
     categoryId: 'painter',
-  },
-];
-
-const featuredProviders: FeaturedProvider[] = [
-  {
-    id: 'provider-1',
-    name: 'Elite Plumbing Services',
-    category: 'Plumbing',
-    rating: 4.9,
-    reviews: 127,
-    distance: '0.8 mi',
-    image: require('../../assets/images/plumbericon2.png'),
-    badge: 'Popular',
-    isVerified: true,
-  },
-  {
-    id: 'provider-2',
-    name: 'Pro Electric Solutions',
-    category: 'Electrical',
-    rating: 4.8,
-    reviews: 89,
-    distance: '1.2 mi',
-    image: require('../../assets/images/electricianicon2.png'),
-    badge: 'New',
-    isVerified: true,
-  },
-  {
-    id: 'provider-3',
-    name: 'Clean & Shine Pro',
-    category: 'Cleaning',
-    rating: 4.7,
-    reviews: 203,
-    distance: '0.5 mi',
-    image: require('../../assets/images/cleanericon2.png'),
-    isVerified: true,
-  },
-  {
-    id: 'provider-4',
-    name: 'Master Painters',
-    category: 'Painting',
-    rating: 4.9,
-    reviews: 156,
-    distance: '1.5 mi',
-    image: require('../../assets/images/paintericon2.png'),
-    badge: 'Top Rated',
-    isVerified: true,
   },
 ];
 
@@ -197,14 +139,6 @@ export default function DiscoverScreen() {
     router.push({
       pathname: '/(tabs)/categories',
       params: { selectedCategoryId: categoryId },
-    });
-  }, [router]);
-
-  const handleProviderPress = useCallback((providerId: string, providerName: string) => {
-    haptics.light();
-    router.push({
-      pathname: '/ProviderDetailScreen',
-      params: { providerId, providerName },
     });
   }, [router]);
 
@@ -410,178 +344,6 @@ export default function DiscoverScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
-
-          {/* Featured Providers */}
-          <View style={{ paddingHorizontal: 16, marginBottom: 32 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.textPrimary,
-                  letterSpacing: -0.3,
-                }}
-              >
-                Featured Providers
-              </Text>
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center' }}
-                onPress={() => {
-                  haptics.light();
-                  router.push('/(tabs)/categories');
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontFamily: 'Poppins-Medium',
-                    color: Colors.textSecondaryDark,
-                    marginRight: 4,
-                  }}
-                >
-                  View all
-                </Text>
-                <Ionicons name="chevron-forward" size={14} color={Colors.textSecondaryDark} />
-              </TouchableOpacity>
-            </View>
-            <View>
-              {featuredProviders.map((provider, index) => (
-                <TouchableOpacity
-                  key={provider.id}
-                  onPress={() => handleProviderPress(provider.id, provider.name)}
-                  activeOpacity={0.8}
-                  style={{
-                    backgroundColor: Colors.white,
-                    borderRadius: BorderRadius.xl,
-                    padding: 20,
-                    marginBottom: index < featuredProviders.length - 1 ? 12 : 0,
-                    borderWidth: 1,
-                    borderColor: Colors.border,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View
-                      style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: BorderRadius.default,
-                        backgroundColor: Colors.backgroundGray,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 16,
-                      }}
-                    >
-                      {(() => {
-                        const IconComponent = getCategoryIcon(provider.category);
-                        return <IconComponent />;
-                      })()}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                        <Text
-                          style={{
-                            fontSize: 16,
-                            fontFamily: 'Poppins-SemiBold',
-                            color: Colors.textPrimary,
-                            marginRight: 6,
-                            letterSpacing: -0.2,
-                          }}
-                        >
-                          {provider.name}
-                        </Text>
-                        {provider.isVerified && (
-                          <View
-                            style={{
-                              backgroundColor: Colors.accent,
-                              borderRadius: BorderRadius.sm,
-                              padding: 3,
-                            }}
-                          >
-                            <ShieldCheck size={12} color={Colors.white} />
-                          </View>
-                        )}
-                      </View>
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontFamily: 'Poppins-Regular',
-                          color: Colors.textSecondaryDark,
-                          marginBottom: 8,
-                          lineHeight: 16,
-                        }}
-                      >
-                        {provider.category}
-                      </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}>
-                          <Star size={12} color={Colors.textSecondaryDark} fill={Colors.textSecondaryDark} />
-                          <Text
-                            style={{
-                              fontSize: 12,
-                              fontFamily: 'Poppins-Medium',
-                              color: Colors.textPrimary,
-                              marginLeft: 4,
-                            }}
-                          >
-                            {provider.rating}
-                          </Text>
-                        </View>
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            fontFamily: 'Poppins-Regular',
-                            color: Colors.textSecondaryDark,
-                            marginRight: 12,
-                          }}
-                        >
-                          ({provider.reviews})
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <MapPin size={10} color={Colors.textSecondaryDark} />
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              fontFamily: 'Poppins-Regular',
-                              color: Colors.textSecondaryDark,
-                              marginLeft: 3,
-                            }}
-                          >
-                            {provider.distance}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                    {provider.badge && (
-                      <View
-                        style={{
-                          backgroundColor: Colors.backgroundGray,
-                          borderRadius: BorderRadius.sm,
-                          paddingHorizontal: 10,
-                          paddingVertical: 5,
-                          position: 'absolute',
-                          top: 16,
-                          right: 16,
-                          borderWidth: 1,
-                          borderColor: Colors.border,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontFamily: 'Poppins-Medium',
-                            color: Colors.textSecondaryDark,
-                            letterSpacing: 0.2,
-                          }}
-                        >
-                          {provider.badge}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
 
           {/* Special Offers */}

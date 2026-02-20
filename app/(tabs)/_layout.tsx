@@ -102,18 +102,15 @@ const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
 
 export default function TabLayout() {
   const { role, isLoading } = useAuthRole();
-
-  // While loading role from storage, avoid flicker
   if (isLoading) {
     return null;
   }
 
-  // If user is a provider, they should not see client tabs
+
   if (role === 'provider') {
     return <Redirect href="/provider/home" />;
   }
 
-  // If no role yet, send to account type selection
   if (!role) {
     return <Redirect href="/SelectAccountTypeScreen" />;
   }

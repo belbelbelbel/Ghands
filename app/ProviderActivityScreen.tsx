@@ -1,10 +1,11 @@
 import FilterTransactionsModal from '@/components/FilterTransactionsModal';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
-import { useRouter } from 'expo-router';
+import { walletService } from '@/services/api';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Bell, Check, Filter, Receipt, Search, Wrench } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { ScrollView, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 
 interface Transaction {
   id: string;
@@ -18,98 +19,6 @@ interface Transaction {
   reference?: string;
 }
 
-const EARNINGS_TRANSACTIONS: Transaction[] = [
-  {
-    id: '1',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'completed',
-    type: 'earnings',
-  },
-  {
-    id: '2',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'completed',
-    type: 'earnings',
-  },
-  {
-    id: '3',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'completed',
-    type: 'earnings',
-  },
-];
-
-const PENDING_TRANSACTIONS: Transaction[] = [
-  {
-    id: '4',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'pending',
-    type: 'earnings',
-  },
-  {
-    id: '5',
-    serviceName: 'Elite Plumbing Services',
-    serviceDescription: 'Pipe Repair & Installation',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'pending',
-    type: 'earnings',
-  },
-];
-
-const WITHDRAWAL_TRANSACTIONS: Transaction[] = [
-  {
-    id: '6',
-    serviceName: 'Withdrawal to bank',
-    serviceDescription: 'Ref: WDR59384',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'completed',
-    type: 'withdrawal',
-    reference: 'WDR59384',
-  },
-  {
-    id: '7',
-    serviceName: 'Withdrawal to bank',
-    serviceDescription: 'Ref: WDR59385',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'completed',
-    type: 'withdrawal',
-    reference: 'WDR59385',
-  },
-  {
-    id: '8',
-    serviceName: 'Withdrawal to bank',
-    serviceDescription: 'Ref: WDR59386',
-    date: 'Dec 15, 2024',
-    time: '2:30 PM',
-    amount: 485.00,
-    status: 'completed',
-    type: 'withdrawal',
-    reference: 'WDR59386',
-  },
-];
-
 type TabType = 'all' | 'pending' | 'earnings' | 'withdrawals';
 
 export default function ProviderActivityScreen() {
@@ -117,20 +26,114 @@ export default function ProviderActivityScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getFilteredTransactions = () => {
+  const formatDate = useCallback((dateString: string): { date: string; time: string } => {
+    try {
+      const date = new Date(dateString);
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      return { date: dateStr, time: timeStr };
+    } catch {
+      return { date: 'N/A', time: 'N/A' };
+    }
+  }, []);
+
+  const mapApiTransactionToUI = useCallback((apiTx: any): Transaction | null => {
+    try {
+      const apiType = (apiTx.type || '').toLowerCase();
+      const desc = (apiTx.description || '').toLowerCase();
+      const isWithdrawal = apiType === 'withdrawal' || desc.includes('withdrawal');
+      const type: 'earnings' | 'withdrawal' = isWithdrawal ? 'withdrawal' : 'earnings';
+
+      let serviceName = 'Service Payment';
+      let serviceDescription = apiTx.description || 'Wallet transaction';
+      if (desc.includes('earnings') || desc.includes('payment') || desc.includes('service request')) {
+        serviceName = desc.includes('withdrawal') ? 'Withdrawal' : `Earnings${apiTx.requestId ? ` #${apiTx.requestId}` : ''}`;
+        serviceDescription = apiTx.description || (isWithdrawal ? 'Funds withdrawn to bank' : 'Payment received');
+      } else if (desc.includes('withdrawal')) {
+        serviceName = 'Withdrawal to bank';
+        serviceDescription = apiTx.reference ? `Ref: ${apiTx.reference}` : 'Funds withdrawn to bank';
+      } else if (desc.includes('deposit')) {
+        serviceName = 'Deposit';
+        serviceDescription = 'Funds added to wallet';
+      } else if (desc.includes('refund')) {
+        serviceName = 'Refund';
+        serviceDescription = apiTx.description;
+      }
+
+      const { date, time } = formatDate(apiTx.createdAt || apiTx.completedAt || new Date().toISOString());
+      return {
+        id: String(apiTx.id || apiTx.reference || Math.random()),
+        serviceName,
+        serviceDescription,
+        date,
+        time,
+        amount: Math.abs(apiTx.amount || 0),
+        status: apiTx.status === 'completed' ? 'completed' : 'pending',
+        type,
+        reference: apiTx.reference,
+      };
+    } catch (error) {
+      if (__DEV__) console.error('Error mapping transaction:', error);
+      return null;
+    }
+  }, [formatDate]);
+
+  const loadTransactions = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const result = await walletService.getTransactions({ limit: 100, offset: 0 });
+      const mapped = result.transactions
+        .map(mapApiTransactionToUI)
+        .filter((t): t is Transaction => t !== null);
+      setTransactions(mapped);
+    } catch (error) {
+      if (__DEV__) console.error('Error loading transactions:', error);
+      setTransactions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [mapApiTransactionToUI]);
+
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadTransactions();
+    }, [loadTransactions])
+  );
+
+  const getFilteredTransactions = useCallback((): Transaction[] => {
+    let list = transactions;
     switch (activeTab) {
       case 'pending':
-        return PENDING_TRANSACTIONS;
+        list = transactions.filter((t) => t.status === 'pending');
+        break;
       case 'earnings':
-        return EARNINGS_TRANSACTIONS;
+        list = transactions.filter((t) => t.type === 'earnings');
+        break;
       case 'withdrawals':
-        return WITHDRAWAL_TRANSACTIONS;
+        list = transactions.filter((t) => t.type === 'withdrawal');
+        break;
       case 'all':
       default:
-        return [...EARNINGS_TRANSACTIONS, ...PENDING_TRANSACTIONS, ...WITHDRAWAL_TRANSACTIONS];
+        break;
     }
-  };
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (t) =>
+          t.serviceName.toLowerCase().includes(q) ||
+          t.serviceDescription.toLowerCase().includes(q) ||
+          (t.reference && t.reference.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [transactions, activeTab, searchQuery]);
 
   const filteredTransactions = getFilteredTransactions();
 
@@ -241,7 +244,7 @@ export default function ProviderActivityScreen() {
             }}
           >
             <TextInput
-              placeholder="Lagos, 100001"
+              placeholder="Search transactions..."
               placeholderTextColor={Colors.textSecondaryDark}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -331,7 +334,49 @@ export default function ProviderActivityScreen() {
         </View>
 
         {/* Transaction Cards */}
-        {filteredTransactions.map((transaction) => (
+        {isLoading ? (
+          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 48 }}>
+            <ActivityIndicator size="large" color={Colors.accent} />
+            <Text style={{ marginTop: 16, fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
+              Loading transactions...
+            </Text>
+          </View>
+        ) : filteredTransactions.length === 0 ? (
+          <View
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: BorderRadius.xl,
+              padding: 32,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: Colors.border,
+            }}
+          >
+            <Receipt size={48} color={Colors.textSecondaryDark} style={{ marginBottom: 16 }} />
+            <Text
+              style={{
+                fontSize: 16,
+                fontFamily: 'Poppins-SemiBold',
+                color: Colors.textPrimary,
+                marginBottom: 8,
+              }}
+            >
+              No transactions yet
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.textSecondaryDark,
+                textAlign: 'center',
+              }}
+            >
+              {searchQuery.trim() ? 'No matching transactions' : 'Your wallet activity will appear here'}
+            </Text>
+          </View>
+        ) : (
+        filteredTransactions.map((transaction) => (
           <View
             key={transaction.id}
             style={{
@@ -492,7 +537,8 @@ export default function ProviderActivityScreen() {
               </TouchableOpacity>
             )}
           </View>
-        ))}
+        ))
+        )}
       </ScrollView>
 
       {/* Filter Modal */}

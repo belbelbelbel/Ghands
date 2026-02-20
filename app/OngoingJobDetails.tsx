@@ -198,8 +198,8 @@ export default function OngoingJobDetails() {
       id: 'step-1',
       title: 'Job Request Submitted',
       description: totalProvidersSentTo > 0 
-        ? `Your job request has been successfully submitted and sent to ${totalProvidersSentTo} nearby ${totalProvidersSentTo === 1 ? 'provider' : 'providers'} in your area. They will review your request and respond shortly.`
-        : 'Your job request has been successfully submitted. Nearby providers will be notified and can accept your request to provide a quotation.',
+        ? `Sent to ${totalProvidersSentTo} nearby ${totalProvidersSentTo === 1 ? 'provider' : 'providers'}. They will respond shortly.`
+        : 'Submitted. Nearby providers will be notified and can respond.',
       status: `Completed - ${formatTimeAgo(request.createdAt || new Date().toISOString())}`,
       accent: '#DCFCE7',
       dotColor: '#6A9B00',
@@ -286,8 +286,8 @@ export default function OngoingJobDetails() {
         id: 'step-2',
         title: 'Provider Accepted',
         description: hasAcceptedProvidersFromAPI 
-          ? `${providerCount} ${providerCount === 1 ? 'provider has' : 'providers have'} accepted your job request. ${providerCount === 1 ? 'They will' : 'They will'} now inspect the job (if required) and prepare a detailed quotation with cost breakdown and work summary for your review.`
-          : 'A provider has accepted your job request. They will now inspect the job (if required) and prepare a detailed quotation with cost breakdown and work summary for your review.',
+          ? `${providerCount} ${providerCount === 1 ? 'provider has' : 'providers have'} accepted. They will inspect and send a quotation.`
+          : 'Provider accepted. They will inspect and send a quotation.',
         status: `Completed - ${formatTimeAgo(String(acceptanceTime))}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -307,7 +307,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-2',
         title: 'Provider Acceptance',
-        description: 'Your job request has been sent to nearby providers. Waiting for them to review your request details and accept it. You will be notified as soon as a provider accepts.',
+        description: 'Waiting for providers to review and accept your request.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -336,7 +336,7 @@ export default function OngoingJobDetails() {
         timeline.push({
           id: 'step-3',
         title: 'Inspection & Quotation',
-          description: 'The provider has completed the inspection (if required) and sent you a detailed quotation. The quotation includes cost breakdown, materials needed, labor fees, and a complete work summary. Review it carefully before accepting or declining.',
+          description: 'Provider sent a quotation. Review cost and details, then accept or decline.',
           status: `Completed - ${formatTimeAgo(quotation?.sentAt || request.updatedAt || '')}`,
           accent: '#DCFCE7',
           dotColor: '#6A9B00',
@@ -349,7 +349,7 @@ export default function OngoingJobDetails() {
         timeline.push({
           id: 'step-3',
           title: 'Inspection & Quotation',
-          description: 'The provider is currently inspecting your job (if required) and preparing a detailed quotation. This will include cost breakdown, materials, labor fees, and work summary. You will receive it shortly for your review.',
+          description: 'Provider is inspecting the job and preparing a quotation. You will receive it shortly.',
           status: 'In Progress',
           accent: '#FEF9C3',
         dotColor: '#F59E0B',
@@ -363,7 +363,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-3',
         title: 'Inspection & Quotation',
-        description: 'Waiting for providers to accept your job request. Once accepted, they will inspect the job and send you a detailed quotation for review.',
+        description: 'Waiting for providers to accept. Then they will inspect and send a quotation.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -382,7 +382,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-4',
         title: 'Quotation Accepted',
-        description: 'You have reviewed and accepted the provider\'s quotation. Please proceed with payment to secure the amount in escrow. Once payment is confirmed, the provider will be authorized to start the job.',
+        description: 'You accepted the quotation. Proceed with payment to secure the job.',
         status: `Completed - ${formatTimeAgo((acceptedQuotation as any)?.acceptedAt || acceptedQuotation?.sentAt || request.updatedAt || '')}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -395,7 +395,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-4',
         title: 'Quotation Accepted',
-        description: 'A quotation has been sent to you. Please review the cost breakdown, materials, and work summary carefully. Accept it if you agree with the terms, or decline if you need changes. Once accepted, you can proceed with payment.',
+        description: 'Quotation received. Review and accept to proceed with payment.',
         status: 'In Progress',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
@@ -408,7 +408,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-4',
         title: 'Quotation Accepted',
-        description: 'Waiting for the provider to send you a quotation. Once received, you can review and decide whether to accept or decline it.',
+        description: 'Waiting for quotation from provider.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -430,7 +430,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
-        description: 'The provider has started the job and is currently on site working. You can track their progress and communicate with them through the chat feature. Once they finish, you can review the work and mark it as complete.',
+        description: 'Provider is on site working. Chat to track progress. Mark complete when done.',
         status: 'In Progress',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
@@ -443,7 +443,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
-        description: 'The provider has completed all the work on site. Please review the completed work carefully. If you are satisfied, you can mark the job as complete, which will release payment from escrow to the provider.',
+        description: 'Work completed. Review and mark as complete to release payment.',
         status: 'Completed',
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -456,7 +456,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
-        description: 'Your payment has been secured in escrow. The provider has been notified and is authorized to start the job. They will begin work shortly and you will be notified when they start.',
+        description: 'Payment secured. Provider will start the job shortly.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -470,8 +470,8 @@ export default function OngoingJobDetails() {
         id: 'step-5',
         title: 'Job in Progress',
         description: quotationAccepted
-          ? 'Waiting for you to complete payment. Once payment is secured in escrow, the provider will be authorized to start the job.'
-          : 'Waiting for quotation acceptance and payment. Once you accept the quotation and complete payment, the provider can start the job.',
+          ? 'Complete payment to authorize the provider to start.'
+          : 'Accept quotation and complete payment to proceed.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -532,14 +532,14 @@ export default function OngoingJobDetails() {
     if (request.status === 'completed') {
       return {
         title: 'Job completed',
-        subtitle: 'Your job has been marked complete and funds have been released to your provider. Thank you for using G-Hands.',
+        subtitle: 'Job complete. Funds released to provider. Thank you.',
       };
     }
 
     if (request.status === 'in_progress') {
       return {
         title: 'Job in progress',
-        subtitle: 'Your provider is currently on site working on this job. You can mark it as complete once you are satisfied with the work.',
+        subtitle: 'Provider is on site. Mark complete when satisfied.',
       };
     }
 
@@ -554,8 +554,8 @@ export default function OngoingJobDetails() {
       return {
         title: 'Payment confirmed',
         subtitle: amountText
-          ? `Your payment of ${amountText} has been processed securely and placed in escrow. Waiting for your provider to start the job.`
-          : 'Your payment has been processed securely and placed in escrow. Waiting for your provider to start the job.',
+          ? `Payment of ${amountText} secured in escrow. Waiting for provider to start.`
+          : 'Payment secured. Waiting for provider to start.',
       };
     }
 
@@ -565,29 +565,29 @@ export default function OngoingJobDetails() {
       return {
         title: 'Quotation accepted – payment required',
         subtitle: amountText
-          ? `You accepted a quotation of ${amountText}. Please complete your payment so we can secure this amount in escrow and allow your provider to start the job.`
-          : 'You accepted a quotation. Please complete your payment so we can secure the amount in escrow and allow your provider to start the job.',
+          ? `Accepted ${amountText}. Complete payment to secure the job.`
+          : 'Complete payment to secure the job.',
       };
     }
 
     if (hasQuotationSent) {
       return {
         title: 'Quotation received',
-        subtitle: 'Review the cost breakdown, materials, and work summary carefully before you accept or decline the quotation.',
+        subtitle: 'Review cost and details, then accept or decline.',
       };
     }
 
     if (hasAcceptedProviders) {
       return {
         title: 'Provider accepted your request',
-        subtitle: 'Your provider is reviewing your request. They will inspect (if needed) and send you a detailed quotation for approval.',
+        subtitle: 'Provider will inspect and send a quotation.',
       };
     }
 
     // Default: waiting for providers
     return {
       title: 'Waiting for providers',
-      subtitle: 'We are notifying nearby providers about your request. You will see updates here as soon as someone accepts.',
+      subtitle: 'Nearby providers are being notified. Updates will appear here.',
     };
   }, [request, acceptedProviders, quotations, cameFromPaymentSuccess]);
 
@@ -958,11 +958,13 @@ export default function OngoingJobDetails() {
       const acceptedQuotation = quotations.find(q => q.id === quotationId);
       if (acceptedQuotation) {
         router.push({
-          pathname: '/PaymentMethodsScreen',
+          pathname: '/ConfirmWalletPaymentScreen',
           params: {
             requestId: params.requestId,
             amount: acceptedQuotation.total.toString(),
             quotationId: quotationId.toString(),
+            providerName: acceptedQuotation.provider?.name,
+            serviceName: request?.jobTitle || 'Service Request',
           },
         } as any);
       }
@@ -1257,7 +1259,7 @@ export default function OngoingJobDetails() {
                 </Text>
                 <Text 
                   style={{ 
-                    fontSize: 13,
+                    fontSize: 12,
                     fontFamily: 'Poppins-Regular',
                     color: step.isCompleted || step.isActive ? Colors.textSecondaryDark : Colors.textTertiary,
                     marginBottom: 6,
@@ -1880,7 +1882,7 @@ export default function OngoingJobDetails() {
                                 if (currentQuote && currentQuote.id) {
                                   haptics.light();
                                   router.push({
-                                    pathname: '/PaymentMethodsScreen' as any,
+                                    pathname: '/ConfirmWalletPaymentScreen' as any,
                                     params: {
                                       requestId: params.requestId,
                                       amount: currentQuote.total.toString(),

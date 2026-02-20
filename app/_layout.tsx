@@ -241,6 +241,7 @@ export default function RootLayout() {
         <Stack.Screen name="LiveChatScreen" options={{ headerShown: false }} />
         <Stack.Screen name="UserGuideScreen" options={{ headerShown: false }} />
         <Stack.Screen name="PaymentMethodsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ConfirmWalletPaymentScreen" options={{ headerShown: false }} />
         <Stack.Screen name="WalletScreen" options={{ headerShown: false }} />
         <Stack.Screen name="TopUpScreen" options={{ headerShown: false }} />
         <Stack.Screen name="BankTransferScreen" options={{ headerShown: false }} />

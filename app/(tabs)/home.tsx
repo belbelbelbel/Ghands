@@ -20,7 +20,7 @@ import { getCategoryIcon } from '@/utils/categoryIcons';
 import { AuthError } from '@/utils/errors';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
+import { Bell, ChevronDown, Search } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ServiceCategory } from '../../data/serviceCategories';
@@ -561,42 +561,53 @@ const HomeScreen = React.memo(() => {
           style={[animatedStyles, { flex: 1, paddingTop: 17 }]}
         >
           <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 0 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <CoachMarkTarget name="location-selector">
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <CoachMarkTarget name="location-selector" style={{ flex: 1, marginRight: 8 }}>
                 <TouchableOpacity
                   onPress={handleLocationPress}
-                  style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    flex: 1,
+                    backgroundColor: Colors.white,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    paddingHorizontal: 12,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
+                    minHeight: 52,
+                  }}
                   activeOpacity={0.8}
+                  accessibilityLabel={location ? `Location: ${location}` : 'Enter your location'}
+                  accessibilityHint="Opens location search"
                 >
                   <View
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: Colors.black,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 8,
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: Colors.accent,
+                      marginRight: 10,
                     }}
-                  >
-                    <MapPin size={16} color={Colors.accent} />
-                  </View>
+                  />
                   <Text
                     style={{
                       fontSize: 14,
                       fontFamily: 'Poppins-Medium',
                       color: location ? Colors.textPrimary : Colors.textSecondaryDark,
                       flex: 1,
+                      marginRight: 4,
                     }}
-                    numberOfLines={1}
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
                   >
                     {location || 'Enter your location'}
                   </Text>
-                  <ChevronDown size={16} color={location ? Colors.textSecondaryDark : Colors.textTertiary} />
+                  <ChevronDown size={18} color={location ? Colors.textSecondaryDark : Colors.textTertiary} />
                 </TouchableOpacity>
               </CoachMarkTarget>
               <TouchableOpacity
-                style={{ position: 'relative', padding: 8, marginLeft: 16 }}
+                style={{ position: 'relative', padding: 8, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
                 onPress={handleNotificationPress}
                 activeOpacity={0.7}
               >
@@ -872,32 +883,34 @@ const HomeScreen = React.memo(() => {
                         Invite Now
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={{
-                        backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                        borderRadius: 10,
-                        paddingVertical: 10,
-                        paddingHorizontal: 14,
-                        borderWidth: 1,
-                        borderColor: 'rgba(0, 0, 0, 0.2)', 
-                      }}
-                      onPress={() => {
-                        haptics.light();
-                        startTour();
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Text
+                    {!isCoachMarksComplete && (
+                      <TouchableOpacity
                         style={{
-                          fontSize: 13,
-                          fontFamily: 'Poppins-Medium',
-                          color: '#000000',
-                          textAlign: 'center',
+                          backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                          borderRadius: 10,
+                          paddingVertical: 10,
+                          paddingHorizontal: 14,
+                          borderWidth: 1,
+                          borderColor: 'rgba(0, 0, 0, 0.2)', 
                         }}
+                        onPress={() => {
+                          haptics.light();
+                          startTour();
+                        }}
+                        activeOpacity={0.8}
                       >
-                        Take Tour
-                      </Text>
-                    </TouchableOpacity>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontFamily: 'Poppins-Medium',
+                            color: '#000000',
+                            textAlign: 'center',
+                          }}
+                        >
+                          Take Tour
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
                 <View

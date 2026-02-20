@@ -156,18 +156,7 @@ export default function SignupScreen() {
         ...(phoneDigits && phoneDigits.length === 11 ? { phoneNumber: phoneDigits } : {}),
       };
 
-      // Log what we're sending for debugging
-      if (__DEV__) {
-        console.log('📤 ========== SIGNUP SCREEN ==========');
-        console.log('📤 Email Input:', email);
-        console.log('📤 Email (trimmed/lowercase):', signupPayload.email);
-        console.log('📤 Phone Input:', phoneNumber);
-        console.log('📤 Phone (in payload):', signupPayload.phoneNumber || 'none');
-        console.log('📤 Full Payload:', JSON.stringify(signupPayload, null, 2));
-        console.log('📤 ====================================');
-      }
-
-      const response = await authService.userSignup(signupPayload);
+      await authService.userSignup(signupPayload);
       
       // Token is already saved by authService.userSignup
       // Save email and phone for profile completion later
@@ -221,18 +210,6 @@ export default function SignupScreen() {
         } else if (error.details.message) {
           errorMessage = error.details.message;
         }
-      }
-      
-      // Log full error for debugging
-      if (__DEV__) {
-        console.log('🔴 ========== FULL SIGNUP ERROR ==========');
-        console.log('🔴 Error Message:', error.message);
-        console.log('🔴 Error Details:', JSON.stringify(error.details, null, 2));
-        console.log('🔴 Status:', error.status);
-        console.log('🔴 Extracted Message:', errorMessage);
-        console.log('🔴 Email Sent:', email.trim().toLowerCase());
-        console.log('🔴 Phone Sent:', phoneNumber.trim() || 'none');
-        console.log('🔴 ========================================');
       }
       
       // Show the error message from API (already professional)

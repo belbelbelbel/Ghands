@@ -134,7 +134,7 @@ export default function YourServicesScreen() {
             borderBottomWidth: 1,
             borderBottomColor: Colors.border,
             backgroundColor: Colors.white,
-            ...SHADOWS.small,
+            ...SHADOWS.sm,
           }}
         >
           <TouchableOpacity

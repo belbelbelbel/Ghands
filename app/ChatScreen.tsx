@@ -459,7 +459,7 @@ export default function ChatScreen() {
                 borderTopRightRadius: isFromCurrentUser ? 4 : BorderRadius.lg,
               paddingHorizontal: Spacing.md,
               paddingVertical: Spacing.sm + 2,
-              ...(isFromProvider ? SHADOWS.small : {}),
+              ...(isFromProvider ? SHADOWS.sm : {}),
               borderWidth: isFromProvider ? 1 : 0,
               borderColor: Colors.border,
             }}
@@ -562,7 +562,7 @@ export default function ChatScreen() {
             borderBottomWidth: 1,
             borderBottomColor: Colors.border,
             backgroundColor: Colors.white,
-            ...SHADOWS.small,
+            ...SHADOWS.sm,
           }}
         >
           <TouchableOpacity 

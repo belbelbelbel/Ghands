@@ -215,13 +215,13 @@ export default function CompletedJobDetail() {
         const IconComponent = step.icon || CheckCircle2;
         
         return (
-          <View key={step.id} className="flex-row mb-4">
-            <View className="items-center mr-5">
+          <View key={step.id} className="flex-row mb-3">
+            <View className="items-center mr-4">
               <Animated.View
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
                   backgroundColor: step.dotColor,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -244,17 +244,17 @@ export default function CompletedJobDetail() {
                   elevation: 4,
                 }}
               >
-                <IconComponent size={20} color={Colors.white} />
+                <IconComponent size={14} color={Colors.white} />
               </Animated.View>
               {!isLast && (
                 <View
                   style={{
-                    width: 3,
+                    width: 2,
                     flex: 1,
                     backgroundColor: '#6A9B00',
-                    marginTop: 8,
-                    borderRadius: 2,
-                    minHeight: 40,
+                    marginTop: 6,
+                    borderRadius: 1,
+                    minHeight: 36,
                   }}
                 />
               )}
@@ -273,10 +273,10 @@ export default function CompletedJobDetail() {
                 ],
               }}
             >
-              <Text className="text-base text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
+              <Text className="text-sm text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
                 {step.title}
               </Text>
-              <Text className="text-sm text-gray-600 mb-3" style={{ fontFamily: 'Poppins-Regular' }}>
+              <Text className="text-xs text-gray-600 mb-2" style={{ fontFamily: 'Poppins-Regular' }}>
                 {step.description}
               </Text>
               <AnimatedStatusChip

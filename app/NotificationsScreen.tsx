@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/EmptyState';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
 import { BorderRadius, Colors } from '@/lib/designSystem';
@@ -5,6 +6,7 @@ import { Notification, notificationService } from '@/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Archive, ArrowLeft, Calendar, Clock, FileText, Handshake, MessageCircle, Trash2, Wallet, X } from 'lucide-react-native';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -436,78 +438,14 @@ export default function NotificationsScreen() {
     return (
       <SafeAreaWrapper backgroundColor={Colors.white}>
         <View style={{ flex: 1 }}>
-          {/* Header */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 20,
-              paddingTop: 16,
-              paddingBottom: 12,
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={{
-                width: 40,
-                height: 40,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: 12,
-              }}
-              activeOpacity={0.7}
-            >
-              <ArrowLeft size={24} color={Colors.textPrimary} />
-            </TouchableOpacity>
-            <Text
-              style={{
-                fontSize: 20,
-                fontFamily: 'Poppins-Bold',
-                color: Colors.textPrimary,
-                flex: 1,
-              }}
-            >
-              Notifications
-            </Text>
-          </View>
-
-          {/* Empty State */}
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
-            <Text
-              style={{
-                fontSize: 16,
-                fontFamily: 'Poppins-Regular',
-                color: Colors.textSecondaryDark,
-                textAlign: 'center',
-              }}
-            >
-              You don't have any Notifications
-            </Text>
-          </View>
-
-          {/* Skip Button */}
-          <View
-            style={{
-              paddingHorizontal: 20,
-              paddingBottom: 32,
-              alignItems: 'flex-end',
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => router.back()}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.accent,
-                }}
-              >
-                Skip
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <ScreenHeader title="Notifications" onBack={() => router.back()} />
+          <EmptyState
+            title="You don't have any notifications"
+            description="When you receive notifications, they'll appear here."
+            actionLabel="Go back"
+            onAction={() => router.back()}
+            style={{ flex: 1 }}
+          />
         </View>
       </SafeAreaWrapper>
     );
@@ -516,67 +454,44 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaWrapper backgroundColor={Colors.white}>
       <View style={{ flex: 1 }}>
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 20,
-            paddingTop: 16,
-            paddingBottom: 12,
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={{
-              width: 40,
-              height: 40,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: 12,
-            }}
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={24} color={Colors.textPrimary} />
-          </TouchableOpacity>
-          <Text
-            style={{
-              fontSize: 20,
-              fontFamily: 'Poppins-Bold',
-              color: Colors.textPrimary,
-              flex: 1,
-            }}
-          >
-            Notifications
-          </Text>
-          <TouchableOpacity
-            onPress={handleClearAll}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.accent,
-              }}
+        <ScreenHeader
+          title="Notifications"
+          onBack={() => router.back()}
+          style={{ paddingBottom: 8 }}
+          rightElement={
+            <TouchableOpacity
+              onPress={handleClearAll}
+              activeOpacity={0.7}
+              style={{ minWidth: 44, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' }}
+              accessibilityLabel="Clear all notifications"
+              accessibilityHint="Marks all notifications as read"
             >
-              Clear all
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.accent,
+                }}
+              >
+                Clear all
+              </Text>
+            </TouchableOpacity>
+          }
+        />
 
-        {/* Filter Pills - horizontal scroll for smaller screens */}
+        {/* Filter Pills - compact, minimal vertical gap */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingVertical: 12,
-            gap: 8,
+            paddingVertical: 2,
             paddingRight: 40,
+            flexDirection: 'row',
+            alignItems: 'center',
           }}
         >
-          {(['all', 'unread', 'read', 'archive'] as FilterPill[]).map((pill) => {
+          {(['all', 'unread', 'read', 'archive'] as FilterPill[]).map((pill, index) => {
             const isActive = filterPill === pill;
             return (
               <TouchableOpacity
@@ -587,12 +502,13 @@ export default function NotificationsScreen() {
                 }}
                 activeOpacity={0.7}
                 style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 20,
+                  paddingHorizontal: 12,
+                  paddingVertical: 5,
+                  borderRadius: 8,
                   backgroundColor: isActive ? Colors.accent : Colors.backgroundGray,
-                  borderWidth: 1,
-                  borderColor: isActive ? Colors.accent : Colors.border,
+                  borderWidth: isActive ? 0 : 1,
+                  borderColor: Colors.border,
+                  marginRight: index < 3 ? 8 : 0,
                 }}
               >
                 <Text
@@ -601,6 +517,7 @@ export default function NotificationsScreen() {
                     fontFamily: 'Poppins-SemiBold',
                     color: isActive ? Colors.white : Colors.textSecondaryDark,
                     textTransform: 'capitalize',
+                    lineHeight: 14,
                   }}
                 >
                   {pill}
@@ -614,7 +531,7 @@ export default function NotificationsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 8,
+            paddingTop: 4,
             paddingBottom: 100,
           }}
         >

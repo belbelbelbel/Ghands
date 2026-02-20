@@ -3,7 +3,6 @@ import { haptics } from '@/hooks/useHaptics';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, Image, ImageBackground, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { ArrowLeft } from 'lucide-react-native';
 import { useAuthRole } from '../hooks/useAuth';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -43,11 +42,6 @@ export default function SelectAccountTypeScreen() {
     }, 300);
   }, []);
 
-  const handleBack = () => {
-    haptics.light();
-    router.replace('/LoginScreen');
-  };
-
   const handleRoleSelect = async (role: 'client' | 'provider') => {
     haptics.selection();
     // Persist chosen role
@@ -84,17 +78,6 @@ export default function SelectAccountTypeScreen() {
       >
         {/* Dark overlay for better text readability */}
         <View style={styles.overlay} />
-
-        {/* Back Button */}
-        <TouchableOpacity
-          onPress={handleBack}
-          style={styles.backButton}
-          activeOpacity={0.7}
-        >
-          <View style={styles.backButtonContainer}>
-            <ArrowLeft size={20} color="#FFFFFF" />
-          </View>
-        </TouchableOpacity>
 
         {/* Content */}
         <View style={styles.content}>
@@ -146,89 +129,76 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 10,
-  },
-  backButtonContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
   content: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingBottom: 50,
-    paddingHorizontal: 20,
+    paddingTop: 80,
+    paddingBottom: 56,
+    paddingHorizontal: 24,
   },
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 40,
   },
   logoImageContainer: {
-    width: 120,
-    height: 120,
-    backgroundColor: '#000000', // Black background for logo visibility
-    borderRadius: 24,
+    width: 128,
+    height: 128,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(106, 155, 0, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 12,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: '85%',
+    height: '85%',
+  },
+  buttonsContainer: {
+    gap: 14,
+    paddingHorizontal: 4,
+  },
+  clientButton: {
+    width: '100%',
+    height: 58,
+    backgroundColor: '#6A9B00',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#6A9B00',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  clientButtonText: {
+    fontSize: 17,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  providerButton: {
+    width: '100%',
+    height: 58,
+    backgroundColor: 'rgba(18, 18, 18, 0.85)',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(106, 155, 0, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, // Increased shadow for better visibility
-    shadowRadius: 10, // Increased shadow radius
-    elevation: 10, // Increased elevation for Android
-    overflow: 'hidden', // Ensure logo doesn't overflow container
-  },
-  logoImage: {
-    width: '90%', // Increased from 75% for better visibility
-    height: '90%', // Increased from 75% for better visibility
-  },
-  buttonsContainer: {
-    gap: 16,
-    paddingBottom: 20,
-  },
-  clientButton: {
-    width: '100%',
-    height: 56,
-    backgroundColor: '#6A9B00',
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  clientButtonText: {
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#FFFFFF',
-    letterSpacing: 0.2,
-  },
-  providerButton: {
-    width: '100%',
-    height: 56,
-    backgroundColor: 'rgba(18, 18, 18, 0.9)',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#6A9B00',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   providerButtonText: {
     fontSize: 16,

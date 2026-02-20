@@ -1,6 +1,8 @@
+import { EmptyState } from '@/components/EmptyState';
 import { TransactionCardSkeleton } from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { Colors } from '@/lib/designSystem';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { BorderRadius, Colors } from '@/lib/designSystem';
 import { walletService } from '@/services/api';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, Bell, CheckCircle, Clock, Plus, Receipt, Wallet } from 'lucide-react-native';
@@ -180,60 +182,33 @@ export default function WalletScreen() {
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: 20,
-          paddingTop: 12,
-          paddingBottom: 12,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: Colors.backgroundGray,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          activeOpacity={0.7}
-        >
-          <ArrowLeft size={20} color={Colors.textPrimary} />
-        </TouchableOpacity>
-        <Text
-          style={{
-            fontSize: 18,
-            fontFamily: 'Poppins-Bold',
-            color: Colors.textPrimary,
-            letterSpacing: -0.3,
-          }}
-        >
-          Wallet
-        </Text>
-        <TouchableOpacity
-          onPress={() => router.push('../NotificationsScreen' as any)}
-          style={{ position: 'relative' }}
-          activeOpacity={0.7}
-        >
-          <Bell size={24} color={Colors.textPrimary} />
-          <View
-            style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: Colors.accent,
-            }}
-          />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Wallet"
+        onBack={() => router.back()}
+        backgroundColor={Colors.backgroundLight}
+        rightElement={
+          <TouchableOpacity
+            onPress={() => router.push('../NotificationsScreen' as any)}
+            style={{ position: 'relative', minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
+            activeOpacity={0.7}
+            accessibilityLabel="Notifications"
+            accessibilityHint="Opens notifications screen"
+          >
+            <Bell size={24} color={Colors.textPrimary} />
+            <View
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: Colors.accent,
+              }}
+            />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -246,9 +221,9 @@ export default function WalletScreen() {
         <View
           style={{
             backgroundColor: '#0a0a0a',
-            borderRadius: 28,
-            marginTop: 20,
-            marginBottom: 28,
+            borderRadius: BorderRadius.xl + 6,
+            marginTop: 12,
+            marginBottom: 20,
             position: 'relative',
             overflow: 'hidden',
             shadowColor: '#000',
@@ -305,11 +280,11 @@ export default function WalletScreen() {
           <View
             style={{
               position: 'absolute',
-              top: 28,
-              right: 28,
-              width: 68,
-              height: 68,
-              borderRadius: 34,
+              top: 20,
+              right: 20,
+              width: 52,
+              height: 52,
+              borderRadius: 26,
               backgroundColor: Colors.accent,
               alignItems: 'center',
               justifyContent: 'center',
@@ -325,19 +300,19 @@ export default function WalletScreen() {
               borderColor: 'rgba(255, 255, 255, 0.2)',
             }}
           >
-            <Wallet size={32} color={Colors.white} />
+            <Wallet size={26} color={Colors.white} />
           </View>
 
-          <View style={{ padding: 20 }}>
+          <View style={{ padding: 18 }}>
             {/* Wallet ID - only show when available from API */}
             {walletId != null && (
               <Text
                 style={{
-                  fontSize: 11,
+                  fontSize: 10,
                   fontFamily: 'Poppins-Medium',
                   color: Colors.white,
                   opacity: 0.65,
-                  marginBottom: 20,
+                  marginBottom: 10,
                   letterSpacing: 1,
                 }}
               >
@@ -348,11 +323,11 @@ export default function WalletScreen() {
             {/* Current Balance Label - Enhanced */}
             <Text
               style={{
-                fontSize: 15,
+                fontSize: 13,
                 fontFamily: 'Poppins-SemiBold',
                 color: Colors.white,
                 opacity: 0.95,
-                marginBottom: 16,
+                marginBottom: 8,
                 letterSpacing: 0.8,
                 textTransform: 'uppercase',
               }}
@@ -361,7 +336,7 @@ export default function WalletScreen() {
             </Text>
 
             {/* Balance Amount - Extra Large and Ultra Prominent */}
-            <View style={{ marginBottom: 28 }}>
+            <View style={{ marginBottom: 16 }}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                 <Text
                   style={{
@@ -393,11 +368,11 @@ export default function WalletScreen() {
                 ) : (
                   <Text
                     style={{
-                      fontSize: 54,
+                      fontSize: 42,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.white,
                       letterSpacing: -2,
-                      lineHeight: 72,
+                      lineHeight: 52,
                       textShadowColor: 'rgba(0, 0, 0, 0.3)',
                       textShadowOffset: { width: 0, height: 2 },
                       textShadowRadius: 4,
@@ -417,7 +392,7 @@ export default function WalletScreen() {
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                paddingTop: 24,
+                paddingTop: 16,
                 borderTopWidth: 1.5,
                 borderTopColor: 'rgba(255, 255, 255, 0.15)',
               }}
@@ -508,7 +483,7 @@ export default function WalletScreen() {
           style={{
             flexDirection: 'row',
             gap: 12,
-            marginBottom: 28,
+            marginBottom: 20,
           }}
         >
           {/* Add Funds - Enhanced Premium Button */}
@@ -517,8 +492,8 @@ export default function WalletScreen() {
             style={{
               flex: 1,
               backgroundColor: Colors.accent,
-              borderRadius: 10,
-              paddingVertical: 13,
+              borderRadius: BorderRadius.md,
+              paddingVertical: 10,
               paddingHorizontal: 10,
               flexDirection: 'row',
               alignItems: 'center',
@@ -554,8 +529,8 @@ export default function WalletScreen() {
             style={{
               flex: 1,
               backgroundColor: '#1a1a1a',
-              borderRadius: 10,
-              paddingVertical: 13,
+              borderRadius: BorderRadius.md,
+              paddingVertical: 10,
               paddingHorizontal: 10,
               flexDirection: 'row',
               alignItems: 'center',
@@ -638,46 +613,26 @@ export default function WalletScreen() {
               <TransactionCardSkeleton />
             </>
           ) : transactions.length === 0 ? (
-            <View
+            <EmptyState
+              icon={<Receipt size={40} color={Colors.textSecondaryDark} />}
+              title="No transactions yet"
+              description="Your recent wallet activity will appear here"
               style={{
+                flex: 0,
                 backgroundColor: Colors.white,
-                borderRadius: 18,
+                borderRadius: BorderRadius.xl,
                 padding: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
                 borderWidth: 1,
                 borderColor: Colors.border,
               }}
-            >
-              <Receipt size={48} color={Colors.textSecondaryDark} style={{ marginBottom: 16 }} />
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                  marginBottom: 8,
-                }}
-              >
-                No transactions yet
-              </Text>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
-                  textAlign: 'center',
-                }}
-              >
-                Your recent wallet activity will appear here
-              </Text>
-            </View>
+            />
           ) : (
             transactions.map((transaction) => (
             <View
               key={transaction.id}
               style={{
                 backgroundColor: Colors.white,
-                borderRadius: 18,
+                borderRadius: BorderRadius.xl,
                 padding: 18,
                 marginBottom: 14,
                 borderWidth: 1,

@@ -1,11 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Colors, Spacing, BorderRadius, SHADOWS } from '@/lib/designSystem';
-import { LucideIcon } from 'lucide-react-native';
 
-interface EmptyStateProps {
+export interface EmptyStateProps {
   icon?: React.ReactNode;
-  iconName?: keyof typeof require('lucide-react-native');
   title: string;
   description?: string;
   actionLabel?: string;
@@ -19,7 +17,7 @@ interface EmptyStateProps {
  * Professional Empty State Component
  * Use this for consistent empty states throughout the app
  */
-export const EmptyState: React.FC<EmptyStateProps> = ({
+export function EmptyState({
   icon,
   title,
   description,
@@ -28,7 +26,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   style,
   iconSize = 64,
   iconColor = Colors.textTertiary,
-}) => {
+}: EmptyStateProps) {
   return (
     <View style={[styles.container, style]}>
       <View style={styles.iconContainer}>
@@ -70,7 +68,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       )}
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {

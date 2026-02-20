@@ -156,26 +156,11 @@ const ServiceMapScreen = () => {
   // Get coordinates from service location
   useEffect(() => {
     const getLocationCoordinates = async () => {
-      if (__DEV__) {
-        console.log('🔍 [ServiceMapScreen] Getting location coordinates:', {
-          hasParamsLatLng: !!(params.latitude && params.longitude),
-          paramsLat: params.latitude,
-          paramsLng: params.longitude,
-          hasUserLocation: !!userLocation,
-          userLocation,
-          hasServiceLocation: !!serviceLocation,
-          serviceLocation,
-        });
-      }
-      
       // Priority 1: Coordinates from params (when returning from LocationSearchScreen)
       if (params.latitude && params.longitude) {
         const lat = parseFloat(params.latitude);
         const lng = parseFloat(params.longitude);
         if (!isNaN(lat) && !isNaN(lng)) {
-          if (__DEV__) {
-            console.log('🔍 [ServiceMapScreen] Using coordinates from params:', { lat, lng });
-          }
           setServiceLocationCoords({ latitude: lat, longitude: lng });
           return;
         }

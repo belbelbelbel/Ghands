@@ -1166,16 +1166,16 @@ export default function OngoingJobDetails() {
           const lineAnim = !isLast ? lineAnimations[index] : null;
 
           const IconComponent = step.icon || Circle;
-          const iconSize = step.isCompleted || step.isActive ? 20 : 16;
+          const iconSize = step.isCompleted || step.isActive ? 14 : 12;
 
           return (
-            <View key={step.id} className="flex-row" style={{ marginBottom: 24 }}>
-              <View className="items-center mr-5">
+            <View key={step.id} className="flex-row" style={{ marginBottom: 14 }}>
+              <View className="items-center mr-4">
                 <Animated.View
                   style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
                     backgroundColor: step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#F3F4F6',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1211,7 +1211,7 @@ export default function OngoingJobDetails() {
                 {!isLast && (
                   <Animated.View
                     style={{
-                      width: 3,
+                      width: 2,
                       flex: 1,
                       backgroundColor: lineAnim
                         ? lineAnim.interpolate({
@@ -1219,15 +1219,15 @@ export default function OngoingJobDetails() {
                             outputRange: ['#E5E7EB', step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#E5E7EB'],
                         })
                         : '#E5E7EB',
-                      marginTop: 8,
-                      borderRadius: 2,
-                      minHeight: 70,
+                      marginTop: 6,
+                      borderRadius: 1,
+                      minHeight: 36,
                       height: lineAnim
                         ? lineAnim.interpolate({
                           inputRange: [0, 1],
-                            outputRange: [0, 70],
+                            outputRange: [0, 36],
                         })
-                        : 70,
+                        : 36,
                     }}
                   />
                 )}
@@ -1249,20 +1249,20 @@ export default function OngoingJobDetails() {
               >
                 <Text 
                   style={{ 
-                    fontSize: 14,
+                    fontSize: 13,
                     fontFamily: 'Poppins-Bold',
                     color: step.isCompleted || step.isActive ? Colors.textPrimary : Colors.textSecondaryDark,
-                    marginBottom: 6,
+                    marginBottom: 2,
                   }}
                 >
                   {step.title}
                 </Text>
                 <Text 
                   style={{ 
-                    fontSize: 12,
+                    fontSize: 11,
                     fontFamily: 'Poppins-Regular',
                     color: step.isCompleted || step.isActive ? Colors.textSecondaryDark : Colors.textTertiary,
-                    marginBottom: 6,
+                    marginBottom: 4,
                   }}
                 >
                   {step.description}

@@ -137,17 +137,6 @@ export default function LoginScreen() {
         }
       }
       
-      // Log full error for debugging
-      if (__DEV__) {
-        console.log('🔴 ========== FULL LOGIN ERROR ==========');
-        console.log('🔴 Error Message:', error.message);
-        console.log('🔴 Error Details:', JSON.stringify(error.details, null, 2));
-        console.log('🔴 Status:', error.status);
-        console.log('🔴 Extracted Message:', errorMessage);
-        console.log('🔴 Email Sent:', email.trim());
-        console.log('🔴 ========================================');
-      }
-      
       showError(errorMessage);
     } finally {
       setIsLoading(false);

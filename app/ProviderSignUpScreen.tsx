@@ -84,18 +84,7 @@ export default function ProviderSignUpScreen() {
         password: companyPassword.trim(),
       };
 
-      if (__DEV__) {
-        console.log('📤 Company Signup (email, phoneNumber, password only):', JSON.stringify({ ...signupPayload, password: '***' }, null, 2));
-      }
-
       const response = await authService.companySignup(signupPayload);
-      
-      // Token is already saved as Bearer token by authService.companySignup
-      if (__DEV__) {
-        console.log('✅ Signup successful - Token saved as Bearer token');
-        console.log('✅ Company ID:', response.id);
-        console.log('✅ Email:', response.companyEmail);
-      }
       
       // Set role to provider
       await setRole('provider');

@@ -56,10 +56,6 @@ export default function ProviderSignInScreen() {
         password: password.trim(),
       };
 
-      if (__DEV__) {
-        console.log('📤 Provider Login Request:', JSON.stringify({ ...loginPayload, password: '***' }, null, 2));
-      }
-
       const response = await providerService.login(loginPayload);
       
       // Token is already saved by providerService.login

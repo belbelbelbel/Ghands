@@ -4,6 +4,7 @@ import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../global.css';
 import { QueryProvider } from '../providers/QueryProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -184,9 +185,10 @@ export default function RootLayout() {
   }
 
   return (
-    <ErrorBoundary>
-      <QueryProvider>
-        <AuthErrorBoundary router={router}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <QueryProvider>
+          <AuthErrorBoundary router={router}>
           <StatusBar 
             barStyle="dark-content" 
             backgroundColor="white" 
@@ -273,8 +275,9 @@ export default function RootLayout() {
         <Stack.Screen name="YourServicesScreen" options={{ headerShown: false }} />
         <Stack.Screen name="AddCustomServiceScreen" options={{ headerShown: false }} />
           </Stack>
-        </AuthErrorBoundary>
-      </QueryProvider>
-    </ErrorBoundary>
+          </AuthErrorBoundary>
+        </QueryProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }

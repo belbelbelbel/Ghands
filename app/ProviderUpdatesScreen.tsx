@@ -553,7 +553,7 @@ export default function ProviderUpdatesScreen() {
               {timelineSteps.map((step, index) => {
                 const isLast = index === timelineSteps.length - 1;
                 const IconComponent = step.icon || Circle;
-                const iconSize = step.isCompleted || step.isActive ? 20 : 16;
+                const iconSize = step.isCompleted || step.isActive ? 14 : 12;
                 const animation = timelineAnimations[index];
                 const lineAnim = !isLast ? lineAnimations[index] : null;
                 
@@ -576,12 +576,12 @@ export default function ProviderUpdatesScreen() {
                     }}
                   >
                     {/* Timeline Indicator */}
-                    <View style={{ alignItems: 'center', marginRight: 16 }}>
+                    <View style={{ alignItems: 'center', marginRight: 12 }}>
                       <Animated.View
                         style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 22,
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
                           backgroundColor: step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#F3F4F6',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -611,12 +611,12 @@ export default function ProviderUpdatesScreen() {
                       {!isLast && (
                         <Animated.View
                           style={{
-                            width: 3,
+                            width: 2,
                             flex: 1,
                             backgroundColor: step.isCompleted ? step.lineColor : step.isActive ? step.lineColor : '#E5E7EB',
-                            marginTop: 8,
-                            borderRadius: 2,
-                            minHeight: 40,
+                            marginTop: 6,
+                            borderRadius: 1,
+                            minHeight: 36,
                             opacity: lineAnim ? lineAnim.interpolate({
                               inputRange: [0, 1],
                               outputRange: [0, 1],
@@ -644,17 +644,17 @@ export default function ProviderUpdatesScreen() {
                     >
                       <Text
                         style={{
-                          fontSize: 14,
+                          fontSize: 13,
                           fontFamily: 'Poppins-Bold',
                           color: Colors.textPrimary,
-                          marginBottom: 4,
+                          marginBottom: 2,
                         }}
                       >
                         {step.title}
                       </Text>
                       <Text
                         style={{
-                          fontSize: 13,
+                          fontSize: 11,
                           fontFamily: 'Poppins-Regular',
                           color: Colors.textSecondaryDark,
                           marginBottom: 4,

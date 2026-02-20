@@ -1,11 +1,13 @@
+import { EmptyState } from '@/components/EmptyState';
 import FilterTransactionsModal from '@/components/FilterTransactionsModal';
+import { TransactionCardSkeleton } from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { walletService } from '@/services/api';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, CheckCircle, Clock, Filter, Receipt, Search, XCircle } from 'lucide-react-native';
 import React, { useState, useCallback, useEffect } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface Transaction {
   id: string;
@@ -446,46 +448,25 @@ export default function ActivityScreen() {
         {/* Transaction List */}
         <View style={{ gap: 12 }}>
           {isLoading ? (
-            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
-              <ActivityIndicator size="large" color={Colors.accent} />
-              <Text style={{ marginTop: 16, fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
-                Loading transactions...
-              </Text>
-            </View>
+            <>
+              <TransactionCardSkeleton />
+              <TransactionCardSkeleton />
+              <TransactionCardSkeleton />
+            </>
           ) : filteredTransactions.length === 0 ? (
-            <View
+            <EmptyState
+              icon={<Receipt size={40} color={Colors.textSecondaryDark} />}
+              title={`No ${selectedTab} transactions`}
+              description={searchQuery ? 'No transactions match your search' : `You don't have any ${selectedTab} transactions yet`}
               style={{
+                flex: 0,
                 backgroundColor: Colors.white,
                 borderRadius: BorderRadius.xl,
                 padding: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
                 borderWidth: 1,
                 borderColor: Colors.border,
               }}
-            >
-              <Receipt size={48} color={Colors.textSecondaryDark} style={{ marginBottom: 16 }} />
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                  marginBottom: 8,
-                }}
-              >
-                No {selectedTab} transactions
-              </Text>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
-                  textAlign: 'center',
-                }}
-              >
-                {searchQuery ? 'No transactions match your search' : `You don't have any ${selectedTab} transactions yet`}
-              </Text>
-            </View>
+            />
           ) : (
             filteredTransactions.map((transaction) => (
             <View

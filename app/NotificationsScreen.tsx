@@ -1,12 +1,12 @@
 import { EmptyState } from '@/components/EmptyState';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { haptics } from '@/hooks/useHaptics';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { Notification, notificationService } from '@/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { Archive, ArrowLeft, Calendar, Clock, FileText, Handshake, MessageCircle, Trash2, Wallet, X } from 'lucide-react-native';
-import { ScreenHeader } from '@/components/ScreenHeader';
+import { Archive, Calendar, Clock, FileText, Handshake, MessageCircle, Trash2, Wallet, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -457,7 +457,7 @@ export default function NotificationsScreen() {
         <ScreenHeader
           title="Notifications"
           onBack={() => router.back()}
-          style={{ paddingBottom: 8 }}
+          style={{ paddingBottom: 14 }}
           rightElement={
             <TouchableOpacity
               onPress={handleClearAll}
@@ -479,18 +479,19 @@ export default function NotificationsScreen() {
           }
         />
 
-        {/* Filter Pills - compact, minimal vertical gap */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingVertical: 2,
-            paddingRight: 40,
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
-        >
+        {/* Filter Pills - tight spacing, no extra padding */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingRight: 40,
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 0,
+              minHeight: 36,
+            }}
+          >
           {(['all', 'unread', 'read', 'archive'] as FilterPill[]).map((pill, index) => {
             const isActive = filterPill === pill;
             return (
@@ -502,9 +503,9 @@ export default function NotificationsScreen() {
                 }}
                 activeOpacity={0.7}
                 style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 5,
-                  borderRadius: 8,
+                  paddingHorizontal: 24,
+                  paddingVertical: 10,
+                  borderRadius: 10,
                   backgroundColor: isActive ? Colors.accent : Colors.backgroundGray,
                   borderWidth: isActive ? 0 : 1,
                   borderColor: Colors.border,
@@ -525,13 +526,14 @@ export default function NotificationsScreen() {
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+          </ScrollView>
+        </View>
 
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 4,
+            paddingTop: 12,
             paddingBottom: 100,
           }}
         >

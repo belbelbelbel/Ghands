@@ -211,30 +211,9 @@ export default function ProviderHomeScreen() {
   const loadAvailableRequests = useCallback(async () => {
     setIsLoadingPending(true);
     try {
-      if (__DEV__) {
-        console.log('🔍 [loadAvailableRequests] Starting to load requests...');
-      }
-      
       const requests = await providerService.getAvailableRequests(50);
       
-      if (__DEV__) {
-        console.log('🔍 [loadAvailableRequests] Received from API:', {
-          requests,
-          requestsType: typeof requests,
-          isArray: Array.isArray(requests),
-          length: Array.isArray(requests) ? requests.length : 'not an array',
-          firstRequest: Array.isArray(requests) && requests.length > 0 ? requests[0] : null,
-        });
-      }
-      
       const requestsArray = Array.isArray(requests) ? requests : [];
-      
-      if (__DEV__) {
-        console.log('🔍 [loadAvailableRequests] After array check:', {
-          requestsArray,
-          requestsArrayLength: requestsArray.length,
-        });
-      }
       
       // Map to job cards only if we have valid requests
       // Backend should already filter out accepted requests
@@ -243,62 +222,20 @@ export default function ProviderHomeScreen() {
         ? requestsArray.map((req) => mapRequestToJobCard(req, false))
         : [];
       
-      if (__DEV__) {
-        console.log('🔍 [loadAvailableRequests] Mapped job cards:', {
-          jobCards,
-          jobCardsLength: jobCards.length,
-          firstJobCard: jobCards.length > 0 ? jobCards[0] : null,
-        });
-      }
-      
       // CRITICAL: Filter out any requests that are already in accepted jobs
       // This ensures accepted requests NEVER show in available requests
       const currentActiveJobIds = new Set(activeJobsRef.current.map(job => job.requestId?.toString()));
       const filteredJobCards = jobCards.filter((job) => {
         const requestId = job.requestId?.toString();
         const isAccepted = currentActiveJobIds.has(requestId);
-        
-        if (__DEV__ && isAccepted) {
-          console.log('🔍 [loadAvailableRequests] Filtering out accepted request:', {
-            requestId,
-            jobTitle: job.service,
-          });
-        }
-        
         return !isAccepted;
       });
-      
-      if (__DEV__ && filteredJobCards.length !== jobCards.length) {
-        console.log('🔍 [loadAvailableRequests] Filtered out accepted requests:', {
-          originalCount: jobCards.length,
-          filteredCount: filteredJobCards.length,
-          removedCount: jobCards.length - filteredJobCards.length,
-          activeJobIds: Array.from(currentActiveJobIds),
-        });
-      }
       
       setPendingJobs(filteredJobCards);
       
     } catch (error: any) {
-      if (__DEV__) {
-        console.log('🔍 [loadAvailableRequests] Error caught in UI:', {
-          error,
-          errorType: typeof error,
-          errorName: error?.name,
-          errorMessage: error?.message,
-          errorStatus: error?.status,
-          errorDetails: error?.details,
-          errorResponse: error?.response,
-          isAuthError: error instanceof AuthError,
-          errorKeys: error ? Object.keys(error) : [],
-        });
-      }
-      
       // If AuthError, redirect immediately (silent - no logs, no errors shown)
       if (error instanceof AuthError) {
-        if (__DEV__) {
-          console.log('🔍 [loadAvailableRequests] AuthError detected, redirecting...');
-        }
         await handleAuthErrorRedirect(router);
         return;
       }
@@ -307,37 +244,16 @@ export default function ProviderHomeScreen() {
       // For provider endpoints, 500 errors are often auth-related (expired/invalid token)
       const status = error?.status || 500;
       if (status === 500) {
-        if (__DEV__) {
-          console.log('🔍 [loadAvailableRequests] 500 error detected, checking token...');
-        }
         try {
           const { authService } = await import('@/services/authService');
           const token = await authService.getAuthToken();
-          if (__DEV__) {
-            console.log('🔍 [loadAvailableRequests] Token check:', {
-              hasToken: !!token,
-              tokenLength: token?.length,
-            });
-          }
           if (!token) {
-            // No token = auth error, redirect silently
-            if (__DEV__) {
-              console.log('🔍 [loadAvailableRequests] No token found, redirecting...');
-            }
             await handleAuthErrorRedirect(router);
             return;
-          }
-          // Even if token exists, 500 on provider protected route usually means expired/invalid token
-          // Be aggressive - redirect on any 500 error for provider endpoints
-          if (__DEV__) {
-            console.log('🔍 [loadAvailableRequests] Token exists but 500 error, redirecting...');
           }
           await handleAuthErrorRedirect(router);
           return;
         } catch (redirectError) {
-          if (__DEV__) {
-            console.log('🔍 [loadAvailableRequests] Redirect error:', redirectError);
-          }
           // If redirect fails, try again with fallback
           try {
             router.replace('/ProviderSignInScreen' as any);
@@ -356,9 +272,6 @@ export default function ProviderHomeScreen() {
                             error?.message?.includes('Network request failed');
       
       if (isNetworkError) {
-        if (__DEV__) {
-          console.log('🔍 [loadAvailableRequests] Network error detected');
-        }
         showError('No internet connection. Please check your connection and reconnect to continue.');
         setPendingJobs([]);
         return;
@@ -375,13 +288,6 @@ export default function ProviderHomeScreen() {
                        error?.details?.message ||
                        error?.error ||
                        '';
-      
-      if (__DEV__) {
-        console.log('🔍 [loadAvailableRequests] Error text extracted:', {
-          errorText,
-          errorMessage,
-        });
-      }
       
       // Check if it's a location issue
       if (errorText.toLowerCase().includes('location') || 
@@ -406,17 +312,7 @@ export default function ProviderHomeScreen() {
       if (!errorText.toLowerCase().includes('no requests') && 
           !errorText.toLowerCase().includes('no available') &&
           status !== 500) {
-        if (__DEV__) {
-          console.log('🔍 [loadAvailableRequests] Showing error to user:', errorMessage);
-        }
         showError(errorMessage);
-      } else {
-        if (__DEV__) {
-          console.log('🔍 [loadAvailableRequests] Suppressing error (no requests or 500):', {
-            errorText,
-            status,
-          });
-        }
       }
       
       setPendingJobs([]);

@@ -288,7 +288,6 @@ export default function ProviderJobDetailsScreen() {
     const now = Date.now();
     if (isLoadingRef.current || (now - lastLoadTimeRef.current < 1000)) {
       if (__DEV__) {
-        console.log('⏸️ [ProviderJobDetailsScreen] Skipping reload - already loading or recent load');
       }
       return;
     }
@@ -315,13 +314,6 @@ export default function ProviderJobDetailsScreen() {
           return;
         }
       
-      if (__DEV__) {
-        console.log('🔍 [ProviderJobDetailsScreen] Loading request details:', {
-          requestId,
-          requestIdType: typeof requestId,
-          paramsRequestId: params.requestId,
-        });
-      }
       
       // Try to get request details directly
       try {
@@ -351,9 +343,6 @@ export default function ProviderJobDetailsScreen() {
                 if (requestDetails) {
                   usedFallback = true;
                   setIsFromAcceptedRequests(false); // This is a pending request, not accepted yet
-                  if (__DEV__) {
-                    console.log('ℹ️ [ProviderJobDetailsScreen] Loaded from available requests (pending request)');
-                  }
                 } else {
                   throw new Error('Request not found in accepted or available requests');
                 }
@@ -364,12 +353,6 @@ export default function ProviderJobDetailsScreen() {
             }
           } catch (fallbackError) {
             // All methods failed - only log if all fallbacks also failed
-            if (__DEV__) {
-              console.error('🔍 [ProviderJobDetailsScreen] All methods failed:', {
-                directError: directError?.message,
-                fallbackError: fallbackError instanceof Error ? fallbackError.message : fallbackError,
-              });
-            }
             throw directError; // Throw original error
           }
         } else {
@@ -380,9 +363,6 @@ export default function ProviderJobDetailsScreen() {
       
       // If we successfully used fallback, suppress the error log from the API service
       // The error was already handled and we got the data successfully
-      if (usedFallback && __DEV__) {
-        console.log('ℹ️ [ProviderJobDetailsScreen] Using fallback data - direct endpoint not accessible to providers');
-      }
       
       if (!requestDetails) {
         showError('Job details not found');
@@ -497,7 +477,6 @@ export default function ProviderJobDetailsScreen() {
           const now = Date.now();
           if (isLoadingRef.current || (now - lastLoadTimeRef.current < 2000)) {
             if (__DEV__) {
-              console.log('⏸️ [ProviderJobDetailsScreen] useFocusEffect: Skipping reload - guard triggered');
             }
             return;
           }

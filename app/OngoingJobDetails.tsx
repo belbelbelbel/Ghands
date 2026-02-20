@@ -296,12 +296,6 @@ export default function OngoingJobDetails() {
         icon: CheckCircle2,
       });
       
-      if (__DEV__) {
-        console.log('✅ [OngoingJobDetails] Timeline: Showing Provider Accepted step', {
-          count: acceptedProviders.length,
-          latestAcceptance: new Date(latestAcceptance).toISOString(),
-        });
-      }
     } else {
       // No providers accepted yet
       timeline.push({
@@ -316,12 +310,6 @@ export default function OngoingJobDetails() {
         icon: Circle,
       });
       
-      if (__DEV__) {
-        console.log('⏳ [OngoingJobDetails] Timeline: No providers accepted yet', {
-          acceptedProvidersLength: acceptedProviders?.length || 0,
-          requestStatus: request?.status,
-        });
-      }
     }
 
     // Step 3: Inspection & Quotation
@@ -637,22 +625,10 @@ export default function OngoingJobDetails() {
       
       if (paymentTx) {
         setPaymentTransaction(paymentTx);
-        if (__DEV__) {
-          console.log('✅ [OngoingJobDetails] Found payment transaction:', {
-            requestId,
-            transactionId: paymentTx.id,
-            amount: paymentTx.amount,
-            status: paymentTx.status,
-            completedAt: paymentTx.completedAt,
-          });
-        }
       } else {
         setPaymentTransaction(null);
       }
-    } catch (error: any) {
-      if (__DEV__) {
-        console.error('Error checking payment transaction:', error);
-      }
+    } catch {
       // Don't show error to user, just silently fail
       setPaymentTransaction(null);
     }
@@ -680,19 +656,6 @@ export default function OngoingJobDetails() {
         const providersArray = Array.isArray(providers) ? providers : [];
         setAcceptedProviders(providersArray);
 
-        if (__DEV__) {
-          console.log('🔍 [OngoingJobDetails] Loaded accepted providers:', {
-            requestId,
-            requestStatus: requestDetails.status,
-            count: providersArray.length,
-            providers: providersArray.map((p) => ({
-              id: p.provider?.id,
-              name: p.provider?.name,
-              acceptedAt: p.acceptance?.acceptedAt,
-            })),
-            hasAcceptedProviders: providersArray.length > 0,
-          });
-        }
         } catch (error: any) {
         if (__DEV__) {
           console.error('❌ [OngoingJobDetails] Error loading accepted providers:', {

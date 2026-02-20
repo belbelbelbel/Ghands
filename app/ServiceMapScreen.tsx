@@ -171,60 +171,17 @@ const ServiceMapScreen = () => {
       if (serviceLocation) {
         try {
           const userId = await authService.getUserId();
-          if (__DEV__) {
-            console.log('🔍 [ServiceMapScreen] Attempting to load coordinates from API:', {
-              hasServiceLocation: !!serviceLocation,
-              serviceLocationText: serviceLocation.substring(0, 50),
-              hasUserId: !!userId,
-              userId,
-            });
-          }
-          
           if (userId) {
             const savedLocation = await locationService.getUserLocation(userId);
-            if (__DEV__) {
-              console.log('🔍 [ServiceMapScreen] Saved location from API response:', {
-                hasSavedLocation: !!savedLocation,
-                hasCoordinates: !!(savedLocation?.latitude && savedLocation?.longitude),
-                latitude: savedLocation?.latitude,
-                longitude: savedLocation?.longitude,
-                address: savedLocation?.fullAddress,
-                savedLocationKeys: savedLocation ? Object.keys(savedLocation) : [],
-              });
-            }
-            
             if (savedLocation?.latitude && savedLocation?.longitude) {
-              if (__DEV__) {
-                console.log('✅ [ServiceMapScreen] Using saved location from API:', {
-                  latitude: savedLocation.latitude,
-                  longitude: savedLocation.longitude,
-                  address: savedLocation.fullAddress,
-                });
-              }
               setServiceLocationCoords({
                 latitude: savedLocation.latitude,
                 longitude: savedLocation.longitude,
               });
               return;
-            } else {
-              if (__DEV__) {
-                console.log('⚠️ [ServiceMapScreen] Saved location from API has no coordinates:', {
-                  savedLocation,
-                });
-              }
-            }
-          } else {
-            if (__DEV__) {
-              console.log('⚠️ [ServiceMapScreen] No userId found, cannot load location from API');
             }
           }
-        } catch (error) {
-          if (__DEV__) {
-            console.log('❌ [ServiceMapScreen] Error getting saved location from API:', {
-              error: error instanceof Error ? error.message : error,
-              errorType: error instanceof Error ? error.constructor.name : typeof error,
-            });
-          }
+        } catch {
           // Continue to next priority if API fails
         }
       }
@@ -239,25 +196,11 @@ const ServiceMapScreen = () => {
                             userLocation.longitude < 0 || userLocation.longitude > 15;
         
         if (isSanFrancisco || isNotNigeria) {
-          if (__DEV__) {
-            console.log('⚠️ [ServiceMapScreen] GPS location appears to be simulator default or invalid, skipping:', {
-              userLocation,
-              isSanFrancisco,
-              isNotNigeria,
-            });
-          }
           // Don't use simulator default - coordinates will remain null
         } else {
-          if (__DEV__) {
-            console.log('🔍 [ServiceMapScreen] Using GPS userLocation:', userLocation);
-          }
           setServiceLocationCoords(userLocation);
           return;
         }
-      }
-      
-      if (__DEV__) {
-        console.log('🔍 [ServiceMapScreen] No coordinates available - will not load providers');
       }
     };
 
@@ -285,32 +228,13 @@ const ServiceMapScreen = () => {
 
       setIsLoadingProviders(true);
       try {
-        if (__DEV__) {
-          console.log('🔍 [ServiceMapScreen] Loading providers:', {
-            categoryName,
-            serviceLocationCoords,
-            hasCoords: !!serviceLocationCoords,
-          });
-        }
-        
         // Normalize category name using mapping function
         // This converts display names like "Plumber", "Plumbing Service" to API format like "plumbing"
         const normalizedCategory = normalizeCategoryName(categoryName);
         const isValid = isValidCategoryName(categoryName);
 
-        if (__DEV__) {
-          console.log('🔍 [ServiceMapScreen] Category normalization:', {
-            originalCategory: categoryName,
-            normalizedCategory,
-            isValid,
-          });
-        }
-
         if (!normalizedCategory) {
           const errorMsg = `Invalid category name: "${categoryName}". Please select a valid service category.`;
-          if (__DEV__) {
-            console.error('Invalid category:', categoryName);
-          }
           setProviderError(errorMsg);
           setProviders([]);
           return;
@@ -323,23 +247,10 @@ const ServiceMapScreen = () => {
           50 // maxDistanceKm
         );
 
-        if (__DEV__) {
-          console.log('🔍 [ServiceMapScreen] Received providers from API:', {
-            nearbyProviders,
-            nearbyProvidersType: typeof nearbyProviders,
-            isArray: Array.isArray(nearbyProviders),
-            length: Array.isArray(nearbyProviders) ? nearbyProviders.length : 'not an array',
-            firstProvider: Array.isArray(nearbyProviders) && nearbyProviders.length > 0 ? nearbyProviders[0] : null,
-          });
-        }
-
         const providersArray = Array.isArray(nearbyProviders) ? nearbyProviders : [];
 
         // Only map if we have valid providers
         if (providersArray.length === 0) {
-          if (__DEV__) {
-            console.log('🔍 [ServiceMapScreen] No providers found, showing error');
-          }
           setProviders([]);
           setProviderError(`No providers found nearby for "${categoryName}". Try expanding your search radius or selecting a different service category.`);
           return;
@@ -375,29 +286,9 @@ const ServiceMapScreen = () => {
           };
         });
 
-        if (__DEV__) {
-          console.log('🔍 [ServiceMapScreen] Mapped providers:', {
-            mappedProviders,
-            mappedProvidersLength: mappedProviders.length,
-            firstMappedProvider: mappedProviders.length > 0 ? mappedProviders[0] : null,
-          });
-        }
-
         setProviders(mappedProviders);
         setProviderError(null);
       } catch (error: any) {
-        if (__DEV__) {
-          console.log('🔍 [ServiceMapScreen] Error loading providers:', {
-            error,
-            errorType: typeof error,
-            errorName: error?.name,
-            errorMessage: error?.message,
-            errorStatus: error?.status,
-            errorDetails: error?.details,
-            errorResponse: error?.response,
-          });
-        }
-        
         setProviders([]);
         const errorMessage = error?.message || error?.details?.data?.error || 'Failed to load providers';
         setProviderError(`Unable to find providers at the moment. ${errorMessage}`);
@@ -415,12 +306,7 @@ const ServiceMapScreen = () => {
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          if (__DEV__) {
-            console.log('🔍 [ServiceMapScreen] Location permission not granted');
-          }
-          return;
-        }
+        if (status !== 'granted') return;
         
         // Use higher accuracy settings to get actual current location
         const location = await Location.getCurrentPositionAsync({
@@ -429,29 +315,13 @@ const ServiceMapScreen = () => {
           timeout: 15000, // Wait up to 15 seconds
         });
         
-        if (__DEV__) {
-          console.log('🔍 [ServiceMapScreen] GPS Location obtained:', {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            accuracy: location.coords.accuracy,
-            timestamp: new Date(location.timestamp).toISOString(),
-          });
-        }
-        
         if (isMounted) {
           setUserLocation({ 
             latitude: location.coords.latitude, 
             longitude: location.coords.longitude 
           });
         }
-      } catch (error) {
-        if (__DEV__) {
-          console.log('🔍 [ServiceMapScreen] Error getting GPS location:', {
-            error,
-            errorMessage: error instanceof Error ? error.message : String(error),
-          });
-        }
-        console.warn('Unable to fetch location', error);
+      } catch {
       }
     })();
 
@@ -797,36 +667,12 @@ const ServiceMapScreen = () => {
               const providerId = firstSelectedProvider.providerId;
               
               if (requestId && providerId) {
-                if (__DEV__) {
-                  console.log('🔄 [ServiceMapScreen] Selecting provider:', {
-                    requestId,
-                    providerId,
-                    providerName: firstSelectedProvider.name,
-                  });
-                }
-                
                 await serviceRequestService.selectProvider(requestId, providerId);
-                
-                if (__DEV__) {
-                  console.log('✅ [ServiceMapScreen] Provider selected successfully');
-                }
                 
                 haptics.success();
                 showSuccess('Provider selected! They have 5 minutes to accept.');
-              } else {
-                if (__DEV__) {
-                  console.warn('⚠️ [ServiceMapScreen] Missing requestId or providerId:', {
-                    requestId,
-                    providerId,
-                    hasRequestId: !!params.requestId,
-                    hasProviderId: !!providerId,
-                  });
-                }
               }
             } catch (error: any) {
-              if (__DEV__) {
-                console.error('❌ [ServiceMapScreen] Error selecting provider:', error);
-              }
               // Show error but still proceed to confirmation screen
               showError('Failed to select provider. You can select one later from job details.');
               haptics.error();

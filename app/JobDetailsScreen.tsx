@@ -63,20 +63,11 @@ export default function JobDetailsScreen() {
             longitude: savedLocation.longitude,
           };
           setLocationData(newLocationData);
-          if (__DEV__) {
-            console.log('✅ [JobDetailsScreen] Location loaded from API:', {
-              address: savedLocation.fullAddress,
-              hasLocationData: !!newLocationData,
-            });
-          }
           return true; // Location found
         }
       }
-    } catch (error) {
+    } catch {
       // Location not set in API
-      if (__DEV__) {
-        console.log('⚠️ [JobDetailsScreen] No saved location in API:', error);
-      }
     }
     return false; // Location not found
   }, []);
@@ -186,7 +177,6 @@ export default function JobDetailsScreen() {
             // We have location text but not full details - API should use saved location
             // Allow proceeding - backend will use user's saved location if available
             if (__DEV__) {
-              console.log('⚠️ No location data in state, but have location text. Proceeding - backend will use saved location.');
             }
           } else {
             // No location at all - redirect to location screen
@@ -227,39 +217,16 @@ export default function JobDetailsScreen() {
         // No location data - backend should use user's saved location
         // Don't send location payload, let backend handle it
         if (__DEV__) {
-          console.log('ℹ️ No location data to send - backend will use user\'s saved location');
         }
       }
 
       // Update job details (Step 2)
       // userId is automatically extracted from token, don't send it
-      if (__DEV__) {
-        console.log('🔄 Calling updateJobDetails API:', {
-          requestId,
-          jobTitle: jobTitle.trim(),
-          descriptionLength: description.trim().length,
-          hasLocation: !!locationPayload,
-        });
-      }
-      
       const updateResponse = await serviceRequestService.updateJobDetails(requestId, {
         jobTitle: jobTitle.trim(),
         description: description.trim(),
         location: locationPayload,
       });
-
-      if (__DEV__) {
-        const providerCount = updateResponse.nearbyProviders?.length || 0;
-        const hasProviders = providerCount > 0;
-        console.log('✅ updateJobDetails response:', {
-          requestId: updateResponse.requestId,
-          hasNearbyProviders: hasProviders,
-          providerCount: providerCount,
-          note: hasProviders 
-            ? `${providerCount} provider(s) found nearby` 
-            : 'No providers found within 50km radius - request created but no providers available',
-        });
-      }
 
       showSuccess('Job details updated!');
       haptics.success();

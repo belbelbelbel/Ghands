@@ -1,10 +1,13 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { haptics } from '@/hooks/useHaptics';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { Notification, notificationService } from '@/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Calendar, Clock, FileText, Handshake, MessageCircle, Wallet, X } from 'lucide-react-native';
-import React, { useEffect, useMemo, useState } from 'react';
+import { Archive, ArrowLeft, Calendar, Clock, FileText, Handshake, MessageCircle, Trash2, Wallet, X } from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 
 type UINotificationSection = 'Recent' | 'Yesterday' | 'Last week';
 
@@ -26,12 +29,19 @@ interface UINotification {
   raw: Notification;
 }
 
+const ARCHIVED_IDS_KEY = '@ghands:notification_archived_ids';
+
+type FilterPill = 'all' | 'unread' | 'read' | 'archive';
+
 export default function NotificationsScreen() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [previewNotification, setPreviewNotification] = useState<UINotification | null>(null);
+  const [filterPill, setFilterPill] = useState<FilterPill>('all');
+  const [archivedIds, setArchivedIds] = useState<Set<number>>(new Set());
+  const swipeableRefs = useRef<Map<number, Swipeable | null>>(new Map());
 
   const hasNotifications = notifications.length > 0;
 
@@ -252,20 +262,27 @@ export default function NotificationsScreen() {
     [notifications]
   );
 
+  const filteredNotifications = useMemo(() => {
+    if (filterPill === 'archive') {
+      return uiNotifications.filter((n) => archivedIds.has(n.id));
+    }
+    let list = uiNotifications.filter((n) => !archivedIds.has(n.id));
+    if (filterPill === 'unread') list = list.filter((n) => !n.isRead);
+    if (filterPill === 'read') list = list.filter((n) => n.isRead);
+    return list;
+  }, [uiNotifications, filterPill, archivedIds]);
+
   const groupedNotifications = useMemo(() => {
     const groups: Record<UINotificationSection, UINotification[]> = {
       Recent: [],
       Yesterday: [],
       'Last week': [],
     };
-
-    uiNotifications.forEach((notif) => {
-      const section = notif.section;
-      groups[section].push(notif);
+    filteredNotifications.forEach((notif) => {
+      groups[notif.section].push(notif);
     });
-
     return groups;
-  }, [uiNotifications]);
+  }, [filteredNotifications]);
 
   const loadNotifications = async () => {
     setIsLoading(true);
@@ -285,6 +302,29 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     loadNotifications();
+  }, []);
+
+  useEffect(() => {
+    const loadArchivedIds = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(ARCHIVED_IDS_KEY);
+        if (stored) {
+          const ids = JSON.parse(stored) as number[];
+          setArchivedIds(new Set(ids));
+        }
+      } catch (e) {
+        if (__DEV__) console.error('Error loading archived IDs:', e);
+      }
+    };
+    loadArchivedIds();
+  }, []);
+
+  const persistArchivedIds = useCallback(async (ids: Set<number>) => {
+    try {
+      await AsyncStorage.setItem(ARCHIVED_IDS_KEY, JSON.stringify([...ids]));
+    } catch (e) {
+      if (__DEV__) console.error('Error persisting archived IDs:', e);
+    }
   }, []);
 
   const handleClearAll = async () => {
@@ -314,6 +354,50 @@ export default function NotificationsScreen() {
       }
     }
   };
+
+  const handleArchive = useCallback(
+    (id: number) => {
+      haptics.light();
+      swipeableRefs.current.get(id)?.close();
+      setArchivedIds((prev) => {
+        const next = new Set(prev).add(id);
+        persistArchivedIds(next);
+        return next;
+      });
+    },
+    [persistArchivedIds]
+  );
+
+  const handleUnarchive = useCallback(
+    (id: number) => {
+      haptics.light();
+      swipeableRefs.current.get(id)?.close();
+      setArchivedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        persistArchivedIds(next);
+        return next;
+      });
+    },
+    [persistArchivedIds]
+  );
+
+  const handleDelete = useCallback(async (id: number) => {
+    haptics.light();
+    swipeableRefs.current.get(id)?.close();
+    try {
+      await notificationService.deleteNotification(id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setArchivedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        persistArchivedIds(next);
+        return next;
+      });
+    } catch (error) {
+      if (__DEV__) console.error('Error deleting notification:', error);
+    }
+  }, [persistArchivedIds]);
 
   // Navigate to the correct screen for a backend notification
   const handleNavigateToDetails = (notification: Notification | UINotification) => {
@@ -481,11 +565,56 @@ export default function NotificationsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Filter Pills - horizontal scroll for smaller screens */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+            gap: 8,
+            paddingRight: 40,
+          }}
+        >
+          {(['all', 'unread', 'read', 'archive'] as FilterPill[]).map((pill) => {
+            const isActive = filterPill === pill;
+            return (
+              <TouchableOpacity
+                key={pill}
+                onPress={() => {
+                  haptics.light();
+                  setFilterPill(pill);
+                }}
+                activeOpacity={0.7}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: isActive ? Colors.accent : Colors.backgroundGray,
+                  borderWidth: 1,
+                  borderColor: isActive ? Colors.accent : Colors.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: isActive ? Colors.white : Colors.textSecondaryDark,
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {pill}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 24,
+            paddingTop: 8,
             paddingBottom: 100,
           }}
         >
@@ -555,6 +684,35 @@ export default function NotificationsScreen() {
             </View>
           )}
 
+          {filteredNotifications.length === 0 && !isLoading && (
+            <View
+              style={{
+                paddingVertical: 48,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  textAlign: 'center',
+                }}
+              >
+                {filterPill === 'archive'
+                  ? 'No archived notifications'
+                  : filterPill === 'all' && archivedIds.size > 0
+                  ? 'No notifications to show'
+                  : filterPill === 'unread'
+                  ? 'No unread notifications'
+                  : filterPill === 'read'
+                  ? 'No read notifications'
+                  : 'No notifications'}
+              </Text>
+            </View>
+          )}
+
           {(['Recent', 'Yesterday', 'Last week'] as const).map((section) => {
             const sectionNotifications = groupedNotifications[section] || [];
             if (sectionNotifications.length === 0) return null;
@@ -575,8 +733,65 @@ export default function NotificationsScreen() {
 
                 {/* Notifications in Section */}
                 {sectionNotifications.map((notification, index) => (
-                  <View
+                  <Swipeable
                     key={notification.id}
+                    ref={(ref) => {
+                      if (ref) swipeableRefs.current.set(notification.id, ref);
+                      else swipeableRefs.current.delete(notification.id);
+                    }}
+                    friction={2}
+                    rightThreshold={40}
+                    renderRightActions={() => {
+                      const isArchiveTab = filterPill === 'archive';
+                      return (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            marginBottom: index < sectionNotifications.length - 1 ? 14 : 0,
+                            minHeight: 90,
+                            alignItems: 'stretch',
+                          }}
+                        >
+                          <TouchableOpacity
+                            onPress={() => (isArchiveTab ? handleUnarchive(notification.id) : handleArchive(notification.id))}
+                            style={{
+                              width: 72,
+                              backgroundColor: isArchiveTab ? '#6A9B00' : '#6B7280',
+                              borderTopRightRadius: 0,
+                              borderBottomRightRadius: 0,
+                              borderRadius: BorderRadius.xl,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              marginLeft: 6,
+                            }}
+                          >
+                            <Archive size={20} color={Colors.white} />
+                            <Text style={{ fontSize: 10, fontFamily: 'Poppins-Medium', color: Colors.white, marginTop: 4 }}>
+                              {isArchiveTab ? 'Unarchive' : 'Archive'}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDelete(notification.id)}
+                            style={{
+                              width: 72,
+                              backgroundColor: '#DC2626',
+                              borderTopLeftRadius: 0,
+                              borderBottomLeftRadius: 0,
+                              borderRadius: BorderRadius.xl,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Trash2 size={20} color={Colors.white} />
+                            <Text style={{ fontSize: 10, fontFamily: 'Poppins-Medium', color: Colors.white, marginTop: 4 }}>
+                              Delete
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    }}
+                  >
+                  <View
                     style={{
                       flexDirection: 'row',
                       marginBottom: index < sectionNotifications.length - 1 ? 14 : 0,
@@ -586,7 +801,6 @@ export default function NotificationsScreen() {
                       paddingHorizontal: 10,
                       borderLeftWidth: 3,
                       borderColor: notification.isRead ? Colors.accent : '#3B82F6',
-                      
                     }}
                   >
                     {/* Colored Bar - Blue for unread, Green for read */}
@@ -697,6 +911,7 @@ export default function NotificationsScreen() {
                       </TouchableOpacity>
                     </View>
                   </View>
+                  </Swipeable>
                 ))}
               </View>
             );

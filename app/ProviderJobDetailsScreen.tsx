@@ -1,7 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, MessageCircle, Phone, CheckCircle2, Edit, MessageSquare, Activity, FileText, CreditCard, Wrench, CheckCircle, Circle, Wallet, Receipt, Navigation, ExternalLink } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, MessageCircle, Phone, CheckCircle2, Edit, MessageSquare, Activity, FileText, CreditCard, Wrench, CheckCircle, Circle, Wallet, Receipt, Navigation, ExternalLink, MapPinned } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View, ActivityIndicator, Animated, Modal, RefreshControl } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
@@ -666,26 +666,86 @@ export default function ProviderJobDetailsScreen() {
       }
     }
 
-    // Step 2: Inspection & Quotation
-    // Focus on inspection and sending quotation - NOT payment
+    // Step 2a: Inspection (visit) - separate from quotation
     const requestIndicatesQuotationAccepted = request.status === 'scheduled' || 
                                                request.status === 'in_progress' || 
                                                request.status === 'completed';
-    
-    // Provider has accepted if: from accepted requests OR request status indicates acceptance
     const providerHasAccepted = isFromAcceptedRequests || 
                                 request.status === 'accepted' || 
                                 requestIndicatesQuotationAccepted;
-    
+    const quotationSent = quotation || (quotationWithProvider && (quotationWithProvider.sentAt || (quotationWithProvider.status && quotationWithProvider.status !== 'draft' && quotationWithProvider.status !== null)));
+    const visitRequest = (request as any).visitRequest;
+    const hasVisitRequested = !!(visitRequest && (visitRequest.scheduledDate || visitRequest.logisticsCost != null));
+    const visitPaid = visitRequest?.logisticsStatus === 'paid';
+
     if (providerHasAccepted) {
-      // Check if quotation exists and was sent
-      const quotationSent = quotation || (quotationWithProvider && (quotationWithProvider.sentAt || (quotationWithProvider.status && quotationWithProvider.status !== 'draft' && quotationWithProvider.status !== null)));
-      
       if (quotationSent) {
-        // Quotation sent - green (completed)
         timeline.push({
           id: 'step-2',
-          title: 'Inspection & Quotation',
+          title: 'Inspection',
+          description: hasVisitRequested ? 'Visit completed or skipped.' : 'Skipped - quotation sent directly.',
+          status: 'Completed',
+          accent: '#DCFCE7',
+          dotColor: '#6A9B00',
+          lineColor: '#6A9B00',
+          isActive: false,
+          isCompleted: true,
+          icon: MapPinned,
+          showRequestVisit: false,
+        });
+      } else if (hasVisitRequested) {
+        timeline.push({
+          id: 'step-2',
+          title: 'Inspection',
+          description: visitPaid
+            ? `Visit confirmed for ${visitRequest.scheduledDate || ''} ${visitRequest.scheduledTime || ''}. Send quotation when ready.`
+            : `Visit scheduled. Waiting for client to pay ₦${visitRequest.logisticsCost ?? 0} logistics fee.`,
+          status: visitPaid ? 'Completed' : 'In Progress',
+          accent: visitPaid ? '#DCFCE7' : '#FEF9C3',
+          dotColor: visitPaid ? '#6A9B00' : '#F59E0B',
+          lineColor: visitPaid ? '#6A9B00' : '#F59E0B',
+          isActive: !visitPaid,
+          isCompleted: visitPaid,
+          icon: MapPinned,
+          showRequestVisit: !visitPaid, // Can request a different visit if needed (e.g. reschedule)
+        });
+      } else {
+        timeline.push({
+          id: 'step-2',
+          title: 'Inspection',
+          description: 'Optional. Request a visit to inspect, or send quotation directly.',
+          status: 'In Progress',
+          accent: '#FEF9C3',
+          dotColor: '#F59E0B',
+          lineColor: '#F59E0B',
+          isActive: true,
+          isCompleted: false,
+          icon: MapPinned,
+          showRequestVisit: true,
+        });
+      }
+    } else {
+      timeline.push({
+        id: 'step-2',
+        title: 'Inspection',
+        description: 'Accept first to request a visit or send quotation.',
+        status: 'Pending',
+        accent: '#F3F4F6',
+        dotColor: '#9CA3AF',
+        lineColor: '#9CA3AF',
+        isActive: false,
+        isCompleted: false,
+        icon: Circle,
+        showRequestVisit: false,
+      });
+    }
+
+    // Step 2b: Quotation
+    if (providerHasAccepted) {
+      if (quotationSent) {
+        timeline.push({
+          id: 'step-2b',
+          title: 'Quotation',
           description: 'Quotation sent. Awaiting client review.',
           status: `Completed - ${formatTimeAgo(quotationWithProvider?.sentAt || quotation?.sentAt || request.updatedAt || '')}`,
           accent: '#DCFCE7',
@@ -694,14 +754,13 @@ export default function ProviderJobDetailsScreen() {
           isActive: false,
           isCompleted: true,
           icon: FileText,
-          canEdit: true, // Can edit even when completed
+          canEdit: true,
         });
       } else {
-        // Provider accepted but no quotation sent yet - yellow (in progress)
         timeline.push({
-          id: 'step-2',
-          title: 'Inspection & Quotation',
-          description: 'Inspect the job and send a quotation.',
+          id: 'step-2b',
+          title: 'Quotation',
+          description: hasVisitRequested && !visitPaid ? 'After client pays logistics fee, send your quotation.' : 'Prepare and send your quotation.',
           status: 'In Progress',
           accent: '#FEF9C3',
           dotColor: '#F59E0B',
@@ -709,14 +768,13 @@ export default function ProviderJobDetailsScreen() {
           isActive: true,
           isCompleted: false,
           icon: FileText,
-          canEdit: true, // Can edit/send quotation
+          canEdit: true,
         });
       }
     } else {
-      // Provider hasn't accepted yet - gray (pending)
       timeline.push({
-        id: 'step-2',
-        title: 'Inspection & Quotation',
+        id: 'step-2b',
+        title: 'Quotation',
         description: 'Send quotation to client',
         status: 'Pending',
         accent: '#F3F4F6',
@@ -734,9 +792,6 @@ export default function ProviderJobDetailsScreen() {
     const isQuotationAccepted = (quotationWithProvider && quotationWithProvider.status === 'accepted') ||
                                 (quotation && quotation.status === 'accepted') ||
                                 requestIndicatesQuotationAccepted; // If scheduled/in_progress/completed, quotation was accepted
-    
-    // Check if quotation was sent (needed to show yellow while waiting)
-    const quotationSent = quotation || (quotationWithProvider && (quotationWithProvider.sentAt || (quotationWithProvider.status && quotationWithProvider.status !== 'draft' && quotationWithProvider.status !== null)));
     
     if (isQuotationAccepted) {
       timeline.push({
@@ -1003,81 +1058,51 @@ export default function ProviderJobDetailsScreen() {
   
   const statusDate = request?.scheduledDate ? formatDateForStatus(request.scheduledDate) : '';
 
-  // Determine current status message for provider
+  // Determine current status message for provider - same design system as client (neutral/action/success)
   const statusMessage = useMemo(() => {
     if (!request) return null;
 
-    // If job is completed
     if (request.status === 'completed') {
-      return {
-        title: 'Job completed',
-        message: `Job was completed successfully`,
-        showDetails: false,
-      };
+      return { title: 'Job completed', message: 'Job was completed successfully', showDetails: false, variant: 'success' as const };
     }
 
-    // If job is in progress
     if (request.status === 'in_progress') {
-      return {
-        title: 'Job in progress',
-        message: `You are currently working on this job`,
-        showDetails: true,
-      };
+      return { title: 'Job in progress', message: 'You are currently working on this job', showDetails: true, variant: 'success' as const };
     }
 
-    // If quotation was accepted
     if (quotationWithProvider?.status === 'accepted' || (request.status === 'accepted' && quotation)) {
       return {
         title: 'Quotation accepted',
         message: `${clientName} accepted your quotation`,
         showDetails: true,
         logisticsFee: quotation?.total || quotationWithProvider?.total,
+        variant: 'success' as const,
       };
     }
 
-    // If quotation was sent but not accepted yet
     if (quotationWithProvider && quotationWithProvider.status === 'pending') {
       return {
         title: 'Quotation sent',
         message: `Waiting for ${clientName} to approve the quotation`,
         showDetails: true,
         logisticsFee: quotationWithProvider.total,
+        variant: 'neutral' as const,
       };
     }
 
-    // If provider was selected by client but hasn't accepted yet
     if (request.selectedAt && !request.selectedProvider && selectionCountdown !== null && selectionCountdown > 0) {
-      return {
-        title: 'You were selected',
-        message: `Waiting for you to accept the selection`,
-        showDetails: true,
-      };
+      return { title: 'You were selected', message: 'Accept the selection to proceed', showDetails: true, variant: 'action' as const };
     }
 
-    // If provider has accepted but no quotation sent yet
     if (isFromAcceptedRequests && !quotationWithProvider) {
-      return {
-        title: 'Request accepted',
-        message: `Waiting for you to send a quotation`,
-        showDetails: true,
-      };
+      return { title: 'Request accepted', message: 'Send a quotation or request a visit', showDetails: true, variant: 'action' as const };
     }
 
-    // If request is pending and provider hasn't accepted
     if (request.status === 'pending' && !isFromAcceptedRequests) {
-      return {
-        title: 'New request',
-        message: `Waiting for you to accept this request`,
-        showDetails: true,
-      };
+      return { title: 'New request', message: 'Review and accept to proceed', showDetails: true, variant: 'action' as const };
     }
 
-    // Default fallback
-    return {
-      title: 'Request received',
-      message: `Processing your request`,
-      showDetails: true,
-    };
+    return { title: 'Request received', message: 'Processing your request', showDetails: true, variant: 'neutral' as const };
   }, [request, quotationWithProvider, clientName, isFromAcceptedRequests, selectionCountdown, quotation]);
 
   if (isLoading) {
@@ -1416,17 +1441,17 @@ export default function ProviderJobDetailsScreen() {
             </View>
           </View>
 
-          {/* Status Message Card - Above Timeline */}
+          {/* Status Message Card - Above Timeline (same design as client: neutral/action/success) */}
           {statusMessage && (
           <View
             style={{
-                backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
-                padding: 16,
+              backgroundColor: statusMessage.variant === 'action' ? '#E8F5E9' : statusMessage.variant === 'success' ? '#E8F5E9' : '#F9FAFB',
+              borderRadius: 16,
+              padding: 16,
               marginBottom: 16,
-                borderWidth: 1,
-                borderColor: Colors.border,
-              }}
+              borderWidth: 1,
+              borderColor: statusMessage.variant === 'action' ? 'rgba(106, 155, 0, 0.3)' : statusMessage.variant === 'success' ? 'rgba(106, 155, 0, 0.2)' : '#E5E7EB',
+            }}
             >
               <Text
                 style={{
@@ -1442,7 +1467,7 @@ export default function ProviderJobDetailsScreen() {
                 style={{
                   fontSize: 16,
                   fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
+                  color: statusMessage.variant === 'action' ? '#1B4332' : Colors.textSecondaryDark,
                   marginBottom: statusMessage.showDetails ? 12 : 0,
                   lineHeight: 24,
                 }}
@@ -1634,8 +1659,37 @@ export default function ProviderJobDetailsScreen() {
                             {step.description}
                           </Text>
                         </View>
-                        {/* Edit button for Inspection & Quotation */}
-                        {(step as any).canEdit && step.id === 'step-2' && (
+                        {/* Request visit button for Inspection step */}
+                        {(step as any).showRequestVisit && step.id === 'step-2' && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              haptics.light();
+                              router.push({
+                                pathname: '/RequestVisitScreen' as any,
+                                params: {
+                                  requestId: params.requestId,
+                                  jobTitle: request?.jobTitle,
+                                },
+                              } as any);
+                            }}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              paddingVertical: 6,
+                              paddingHorizontal: 12,
+                              backgroundColor: Colors.backgroundGray,
+                              borderRadius: BorderRadius.default,
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <MapPin size={14} color={Colors.accent} style={{ marginRight: 4 }} />
+                            <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
+                              Request visit
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        {/* Edit/Send quote button for Quotation step */}
+                        {(step as any).canEdit && step.id === 'step-2b' && (
                           <TouchableOpacity
                             onPress={() => {
                               haptics.light();
@@ -3139,6 +3193,61 @@ export default function ProviderJobDetailsScreen() {
             </>
           ) : request && (isFromAcceptedRequests || request.status === 'accepted' || request.status === 'in_progress') ? (
             <>
+              {/* Request visit & Send quote - persistent actions when no quotation sent */}
+              {!quotation && !quotationWithProvider && (
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: Colors.backgroundGray,
+                      paddingVertical: 12,
+                      borderRadius: BorderRadius.default,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'row',
+                      borderWidth: 1,
+                      borderColor: Colors.border,
+                    }}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      haptics.light();
+                      router.push({
+                        pathname: '/RequestVisitScreen' as any,
+                        params: { requestId: params.requestId, jobTitle: request?.jobTitle },
+                      } as any);
+                    }}
+                  >
+                    <MapPin size={16} color={Colors.accent} style={{ marginRight: 6 }} />
+                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
+                      Request visit
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: Colors.accent,
+                      paddingVertical: 12,
+                      borderRadius: BorderRadius.default,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'row',
+                    }}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      haptics.light();
+                      router.push({
+                        pathname: '/SendQuotationScreen' as any,
+                        params: { requestId: params.requestId, jobTitle: request?.jobTitle, returnToTab: 'Quotations' },
+                      } as any);
+                    }}
+                  >
+                    <FileText size={16} color={Colors.white} style={{ marginRight: 6 }} />
+                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+                      Send quote
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               {/* Message Client Button */}
               <TouchableOpacity
                 style={{

@@ -188,27 +188,23 @@ export default function RequestVisitScreen() {
 
     setIsSubmitting(true);
     try {
-      // Format date as YYYY-MM-DD
       const year = selectedDate.getFullYear();
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const formattedDate = `${year}-${month}-${day}`;
+      const timeFormatted = formattedTimeForSummary || `${selectedTime} AM`;
 
-      // TODO: Call API to request visit with logistics cost, date, and time
-      // For now, we'll just show success - backend team will implement the endpoint
-      // await providerService.requestVisit(Number(params.requestId), {
-      //   logisticsCost: parseFloat(logisticsCost),
-      //   scheduledDate: formattedDate,
-      //   scheduledTime: selectedTime,
-      // });
+      await providerService.requestVisit(Number(params.requestId), {
+        scheduledDate: formattedDate,
+        scheduledTime: timeFormatted,
+        logisticsCost: parseFloat(logisticsCost) || 0,
+      });
 
       haptics.success();
       showSuccess('Visit request submitted successfully!');
       setShowSummaryModal(false);
-      
-      setTimeout(() => {
-        router.back();
-      }, 1500);
+
+      setTimeout(() => router.back(), 1500);
     } catch (error: any) {
       haptics.error();
       const errorMessage = getSpecificErrorMessage(error, 'request_visit');

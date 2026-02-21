@@ -20,7 +20,7 @@ import { getCategoryIcon } from '@/utils/categoryIcons';
 import { AuthError } from '@/utils/errors';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Bell, ChevronDown, Search } from 'lucide-react-native';
+import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ServiceCategory } from '../../data/serviceCategories';
@@ -558,7 +558,7 @@ const HomeScreen = React.memo(() => {
     <SafeAreaWrapper>
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View
-          style={[animatedStyles, { flex: 1, paddingTop: 17 }]}
+          style={[animatedStyles, { flex: 1, paddingTop: 10 }]}
         >
           <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -573,23 +573,13 @@ const HomeScreen = React.memo(() => {
                     borderRadius: 12,
                     paddingVertical: 12,
                     paddingHorizontal: 12,
-                    borderWidth: 1,
-                    borderColor: Colors.border,
                     minHeight: 52,
                   }}
                   activeOpacity={0.8}
                   accessibilityLabel={location ? `Location: ${location}` : 'Enter your location'}
                   accessibilityHint="Opens location search"
                 >
-                  <View
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: Colors.accent,
-                      marginRight: 10,
-                    }}
-                  />
+                  <MapPin size={18} color={Colors.accent} style={{ marginRight: 10 }} />
                   <Text
                     style={{
                       fontSize: 14,

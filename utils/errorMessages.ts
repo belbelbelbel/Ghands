@@ -201,6 +201,8 @@ const getStatusErrorMessage = (status: number): string => {
  */
 export const getSpecificErrorMessage = (error: ApiError | Error | any, context: string): string => {
   const defaultMessages: { [key: string]: string } = {
+    'request_visit': 'Failed to request visit. Please try again.',
+    'pay_logistics_fee': 'Failed to pay logistics fee. Please try again.',
     'accept_quotation': 'Failed to accept quotation. Please try again.',
     'create_request': 'Failed to create service request. Please try again.',
     'update_job_details': 'Failed to update job details. Please check your information and try again.',

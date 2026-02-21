@@ -15,6 +15,7 @@ export interface BookingSummaryData {
   time?: string;
   location?: string;
   photoCount?: number;
+  photoUris?: string[];
   selectedProviders?: Array<{
     id: string;
     name: string;
@@ -224,6 +225,18 @@ export default function BookingSummaryModal({
                     {data.photoCount} {data.photoCount === 1 ? 'photo' : 'photos'} selected
                   </Text>
                 </View>
+                {data.photoUris && data.photoUris.length > 0 && (
+                  <View style={styles.photoPreviewGrid}>
+                    {data.photoUris.slice(0, 9).map((uri, index) => (
+                      <Image
+                        key={`preview-${index}`}
+                        source={{ uri }}
+                        style={styles.photoThumbnail}
+                        resizeMode="cover"
+                      />
+                    ))}
+                  </View>
+                )}
               </View>
             </View>
           )}
@@ -282,9 +295,9 @@ export default function BookingSummaryModal({
         </View>
       </View>
 
-      {/* Profile Completion Modal - Only show if profile is not complete */}
+      {/* Profile Completion Modal - Only show when profile is explicitly incomplete (never after user has completed) */}
       <ProfileCompletionModal
-        visible={showProfileModal && isProfileComplete !== true}
+        visible={showProfileModal && isProfileComplete === false}
         onClose={() => {
           setShowProfileModal(false);
         }}
@@ -382,6 +395,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    marginBottom: 8,
+  },
+  photoPreviewGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  photoThumbnail: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    backgroundColor: Colors.backgroundGray,
   },
   providersList: {
     marginTop: Spacing.sm,

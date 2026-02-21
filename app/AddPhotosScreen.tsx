@@ -5,8 +5,11 @@ import { Colors } from '@/lib/designSystem';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Camera, Plus, X } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+
+const BOOKING_PHOTO_URIS_KEY = '@ghands:booking_photo_uris';
 
 const { width: screenWidth } = Dimensions.get('window');
 const IMAGE_SIZE = (screenWidth - 48) / 3 - 8;
@@ -202,8 +205,17 @@ export default function AddPhotosScreen() {
       clearTimeout(findingTimeoutRef.current);
     }
 
-    findingTimeoutRef.current = setTimeout(() => {
+    findingTimeoutRef.current = setTimeout(async () => {
       setIsFindingProviders(false);
+      // Store photo URIs for preview in Booking Summary
+      const selectedUris = photos
+        .filter((p) => selectedPhotos.has(p.id))
+        .map((p) => p.uri);
+      try {
+        await AsyncStorage.setItem(BOOKING_PHOTO_URIS_KEY, JSON.stringify(selectedUris));
+      } catch {
+        // Non-fatal; preview just won't show
+      }
       // Pass ALL booking params to ServiceMapScreen
       router.replace({
         pathname: '/ServiceMapScreen' as any,
@@ -219,7 +231,7 @@ export default function AddPhotosScreen() {
         },
       } as any);
     }, 1800);
-  }, [isFindingProviders, selectedPhotos, router, params]);
+  }, [isFindingProviders, selectedPhotos, photos, router, params]);
 
   const handleCancel = useCallback(() => {
     // Navigate back to DateTimeScreen explicitly

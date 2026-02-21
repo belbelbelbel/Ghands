@@ -1314,6 +1314,15 @@ export interface ServiceRequest {
   };
   selectedAt?: string;  // Timestamp when provider was selected
   selectionTimeoutAt?: string;  // When selection expires (selectedAt + 5 minutes)
+
+  // Inspection/visit flow (when backend implements request-visit)
+  visitRequest?: {
+    scheduledDate?: string;
+    scheduledTime?: string;
+    logisticsCost?: number;
+    logisticsStatus?: 'pending_payment' | 'paid' | 'cancelled';
+    requestedAt?: string;
+  };
 }
 
 export const serviceRequestService = {
@@ -1903,6 +1912,21 @@ export const walletService = {
       return response.data;
     } catch (error) {
       console.error('Error paying for service:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Pay logistics fee for an inspection visit
+   * Backend endpoint: POST /api/wallet/pay-logistics-fee
+   */
+  payLogisticsFee: async (payload: { requestId: number; amount: number; pin: string }): Promise<PayForServiceResponse> => {
+    try {
+      const response = await apiClient.post<{ data: PayForServiceResponse }>(`/api/wallet/pay-logistics-fee`, payload);
+      const data = (response as any)?.data?.data ?? (response as any)?.data;
+      return data;
+    } catch (error) {
+      console.error('Error paying logistics fee:', error);
       throw error;
     }
   },
@@ -2793,6 +2817,35 @@ export const providerService = {
       return response.data;
     } catch (error) {
       console.error('Error rejecting request:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Request an inspection visit (providerId extracted from token automatically)
+   * Backend endpoint: POST /api/provider/requests/:requestId/request-visit
+   * Call after accepting the request.
+   */
+  requestVisit: async (
+    requestId: number,
+    payload: { scheduledDate: string; scheduledTime: string; logisticsCost: number }
+  ): Promise<{
+    requestId: number;
+    scheduledDate: string;
+    scheduledTime: string;
+    logisticsCost: number;
+    logisticsStatus: string;
+    message: string;
+  }> => {
+    try {
+      const response = await apiClient.post<{ data: any }>(
+        `/api/provider/requests/${requestId}/request-visit`,
+        payload
+      );
+      const data = (response as any)?.data?.data ?? (response as any)?.data;
+      return data;
+    } catch (error) {
+      console.error('Error requesting visit:', error);
       throw error;
     }
   },

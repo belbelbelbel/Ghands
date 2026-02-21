@@ -9,7 +9,7 @@ import { QuotationWithProvider, ServiceRequest, serviceRequestService, walletSer
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { CheckCircle, CheckCircle2, Circle, Clock, FileText, Wrench } from 'lucide-react-native';
+import { CheckCircle, CheckCircle2, Circle, Clock, FileText, MapPinned, Wrench } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -312,18 +312,76 @@ export default function OngoingJobDetails() {
       
     }
 
-    // Step 3: Inspection & Quotation
-    // Provider inspects the job and sends quotation
-    // This is separate from quotation acceptance - focus on provider's action
+    // Step 3a: Inspection (visit) - separate from quotation
     const hasQuotationSent = quotations.some(q => q.sentAt || (q.status && q.status !== null));
-    
+    const visitRequest = (request as any).visitRequest;
+    const hasVisitRequested = !!(visitRequest && (visitRequest.scheduledDate || visitRequest.logisticsCost != null));
+    const visitPaid = visitRequest?.logisticsStatus === 'paid';
+
     if (hasAcceptedProviders) {
       if (hasQuotationSent) {
-        // Quotation sent - green (completed)
-        const quotation = quotations.find(q => q.sentAt || (q.status && q.status !== null));
         timeline.push({
           id: 'step-3',
-        title: 'Inspection & Quotation',
+          title: 'Inspection',
+          description: hasVisitRequested ? 'Visit completed.' : 'Provider sent quotation directly.',
+          status: 'Completed',
+          accent: '#DCFCE7',
+          dotColor: '#6A9B00',
+          isActive: false,
+          isCompleted: true,
+          icon: MapPinned,
+        });
+      } else if (hasVisitRequested) {
+        timeline.push({
+          id: 'step-3',
+          title: 'Inspection',
+          description: visitPaid
+            ? `Visit confirmed for ${visitRequest.scheduledDate || ''} ${visitRequest.scheduledTime || ''}. Awaiting quotation.`
+            : `Provider requested a visit on ${visitRequest.scheduledDate || ''} ${visitRequest.scheduledTime || ''}. Confirm by paying ₦${visitRequest.logisticsCost ?? 0} or decline.`,
+          status: visitPaid ? 'Completed' : 'In Progress',
+          accent: visitPaid ? '#DCFCE7' : '#FEF9C3',
+          dotColor: visitPaid ? '#6A9B00' : '#F59E0B',
+          isActive: !visitPaid,
+          isCompleted: visitPaid,
+          icon: MapPinned,
+          showPayLogistics: !visitPaid,
+          showRejectVisit: !visitPaid,
+          logisticsCost: visitRequest.logisticsCost ?? 0,
+        });
+      } else {
+        timeline.push({
+          id: 'step-3',
+          title: 'Inspection',
+          description: 'Provider will inspect and send a quotation. You will receive it shortly.',
+          status: 'In Progress',
+          accent: '#FEF9C3',
+          dotColor: '#F59E0B',
+          isActive: true,
+          isCompleted: false,
+          icon: MapPinned,
+        });
+      }
+    } else {
+      timeline.push({
+        id: 'step-3',
+        title: 'Inspection',
+        description: 'Waiting for providers to accept. Then they will inspect and send a quotation.',
+        status: 'Pending',
+        accent: '#F3F4F6',
+        dotColor: '#9CA3AF',
+        isActive: false,
+        isCompleted: false,
+        icon: Circle,
+      });
+    }
+
+    // Step 3b: Quotation
+    if (hasAcceptedProviders) {
+      if (hasQuotationSent) {
+        const quotation = quotations.find(q => q.sentAt || (q.status && q.status !== null));
+        timeline.push({
+          id: 'step-3b',
+          title: 'Quotation',
           description: 'Provider sent a quotation. Review cost and details, then accept or decline.',
           status: `Completed - ${formatTimeAgo(quotation?.sentAt || request.updatedAt || '')}`,
           accent: '#DCFCE7',
@@ -333,25 +391,25 @@ export default function OngoingJobDetails() {
           icon: FileText,
         });
       } else {
-        // Providers accepted but no quotation sent yet - yellow (in progress)
         timeline.push({
-          id: 'step-3',
-          title: 'Inspection & Quotation',
-          description: 'Provider is inspecting the job and preparing a quotation. You will receive it shortly.',
+          id: 'step-3b',
+          title: 'Quotation',
+          description: hasVisitRequested && !visitPaid
+            ? 'After you pay the logistics fee, provider will visit and send a quotation.'
+            : 'Provider is preparing a quotation. You will receive it shortly.',
           status: 'In Progress',
           accent: '#FEF9C3',
-        dotColor: '#F59E0B',
+          dotColor: '#F59E0B',
           isActive: true,
           isCompleted: false,
-          icon: Clock,
-      });
+          icon: FileText,
+        });
       }
     } else {
-      // No providers accepted yet - show pending
       timeline.push({
-        id: 'step-3',
-        title: 'Inspection & Quotation',
-        description: 'Waiting for providers to accept. Then they will inspect and send a quotation.',
+        id: 'step-3b',
+        title: 'Quotation',
+        description: 'Waiting for quotation from provider.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -500,7 +558,7 @@ export default function OngoingJobDetails() {
     return timeline;
   }, [request, acceptedProviders, quotations, selectionCountdown]);
 
-  // High-level header description above the timeline to explain current phase
+  // High-level header description above the timeline - consistent design with variant for action states
   const timelineHeader = useMemo(() => {
     if (!request) return null;
 
@@ -518,65 +576,43 @@ export default function OngoingJobDetails() {
     };
 
     if (request.status === 'completed') {
-      return {
-        title: 'Job completed',
-        subtitle: 'Job complete. Funds released to provider. Thank you.',
-      };
+      return { title: 'Job completed', subtitle: 'Job complete. Funds released to provider. Thank you.', variant: 'neutral' as const };
     }
 
     if (request.status === 'in_progress') {
-      return {
-        title: 'Job in progress',
-        subtitle: 'Provider is on site. Mark complete when satisfied.',
-      };
+      return { title: 'Job in progress', subtitle: 'Provider is on site. Mark complete when satisfied.', variant: 'neutral' as const };
     }
 
-    // Check if payment is completed (from status or paymentStatus param)
-    // Payment is separate from timeline - we check status to show appropriate header message
     const isPaymentConfirmed = cameFromPaymentSuccess || 
       (quotationAccepted && ((request.status as any) === 'scheduled' || (request.status as any) === 'in_progress' || (request.status as any) === 'completed'));
-    
+
     if (isPaymentConfirmed && (request.status as any) === 'scheduled') {
-      // Payment confirmed, waiting for provider to start
       const amountText = acceptedQuotation ? `₦${formatCurrency(acceptedQuotation.total)}` : '';
       return {
         title: 'Payment confirmed',
-        subtitle: amountText
-          ? `Payment of ${amountText} secured in escrow. Waiting for provider to start.`
-          : 'Payment secured. Waiting for provider to start.',
+        subtitle: amountText ? `Payment of ${amountText} secured in escrow. Waiting for provider to start.` : 'Payment secured. Waiting for provider to start.',
+        variant: 'success' as const,
       };
     }
 
     if (quotationAccepted && !isPaymentConfirmed) {
-      // Quotation accepted but payment not completed yet
       const amountText = acceptedQuotation ? `₦${formatCurrency(acceptedQuotation.total)}` : '';
       return {
         title: 'Quotation accepted – payment required',
-        subtitle: amountText
-          ? `Accepted ${amountText}. Complete payment to secure the job.`
-          : 'Complete payment to secure the job.',
+        subtitle: amountText ? `Accepted ${amountText}. Complete payment to secure the job.` : 'Complete payment to secure the job.',
+        variant: 'action' as const,
       };
     }
 
     if (hasQuotationSent) {
-      return {
-        title: 'Quotation received',
-        subtitle: 'Review cost and details, then accept or decline.',
-      };
+      return { title: 'Quotation received', subtitle: 'Review cost and details, then accept or decline.', variant: 'neutral' as const };
     }
 
     if (hasAcceptedProviders) {
-      return {
-        title: 'Provider accepted your request',
-        subtitle: 'Provider will inspect and send a quotation.',
-      };
+      return { title: 'Provider accepted your request', subtitle: 'Provider will inspect and send a quotation.', variant: 'neutral' as const };
     }
 
-    // Default: waiting for providers
-    return {
-      title: 'Waiting for providers',
-      subtitle: 'Nearby providers are being notified. Updates will appear here.',
-    };
+    return { title: 'Waiting for providers', subtitle: 'Nearby providers are being notified. Updates will appear here.', variant: 'neutral' as const };
   }, [request, acceptedProviders, quotations, cameFromPaymentSuccess]);
 
   // Load quotations from API (6.3 endpoint)
@@ -1237,6 +1273,73 @@ export default function OngoingJobDetails() {
                   size="small"
                   animated={true}
                 />
+                {((step as any).showPayLogistics || (step as any).showRejectVisit) && (
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                    {(step as any).showPayLogistics && (
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          haptics.light();
+                          router.push({
+                            pathname: '/ConfirmWalletPaymentScreen' as any,
+                            params: {
+                              requestId: params.requestId,
+                              amount: String((step as any).logisticsCost ?? 0),
+                              paymentType: 'logistics_fee' as const,
+                              serviceName: request?.jobTitle || 'Inspection',
+                            },
+                          } as any);
+                        }}
+                        style={{
+                          backgroundColor: Colors.accent,
+                          paddingVertical: 10,
+                          paddingHorizontal: 16,
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+                          Confirm & pay (₦{(step as any).logisticsCost ?? 0})
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    {(step as any).showRejectVisit && (
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          haptics.light();
+                          Alert.alert(
+                            'Decline visit?',
+                            'Provider will be notified. They can send a quotation directly without visiting.',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Decline visit',
+                                style: 'destructive',
+                                onPress: () => {
+                                  // TODO: Call API when backend implements decline-visit
+                                  showSuccess('Visit declined. Provider can send quotation directly.');
+                                  loadRequestData();
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                        style={{
+                          backgroundColor: Colors.backgroundGray,
+                          paddingVertical: 10,
+                          paddingHorizontal: 16,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: Colors.border,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.textSecondaryDark }}>
+                          Decline visit
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
               </Animated.View>
             </View>
           );
@@ -1502,25 +1605,35 @@ export default function OngoingJobDetails() {
                   ) : null // Don't show message if job is in progress - providers have accepted
                 )}
 
-                {/* High-level status description above the timeline */}
+                {/* High-level status description above the timeline - consistent design by variant */}
                 {timelineHeader && (
-                  <View className="mb-5 rounded-2xl bg-gray-50 px-4 py-3">
+                  <View
+                    style={{
+                      marginBottom: 20,
+                      borderRadius: 16,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      backgroundColor: timelineHeader.variant === 'action' ? '#E8F5E9' : timelineHeader.variant === 'success' ? '#E8F5E9' : '#F9FAFB',
+                      borderWidth: 1,
+                      borderColor: timelineHeader.variant === 'action' ? 'rgba(106, 155, 0, 0.3)' : timelineHeader.variant === 'success' ? 'rgba(106, 155, 0, 0.2)' : '#E5E7EB',
+                    }}
+                  >
                     <Text
-                      style={{ 
+                      style={{
                         fontSize: 18,
                         fontFamily: 'Poppins-Bold',
                         color: Colors.textPrimary,
-                        marginBottom: 6,
+                        marginBottom: timelineHeader.subtitle ? 6 : 0,
                       }}
                     >
                       {timelineHeader.title}
                     </Text>
                     {timelineHeader.subtitle ? (
                       <Text
-                        style={{ 
+                        style={{
                           fontSize: 15,
                           fontFamily: 'Poppins-Regular',
-                          color: Colors.textSecondaryDark,
+                          color: timelineHeader.variant === 'action' ? '#1B4332' : Colors.textSecondaryDark,
                           lineHeight: 22,
                         }}
                       >

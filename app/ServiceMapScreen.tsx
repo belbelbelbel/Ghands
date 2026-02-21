@@ -1,7 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import ServiceMap, { ProviderCategory, ServiceProvider } from '@/components/ServiceMap';
 import BookingSummaryModal, { BookingSummaryData } from '@/components/BookingSummaryModal';
 import { haptics } from '@/hooks/useHaptics';
+
+const BOOKING_PHOTO_URIS_KEY = '@ghands:booking_photo_uris';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import * as Location from 'expo-location';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -108,6 +111,7 @@ const ServiceMapScreen = () => {
   const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   const [serviceLocationCoords, setServiceLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [providerError, setProviderError] = useState<string | null>(null);
+  const [bookingPhotoUris, setBookingPhotoUris] = useState<string[]>([]);
   
   // Booking data state - synced with params
   const [bookingData, setBookingData] = useState<{
@@ -126,7 +130,7 @@ const ServiceMapScreen = () => {
     location: params.location,
   });
 
-  // Update booking data when params change (after editing)
+  // Update booking data and photo URIs when params change (after editing)
   useFocusEffect(
     useCallback(() => {
       // Sync booking data with params whenever screen comes into focus
@@ -143,6 +147,22 @@ const ServiceMapScreen = () => {
       if (params.location) {
         setServiceLocation(params.location);
       }
+
+      // Load photo URIs for Booking Summary preview
+      AsyncStorage.getItem(BOOKING_PHOTO_URIS_KEY)
+        .then((stored) => {
+          if (stored) {
+            try {
+              const uris = JSON.parse(stored) as string[];
+              setBookingPhotoUris(Array.isArray(uris) ? uris : []);
+            } catch {
+              setBookingPhotoUris([]);
+            }
+          } else {
+            setBookingPhotoUris([]);
+          }
+        })
+        .catch(() => setBookingPhotoUris([]));
     }, [params.serviceType, params.selectedDateTime, params.selectedDate, params.selectedTime, params.photoCount, params.location])
   );
 
@@ -656,7 +676,8 @@ const ServiceMapScreen = () => {
         onClose={() => setShowSummaryModal(false)}
         onConfirm={async () => {
           setShowSummaryModal(false);
-          
+          await AsyncStorage.removeItem(BOOKING_PHOTO_URIS_KEY);
+
           // If user selected a provider and we have requestId, call selectProvider API
           if (selectedProviders.length > 0 && params.requestId) {
             try {
@@ -683,11 +704,10 @@ const ServiceMapScreen = () => {
           router.replace('../BookingConfirmationScreen' as any);
         }}
         onEditService={(bookingData) => {
-          // Navigate back to service selection with current data preserved
           router.push({
             pathname: '/ServicesGridScreen' as any,
             params: {
-              // Pass current booking data so it can be restored
+              requestId: params.requestId,
               preserveData: 'true',
               serviceType: bookingData.serviceType || params.serviceType,
               selectedDateTime: bookingData.dateTime || params.selectedDateTime,
@@ -699,10 +719,11 @@ const ServiceMapScreen = () => {
           } as any);
         }}
         onEditDateTime={(bookingData) => {
-          // Navigate to date/time screen with all current data preserved
           router.push({
             pathname: '/DateTimeScreen' as any,
             params: {
+              requestId: params.requestId,
+              categoryName: params.categoryName || bookingData.serviceType,
               selectedDateTime: bookingData.dateTime || params.selectedDateTime,
               selectedDate: bookingData.date || params.selectedDate,
               selectedTime: bookingData.time || params.selectedTime,
@@ -714,10 +735,10 @@ const ServiceMapScreen = () => {
           } as any);
         }}
         onEditLocation={(bookingData) => {
-          // Navigate to location search with current data preserved
           router.push({
             pathname: '/LocationSearchScreen' as any,
             params: {
+              requestId: params.requestId,
               next: 'ServiceMapScreen',
               preserveData: 'true',
               serviceType: bookingData.serviceType || params.serviceType,
@@ -730,10 +751,11 @@ const ServiceMapScreen = () => {
           } as any);
         }}
         onEditPhotos={(bookingData) => {
-          // Navigate to photos screen with all current data preserved
           router.push({
             pathname: '/AddPhotosScreen' as any,
             params: {
+              requestId: params.requestId,
+              categoryName: params.categoryName || bookingData.serviceType,
               selectedDateTime: bookingData.dateTime || params.selectedDateTime,
               selectedDate: bookingData.date || params.selectedDate,
               selectedTime: bookingData.time || params.selectedTime,
@@ -755,7 +777,8 @@ const ServiceMapScreen = () => {
           date: bookingData.date || params.selectedDate,
           time: bookingData.time || params.selectedTime,
           location: serviceLocation || bookingData.location || savedLocation || 'Location not set',
-          photoCount: bookingData.photoCount || (params.photoCount ? parseInt(params.photoCount, 10) : 0),
+          photoCount: bookingData.photoCount ?? (params.photoCount ? parseInt(params.photoCount, 10) : 0),
+          photoUris: bookingPhotoUris,
           selectedProviders: selectedProviders.map((p) => ({
             id: p.id,
             name: p.name,

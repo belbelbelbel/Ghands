@@ -30,6 +30,7 @@ export default function ConfirmWalletPaymentScreen() {
     quotationId?: string;
     providerName?: string;
     serviceName?: string;
+    paymentType?: 'service' | 'logistics_fee';
   }>();
   const { toast, showError, showSuccess, hideToast } = useToast();
 
@@ -120,11 +121,10 @@ export default function ConfirmWalletPaymentScreen() {
     setPaymentStep('processing');
 
     try {
-      const response = await walletService.payForService({
-        requestId,
-        amount: amountNum,
-        pin: pinValue,
-      });
+      const isLogisticsFee = params.paymentType === 'logistics_fee';
+      const response = isLogisticsFee
+        ? await walletService.payLogisticsFee({ requestId, amount: amountNum, pin: pinValue })
+        : await walletService.payForService({ requestId, amount: amountNum, pin: pinValue });
 
       setTimeout(() => { setPaymentStep('verifying'); haptics.light(); }, 1500);
       setTimeout(() => { setPaymentStep('completing'); haptics.light(); }, 3000);
@@ -144,7 +144,6 @@ export default function ConfirmWalletPaymentScreen() {
       }, 5500);
     } catch (error: any) {
       console.error('Error processing payment:', error);
-      setIsProcessingPayment(false);
       setShowProcessingModal(false);
       setShowPinModal(false);
       setPin(['', '', '', '']);
@@ -172,7 +171,8 @@ export default function ConfirmWalletPaymentScreen() {
         return;
       }
 
-      const errorMsg = getSpecificErrorMessage(error, 'pay_for_service') || errorMessage || 'Payment failed. Please try again.';
+      const errorContext = params.paymentType === 'logistics_fee' ? 'pay_logistics_fee' : 'pay_for_service';
+      const errorMsg = getSpecificErrorMessage(error, errorContext) || errorMessage || 'Payment failed. Please try again.';
       const isInsufficientBalance = /insufficient|balance/i.test(errorMessage) || /insufficient|balance/i.test(errorMsg);
       haptics.error();
       showError(errorMsg);

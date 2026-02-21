@@ -219,20 +219,7 @@ export default function PaymentSuccessfulScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => {
-            // Navigate back to job details if requestId is available, so data reloads
-            if (params.requestId) {
-              router.replace({
-                pathname: '/OngoingJobDetails' as any,
-                params: {
-                  requestId: params.requestId,
-                  paymentStatus: 'success',
-                },
-              } as any);
-            } else {
-              router.back();
-            }
-          }}
+          onPress={() => router.back()}
           style={{
             width: 40,
             height: 40,

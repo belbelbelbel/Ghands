@@ -105,6 +105,11 @@ const formatApiErrorMessage = (message: string): string => {
 
   // Common API error patterns to make more user-friendly
   const errorMappings: { [key: string]: string } = {
+    'Scheduled date cannot be in the past': 'Please select a future date and time for your visit.',
+    'date cannot be in the past': 'Please select a future date and time for your visit.',
+    'You must accept the request before requesting a visit': 'Please accept the request first, then schedule your visit.',
+    'You have not accepted this request': 'Please accept the request first, then try again.',
+    'You must accept the request before sending a quotation': 'Please accept the request first, then send your quotation.',
     'User already Exists. Sign In instead.': 'An account with this email or phone number already exists. Please sign in instead.',
     'Invalid email or password': 'The email or password you entered is incorrect. Please try again.',
     'User not found': 'No account found with these details. Please check and try again.',
@@ -202,7 +207,9 @@ const getStatusErrorMessage = (status: number): string => {
 export const getSpecificErrorMessage = (error: ApiError | Error | any, context: string): string => {
   const defaultMessages: { [key: string]: string } = {
     'request_visit': 'Failed to request visit. Please try again.',
+    'request_visit_must_accept': 'Please accept the request first, then request a visit.',
     'pay_logistics_fee': 'Failed to pay logistics fee. Please try again.',
+    'decline_visit': 'Failed to decline visit. Please try again.',
     'accept_quotation': 'Failed to accept quotation. Please try again.',
     'create_request': 'Failed to create service request. Please try again.',
     'update_job_details': 'Failed to update job details. Please check your information and try again.',
@@ -228,6 +235,8 @@ export const getSpecificErrorMessage = (error: ApiError | Error | any, context: 
     'get_provider_quotations': 'Failed to load quotations. Please try again.',
     'pay_for_service': 'Payment failed. Please check your PIN and wallet balance, then try again.',
     'complete_service_request': 'Failed to complete job. Please ensure payment is completed and try again.',
+    'start_work_order': 'Failed to start work order. Please try again.',
+    'provider_mark_complete': 'Failed to mark work complete. Please try again.',
   };
 
   const defaultMessage = defaultMessages[context] || 'Something went wrong. Please try again.';

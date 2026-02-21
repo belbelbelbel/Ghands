@@ -579,16 +579,18 @@ const HomeScreen = React.memo(() => {
                   accessibilityLabel={location ? `Location: ${location}` : 'Enter your location'}
                   accessibilityHint="Opens location search"
                 >
-                  <MapPin size={18} color={Colors.accent} style={{ marginRight: 10 }} />
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                    <MapPin size={18} color={Colors.accent} />
+                  </View>
                   <Text
                     style={{
                       fontSize: 14,
-                      fontFamily: 'Poppins-Medium',
+                      fontFamily: 'Poppins-SemiBold',
                       color: location ? Colors.textPrimary : Colors.textSecondaryDark,
                       flex: 1,
                       marginRight: 4,
                     }}
-                    numberOfLines={2}
+                    numberOfLines={1}
                     ellipsizeMode="tail"
                   >
                     {location || 'Enter your location'}

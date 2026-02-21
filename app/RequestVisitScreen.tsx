@@ -186,15 +186,33 @@ export default function RequestVisitScreen() {
   const handleConfirmAppointment = async () => {
     if (!params.requestId || !selectedDate || !selectedTime) return;
 
+    // Validate date is not in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    if (selectedDay < today) {
+      showError('Please select a future date and time for your visit.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      const requestId = Number(params.requestId);
       const year = selectedDate.getFullYear();
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const formattedDate = `${year}-${month}-${day}`;
       const timeFormatted = formattedTimeForSummary || `${selectedTime} AM`;
 
-      await providerService.requestVisit(Number(params.requestId), {
+      // Always accept first — choosing "Request visit" means provider accepts the request
+      try {
+        await providerService.acceptRequest(requestId);
+      } catch (acceptErr: any) {
+        const msg = (acceptErr?.message || acceptErr?.details?.data?.message || '').toLowerCase();
+        if (!msg.includes('already accepted')) throw acceptErr;
+      }
+
+      await providerService.requestVisit(requestId, {
         scheduledDate: formattedDate,
         scheduledTime: timeFormatted,
         logisticsCost: parseFloat(logisticsCost) || 0,

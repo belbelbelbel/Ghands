@@ -1293,7 +1293,7 @@ export interface ServiceRequest {
   };
   scheduledDate?: string;
   scheduledTime?: string;
-  status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'accepted' | 'inspecting' | 'quoting' | 'scheduled' | 'in_progress' | 'reviewing' | 'completed' | 'cancelled';
   nearbyProviders?: NearbyProvider[];
   user?: {
     id: number;
@@ -1474,6 +1474,26 @@ export const serviceRequestService = {
       
       if (requestData && requestData.nearbyProviders && !Array.isArray(requestData.nearbyProviders)) {
         requestData.nearbyProviders = [];
+      }
+      if (requestData?.status && typeof requestData.status === 'string') {
+        (requestData as any).status = requestData.status.toLowerCase();
+      }
+
+      // Normalize visitRequest – backend may return visit_request, nested, or flat
+      if (requestData) {
+        const raw = requestData as any;
+        const vr = raw.visitRequest ?? raw.visit_request;
+        const hasNested = vr && (vr.scheduledDate ?? vr.scheduled_date ?? vr.logisticsCost ?? vr.logistics_cost);
+        const hasFlat = raw.scheduledDate ?? raw.scheduled_date ?? raw.logisticsCost ?? raw.logistics_cost;
+        if (hasNested || hasFlat) {
+          (requestData as any).visitRequest = {
+            scheduledDate: vr?.scheduledDate ?? vr?.scheduled_date ?? raw.scheduledDate ?? raw.scheduled_date,
+            scheduledTime: vr?.scheduledTime ?? vr?.scheduled_time ?? raw.scheduledTime ?? raw.scheduled_time,
+            logisticsCost: vr?.logisticsCost ?? vr?.logistics_cost ?? raw.logisticsCost ?? raw.logistics_cost,
+            logisticsStatus: vr?.logisticsStatus ?? vr?.logistics_status ?? raw.logisticsStatus ?? raw.logistics_status,
+            requestedAt: vr?.requestedAt ?? vr?.requested_at ?? raw.visitRequestedAt ?? raw.visit_requested_at,
+          };
+        }
       }
       
       return requestData;
@@ -1708,6 +1728,27 @@ export const serviceRequestService = {
       return response.data;
     } catch (error) {
       console.error('Error completing service request:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Decline visit – when client declines provider's visit request.
+   * Backend endpoint: POST /api/request-service/requests/:requestId/decline-visit
+   */
+  declineVisit: async (requestId: number): Promise<{
+    requestId: number;
+    visitStatus: string;
+    message: string;
+  }> => {
+    try {
+      const response = await apiClient.post<{
+        data: { requestId: number; visitStatus: string; message: string };
+      }>(`/api/request-service/requests/${requestId}/decline-visit`, {});
+      const data = extractResponseData<{ requestId: number; visitStatus: string; message: string }>(response);
+      return data ?? { requestId, visitStatus: 'declined', message: 'Visit declined.' };
+    } catch (error) {
+      console.error('Error declining visit:', error);
       throw error;
     }
   },
@@ -2817,6 +2858,60 @@ export const providerService = {
       return response.data;
     } catch (error) {
       console.error('Error rejecting request:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Start work order – provider begins the job (updates status to in_progress).
+   * Backend endpoint: POST /api/provider/requests/:requestId/start (or equivalent)
+   * Call when provider taps Start after payment is received.
+   */
+  startWorkOrder: async (requestId: number): Promise<{
+    requestId: number;
+    status: string;
+    message?: string;
+  }> => {
+    try {
+      const response = await apiClient.post<{ data: any }>(
+        `/api/provider/requests/${requestId}/start`,
+        {}
+      );
+      const data = (response as any)?.data?.data ?? (response as any)?.data ?? response?.data;
+      return {
+        requestId,
+        status: data?.status ?? 'in_progress',
+        message: data?.message ?? 'Job started successfully.',
+      };
+    } catch (error) {
+      console.error('Error starting work order:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Mark work complete – provider signals job is done (moves status to reviewing).
+   * Client must then call completeServiceRequest to release payment.
+   * Backend endpoint: POST /api/provider/requests/:requestId/complete
+   */
+  markWorkComplete: async (requestId: number): Promise<{
+    requestId: number;
+    status: string;
+    message?: string;
+  }> => {
+    try {
+      const response = await apiClient.post<{ data: any }>(
+        `/api/provider/requests/${requestId}/complete`,
+        {}
+      );
+      const data = (response as any)?.data?.data ?? (response as any)?.data ?? response?.data;
+      return {
+        requestId,
+        status: data?.status ?? 'reviewing',
+        message: data?.message ?? 'Work marked complete. Waiting for client to confirm.',
+      };
+    } catch (error) {
+      console.error('Error marking work complete:', error);
       throw error;
     }
   },

@@ -44,7 +44,7 @@ So after payment succeeds, the request status **must** be updated to `scheduled`
 When the frontend fetches request details after payment (either by navigating back, pull-to-refresh, or auto-refresh), these endpoints must return the updated status:
 
 - **Client:** `GET /api/request-service/requests/:requestId` – must return `status: "scheduled"` after payment
-- **Provider:** `GET /api/provider/requests/accepted` (or equivalent provider job details endpoint) – must return `status: "scheduled"` for the paid request
+- **Provider:** `GET /api/provider/requests/accepted` – must return `status: "scheduled"` for the paid request (this is the only source the provider app uses)
 
 The response must include the updated `status` and `updatedAt` fields so the timeline can render correctly.
 
@@ -93,3 +93,33 @@ The response must include the updated `status` and `updatedAt` fields so the tim
 ---
 
 **Once this is fixed, the timeline will update correctly for both client and provider after successful payment.**
+
+---
+
+## Provider Start Button → in_progress
+
+When the provider taps **Start** (after payment is received), the frontend calls:
+
+```
+POST /api/provider/requests/:requestId/start
+Authorization: Bearer <provider-token>
+```
+
+**Backend must:**
+1. Verify the provider is the assigned provider for this request
+2. Verify the request status is `scheduled` (payment received)
+3. Update the service request: **status = 'in_progress'**
+4. Update `updatedAt`
+5. Return `{ data: { requestId, status: "in_progress", message: "Job started" } }`
+
+If this endpoint does not exist, the app will show a success message but the client and provider timelines will not persist the "Job in progress" state across refreshes.
+
+---
+
+## How to verify the backend
+
+After the client pays, call these endpoints and check `status`:
+- `GET /api/request-service/requests/:requestId` (with client token) – must return `status: "scheduled"`
+- `GET /api/provider/requests/accepted` (with provider token) – the matching request in the list must have `status: "scheduled"`
+
+If either returns `"accepted"` or `"pending"` after payment, the backend is not updating status correctly.

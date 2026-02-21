@@ -556,12 +556,12 @@ export default function ProviderUpdatesScreen() {
                 const iconSize = step.isCompleted || step.isActive ? 14 : 12;
                 const animation = timelineAnimations[index];
                 const lineAnim = !isLast ? lineAnimations[index] : null;
-                
+
                 return (
-                  <Animated.View 
-                    key={step.id} 
-                    style={{ 
-                      flexDirection: 'row', 
+                  <Animated.View
+                    key={step.id}
+                    style={{
+                      flexDirection: 'row',
                       marginBottom: isLast ? 0 : 12,
                       opacity: animation.interpolate({
                         inputRange: [0, 1],
@@ -575,7 +575,6 @@ export default function ProviderUpdatesScreen() {
                       }],
                     }}
                   >
-                    {/* Timeline Indicator */}
                     <View style={{ alignItems: 'center', marginRight: 12 }}>
                       <Animated.View
                         style={{
@@ -588,10 +587,7 @@ export default function ProviderUpdatesScreen() {
                           borderWidth: step.isCompleted || step.isActive ? 0 : 2,
                           borderColor: '#E5E7EB',
                           shadowColor: step.isCompleted || step.isActive ? step.dotColor : '#000',
-                          shadowOffset: {
-                            width: 0,
-                            height: 2,
-                          },
+                          shadowOffset: { width: 0, height: 2 },
                           shadowOpacity: step.isCompleted || step.isActive ? 0.2 : 0.05,
                           shadowRadius: 4,
                           elevation: step.isCompleted || step.isActive ? 4 : 1,
@@ -603,9 +599,9 @@ export default function ProviderUpdatesScreen() {
                           }],
                         }}
                       >
-                        <IconComponent 
-                          size={iconSize} 
-                          color={step.isCompleted || step.isActive ? Colors.white : '#9CA3AF'} 
+                        <IconComponent
+                          size={iconSize}
+                          color={step.isCompleted || step.isActive ? Colors.white : '#9CA3AF'}
                         />
                       </Animated.View>
                       {!isLast && (
@@ -632,16 +628,10 @@ export default function ProviderUpdatesScreen() {
                       )}
                     </View>
 
-                    {/* Timeline Content */}
-                    <Animated.View 
-                      style={{ 
-                        flex: 1,
-                        opacity: animation.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, 1],
-                        }),
-                      }}
-                    >
+                    <Animated.View style={{ flex: 1, opacity: animation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                    }) }}>
                       <Text
                         style={{
                           fontSize: 13,

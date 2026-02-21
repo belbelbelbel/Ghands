@@ -191,6 +191,14 @@ export default function SendQuotationScreen() {
         tax: 10, // Fixed tax of ₦10
       };
 
+      // Always accept first — choosing "Send quotation" means provider accepts the request
+      try {
+        await providerService.acceptRequest(requestId);
+      } catch (acceptErr: any) {
+        const msg = (acceptErr?.message || acceptErr?.details?.data?.message || '').toLowerCase();
+        if (!msg.includes('already accepted')) throw acceptErr;
+      }
+
       await providerService.sendQuotation(requestId, payload);
 
       haptics.success();

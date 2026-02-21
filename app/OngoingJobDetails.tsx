@@ -262,6 +262,7 @@ export default function OngoingJobDetails() {
     const hasAcceptedProvidersFromAPI = acceptedProviders && acceptedProviders.length > 0;
     const hasAcceptedProvidersFromStatus = request.status === 'in_progress' || 
                                            (request.status as any) === 'scheduled' || 
+                                           request.status === 'reviewing' ||
                                            request.status === 'completed' ||
                                            request.status === 'accepted' ||
                                            quotations.length > 0; // If quotations exist, providers must have accepted
@@ -472,7 +473,6 @@ export default function OngoingJobDetails() {
     // - Status 'scheduled' (payment done) → GREY (waiting for provider to click Start)
     
     if (request.status === 'in_progress') {
-      // Provider has clicked Start button - job is in progress - show yellow
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
@@ -484,8 +484,7 @@ export default function OngoingJobDetails() {
         isCompleted: false,
         icon: Wrench,
       });
-    } else if (request.status === 'completed') {
-      // Job completed - show green
+    } else if (request.status === 'reviewing' || request.status === 'completed') {
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
@@ -497,21 +496,23 @@ export default function OngoingJobDetails() {
         isCompleted: true,
         icon: Wrench,
       });
-    } else if ((request.status as any) === 'scheduled') {
-      // Payment completed, waiting for provider to click Start - show grey (pending)
+    } else if (((request.status as any) || '').toString().toLowerCase() === 'scheduled' || (quotationAccepted && paymentTransaction)) {
+      // Payment completed – waiting for provider to click Start → YELLOW (in progress / action pending)
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
         description: 'Payment secured. Provider will start the job shortly.',
-        status: 'Pending',
-        accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
-        isActive: false,
+        status: 'Waiting for provider',
+        accent: '#FEF9C3',
+        dotColor: '#F59E0B',
+        isActive: true,
         isCompleted: false,
-        icon: Circle,
+        icon: Wrench,
       });
     } else {
-      // Not ready yet - grey (pending)
+      // Not ready yet - grey (pending) - show Pay button when quotation accepted and not paid
+      const payAmount = quotationAccepted ? (acceptedQuotation?.total ?? 0) : 0;
+      const isPaid = !!paymentTransaction;
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
@@ -524,6 +525,9 @@ export default function OngoingJobDetails() {
         isActive: false,
         isCompleted: false,
         icon: Circle,
+        showPayService: quotationAccepted && payAmount > 0 && !isPaid,
+        payAmount,
+        acceptedQuotation: quotationAccepted ? acceptedQuotation : undefined,
       });
     }
 
@@ -538,6 +542,18 @@ export default function OngoingJobDetails() {
         dotColor: '#6A9B00',
         isActive: false,
         isCompleted: true,
+        icon: CheckCircle,
+      });
+    } else if (request.status === 'reviewing') {
+      timeline.push({
+        id: 'step-6',
+        title: 'Complete',
+        description: 'Provider has finished. Confirm satisfaction to release payment from escrow.',
+        status: 'Confirm to release payment',
+        accent: '#FEF9C3',
+        dotColor: '#F59E0B',
+        isActive: true,
+        isCompleted: false,
         icon: CheckCircle,
       });
     } else {
@@ -556,7 +572,7 @@ export default function OngoingJobDetails() {
     }
 
     return timeline;
-  }, [request, acceptedProviders, quotations, selectionCountdown]);
+  }, [request, acceptedProviders, quotations, selectionCountdown, paymentTransaction]);
 
   // High-level header description above the timeline - consistent design with variant for action states
   const timelineHeader = useMemo(() => {
@@ -575,23 +591,64 @@ export default function OngoingJobDetails() {
       });
     };
 
+    // Resolve provider for card when available
+    const headerProvider = acceptedQuotation?.provider ?? acceptedProviders?.[0]?.provider ?? null;
+
     if (request.status === 'completed') {
-      return { title: 'Job completed', subtitle: 'Job complete. Funds released to provider. Thank you.', variant: 'neutral' as const };
+      return {
+        title: 'Job completed',
+        subtitle: 'Job complete. Funds released to provider. Thank you.',
+        variant: 'neutral' as const,
+        statusPill: 'Completed',
+        pillBg: '#DCFCE7',
+        pillText: '#166534',
+        timestamp: request.updatedAt ? formatTimeAgo(request.updatedAt) : null,
+        provider: headerProvider,
+      };
     }
 
     if (request.status === 'in_progress') {
-      return { title: 'Job in progress', subtitle: 'Provider is on site. Mark complete when satisfied.', variant: 'neutral' as const };
+      return {
+        title: 'Job in progress',
+        subtitle: 'Provider is on site. Mark complete when satisfied.',
+        variant: 'neutral' as const,
+        statusPill: 'In progress',
+        pillBg: '#FEF9C3',
+        pillText: '#92400E',
+        timestamp: request.updatedAt ? formatTimeAgo(request.updatedAt) : null,
+        provider: headerProvider,
+      };
     }
 
-    const isPaymentConfirmed = cameFromPaymentSuccess || 
-      (quotationAccepted && ((request.status as any) === 'scheduled' || (request.status as any) === 'in_progress' || (request.status as any) === 'completed'));
+    if (request.status === 'reviewing') {
+      return {
+        title: 'Provider finished',
+        subtitle: 'Review the work and mark complete to release payment.',
+        variant: 'neutral' as const,
+        statusPill: 'Awaiting confirmation',
+        pillBg: '#FEF9C3',
+        pillText: '#92400E',
+        timestamp: request.updatedAt ? formatTimeAgo(request.updatedAt) : null,
+        provider: headerProvider,
+      };
+    }
 
-    if (isPaymentConfirmed && (request.status as any) === 'scheduled') {
+    const statusLower = typeof (request.status as any) === 'string' ? (request.status as any).toLowerCase() : (request.status as any);
+    const isPaidByStatus = statusLower === 'scheduled' || statusLower === 'in_progress' || statusLower === 'reviewing' || statusLower === 'completed';
+    const isPaymentConfirmed = cameFromPaymentSuccess ||
+      (quotationAccepted && (isPaidByStatus || !!paymentTransaction));
+
+    if (isPaymentConfirmed) {
       const amountText = acceptedQuotation ? `₦${formatCurrency(acceptedQuotation.total)}` : '';
       return {
-        title: 'Payment confirmed',
+        title: 'Payment secured',
         subtitle: amountText ? `Payment of ${amountText} secured in escrow. Waiting for provider to start.` : 'Payment secured. Waiting for provider to start.',
         variant: 'success' as const,
+        statusPill: 'Payment confirmed',
+        pillBg: '#DCFCE7',
+        pillText: '#166534',
+        timestamp: null,
+        provider: headerProvider,
       };
     }
 
@@ -601,19 +658,56 @@ export default function OngoingJobDetails() {
         title: 'Quotation accepted – payment required',
         subtitle: amountText ? `Accepted ${amountText}. Complete payment to secure the job.` : 'Complete payment to secure the job.',
         variant: 'action' as const,
+        showPayButton: true,
+        payAmount: acceptedQuotation?.total ?? 0,
+        acceptedQuotation,
+        statusPill: 'Payment required',
+        pillBg: '#FEF9C3',
+        pillText: '#92400E',
+        timestamp: null,
+        provider: headerProvider,
       };
     }
 
     if (hasQuotationSent) {
-      return { title: 'Quotation received', subtitle: 'Review cost and details, then accept or decline.', variant: 'neutral' as const };
+      return {
+        title: 'Quotation received',
+        subtitle: 'Review cost and details, then accept or decline.',
+        variant: 'neutral' as const,
+        statusPill: 'Quote submitted',
+        pillBg: '#DBEAFE',
+        pillText: '#1E40AF',
+        timestamp: null,
+        provider: headerProvider,
+      };
     }
 
     if (hasAcceptedProviders) {
-      return { title: 'Provider accepted your request', subtitle: 'Provider will inspect and send a quotation.', variant: 'neutral' as const };
+      const firstAccept = acceptedProviders?.[0];
+      const acceptedAt = firstAccept?.acceptance?.acceptedAt ?? request.updatedAt ?? request.selectedAt;
+      return {
+        title: 'Inspection in progress',
+        subtitle: 'Provider has accepted your request. Waiting for inspection and quotation.',
+        variant: 'neutral' as const,
+        statusPill: 'Provider accepted',
+        pillBg: '#FEF9C3',
+        pillText: '#92400E',
+        timestamp: acceptedAt ? formatTimeAgo(acceptedAt) : null,
+        provider: headerProvider,
+      };
     }
 
-    return { title: 'Waiting for providers', subtitle: 'Nearby providers are being notified. Updates will appear here.', variant: 'neutral' as const };
-  }, [request, acceptedProviders, quotations, cameFromPaymentSuccess]);
+    return {
+      title: 'Waiting for providers',
+      subtitle: 'Nearby providers are being notified. Updates will appear here.',
+      variant: 'neutral' as const,
+      statusPill: 'Pending',
+      pillBg: '#F3F4F6',
+      pillText: '#6B7280',
+      timestamp: null,
+      provider: null,
+    };
+  }, [request, acceptedProviders, quotations, cameFromPaymentSuccess, paymentTransaction]);
 
   // Load quotations from API (6.3 endpoint)
   const loadQuotations = useCallback(async () => {
@@ -642,20 +736,20 @@ export default function OngoingJobDetails() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
 
-  // Check wallet transactions for payment status
+  // Check wallet transactions for payment status (fallback when backend status is stale)
   const checkPaymentTransaction = useCallback(async (requestId: number) => {
     try {
       const result = await walletService.getTransactions({ limit: 100, offset: 0 });
-      // Find payment transaction for this request
-      // Payment transactions have type 'payment' and requestId in description or metadata
+      const reqIdStr = String(requestId);
       const paymentTx = result.transactions.find((tx: any) => {
-        if (tx.type !== 'payment') return false;
-        if (tx.status !== 'completed') return false;
-        // Check if transaction is for this request
-        if (tx.requestId === requestId) return true;
-        // Also check description for request ID
-        if (tx.description && tx.description.includes(`request #${requestId}`)) return true;
-        if (tx.description && tx.description.includes(`Request ${requestId}`)) return true;
+        const type = (tx.type || '').toLowerCase();
+        const status = (tx.status || '').toLowerCase();
+        if (status !== 'completed') return false;
+        if (!['payment', 'service_payment', 'payment_for_service', 'debit'].includes(type)) return false;
+        if (tx.requestId === requestId || tx.requestId === reqIdStr) return true;
+        const desc = (tx.description || tx.narration || tx.reference || '').toLowerCase();
+        if (desc.includes(`request #${requestId}`) || desc.includes(`request ${requestId}`)) return true;
+        if ((tx.metadata?.requestId ?? tx.metadata?.request_id) == requestId) return true;
         return false;
       });
       
@@ -681,10 +775,8 @@ export default function OngoingJobDetails() {
       const requestDetails = await serviceRequestService.getRequestDetails(requestId);
       setRequest(requestDetails);
 
-      // 2) Check wallet transactions for payment (in parallel, don't block)
-      checkPaymentTransaction(requestId).catch(() => {
-        // Silently fail, don't block loading
-      });
+      // 2) Check wallet transactions for payment (fallback when backend status is stale)
+      await checkPaymentTransaction(requestId).catch(() => {});
 
       // 3) Load accepted providers (needed for timeline / provider cards)
         try {
@@ -1158,7 +1250,7 @@ export default function OngoingJobDetails() {
     if (timelineSteps.length === 0) return null;
 
     return (
-      <View className="mb-8">
+      <View className="mb-10">
         {timelineSteps.map((step, index) => {
           const isLast = index === timelineSteps.length - 1;
           const animation = timelineAnimations[index];
@@ -1168,7 +1260,7 @@ export default function OngoingJobDetails() {
           const iconSize = step.isCompleted || step.isActive ? 14 : 12;
 
           return (
-            <View key={step.id} className="flex-row" style={{ marginBottom: 14 }}>
+            <View key={step.id} className="flex-row" style={{ marginBottom: 20 }}>
               <View className="items-center mr-4">
                 <Animated.View
                   style={{
@@ -1273,8 +1365,38 @@ export default function OngoingJobDetails() {
                   size="small"
                   animated={true}
                 />
-                {((step as any).showPayLogistics || (step as any).showRejectVisit) && (
+                {((step as any).showPayLogistics || (step as any).showRejectVisit || (step as any).showPayService) && (
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                    {(step as any).showPayService && (
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          haptics.light();
+                          const quote = (step as any).acceptedQuotation;
+                          router.push({
+                            pathname: '/ConfirmWalletPaymentScreen' as any,
+                            params: {
+                              requestId: params.requestId,
+                              amount: String((step as any).payAmount ?? 0),
+                              quotationId: quote?.id?.toString(),
+                              providerName: quote?.provider?.name || 'Service Provider',
+                              serviceName: request?.jobTitle || 'Service Request',
+                              paymentType: 'service' as const,
+                            },
+                          } as any);
+                        }}
+                        style={{
+                          backgroundColor: Colors.accent,
+                          paddingVertical: 10,
+                          paddingHorizontal: 16,
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+                          Pay Now (₦{((step as any).payAmount ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                     {(step as any).showPayLogistics && (
                       <TouchableOpacity
                         activeOpacity={0.8}
@@ -1315,10 +1437,19 @@ export default function OngoingJobDetails() {
                               {
                                 text: 'Decline visit',
                                 style: 'destructive',
-                                onPress: () => {
-                                  // TODO: Call API when backend implements decline-visit
-                                  showSuccess('Visit declined. Provider can send quotation directly.');
-                                  loadRequestData();
+                                onPress: async () => {
+                                  const rid = Number(params.requestId);
+                                  if (isNaN(rid)) return;
+                                  try {
+                                    await serviceRequestService.declineVisit(rid);
+                                    haptics.success();
+                                    showSuccess('Visit declined. Provider can send quotation directly.');
+                                    loadRequestData();
+                                  } catch (err: any) {
+                                    haptics.error();
+                                    const msg = getSpecificErrorMessage(err, 'decline_visit') ?? err?.message ?? 'Failed to decline visit.';
+                                    showError(msg);
+                                  }
                                 },
                               },
                             ]
@@ -1364,7 +1495,7 @@ export default function OngoingJobDetails() {
             },
           ],
         }}
-        className="mb-6 rounded-2xl bg-white border border-gray-100 shadow-[0px_12px_32px_rgba(15,23,42,0.08)]"
+        className="mb-8 rounded-2xl bg-white border border-gray-100 shadow-[0px_12px_32px_rgba(15,23,42,0.08)]"
       >
         <View className="flex-row items-start px-5 pt-5 pb-2">
           <TouchableOpacity
@@ -1477,9 +1608,9 @@ export default function OngoingJobDetails() {
           <View className="px-5 mt-4 mb-4">
             <View
               className="rounded-2xl px-5 py-4"
-              style={{ backgroundColor: provider.badgeColor }}
+              style={{ backgroundColor: '#E0F2FE' }}
             >
-              <Text className="text-xs text-gray-600 mb-2" style={{ fontFamily: 'Poppins-Medium' }}>
+              <Text className="text-sm text-gray-900 mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
                 {provider.status.includes('Selected') ? 'Provider Selection' : 'Inspection in Progress'}
               </Text>
               <Text className="text-sm text-gray-600 mb-2" style={{ fontFamily: 'Poppins-Regular' }}>
@@ -1605,52 +1736,211 @@ export default function OngoingJobDetails() {
                   ) : null // Don't show message if job is in progress - providers have accepted
                 )}
 
-                {/* High-level status description above the timeline - consistent design by variant */}
-                {timelineHeader && (
+                {/* Status card - hide when provider cards already show same "Inspection in Progress" content */}
+                {timelineHeader && !(mappedProviders.length > 0 && (timelineHeader as any).statusPill === 'Provider accepted') && (
                   <View
                     style={{
-                      marginBottom: 20,
-                      borderRadius: 16,
-                      paddingHorizontal: 16,
-                      paddingVertical: 14,
-                      backgroundColor: timelineHeader.variant === 'action' ? '#E8F5E9' : timelineHeader.variant === 'success' ? '#E8F5E9' : '#F9FAFB',
+                      marginBottom: 24,
+                      borderRadius: 20,
+                      backgroundColor: '#FFFFFF',
                       borderWidth: 1,
-                      borderColor: timelineHeader.variant === 'action' ? 'rgba(106, 155, 0, 0.3)' : timelineHeader.variant === 'success' ? 'rgba(106, 155, 0, 0.2)' : '#E5E7EB',
+                      borderColor: '#E5E7EB',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.06,
+                      shadowRadius: 12,
+                      elevation: 4,
+                      overflow: 'hidden',
                     }}
                   >
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontFamily: 'Poppins-Bold',
-                        color: Colors.textPrimary,
-                        marginBottom: timelineHeader.subtitle ? 6 : 0,
-                      }}
-                    >
-                      {timelineHeader.title}
-                    </Text>
-                    {timelineHeader.subtitle ? (
-                      <Text
+                    <View className="px-5 pt-5 pb-2">
+                      {(timelineHeader as any).provider ? (
+                        <View className="flex-row items-start">
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              haptics.light();
+                              const p = (timelineHeader as any).provider;
+                              router.push({
+                                pathname: '/ProviderDetailScreen',
+                                params: {
+                                  providerName: p?.name,
+                                  providerId: p?.id?.toString(),
+                                },
+                              } as any);
+                            }}
+                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                          >
+                            <Image
+                              source={require('../assets/images/plumbericon2.png')}
+                              style={{ width: 48, height: 48, borderRadius: 24, marginRight: 16 }}
+                              resizeMode="cover"
+                            />
+                            <View className="flex-1">
+                              <Text className="text-base text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
+                                {(timelineHeader as any).provider?.name || 'Professional Service Provider'}
+                              </Text>
+                              <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
+                                Professional Service Provider
+                              </Text>
+                              {(() => {
+                                const mp = mappedProviders.find(m => m.providerId === (timelineHeader as any).provider?.id) ?? mappedProviders[0];
+                                return mp?.distanceKm != null ? (
+                                  <Text className="text-xs text-gray-400 mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
+                                    {mp.distanceKm.toFixed(1)} km away • ~{mp.minutesAway} min
+                                  </Text>
+                                ) : null;
+                              })()}
+                            </View>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            activeOpacity={0.85}
+                            onPress={() => {
+                              haptics.light();
+                              const p = (timelineHeader as any).provider;
+                              router.push({
+                                pathname: '/ChatScreen',
+                                params: {
+                                  providerName: p?.name,
+                                  providerId: p?.id?.toString(),
+                                  requestId: params.requestId,
+                                },
+                              });
+                            }}
+                          >
+                            <Ionicons name="chatbubble-ellipses-outline" size={22} color="#6B7280" />
+                          </TouchableOpacity>
+                          <View
+                            style={{
+                              backgroundColor: (timelineHeader as any).pillBg ?? '#FEF9C3',
+                              paddingHorizontal: 12,
+                              paddingVertical: 6,
+                              borderRadius: 20,
+                              marginLeft: 8,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                fontFamily: 'Poppins-SemiBold',
+                                color: (timelineHeader as any).pillText ?? '#92400E',
+                              }}
+                            >
+                              {(timelineHeader as any).statusPill ?? 'Provider accepted'}
+                            </Text>
+                          </View>
+                        </View>
+                      ) : (
+                        <View className="flex-row items-center justify-end">
+                          <View
+                            style={{
+                              backgroundColor: (timelineHeader as any).pillBg ?? '#F3F4F6',
+                              paddingHorizontal: 12,
+                              paddingVertical: 6,
+                              borderRadius: 20,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                fontFamily: 'Poppins-SemiBold',
+                                color: (timelineHeader as any).pillText ?? '#6B7280',
+                              }}
+                            >
+                              {(timelineHeader as any).statusPill ?? 'Pending'}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                    <View className="px-5 mt-2 mb-5">
+                      <View
                         style={{
-                          fontSize: 15,
-                          fontFamily: 'Poppins-Regular',
-                          color: timelineHeader.variant === 'action' ? '#1B4332' : Colors.textSecondaryDark,
-                          lineHeight: 22,
+                          backgroundColor: '#E0F2FE',
+                          borderRadius: 16,
+                          paddingHorizontal: 16,
+                          paddingVertical: 14,
                         }}
                       >
-                        {timelineHeader.subtitle}
-                      </Text>
-                    ) : null}
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontFamily: 'Poppins-Bold',
+                            color: Colors.textPrimary,
+                            marginBottom: 6,
+                          }}
+                        >
+                          {timelineHeader.title}
+                        </Text>
+                        {timelineHeader.subtitle ? (
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontFamily: 'Poppins-Regular',
+                              color: '#374151',
+                              lineHeight: 21,
+                            }}
+                          >
+                            {timelineHeader.subtitle}
+                          </Text>
+                        ) : null}
+                        {(timelineHeader as any).timestamp ? (
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontFamily: 'Poppins-Regular',
+                              color: '#6B7280',
+                              marginTop: 8,
+                            }}
+                          >
+                            {(timelineHeader as any).timestamp}
+                          </Text>
+                        ) : null}
+                        {(timelineHeader as any).showPayButton && (timelineHeader as any).payAmount > 0 && (
+                          <TouchableOpacity
+                            activeOpacity={0.85}
+                            onPress={() => {
+                              haptics.light();
+                              const quote = (timelineHeader as any).acceptedQuotation;
+                              router.push({
+                                pathname: '/ConfirmWalletPaymentScreen' as any,
+                                params: {
+                                  requestId: params.requestId,
+                                  amount: String((timelineHeader as any).payAmount),
+                                  quotationId: quote?.id?.toString(),
+                                  providerName: quote?.provider?.name || 'Service Provider',
+                                  serviceName: request?.jobTitle || 'Service Request',
+                                  paymentType: 'service' as const,
+                                },
+                              } as any);
+                            }}
+                            style={{
+                              marginTop: 14,
+                              backgroundColor: Colors.accent,
+                              paddingVertical: 12,
+                              paddingHorizontal: 20,
+                              borderRadius: 10,
+                              alignSelf: 'flex-start',
+                            }}
+                          >
+                            <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+                              Pay Now (₦{((timelineHeader as any).payAmount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
                   </View>
                 )}
 
                 {renderTimeline()}
 
                 <TouchableOpacity
-                  disabled={request.status !== 'in_progress' || isLoading}
+                  disabled={!['in_progress', 'reviewing'].includes(request.status) || isLoading}
                   className={`rounded-xl py-4 items-center justify-center mb-8 ${
-                    request.status === 'in_progress' && !isLoading ? 'bg-[#6A9B00]' : 'bg-gray-200'
+                    ['in_progress', 'reviewing'].includes(request.status) && !isLoading ? 'bg-[#6A9B00]' : 'bg-gray-200'
                   }`}
-                  activeOpacity={request.status === 'in_progress' && !isLoading ? 0.85 : 1}
+                  activeOpacity={['in_progress', 'reviewing'].includes(request.status) && !isLoading ? 0.85 : 1}
                   onPress={handleCompleteJob}
                 >
                   {isLoading ? (
@@ -1658,7 +1948,7 @@ export default function OngoingJobDetails() {
                   ) : (
                     <Text
                       className={`text-sm ${
-                        request.status === 'in_progress' ? 'text-white' : 'text-gray-500'
+                        ['in_progress', 'reviewing'].includes(request.status) ? 'text-white' : 'text-gray-500'
                       }`}
                       style={{ fontFamily: 'Poppins-Medium' }}
                     >

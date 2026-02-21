@@ -53,28 +53,19 @@ export default function ProviderJobDetailsScreen() {
 
   // Update work order status based on request status
   // CRITICAL: Request status is the source of truth - if 'in_progress' or 'completed', work order is active
-  // This ensures consistency even after navigation/reload
+  // Keep 'active' when user clicked Start even if backend hasn't updated yet (avoids flicker back)
   useEffect(() => {
     if (request) {
       if (request.status === 'in_progress' || request.status === 'completed') {
-        // Job has started - work order is definitely active
         setWorkOrderStatus('active');
       } else if (request.status === 'scheduled') {
-        // Quotation accepted and payment made, but job not started yet
-        // Check if quotation is accepted to determine if work order should be pending (ready for Start button)
-        const quotationAccepted = (quotation && quotation.status === 'accepted') ||
-                                  (quotationWithProvider && quotationWithProvider.status === 'accepted');
-        if (quotationAccepted) {
-          setWorkOrderStatus('pending'); // Ready for Start button
-        } else {
-          setWorkOrderStatus('pending'); // Default to pending
-        }
+        setWorkOrderStatus((prev) =>
+          prev === 'active' ? prev : 'pending'
+        ); // Don't reset if user just clicked Start
       } else {
-        // Request not in a state where work order is relevant - reset to pending
         setWorkOrderStatus('pending');
       }
     } else {
-      // No request - reset to pending
       setWorkOrderStatus('pending');
     }
   }, [request, quotation, quotationWithProvider]);
@@ -295,9 +286,7 @@ export default function ProviderJobDetailsScreen() {
     isLoadingRef.current = true;
     lastLoadTimeRef.current = now;
     
-    // These must be visible in both try and catch blocks
     let requestDetails: ServiceRequest | null = null;
-    let usedFallback = false;
 
     // Only show loading spinner on initial load, not on silent refreshes
     if (!silent && !hasInitialLoadRef.current) {
@@ -315,54 +304,17 @@ export default function ProviderJobDetailsScreen() {
         }
       
       
-      // Try to get request details directly
-      try {
-        requestDetails = await serviceRequestService.getRequestDetails(requestId);
-      } catch (directError: any) {
-        // If direct call fails with 500, try to get from accepted requests first
-        const status = (directError as any)?.status || (directError as any)?.response?.status;
-        if (status === 500 || status === 404) {
-          // Suppress error logging for expected 500 errors that will use fallback
-          // This is expected behavior when providers access client endpoints
-          
-          try {
-            // Fallback 1: Get from accepted requests list (if provider has already accepted)
-            const acceptedRequests = await providerService.getAcceptedRequests();
-            requestDetails = acceptedRequests.find(req => req.id === requestId) || null;
-            
-            if (requestDetails) {
-              usedFallback = true; // Mark that we used fallback successfully
-              setIsFromAcceptedRequests(true); // Mark that this request is from accepted requests (provider has accepted)
-              // Don't log error since fallback succeeded - this is expected behavior
-            } else {
-              // Fallback 2: Try to get from available requests (if request is still pending)
-              try {
-                const availableRequests = await providerService.getAvailableRequests();
-                requestDetails = availableRequests.find(req => req.id === requestId) || null;
-                
-                if (requestDetails) {
-                  usedFallback = true;
-                  setIsFromAcceptedRequests(false); // This is a pending request, not accepted yet
-                } else {
-                  throw new Error('Request not found in accepted or available requests');
-                }
-              } catch (availableError) {
-                // Both fallbacks failed
-                throw new Error('Request not found in accepted or available requests');
-              }
-            }
-          } catch (fallbackError) {
-            // All methods failed - only log if all fallbacks also failed
-            throw directError; // Throw original error
-          }
-        } else {
-          // Not a 500/404, throw the error
-          throw directError;
-        }
+      // Load from provider accepted list (single source – backend must keep this up to date)
+      const acceptedRequests = await providerService.getAcceptedRequests();
+      requestDetails = acceptedRequests.find((req) => req.id === requestId) || null;
+
+      if (!requestDetails) {
+        const availableRequests = await providerService.getAvailableRequests();
+        requestDetails = availableRequests.find((req) => req.id === requestId) || null;
+        if (requestDetails) setIsFromAcceptedRequests(false);
+      } else {
+        setIsFromAcceptedRequests(true);
       }
-      
-      // If we successfully used fallback, suppress the error log from the API service
-      // The error was already handled and we got the data successfully
       
       if (!requestDetails) {
         showError('Job details not found');
@@ -373,10 +325,6 @@ export default function ProviderJobDetailsScreen() {
       
       setRequest(requestDetails);
       
-      // If we already know it's from accepted requests (from fallback), no need to check again
-      // Only check if direct call succeeded and we're not sure
-      // This avoids duplicate API calls
-      
       // Distance calculation will happen in useEffect when both locations are available
       // This ensures it works even if providerLocation loads after requestDetails
       
@@ -386,6 +334,7 @@ export default function ProviderJobDetailsScreen() {
       if (
         isFromAcceptedRequests ||
         requestDetails.status === 'accepted' ||
+        requestDetails.status === 'scheduled' ||
         requestDetails.status === 'in_progress'
       ) {
         loadQuotationWithProvider(requestId);
@@ -426,28 +375,10 @@ export default function ProviderJobDetailsScreen() {
         }
       }
       
-      // Only log/show error if fallback didn't succeed
-      // If we used fallback successfully, don't show error to user
-      if (!usedFallback) {
-        const status = (error as any)?.status || (error as any)?.response?.status;
-        
-        // For 500 errors, check if we should show error or if fallback should handle it
-        if (status === 500) {
-          // 500 errors are often expected for provider access - don't show error
-          // The fallback mechanism should have handled it
-          if (__DEV__) {
-            console.warn('⚠️ [ProviderJobDetailsScreen] 500 error occurred - this may be expected for provider access');
-          }
-        } else {
-          // For non-500 errors, show error to user
-          if (__DEV__) {
-      console.error('Error loading request details:', error);
-          }
-      const errorMessage = getSpecificErrorMessage(error, 'get_request_details');
-      showError(errorMessage);
-        }
+      if (__DEV__) {
+        console.error('Error loading job details:', error);
       }
-      // If usedFallback is true, we successfully got data from fallback, so no error to show
+      showError(getSpecificErrorMessage(error, 'get_request_details'));
     } finally {
       if (!silent && !hasInitialLoadRef.current) {
         setIsLoading(false);
@@ -667,8 +598,9 @@ export default function ProviderJobDetailsScreen() {
     }
 
     // Step 2a: Inspection (visit) - separate from quotation
-    const requestIndicatesQuotationAccepted = request.status === 'scheduled' || 
-                                               request.status === 'in_progress' || 
+    const requestIndicatesQuotationAccepted = request.status === 'scheduled' ||
+                                               request.status === 'in_progress' ||
+                                               request.status === 'reviewing' ||
                                                request.status === 'completed';
     const providerHasAccepted = isFromAcceptedRequests || 
                                 request.status === 'accepted' || 
@@ -707,7 +639,7 @@ export default function ProviderJobDetailsScreen() {
           isActive: !visitPaid,
           isCompleted: visitPaid,
           icon: MapPinned,
-          showRequestVisit: !visitPaid, // Can request a different visit if needed (e.g. reschedule)
+          showRequestVisit: false, // Visit already requested - don't show button again
         });
       } else {
         timeline.push({
@@ -838,13 +770,15 @@ export default function ProviderJobDetailsScreen() {
     
     // Step 4: Work order assigned (merged with payment info)
     // Payment is received when request.status is 'scheduled', 'in_progress', or 'completed'
-    const isPaymentReceived = request.status === 'scheduled' || 
-                              request.status === 'in_progress' || 
+    const isPaymentReceived = request.status === 'scheduled' ||
+                              request.status === 'in_progress' ||
+                              request.status === 'reviewing' ||
                               request.status === 'completed';
     
     // Show Start button - GREEN when payment received, GRAY/DISABLED when payment not received
-    const workOrderIsActive = request.status === 'in_progress' || 
-                              request.status === 'completed' || 
+    const workOrderIsActive = request.status === 'in_progress' ||
+                              request.status === 'reviewing' ||
+                              request.status === 'completed' ||
                               workOrderStatus === 'active'; // Fallback to local state if request status not updated yet
     
     if (workOrderIsActive) {
@@ -914,7 +848,7 @@ export default function ProviderJobDetailsScreen() {
 
     // Step 5: Job in Progress
     // Show as yellow when work order is active (Start button clicked)
-    // Show as green when job is completed
+    // Show as green when job is completed or provider marked complete (reviewing)
     if (request.status === 'completed') {
       timeline.push({
         id: 'step-5',
@@ -928,8 +862,20 @@ export default function ProviderJobDetailsScreen() {
         isCompleted: true,
         icon: Wrench,
       });
+    } else if (request.status === 'reviewing') {
+      timeline.push({
+        id: 'step-5',
+        title: 'Job in Progress',
+        description: 'Work done. Waiting for client to confirm and release payment.',
+        status: 'Completed',
+        accent: '#DCFCE7',
+        dotColor: '#6A9B00',
+        lineColor: '#6A9B00',
+        isActive: false,
+        isCompleted: true,
+        icon: Wrench,
+      });
     } else if (request.status === 'in_progress' || workOrderStatus === 'active') {
-      // Job in progress - yellow
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
@@ -970,6 +916,19 @@ export default function ProviderJobDetailsScreen() {
         isActive: false,
         isCompleted: true,
         icon: CheckCircle,
+      });
+    } else if (request.status === 'reviewing') {
+      timeline.push({
+        id: 'step-6',
+        title: 'Complete',
+        description: 'Waiting for client to confirm. Payment will release when they mark complete.',
+        status: 'In Progress',
+        accent: '#FEF9C3',
+        dotColor: '#F59E0B',
+        lineColor: '#F59E0B',
+        isActive: true,
+        isCompleted: false,
+        icon: Clock,
       });
     } else {
       timeline.push({
@@ -1263,6 +1222,31 @@ export default function ProviderJobDetailsScreen() {
         >
           {activeTab === 'Updates' ? (
             <>
+          {/* Sync hint – when quotation accepted but status still shows waiting for payment */}
+          {(() => {
+            const quoteAccepted = quotation?.status === 'accepted' || quotationWithProvider?.status === 'accepted';
+            const paymentNotYetReflected = request?.status === 'accepted'; // Still "accepted", not "scheduled"
+            const showSyncHint = quoteAccepted && paymentNotYetReflected;
+            if (!showSyncHint) return null;
+            return (
+              <View
+                style={{
+                  backgroundColor: '#E0F2FE',
+                  borderRadius: 12,
+                  padding: 12,
+                  marginBottom: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <Activity size={18} color="#0284C7" style={{ marginRight: 10 }} />
+                <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Poppins-Regular', color: '#0C4A6E' }}>
+                  If the client has paid, pull down to refresh for the latest status.
+                </Text>
+              </View>
+            );
+          })()}
+
           {/* Work Order Assigned Card - Show when quotation exists */}
           {quotation && (
             <View
@@ -1523,14 +1507,14 @@ export default function ProviderJobDetailsScreen() {
             </View>
           )}
 
-          {/* Timeline Section - Right after status message */}
+          {/* Timeline Section - Card style with nested step cards */}
           {request && timelineSteps.length > 0 && (
             <View
               style={{
                 backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
+                borderRadius: BorderRadius.xl,
                 padding: 20,
-              marginBottom: 16,
+                marginBottom: 16,
                 borderWidth: 1,
                 borderColor: Colors.border,
               }}
@@ -1551,13 +1535,13 @@ export default function ProviderJobDetailsScreen() {
                 const iconSize = step.isCompleted || step.isActive ? 14 : 12;
                 const animation = timelineAnimations[index];
                 const lineAnim = !isLast ? lineAnimations[index] : null;
-                
+
                 return (
-                  <Animated.View 
-                    key={step.id} 
-                    style={{ 
-              flexDirection: 'row',
-                      marginBottom: isLast ? 0 : 14,
+                  <Animated.View
+                    key={step.id}
+                    style={{
+                      flexDirection: 'row',
+                      marginBottom: isLast ? 0 : 20,
                       opacity: animation.interpolate({
                         inputRange: [0, 1],
                         outputRange: [0, 1],
@@ -1570,23 +1554,19 @@ export default function ProviderJobDetailsScreen() {
                       }],
                     }}
                   >
-                    {/* Timeline Indicator */}
                     <View style={{ alignItems: 'center', marginRight: 12 }}>
                       <Animated.View
-              style={{
+                        style={{
                           width: 32,
                           height: 32,
                           borderRadius: 16,
                           backgroundColor: step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#F3F4F6',
-                alignItems: 'center',
-                justifyContent: 'center',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           borderWidth: step.isCompleted || step.isActive ? 0 : 2,
                           borderColor: '#E5E7EB',
                           shadowColor: step.isCompleted || step.isActive ? step.dotColor : '#000',
-                          shadowOffset: {
-                            width: 0,
-                            height: 2,
-                          },
+                          shadowOffset: { width: 0, height: 2 },
                           shadowOpacity: step.isCompleted || step.isActive ? 0.2 : 0.05,
                           shadowRadius: 4,
                           elevation: step.isCompleted || step.isActive ? 4 : 1,
@@ -1598,14 +1578,14 @@ export default function ProviderJobDetailsScreen() {
                           }],
                         }}
                       >
-                        <IconComponent 
-                          size={iconSize} 
-                          color={step.isCompleted || step.isActive ? Colors.white : '#9CA3AF'} 
+                        <IconComponent
+                          size={iconSize}
+                          color={step.isCompleted || step.isActive ? Colors.white : '#9CA3AF'}
                         />
                       </Animated.View>
                       {!isLast && (
                         <Animated.View
-                style={{
+                          style={{
                             width: 2,
                             flex: 1,
                             backgroundColor: step.isCompleted ? step.lineColor : step.isActive ? step.lineColor : '#E5E7EB',
@@ -1625,160 +1605,191 @@ export default function ProviderJobDetailsScreen() {
                           }}
                         />
                       )}
-            </View>
+                    </View>
 
-                    {/* Timeline Content */}
-                    <Animated.View 
-                      style={{ 
+                    <Animated.View
+                      style={{
                         flex: 1,
                         opacity: animation.interpolate({
                           inputRange: [0, 1],
                           outputRange: [0, 1],
                         }),
+                        backgroundColor: '#FFFFFF',
+                        borderRadius: 16,
+                        borderWidth: 1,
+                        borderColor: '#E5E7EB',
+                        padding: 14,
+                        marginBottom: 4,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.04,
+                        shadowRadius: 8,
+                        elevation: 2,
                       }}
                     >
-              <Text
-                style={{
-                          fontSize: 13,
-                          fontFamily: 'Poppins-Bold',
-                          color: Colors.textPrimary,
-                          marginBottom: 2,
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontFamily: 'Poppins-Bold',
+                            color: Colors.textPrimary,
+                          }}
+                        >
+                          {step.title}
+                        </Text>
+                        {(step.isActive || step.isCompleted) && (
+                          <View
+                            style={{
+                              backgroundColor: step.isCompleted ? '#DCFCE7' : '#FEF9C3',
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                              borderRadius: 12,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontFamily: 'Poppins-SemiBold',
+                                color: step.isCompleted ? '#166534' : '#92400E',
+                              }}
+                            >
+                              {step.isCompleted ? 'Done' : 'Active'}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View
+                        style={{
+                          backgroundColor: (step.isActive || step.isCompleted) ? '#E0F2FE' : '#F9FAFB',
+                          borderRadius: 12,
+                          padding: 12,
+                          marginBottom: 4,
                         }}
                       >
-                        {step.title}
-                      </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <View style={{ flex: 1, marginRight: 12 }}>
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              fontFamily: 'Poppins-Regular',
-                              color: Colors.textSecondaryDark,
-                            }}
-                          >
-                            {step.description}
-                          </Text>
-                        </View>
-                        {/* Request visit button for Inspection step */}
-                        {(step as any).showRequestVisit && step.id === 'step-2' && (
-                          <TouchableOpacity
-                            onPress={() => {
-                              haptics.light();
-                              router.push({
-                                pathname: '/RequestVisitScreen' as any,
-                                params: {
-                                  requestId: params.requestId,
-                                  jobTitle: request?.jobTitle,
-                                },
-                              } as any);
-                            }}
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              paddingVertical: 6,
-                              paddingHorizontal: 12,
-                              backgroundColor: Colors.backgroundGray,
-                              borderRadius: BorderRadius.default,
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            <MapPin size={14} color={Colors.accent} style={{ marginRight: 4 }} />
-                            <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
-                              Request visit
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                        {/* Edit/Send quote button for Quotation step */}
-                        {(step as any).canEdit && step.id === 'step-2b' && (
-                          <TouchableOpacity
-                            onPress={() => {
-                              haptics.light();
-                              router.push({
-                                pathname: '/SendQuotationScreen' as any,
-                                params: {
-                                  requestId: params.requestId,
-                                  jobTitle: request?.jobTitle,
-                                  returnToTab: 'Quotations',
-                                },
-                              } as any);
-                            }}
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                            }}
-                            activeOpacity={0.7}
-                          >
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                          <View style={{ flex: 1, marginRight: 12 }}>
                             <Text
                               style={{
-                                fontSize: 12,
-                  fontFamily: 'Poppins-SemiBold',
-                                // Blue when step is completed (dot is green), gray otherwise
-                                color: (step as any).isCompleted ? '#3B82F6' : Colors.textSecondaryDark,
-                                marginRight: 4,
+                                fontSize: 13,
+                                fontFamily: 'Poppins-Regular',
+                                color: Colors.textSecondaryDark,
                               }}
                             >
-                              Edit
+                              {step.description}
                             </Text>
-                            <Edit
-                              size={14}
-                              color={(step as any).isCompleted ? '#3B82F6' : Colors.textSecondaryDark}
-                            />
-                          </TouchableOpacity>
-                        )}
-                        {/* Large Start button for Work order assigned - positioned to the right */}
-                        {/* Button is GREEN when payment received (enabled), GRAY when payment not received (disabled) */}
-                        {(step as any).showStartButton && step.id === 'step-4' && (
-                          <TouchableOpacity
-                            onPress={async () => {
-                              if (!(step as any).startButtonEnabled) {
-                                // Payment not received - button should be disabled
-                                showError('Payment must be received before starting work.');
-                                return;
-                              }
-                              
-                              haptics.success();
-                              try {
-                                // Update work order status to active
-                                setWorkOrderStatus('active');
-                                // Update request status to in_progress
-                                if (params.requestId) {
-                                  // TODO: Call API to update work order status
-                                  // await providerService.startWorkOrder(parseInt(params.requestId, 10));
-                                  showSuccess('Work order started! Job is now in progress.');
-                                  // Reload to update timeline
-                                  setTimeout(() => {
-                                    loadRequestDetails();
-                                  }, 500);
+                          </View>
+                          {(step as any).showRequestVisit && step.id === 'step-2' && (
+                            <TouchableOpacity
+                              onPress={() => {
+                                haptics.light();
+                                router.push({
+                                  pathname: '/RequestVisitScreen' as any,
+                                  params: {
+                                    requestId: params.requestId,
+                                    jobTitle: request?.jobTitle,
+                                  },
+                                } as any);
+                              }}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                paddingVertical: 6,
+                                paddingHorizontal: 12,
+                                backgroundColor: Colors.backgroundGray,
+                                borderRadius: BorderRadius.default,
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <MapPin size={14} color={Colors.accent} style={{ marginRight: 4 }} />
+                              <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
+                                Request visit
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          {(step as any).canEdit && step.id === 'step-2b' && (
+                            <TouchableOpacity
+                              onPress={() => {
+                                haptics.light();
+                                router.push({
+                                  pathname: '/SendQuotationScreen' as any,
+                                  params: {
+                                    requestId: params.requestId,
+                                    jobTitle: request?.jobTitle,
+                                    returnToTab: 'Quotations',
+                                  },
+                                } as any);
+                              }}
+                              style={{ flexDirection: 'row', alignItems: 'center' }}
+                              activeOpacity={0.7}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 12,
+                                  fontFamily: 'Poppins-SemiBold',
+                                  color: (step as any).isCompleted ? '#3B82F6' : Colors.textSecondaryDark,
+                                  marginRight: 4,
+                                }}
+                              >
+                                Edit
+                              </Text>
+                              <Edit
+                                size={14}
+                                color={(step as any).isCompleted ? '#3B82F6' : Colors.textSecondaryDark}
+                              />
+                            </TouchableOpacity>
+                          )}
+                          {(step as any).showStartButton && step.id === 'step-4' && (
+                            <TouchableOpacity
+                              onPress={async () => {
+                                if (!(step as any).startButtonEnabled) {
+                                  showError('Payment must be received before starting work.');
+                                  return;
                                 }
-                              } catch (error) {
-                                showError('Failed to start work order. Please try again.');
-                              }
-                            }}
-                            style={{
-                              // GREEN when payment received (enabled), GRAY when payment not received (disabled)
-                              backgroundColor: (step as any).startButtonEnabled ? Colors.accent : Colors.backgroundGray,
-                              paddingVertical: 10,
-                              paddingHorizontal: 20,
-                              borderRadius: BorderRadius.default,
-                              minWidth: 80,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              opacity: (step as any).startButtonEnabled ? 1 : 0.5,
-                            }}
-                            activeOpacity={(step as any).startButtonEnabled ? 0.8 : 1}
-                            disabled={!(step as any).startButtonEnabled} // Disabled when payment not received
-                          >
-                            <Text
-                              style={{
-                                fontSize: 14,
-                                fontFamily: 'Poppins-SemiBold',
-                                color: (step as any).startButtonEnabled ? Colors.white : Colors.textSecondaryDark,
+                                haptics.success();
+                                try {
+                                  if (params.requestId) {
+                                    const reqId = parseInt(params.requestId, 10);
+                                    await providerService.startWorkOrder(reqId);
+                                    showSuccess('Work order started! Job is now in progress.');
+                                    await loadRequestDetails();
+                                  }
+                                } catch (error: any) {
+                                  haptics.error();
+                                  const msg = (error?.message || '').toLowerCase();
+                                  if (msg.includes('404') || msg.includes('not found') || msg.includes('does not exist')) {
+                                    setWorkOrderStatus('active');
+                                    showSuccess('Job started! (Sync pending)');
+                                    setTimeout(() => loadRequestDetails(), 500);
+                                  } else {
+                                    showError(getSpecificErrorMessage(error, 'start_work_order'));
+                                  }
+                                }
                               }}
+                              style={{
+                                backgroundColor: (step as any).startButtonEnabled ? Colors.accent : Colors.backgroundGray,
+                                paddingVertical: 10,
+                                paddingHorizontal: 20,
+                                borderRadius: BorderRadius.default,
+                                minWidth: 80,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: (step as any).startButtonEnabled ? 1 : 0.5,
+                              }}
+                              activeOpacity={(step as any).startButtonEnabled ? 0.8 : 1}
+                              disabled={!(step as any).startButtonEnabled}
                             >
-                              Start
-                            </Text>
-                          </TouchableOpacity>
-                        )}
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontFamily: 'Poppins-SemiBold',
+                                  color: (step as any).startButtonEnabled ? Colors.white : Colors.textSecondaryDark,
+                                }}
+                              >
+                                Start
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
                       </View>
                       {step.status && (
                         <Text
@@ -1786,7 +1797,7 @@ export default function ProviderJobDetailsScreen() {
                             fontSize: 12,
                             fontFamily: 'Poppins-Regular',
                             color: step.isCompleted ? Colors.accent : step.isActive ? '#F59E0B' : Colors.textTertiary,
-                            marginTop: 4,
+                            marginTop: 8,
                           }}
                         >
                           {step.status}
@@ -1796,32 +1807,35 @@ export default function ProviderJobDetailsScreen() {
                   </Animated.View>
                 );
               })}
-              
-              {/* Mark as Complete Button - Only show when job is in progress */}
+
               {request && request.status === 'in_progress' && (
                 <TouchableOpacity
                   onPress={async () => {
                     haptics.light();
+                    if (!params.requestId) return;
                     try {
-                      if (params.requestId) {
-                        // TODO: Call API to mark job as complete
-                        // await serviceRequestService.completeRequest(parseInt(params.requestId, 10));
-                        showSuccess('Job marked as complete!');
-                        loadRequestDetails();
+                      const reqId = parseInt(params.requestId, 10);
+                      await providerService.markWorkComplete(reqId);
+                      showSuccess('Work marked complete! Client will confirm to release payment.');
+                      await loadRequestDetails();
+                    } catch (error: any) {
+                      haptics.error();
+                      const msg = (error?.message || '').toLowerCase();
+                      if (msg.includes('404') || msg.includes('not found')) {
+                        showSuccess('Work marked complete! (Sync pending – client can confirm when ready.)');
+                        await loadRequestDetails();
+                      } else {
+                        showError(getSpecificErrorMessage(error, 'provider_mark_complete'));
                       }
-                    } catch (error) {
-                      showError('Failed to mark job as complete. Please try again.');
                     }
                   }}
                   style={{
-                    backgroundColor: Colors.backgroundGray,
+                    backgroundColor: Colors.accent,
                     paddingVertical: 14,
                     borderRadius: BorderRadius.default,
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginTop: 16,
-                    borderWidth: 1,
-                    borderColor: Colors.border,
                   }}
                   activeOpacity={0.8}
                 >
@@ -1829,7 +1843,7 @@ export default function ProviderJobDetailsScreen() {
                     style={{
                       fontSize: 14,
                       fontFamily: 'Poppins-SemiBold',
-                      color: Colors.textSecondaryDark,
+                      color: Colors.white,
                     }}
                   >
                     Mark as complete
@@ -3196,32 +3210,41 @@ export default function ProviderJobDetailsScreen() {
               {/* Request visit & Send quote - persistent actions when no quotation sent */}
               {!quotation && !quotationWithProvider && (
                 <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                  {(() => {
+                    const vr = (request as any)?.visitRequest;
+                    const visitAlreadyRequested = !!(vr && (vr.scheduledDate || vr.logisticsCost != null));
+                    return (
                   <TouchableOpacity
                     style={{
                       flex: 1,
-                      backgroundColor: Colors.backgroundGray,
+                      backgroundColor: visitAlreadyRequested ? '#E5E7EB' : Colors.backgroundGray,
                       paddingVertical: 12,
                       borderRadius: BorderRadius.default,
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexDirection: 'row',
                       borderWidth: 1,
-                      borderColor: Colors.border,
+                      borderColor: visitAlreadyRequested ? '#D1D5DB' : Colors.border,
+                      opacity: visitAlreadyRequested ? 0.7 : 1,
                     }}
-                    activeOpacity={0.8}
+                    activeOpacity={visitAlreadyRequested ? 1 : 0.8}
                     onPress={() => {
+                      if (visitAlreadyRequested) return;
                       haptics.light();
                       router.push({
                         pathname: '/RequestVisitScreen' as any,
                         params: { requestId: params.requestId, jobTitle: request?.jobTitle },
                       } as any);
                     }}
+                    disabled={visitAlreadyRequested}
                   >
-                    <MapPin size={16} color={Colors.accent} style={{ marginRight: 6 }} />
-                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
-                      Request visit
+                    <MapPin size={16} color={visitAlreadyRequested ? '#9CA3AF' : Colors.accent} style={{ marginRight: 6 }} />
+                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: visitAlreadyRequested ? '#9CA3AF' : Colors.textPrimary }}>
+                      {visitAlreadyRequested ? 'Visit requested' : 'Request visit'}
                     </Text>
                   </TouchableOpacity>
+                    );
+                  })()}
                   <TouchableOpacity
                     style={{
                       flex: 1,

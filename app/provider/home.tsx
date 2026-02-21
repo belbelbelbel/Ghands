@@ -670,11 +670,12 @@ export default function ProviderHomeScreen() {
               <Text 
                 style={{ 
                   fontSize: 14, 
-                  fontFamily: 'Poppins-Medium', 
+                  fontFamily: 'Poppins-SemiBold', 
                   color: location ? Colors.textPrimary : Colors.textSecondaryDark, 
                   flex: 1 
                 }}
                 numberOfLines={1}
+                ellipsizeMode="tail"
               >
                 {location || 'Enter your location'}
               </Text>
@@ -927,33 +928,7 @@ export default function ProviderHomeScreen() {
             </View>
             {pendingJobs.slice(0, 2).map((job) => renderJobCard(job, false))}
           </View>
-        ) : !isLoadingPending && (
-          <View style={{ paddingHorizontal: 16, marginBottom: 24, alignItems: 'center', paddingVertical: 20 }}>
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 8 }}>
-              No available requests
-            </Text>
-            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 12 }}>
-              New service requests will appear here when they match your registered categories and are within your location radius.
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                haptics.light();
-                router.push('/ProviderProfileSetupScreen' as any);
-              }}
-              style={{
-                backgroundColor: Colors.accent,
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: BorderRadius.default,
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
-                Update Profile
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        ) : null}
 
         {isLoadingActive ? (
           <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
@@ -990,38 +965,6 @@ export default function ProviderHomeScreen() {
           null
         )}
 
-        {/* Show empty state only if both sections are empty and not loading */}
-        {!isLoadingPending && !isLoadingActive && 
-         Array.isArray(pendingJobs) && pendingJobs.length === 0 && 
-         Array.isArray(activeJobs) && activeJobs.length === 0 && (
-          <View style={{ paddingHorizontal: 16, marginBottom: 24, alignItems: 'center', paddingVertical: 24, backgroundColor: Colors.backgroundGray, borderRadius: BorderRadius.xl }}>
-            <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 8 }}>
-              No requests yet
-            </Text>
-            <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', maxWidth: 280, marginBottom: 16 }}>
-              To see available requests, make sure you've:{'\n'}
-              • Set your business location{'\n'}
-              • Added service categories you offer
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                haptics.light();
-                router.push('/ProviderProfileSetupScreen' as any);
-              }}
-              style={{
-                backgroundColor: Colors.black,
-                paddingHorizontal: 20,
-                paddingVertical: 10,
-                borderRadius: BorderRadius.default,
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
-                Complete Profile Setup
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
           <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 12 }}>

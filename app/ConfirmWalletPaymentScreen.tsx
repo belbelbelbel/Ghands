@@ -149,6 +149,21 @@ export default function ConfirmWalletPaymentScreen() {
       setPin(['', '', '', '']);
 
       const errorMessage = error?.message || error?.details?.data?.error || '';
+      const isAlreadyPaid = /already paid|already been paid|service request already paid/i.test(errorMessage);
+
+      // Payment was completed (e.g. previous attempt succeeded, UI didn't refresh)
+      if (isAlreadyPaid) {
+        setShowProcessingModal(false);
+        showSuccess('This request has already been paid. Taking you to job details.');
+        setTimeout(() => {
+          router.replace({
+            pathname: '/OngoingJobDetails' as any,
+            params: { requestId: params.requestId, paymentStatus: 'success' },
+          } as any);
+        }, 1500);
+        return;
+      }
+
       const isPinError = /pin|wrong pin|invalid pin|pin not set/i.test(errorMessage);
       if (isPinError) {
         haptics.error();

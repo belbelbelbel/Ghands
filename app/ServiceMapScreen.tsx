@@ -701,7 +701,16 @@ const ServiceMapScreen = () => {
           }
           
           haptics.success();
-          router.replace('../BookingConfirmationScreen' as any);
+          router.replace({
+            pathname: '../BookingConfirmationScreen',
+            params: {
+              requestId: params.requestId,
+              serviceType: params.serviceType || params.categoryName,
+              selectedDate: params.selectedDate,
+              selectedTime: params.selectedTime,
+              providerCount: selectedProviders.length > 0 ? String(selectedProviders.length) : undefined,
+            },
+          } as any);
         }}
         onEditService={(bookingData) => {
           router.push({

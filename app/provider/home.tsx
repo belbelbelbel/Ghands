@@ -133,6 +133,34 @@ export default function ProviderHomeScreen() {
     jobLocation: { address: '', latitude: 0, longitude: 0 },
   });
   const [providerLocation, setProviderLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const rejectedRequestIdsRef = useRef<Set<string>>(new Set());
+
+  const addRejectedRequestId = useCallback(async (requestId: number) => {
+    const id = String(requestId);
+    rejectedRequestIdsRef.current.add(id);
+    try {
+      const stored = await AsyncStorage.getItem('@ghands:provider_rejected_request_ids');
+      const ids = stored ? JSON.parse(stored) : [];
+      if (!ids.includes(id)) {
+        ids.push(id);
+        await AsyncStorage.setItem('@ghands:provider_rejected_request_ids', JSON.stringify(ids));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const getRejectedRequestIds = useCallback(async (): Promise<Set<string>> => {
+    try {
+      const stored = await AsyncStorage.getItem('@ghands:provider_rejected_request_ids');
+      const ids = (stored ? JSON.parse(stored) : []) as string[];
+      const set = new Set(ids);
+      rejectedRequestIdsRef.current = set;
+      return set;
+    } catch {
+      return rejectedRequestIdsRef.current;
+    }
+  }, []);
 
   // Load provider/company name
   const loadProviderName = useCallback(async () => {
@@ -222,15 +250,16 @@ export default function ProviderHomeScreen() {
         ? requestsArray.map((req) => mapRequestToJobCard(req, false))
         : [];
       
-      // CRITICAL: Filter out any requests that are already in accepted jobs
-      // This ensures accepted requests NEVER show in available requests
+      const rejectedIds = await getRejectedRequestIds();
       const currentActiveJobIds = new Set(activeJobsRef.current.map(job => job.requestId?.toString()));
       const filteredJobCards = jobCards.filter((job) => {
-        const requestId = job.requestId?.toString();
+        const requestId = job.requestId != null ? String(job.requestId) : null;
+        if (!requestId) return true;
+        if (rejectedIds.has(requestId)) return false;
         const isAccepted = currentActiveJobIds.has(requestId);
         return !isAccepted;
       });
-      
+
       setPendingJobs(filteredJobCards);
       
     } catch (error: any) {
@@ -319,7 +348,7 @@ export default function ProviderHomeScreen() {
     } finally {
       setIsLoadingPending(false);
     }
-  }, [showError]);
+  }, [showError, getRejectedRequestIds]);
 
   // Load accepted requests (active jobs)
   const loadAcceptedRequests = useCallback(async () => {
@@ -593,7 +622,7 @@ export default function ProviderHomeScreen() {
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            onPress={async () => {
+              onPress={async () => {
               if (!job.requestId) {
                 showError('Invalid request ID');
                 return;
@@ -602,18 +631,21 @@ export default function ProviderHomeScreen() {
               haptics.warning();
               try {
                 await providerService.rejectRequest(job.requestId);
+                await addRejectedRequestId(job.requestId);
                 haptics.success();
                 showSuccess('Request declined. The client has been notified.');
-                
-                // Remove from pending jobs immediately
                 setPendingJobs(prev => prev.filter(j => j.requestId !== job.requestId));
-                
-                // Reload available requests
                 await loadAvailableRequests();
               } catch (error: any) {
+                const msg = (error?.message || '').toLowerCase();
+                if (msg.includes('already rejected')) {
+                  await addRejectedRequestId(job.requestId);
+                  setPendingJobs(prev => prev.filter(j => j.requestId !== job.requestId));
+                  await loadAvailableRequests();
+                  return;
+                }
                 haptics.error();
-                const errorMessage = getSpecificErrorMessage(error, 'reject_request');
-                showError(errorMessage);
+                showError(getSpecificErrorMessage(error, 'reject_request'));
               }
             }}
           >
@@ -624,7 +656,7 @@ export default function ProviderHomeScreen() {
         </View>
       )}
     </View>
-  ), [router, loadAvailableRequests, loadAcceptedRequests, showError, showSuccess, haptics]);
+  ), [router, loadAvailableRequests, loadAcceptedRequests, showError, showSuccess, haptics, addRejectedRequestId]);
 
   // If checking token, show nothing (will redirect if no token)
   if (isChecking) {

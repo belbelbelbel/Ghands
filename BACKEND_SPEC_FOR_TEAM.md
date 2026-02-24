@@ -40,6 +40,15 @@ These must always return the latest `status` from the database (no stale cache):
 - `GET /api/request-service/requests/:requestId`
 - `GET /api/provider/requests/accepted`
 
+**Critical for Request Visit flow:**
+- **`GET /api/provider/requests/accepted`** – Must include requests with status `inspecting` (and `quoting`, `scheduled`). When a provider requests a visit, status becomes `inspecting` – the job must NOT disappear from their list.
+- **`GET /api/request-service/requests/:requestId`** – Must include `visitRequest` (or `visit_request`) when a provider has requested a visit. Include: `scheduledDate`, `scheduledTime`, `logisticsCost`, `logisticsStatus`. Otherwise the client cannot see the "Confirm" or "Decline visit" options.
+
+### Rejected requests – must not appear
+
+- **`GET /api/provider/requests/available`** – Must **not** return requests that the provider has already rejected. Once a provider calls `POST .../reject`, that request should never appear in their available list again.
+- **Client side** – When a provider rejects, the client’s `GET /api/request-service/requests/:requestId/accepted-providers` (and similar) must not include that provider. The client should not see providers who have rejected the request.
+
 ---
 
 ## Summary of Required Changes

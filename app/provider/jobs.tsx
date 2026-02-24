@@ -11,6 +11,7 @@ import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 
@@ -88,6 +89,9 @@ const mapApiStatusToJobStatus = (apiStatus: string, isFromAcceptedList: boolean 
   switch (status) {
     case 'accepted':
     case 'in_progress':
+    case 'inspecting':
+    case 'scheduled':
+    case 'quoting':
       return 'Ongoing';
     case 'pending':
     default:
@@ -169,13 +173,39 @@ const mapAvailableRequestToJobItem = (request: ServiceRequest): JobItem => {
 };
 
 
+const REJECTED_IDS_KEY = '@ghands:provider_rejected_request_ids';
+
 export default function ProviderJobsScreen() {
   const router = useRouter();
-  const { toast, showError, hideToast } = useToast();
+  const { toast, showError, hideToast, showSuccess } = useToast();
   const [activeTab, setActiveTab] = useState<JobStatus>('Ongoing');
   const [allJobs, setAllJobs] = useState<JobItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const addRejectedRequestId = useCallback(async (requestId: number) => {
+    const id = String(requestId);
+    try {
+      const stored = await AsyncStorage.getItem(REJECTED_IDS_KEY);
+      const ids: string[] = stored ? JSON.parse(stored) : [];
+      if (!ids.includes(id)) {
+        ids.push(id);
+        await AsyncStorage.setItem(REJECTED_IDS_KEY, JSON.stringify(ids));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const getRejectedRequestIds = useCallback(async (): Promise<Set<string>> => {
+    try {
+      const stored = await AsyncStorage.getItem(REJECTED_IDS_KEY);
+      const ids = (stored ? JSON.parse(stored) : []) as string[];
+      return new Set(ids);
+    } catch {
+      return new Set();
+    }
+  }, []);
 
   // Load provider jobs from API:
   // - accepted requests  -> Ongoing / Completed
@@ -197,11 +227,15 @@ export default function ProviderJobsScreen() {
       const pendingFromAvailable: JobItem[] =
         availableArray.length > 0 ? availableArray.map((req) => mapAvailableRequestToJobItem(req)) : [];
 
-      // Ensure we don't duplicate any job that exists in accepted list
+      const rejectedIds = await getRejectedRequestIds();
+
+      // Ensure we don't duplicate any job that exists in accepted list AND filter out rejected
       const acceptedIds = new Set(acceptedJobs.map((j) => j.requestId?.toString() || j.id));
-      const filteredPending = pendingFromAvailable.filter(
-        (job) => !acceptedIds.has(job.requestId?.toString() || job.id)
-      );
+      const filteredPending = pendingFromAvailable.filter((job) => {
+        const rid = job.requestId?.toString() || job.id;
+        if (rejectedIds.has(rid)) return false;
+        return !acceptedIds.has(rid);
+      });
 
       setAllJobs([...acceptedJobs, ...filteredPending]);
     } catch (error: any) {
@@ -259,7 +293,7 @@ export default function ProviderJobsScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [showError]);
+  }, [showError, getRejectedRequestIds]);
 
   // Load data on mount and when screen comes into focus
   useFocusEffect(
@@ -443,13 +477,19 @@ export default function ProviderJobsScreen() {
               }
               try {
                 await providerService.rejectRequest(Number(requestId));
+                await addRejectedRequestId(Number(requestId));
                 haptics.success();
                 showSuccess('Request declined. The client has been notified.');
-                await loadAcceptedRequests();
+                setAllJobs((prev) => prev.filter((j) => String(j.requestId ?? j.id) !== String(requestId)));
               } catch (error: any) {
+                const msg = (error?.message || '').toLowerCase();
+                if (msg.includes('already rejected')) {
+                  await addRejectedRequestId(Number(requestId));
+                  setAllJobs((prev) => prev.filter((j) => String(j.requestId ?? j.id) !== String(requestId)));
+                  return;
+                }
                 haptics.error();
-                const errorMessage = getSpecificErrorMessage(error, 'reject_request');
-                showError(errorMessage);
+                showError(getSpecificErrorMessage(error, 'reject_request'));
               }
             }}
           >

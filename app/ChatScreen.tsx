@@ -1,7 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Spacing, SHADOWS } from '@/lib/designSystem';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { ArrowLeft, FileText, Image as ImageIcon, Mic, Phone, Send, User, MoreVertical, Check, CheckCheck } from 'lucide-react-native';
+import { ArrowLeft, AlertCircle, FileText, Image as ImageIcon, Mic, Phone, Send, User, MoreVertical, Check, CheckCheck } from 'lucide-react-native';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   FlatList,
@@ -16,6 +16,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { haptics } from '@/hooks/useHaptics';
+import { useToast } from '@/hooks/useToast';
 import { providerService, communicationService, authService, Message as ApiMessage } from '@/services/api';
 
 /**
@@ -27,7 +28,7 @@ interface UIMessage {
   sender: 'user' | 'provider';
   timestamp: string;
   time: string;
-  status?: 'sending' | 'sent' | 'delivered' | 'read';
+  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   isRead?: boolean;
   isFromCurrentUser?: boolean; // Whether this message is from the current user
 }
@@ -54,6 +55,7 @@ interface UIMessage {
  */
 export default function ChatScreen() {
   const router = useRouter();
+  const { showError } = useToast();
   const params = useLocalSearchParams<{ 
     providerName?: string; 
     providerId?: string; 
@@ -104,16 +106,16 @@ export default function ChatScreen() {
 
   /**
    * Convert API message to UI message format
+   * Standard layout: my messages = right, received = left
    */
   const mapApiMessageToUI = useCallback((apiMessage: ApiMessage, currentUserId: number | null): UIMessage => {
-    // Determine sender type based on senderType from API
-    // If senderType is 'user', it's from the client
-    // If senderType is 'provider' or 'company', it's from the provider
     const isFromClient = apiMessage.senderType === 'user';
     const sender: 'user' | 'provider' = isFromClient ? 'user' : 'provider';
 
-    // Determine if message is from current user
-    const isFromCurrentUser = currentUserId !== null && apiMessage.senderId === currentUserId;
+    // My messages go right: match by senderId, or fallback by view (client view = user is me, provider view = provider is me)
+    const isFromCurrentUser =
+      (currentUserId !== null && apiMessage.senderId === currentUserId) ||
+      (isProviderView ? sender === 'provider' : sender === 'user');
 
     return {
       id: String(apiMessage.id),
@@ -127,7 +129,7 @@ export default function ChatScreen() {
       isRead: apiMessage.isRead || !!apiMessage.readAt,
       isFromCurrentUser, // Store this for alignment logic
     };
-  }, [formatTime]);
+  }, [formatTime, isProviderView]);
 
   /**
    * Load messages from API
@@ -167,7 +169,13 @@ export default function ChatScreen() {
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
 
-      setMessages(uiMessages);
+      // Don't overwrite with empty on background refresh – API may return bad/malformed data
+      // and we'd wipe sent messages. Only overwrite if we got messages or this is initial load.
+      setMessages((prev) => {
+        if (showLoading || uiMessages.length > 0) return uiMessages;
+        // Background refresh returned 0 messages – keep existing to avoid disappearing messages
+        return prev;
+      });
 
       // Scroll to bottom after loading
       setTimeout(() => {
@@ -280,22 +288,52 @@ export default function ChatScreen() {
         )
       );
 
-      // Refresh messages to get latest
-      await loadMessages(false);
+      // Don't refresh here – backend may not include the new message yet, causing it to disappear.
+      // The 5s auto-refresh will pick up replies from the other party.
     } catch (error) {
       if (__DEV__) {
         console.error('Error sending message:', error);
       }
-
-      // Remove failed message from UI
-      setMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessage.id));
-
-      // Show error (you can add toast notification here)
-      // For now, just log it
+      // Keep message visible but mark as failed – don't remove (so it doesn't disappear)
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === optimisticMessage.id ? { ...msg, status: 'failed' as const } : msg
+        )
+      );
+      showError('Message failed to send. Tap to retry.');
     } finally {
       setIsSending(false);
     }
-  }, [message, isValidRequestId, isSending, isProviderView, formatTime, mapApiMessageToUI, currentUserId, requestId, loadMessages]);
+  }, [message, isValidRequestId, isSending, isProviderView, formatTime, mapApiMessageToUI, currentUserId, requestId, showError]);
+
+  /**
+   * Retry sending a failed message
+   */
+  const retryFailedMessage = useCallback(
+    async (msg: UIMessage) => {
+      if (msg.status !== 'failed' || !isValidRequestId || isSending) return;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msg.id ? { ...m, status: 'sending' as const } : m))
+      );
+      try {
+        const sentMessage = await communicationService.sendMessage(requestId!, {
+          content: msg.text,
+        });
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msg.id ? mapApiMessageToUI(sentMessage as ApiMessage, currentUserId) : m
+          )
+        );
+      } catch (error) {
+        if (__DEV__) console.error('Error retrying message:', error);
+        setMessages((prev) =>
+          prev.map((m) => (m.id === msg.id ? { ...m, status: 'failed' as const } : m))
+        );
+        showError('Failed to send. Tap to retry.');
+      }
+    },
+    [isValidRequestId, requestId, isSending, mapApiMessageToUI, currentUserId, showError]
+  );
 
   /**
    * Check if quotation exists (for provider view)
@@ -385,15 +423,15 @@ export default function ChatScreen() {
     // Determine alignment: messages from current user go to the right, received messages go to the left
     const isFromCurrentUser = item.isFromCurrentUser ?? false;
     
-    // For avatar and styling purposes, determine if it's from client or provider
-    const isFromClient = isProviderView ? item.sender === 'user' : item.sender === 'user';
-    const isFromProvider = isProviderView ? item.sender === 'provider' : item.sender === 'provider';
+    const isFromProvider = item.sender === 'provider';
     
     const getStatusIcon = () => {
       if (!isFromCurrentUser || !item.status) return null;
       switch (item.status) {
         case 'sending':
           return <ActivityIndicator size="small" color={Colors.textSecondaryDark} style={{ marginLeft: 4 }} />;
+        case 'failed':
+          return <AlertCircle size={12} color="#DC2626" style={{ marginLeft: 4 }} />;
         case 'sent':
           return <Check size={12} color={Colors.textSecondaryDark} style={{ marginLeft: 4 }} />;
         case 'delivered':
@@ -405,63 +443,57 @@ export default function ChatScreen() {
       }
     };
     
+    // Standard chat layout: MY messages → right, RECEIVED → left (like WhatsApp/iMessage)
     return (
       <View
         key={item.id}
         style={{
           flexDirection: 'row',
           alignItems: 'flex-end',
-          marginBottom: Spacing.md,
-          marginHorizontal: Spacing.md,
+          marginBottom: 12,
+          paddingHorizontal: 16,
           justifyContent: isFromCurrentUser ? 'flex-end' : 'flex-start',
         }}
       >
-        {/* Avatar on left for received messages (not from current user) */}
+        {/* Received: avatar left, bubble, spacer */}
         {!isFromCurrentUser && (
           <View
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: Colors.backgroundGray,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: Spacing.sm,
-              ...SHADOWS.sm,
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              overflow: 'hidden',
+              marginRight: 8,
+              marginBottom: 4,
             }}
           >
-          <Image
-            source={isFromProvider 
-              ? require('../assets/images/plumbericon2.png') 
-              : require('../assets/images/userimg.jpg')}
-            style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-            }}
-            resizeMode="cover"
-          />
+            <Image
+              source={isFromProvider ? require('../assets/images/plumbericon2.png') : require('../assets/images/userimg.jpg')}
+              style={{ width: 32, height: 32, borderRadius: 16 }}
+              resizeMode="cover"
+            />
           </View>
         )}
 
-        <View
+        <TouchableOpacity
           style={{
-            maxWidth: '75%',
-              alignItems: isFromCurrentUser ? 'flex-end' : 'flex-start',
-            }}
-          >
-          {/* Message Bubble */}
+            maxWidth: '78%',
+            alignItems: isFromCurrentUser ? 'flex-end' : 'flex-start',
+          }}
+          activeOpacity={item.status === 'failed' && isFromCurrentUser ? 0.7 : 1}
+          onPress={item.status === 'failed' && isFromCurrentUser ? () => retryFailedMessage(item) : undefined}
+        >
           <View
             style={{
-                backgroundColor: isFromCurrentUser ? Colors.accent : Colors.white,
-                borderRadius: BorderRadius.lg,
-                borderTopLeftRadius: !isFromCurrentUser && isFromProvider ? 4 : BorderRadius.lg,
-                borderTopRightRadius: isFromCurrentUser ? 4 : BorderRadius.lg,
-              paddingHorizontal: Spacing.md,
-              paddingVertical: Spacing.sm + 2,
-              ...(isFromProvider ? SHADOWS.sm : {}),
-              borderWidth: isFromProvider ? 1 : 0,
-              borderColor: Colors.border,
+              backgroundColor: isFromCurrentUser ? '#6A9B00' : Colors.white,
+              borderRadius: 18,
+              borderBottomRightRadius: isFromCurrentUser ? 4 : 18,
+              borderBottomLeftRadius: isFromCurrentUser ? 18 : 4,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              borderWidth: isFromCurrentUser ? 0 : 1,
+              borderColor: 'rgba(0,0,0,0.06)',
+              ...SHADOWS.sm,
             }}
           >
             <Text
@@ -469,58 +501,45 @@ export default function ChatScreen() {
                 fontSize: 15,
                 fontFamily: 'Poppins-Regular',
                 color: isFromCurrentUser ? Colors.white : Colors.textPrimary,
-                lineHeight: 20,
+                lineHeight: 21,
               }}
             >
               {item.text}
             </Text>
           </View>
-          
-          {/* Timestamp and Status */}
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               marginTop: 4,
               paddingHorizontal: 4,
+              justifyContent: isFromCurrentUser ? 'flex-end' : 'flex-start',
             }}
           >
-            <Text
-              style={{
-                fontSize: 11,
-                fontFamily: 'Poppins-Regular',
-                color: Colors.textSecondaryDark,
-              }}
-            >
+            <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: '#9CA3AF' }}>
               {item.time}
             </Text>
             {getStatusIcon()}
           </View>
-        </View>
+        </TouchableOpacity>
 
-        {/* Avatar on right for messages sent by current user */}
+        {/* My messages: spacer, bubble, avatar right */}
         {isFromCurrentUser && (
           <View
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: Colors.backgroundGray,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginLeft: Spacing.sm,
-              ...SHADOWS.sm,
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              overflow: 'hidden',
+              marginLeft: 8,
+              marginBottom: 4,
             }}
           >
-          <Image
-            source={isProviderView ? require('../assets/images/plumbericon2.png') : require('../assets/images/userimg.jpg')}
-            style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-            }}
-            resizeMode="cover"
-          />
+            <Image
+              source={isProviderView ? require('../assets/images/plumbericon2.png') : require('../assets/images/userimg.jpg')}
+              style={{ width: 32, height: 32, borderRadius: 16 }}
+              resizeMode="cover"
+            />
           </View>
         )}
       </View>
@@ -697,12 +716,12 @@ export default function ChatScreen() {
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
             contentContainerStyle={{ 
-              paddingVertical: Spacing.md,
-              paddingBottom: Spacing.xl,
+              paddingVertical: 16,
+              paddingBottom: 24,
             }}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            style={{ flex: 1, backgroundColor: '#F9FAFB' }}
+            style={{ flex: 1, backgroundColor: '#F0F2F5' }}
             refreshControl={
               <RefreshControl
                 refreshing={isRefreshing}

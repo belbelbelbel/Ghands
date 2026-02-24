@@ -7,7 +7,7 @@ import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View, Modal, Pressable, StyleSheet } from 'react-native';
 import { JobHistoryCardSkeleton } from '@/components/LoadingSkeleton';
@@ -48,17 +48,19 @@ const mapRequestToJobItem = (request: ServiceRequest, acceptedProvidersCount: nu
     ? request.categoryName.charAt(0).toUpperCase() + request.categoryName.slice(1).replace(/([A-Z])/g, ' $1')
     : 'Service';
   
-  // Determine status: If providers have accepted, show "In Progress" even if request status is "pending"
+  // Determine status: payment (scheduled) and quotation acceptance mean "In Progress"
   let status: string;
-  if (request.status === 'accepted' || request.status === 'in_progress') {
+  if (request.status === 'accepted' || request.status === 'in_progress' ||
+      request.status === 'scheduled' || request.status === 'reviewing' ||
+      (request.status as any) === 'inspecting') {
+    // scheduled = payment received, provider can start; reviewing = provider marked complete, client confirms
     status = 'In Progress';
   } else if (request.status === 'completed') {
     status = 'Completed';
   } else if (request.status === 'cancelled') {
     status = 'Cancelled';
   } else if (acceptedProvidersCount > 0) {
-    // Providers have accepted, but request status is still "pending" (waiting for client selection)
-    status = 'In Progress'; // Show as "In Progress" to indicate providers have accepted
+    status = 'In Progress';
   } else {
     status = 'Pending';
   }
@@ -77,7 +79,10 @@ const mapRequestToJobItem = (request: ServiceRequest, acceptedProvidersCount: nu
 };
 
 export default function JobsScreen() {
-  const [activeTab, setActiveTab] = useState<JobStatus>('Ongoing');
+  const params = useLocalSearchParams<{ initialTab?: string; requestId?: string }>();
+  const [activeTab, setActiveTab] = useState<JobStatus>(
+    params.initialTab === 'Completed' ? 'Completed' : params.initialTab === 'Cancelled' ? 'Cancelled' : 'Ongoing'
+  );
   const [pendingCancelJob, setPendingCancelJob] = useState<JobItem | null>(null);
   const [allJobs, setAllJobs] = useState<JobItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,10 +108,9 @@ export default function JobsScreen() {
           return false;
         }
 
-        // Bring back the original behaviour:
-        // - Do NOT depend on nearbyProviders here.
-        // - Allow all statuses (pending, accepted, in_progress, completed, cancelled).
-        // The visual status handling happens later in mapRequestToJobItem.
+        // Hide when all providers declined (backend may return status 'rejected' or 'no_providers')
+        const status = ((request as any).status ?? '').toString().toLowerCase();
+        if (status === 'rejected' || status === 'no_providers') return false;
         return true;
       });
       

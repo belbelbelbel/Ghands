@@ -204,12 +204,15 @@ export default function RequestVisitScreen() {
       const formattedDate = `${year}-${month}-${day}`;
       const timeFormatted = formattedTimeForSummary || `${selectedTime} AM`;
 
-      // Always accept first — choosing "Request visit" means provider accepts the request
+      // Accept first if not already — "Request visit" implies provider accepts
       try {
         await providerService.acceptRequest(requestId);
       } catch (acceptErr: any) {
         const msg = (acceptErr?.message || acceptErr?.details?.data?.message || '').toLowerCase();
-        if (!msg.includes('already accepted')) throw acceptErr;
+        const canProceed = msg.includes('already accepted') ||
+          msg.includes('not available for acceptance') || // Request may be taken / provider already in
+          msg.includes('already accepted by');
+        if (!canProceed) throw acceptErr;
       }
 
       await providerService.requestVisit(requestId, {

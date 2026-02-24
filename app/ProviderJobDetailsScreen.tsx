@@ -15,19 +15,11 @@ import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import MaterialsAccordion from '@/components/MaterialsAccordion';
 import { calculateDistance, estimateTravelTime, formatDistance, formatTravelTime, openNavigation, openMaps } from '@/utils/navigationUtils';
 import { authService } from '@/services/api';
+import { formatDateLong, formatDateShort, formatTimeAgo } from '@/utils/dateFormatting';
 import { makeCall } from '@/utils/callUtils';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Helper function to format date
-const formatDate = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-  } catch {
-    return dateString;
-  }
-};
+const formatDate = (dateString: string): string => formatDateLong(dateString) || dateString;
 
 export default function ProviderJobDetailsScreen() {
   const router = useRouter();
@@ -105,30 +97,6 @@ export default function ProviderJobDetailsScreen() {
       setTravelTimeMinutes(estimateTravelTime(distance));
     }
   }, [providerLocation, request?.location?.latitude, request?.location?.longitude]);
-
-  // Helper function to format time ago
-  const formatTimeAgo = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffDays = Math.floor(diffHours / 24);
-
-      if (diffDays > 0) {
-        return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
-      } else if (diffHours > 0) {
-        return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-      } else if (diffMinutes > 0) {
-        return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
-      } else {
-        return 'Just now';
-      }
-    } catch {
-      return 'Recently';
-    }
-  };
 
   // Countdown timer for selection (if provider was selected by client)
   const startCountdownTimer = useCallback(() => {
@@ -265,21 +233,20 @@ export default function ProviderJobDetailsScreen() {
   }, [params.requestId, loadQuotationWithProvider]);
 
 
-  // Track last load time to prevent infinite reload loops
+  // Track last load time and action cooldown to prevent excessive refresh/glitching
   const lastLoadTimeRef = useRef<number>(0);
   const isLoadingRef = useRef<boolean>(false);
   const hasInitialLoadRef = useRef<boolean>(false);
+  const actionCooldownUntilRef = useRef<number>(0); // Skip refresh for 2.5s after Start/Mark complete
 
   const loadRequestDetails = useCallback(async (options?: { silent?: boolean }) => {
     if (!params.requestId) return;
     
     const silent = options?.silent;
     
-    // Prevent infinite reload loops - don't reload if already loading or just loaded recently
+    // Prevent rapid double-calls - 1.5s throttle to avoid glitching after actions
     const now = Date.now();
-    if (isLoadingRef.current || (now - lastLoadTimeRef.current < 1000)) {
-      if (__DEV__) {
-      }
+    if (isLoadingRef.current || (now - lastLoadTimeRef.current < 1500)) {
       return;
     }
     
@@ -388,43 +355,31 @@ export default function ProviderJobDetailsScreen() {
     }
   }, [params.requestId, showError, router, isFromAcceptedRequests, loadQuotationWithProvider]);
 
-  // Load request details on mount (initial load)
-  useEffect(() => {
-    if (params.requestId) {
-      // Initial load: show loading spinner
-      loadRequestDetails({ silent: false });
-    }
-  }, [params.requestId]);
+  // Keep refs for stable useFocusEffect callback (avoids re-run when loadRequestDetails identity changes)
+  const loadRequestDetailsRef = useRef(loadRequestDetails);
+  const loadQuotationWithProviderRef = useRef(loadQuotationWithProvider);
+  loadRequestDetailsRef.current = loadRequestDetails;
+  loadQuotationWithProviderRef.current = loadQuotationWithProvider;
 
-  // Reload request details and quotations when screen comes into focus
-  // This ensures timeline updates after actions like payment, quotation acceptance, etc.
-  // BUT: Use silent mode to prevent loading spinner from flashing
+  // Load fresh data when screen gains focus - but NOT during action cooldown (Start/Mark complete)
   useFocusEffect(
     useCallback(() => {
-      if (params.requestId && hasInitialLoadRef.current) {
-        const requestId = parseInt(params.requestId, 10);
-        if (!isNaN(requestId) && requestId > 0) {
-          // Only reload if not already loading and enough time has passed since last load
-          const now = Date.now();
-          if (isLoadingRef.current || (now - lastLoadTimeRef.current < 2000)) {
-            if (__DEV__) {
-            }
-            return;
-          }
-          
-          // Delay to give backend time to update status after actions like payment
-          const timer = setTimeout(() => {
-            // Reload BOTH request details (for status) and quotation data
-            // Use silent mode to prevent loading spinner from flashing
-            // This ensures payment step updates correctly when status becomes 'scheduled'
-            // Request status is the source of truth for payment - if status is 'scheduled', 'in_progress', or 'completed', payment was made
-            loadRequestDetails({ silent: true });
-            loadQuotationWithProvider(requestId);
-          }, 500); // Small delay to let backend settle after payment
-          return () => clearTimeout(timer);
-        }
-      }
-    }, [params.requestId, loadQuotationWithProvider, loadRequestDetails])
+      if (!params.requestId) return;
+      const requestId = parseInt(params.requestId, 10);
+      if (isNaN(requestId) || requestId <= 0) return;
+
+      const now = Date.now();
+      // Skip during action cooldown (user just clicked Start or Mark complete)
+      if (now < actionCooldownUntilRef.current) return;
+      if (isLoadingRef.current || (now - lastLoadTimeRef.current < 2500)) return;
+
+      const isFirstLoad = !hasInitialLoadRef.current;
+      const timer = setTimeout(() => {
+        loadRequestDetailsRef.current({ silent: !isFirstLoad });
+        loadQuotationWithProviderRef.current(requestId);
+      }, 150);
+      return () => clearTimeout(timer);
+    }, [params.requestId])
   );
 
   const loadQuotation = async (requestId: number) => {
@@ -508,22 +463,27 @@ export default function ProviderJobDetailsScreen() {
     try {
       const requestId = parseInt(params.requestId, 10);
       await providerService.rejectRequest(requestId);
-      
+      try {
+        const stored = await AsyncStorage.getItem('@ghands:provider_rejected_request_ids');
+        const ids = (stored ? JSON.parse(stored) : []) as string[];
+        const id = String(requestId);
+        if (!ids.includes(id)) {
+          ids.push(id);
+          await AsyncStorage.setItem('@ghands:provider_rejected_request_ids', JSON.stringify(ids));
+        }
+      } catch {
+        // ignore
+      }
       haptics.success();
       showSuccess('Request rejected successfully');
-      
-      // Navigate back after a short delay
-      setTimeout(() => {
-        router.back();
-      }, 1500);
+      router.back();
     } catch (error: any) {
       if (__DEV__) {
-      console.error('Error rejecting request:', error);
+        console.error('Error rejecting request:', error);
       }
       haptics.error();
-      
-      const errorMessage = getSpecificErrorMessage(error, 'reject_request');
-      showError(errorMessage);
+      showError(getSpecificErrorMessage(error, 'reject_request'));
+    } finally {
       setIsRejecting(false);
     }
   };
@@ -1005,15 +965,7 @@ export default function ProviderJobDetailsScreen() {
   const scheduledTime = request?.scheduledTime || '';
   
   // Format date for status message (simpler format: "October 20, 2024")
-  const formatDateForStatus = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-    } catch {
-      return dateString;
-    }
-  };
+  const formatDateForStatus = (dateString: string): string => formatDateShort(dateString) || dateString;
   
   const statusDate = request?.scheduledDate ? formatDateForStatus(request.scheduledDate) : '';
 
@@ -1027,6 +979,14 @@ export default function ProviderJobDetailsScreen() {
 
     if (request.status === 'in_progress') {
       return { title: 'Job in progress', message: 'You are currently working on this job', showDetails: true, variant: 'success' as const };
+    }
+
+    if (request.status === 'reviewing') {
+      return { title: 'Work done', message: 'Waiting for client to confirm and release payment', showDetails: true, variant: 'neutral' as const };
+    }
+
+    if (request.status === 'scheduled') {
+      return { title: 'Payment received', message: 'Click Start to begin the job', showDetails: true, variant: 'success' as const };
     }
 
     if (quotationWithProvider?.status === 'accepted' || (request.status === 'accepted' && quotation)) {
@@ -1746,11 +1706,14 @@ export default function ProviderJobDetailsScreen() {
                                   return;
                                 }
                                 haptics.success();
+                                actionCooldownUntilRef.current = Date.now() + 2500;
                                 try {
                                   if (params.requestId) {
                                     const reqId = parseInt(params.requestId, 10);
                                     await providerService.startWorkOrder(reqId);
                                     showSuccess('Work order started! Job is now in progress.');
+                                    setWorkOrderStatus('active');
+                                    lastLoadTimeRef.current = Date.now();
                                     await loadRequestDetails();
                                   }
                                 } catch (error: any) {
@@ -1808,15 +1771,17 @@ export default function ProviderJobDetailsScreen() {
                 );
               })}
 
-              {request && request.status === 'in_progress' && (
+              {request && (request.status === 'in_progress' || workOrderStatus === 'active') && (
                 <TouchableOpacity
                   onPress={async () => {
                     haptics.light();
                     if (!params.requestId) return;
+                    actionCooldownUntilRef.current = Date.now() + 2500;
                     try {
                       const reqId = parseInt(params.requestId, 10);
                       await providerService.markWorkComplete(reqId);
                       showSuccess('Work marked complete! Client will confirm to release payment.');
+                      lastLoadTimeRef.current = Date.now();
                       await loadRequestDetails();
                     } catch (error: any) {
                       haptics.error();
@@ -3017,9 +2982,14 @@ export default function ProviderJobDetailsScreen() {
           {/* Show action buttons based on active tab */}
           {activeTab === 'Quotations' && quotation && quotation.status === 'accepted' ? (
             <>
-              {/* Request Changes Button - Disabled when job started or work order active */}
+              {/* Request Changes Button - Disabled when job started, provider marked complete, or work done */}
               {(() => {
-                const workOrderIsActive = request && (request.status === 'in_progress' || request.status === 'completed' || workOrderStatus === 'active');
+                const workOrderIsActive = request && (
+                  request.status === 'in_progress' ||
+                  request.status === 'reviewing' ||
+                  request.status === 'completed' ||
+                  workOrderStatus === 'active'
+                );
                 const canRequestChanges = !workOrderIsActive;
                 
                 return (

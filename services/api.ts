@@ -346,50 +346,39 @@ class ApiClient {
             throw new AuthError(authErrorMessage);
           }
           
-          // For 500 errors on protected routes, treat as potential auth issue
-          // Many backends return 500 when token is expired/invalid instead of 401
-          // BUT: Not all 500 errors are auth errors - some are real server errors
-          // So we need to be more careful and only treat as auth error if:
-          // 1. Error message contains auth-related keywords, OR
-          // 2. Token is missing/invalid
+          // For 500 errors on protected routes, treat as auth issue and redirect to login
+          // Many backends return 500 when token is expired/invalid instead of 401.
+          // User expects: if auth expired → redirect to respective login (client or provider).
           const status = (error as any)?.status;
           if (status === 500 && !config.skipAuth) {
             try {
               const token = await authServiceInstance.getAuthToken();
               if (!token) {
-                // No token = definitely auth error
                 throw new AuthError('Your session has expired. Please sign in again.');
               }
-              
-              // Token exists but 500 error on protected route
-              // Check error message for auth-related keywords first
               const errorMessage = (error as any)?.message || 
                                    (error as any)?.details?.data?.error || 
                                    (error as any)?.details?.error || 
                                    (error as any)?.details?.message ||
                                    (error as any)?.response?.data?.error ||
                                    (error as any)?.response?.data?.message || '';
-              const errorText = errorMessage.toLowerCase();
-              
-              // If error message suggests auth issue, treat as AuthError
-              if (errorText.includes('token') || errorText.includes('unauthorized') || 
+              const errorText = (errorMessage + '').toLowerCase();
+              const hasAuthKeywords = errorText.includes('token') || errorText.includes('unauthorized') || 
                   errorText.includes('authentication') || errorText.includes('session') ||
                   errorText.includes('expired') || errorText.includes('invalid') ||
                   errorText.includes('jwt') || errorText.includes('bearer') ||
                   errorText.includes('not authenticated') || errorText.includes('no token') ||
-                  errorText.includes('access denied') || errorText.includes('forbidden')) {
+                  errorText.includes('access denied') || errorText.includes('forbidden');
+              if (hasAuthKeywords) {
                 throw new AuthError('Your session has expired. Please sign in again.');
               }
-              
-              // If error message doesn't suggest auth issue, it's likely a real server error
-              // Don't treat as auth error - let it be handled as a regular error
-              // This prevents false auth redirects on legitimate 500 errors
+              // 500 on protected route with valid-looking token: still treat as auth
+              // (backend often returns 500 for expired token). Redirect so user can re-login.
+              throw new AuthError('Your session may have expired. Please sign in again.');
             } catch (tokenError) {
-              // If checking token fails or token is missing, it's definitely an auth issue
               if (tokenError instanceof AuthError) {
                 throw tokenError;
               }
-              // Even if tokenError is not AuthError, if we can't get token, it's auth issue
               throw new AuthError('Your session has expired. Please sign in again.');
             }
           }
@@ -1391,9 +1380,12 @@ export const serviceRequestService = {
       if (!requestId) {
         throw new Error('Invalid response from API: requestId not found');
       }
+
+      const id = typeof requestId === 'number' ? requestId : parseInt(requestId, 10);
+      console.log('🔗 [BACKEND_DEBUG] Service request created — requestId:', id, '| Share this ID with backend team for debugging.');
       
       return {
-        requestId: typeof requestId === 'number' ? requestId : parseInt(requestId, 10),
+        requestId: id,
         categoryName: responseData.categoryName || payload.categoryName,
         status: responseData.status || 'pending',
         message: responseData.message || 'Service request created successfully',
@@ -1579,8 +1571,12 @@ export const serviceRequestService = {
           providers = response.data.data;
         }
       }
-      
-      return Array.isArray(providers) ? providers : [];
+      // Filter out providers who have declined/rejected (backend should exclude, but filter client-side too)
+      const filtered = (Array.isArray(providers) ? providers : []).filter((p: any) => {
+        const status = (p.acceptance?.status ?? p.status ?? '').toString().toLowerCase();
+        return status !== 'rejected' && status !== 'declined';
+      });
+      return filtered;
     } catch (error) {
       console.error('Error getting accepted providers:', error);
       throw error;
@@ -2433,6 +2429,7 @@ export const providerService = {
         throw new Error('Login failed: No token received from server.');
       }
 
+      console.log('🔑 [BACKEND_DEBUG] Provider token (share with backend team for debugging):', token);
       await authServiceInstance.setAuthToken(token);
 
       let finalProviderId: number | undefined = undefined;
@@ -2856,8 +2853,19 @@ export const providerService = {
         };
       }>(`/api/provider/requests/${requestId}/reject`);
       return response.data;
-    } catch (error) {
-      console.error('Error rejecting request:', error);
+    } catch (error: any) {
+      const msg = (error?.message || '').toLowerCase();
+      if (msg.includes('already rejected')) {
+        return {
+          requestId,
+          acceptanceId: 0,
+          status: 'rejected',
+          message: 'Request was already declined.',
+        } as any;
+      }
+      if (__DEV__) {
+        console.error('Error rejecting request:', error);
+      }
       throw error;
     }
   },
@@ -2873,14 +2881,21 @@ export const providerService = {
     message?: string;
   }> => {
     try {
+      if (__DEV__) {
+        console.log('[startWorkOrder] POST /api/provider/requests/' + requestId + '/start – expecting backend to set service_request.status = in_progress');
+      }
       const response = await apiClient.post<{ data: any }>(
         `/api/provider/requests/${requestId}/start`,
         {}
       );
       const data = (response as any)?.data?.data ?? (response as any)?.data ?? response?.data;
+      const status = data?.status ?? 'in_progress';
+      if (__DEV__) {
+        console.log('[startWorkOrder] Response:', { requestId, status, fullData: data, rawResponse: response });
+      }
       return {
         requestId,
-        status: data?.status ?? 'in_progress',
+        status,
         message: data?.message ?? 'Job started successfully.',
       };
     } catch (error) {
@@ -3231,14 +3246,18 @@ export const communicationService = {
         throw new Error('Invalid response from get messages API.');
       }
 
+      const messages = responseData.messages || [];
+      const total = responseData.total ?? 0;
+      const responseOffset = responseData.offset ?? 0;
+
       // Calculate if there are more messages
-      const hasMore = (responseData.offset + responseData.messages.length) < responseData.total;
+      const hasMore = (responseOffset + messages.length) < total;
 
       return {
-        messages: responseData.messages || [],
-        total: responseData.total || 0,
+        messages,
+        total,
         limit: responseData.limit || limit,
-        offset: responseData.offset || offset,
+        offset: responseOffset,
         hasMore,
       };
     } catch (error) {

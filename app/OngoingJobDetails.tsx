@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/useToast';
 import { Colors } from '@/lib/designSystem';
 import { analytics } from '@/services/analytics';
 import { QuotationWithProvider, ServiceRequest, serviceRequestService, walletService } from '@/services/api';
+import { formatTimeAgo } from '@/utils/dateFormatting';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -13,38 +14,16 @@ import { CheckCircle, CheckCircle2, Circle, Clock, FileText, MapPinned, Wrench }
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Alert,
   Animated,
   Image,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-
-// Helper function to format time ago
-const formatTimeAgo = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffDays > 0) {
-      return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
-    } else if (diffHours > 0) {
-      return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-    } else if (diffMinutes > 0) {
-      return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
-    } else {
-      return 'Just now';
-    }
-  } catch {
-    return 'Recently';
-  }
-};
 
 // Generate nice dummy quotations from accepted providers
 const generateDummyQuotations = (acceptedProviders: any[], categoryName?: string): Quotation[] => {
@@ -182,6 +161,7 @@ export default function OngoingJobDetails() {
   // Selection flow state
   const [isSelectingProvider, setIsSelectingProvider] = useState(false);
   const [selectionCountdown, setSelectionCountdown] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const cameFromPaymentSuccess = params.paymentStatus === 'success';
 
@@ -265,7 +245,8 @@ export default function OngoingJobDetails() {
                                            request.status === 'reviewing' ||
                                            request.status === 'completed' ||
                                            request.status === 'accepted' ||
-                                           quotations.length > 0; // If quotations exist, providers must have accepted
+                                           (request.status as any) === 'inspecting' || // Provider requested visit
+                                           quotations.length > 0;
     const hasAcceptedProviders = hasAcceptedProvidersFromAPI || hasAcceptedProvidersFromStatus;
     
     // Show provider acceptance step if providers have accepted
@@ -466,29 +447,42 @@ export default function OngoingJobDetails() {
     }
 
     // Step 5: Job in Progress
-    // This step ONLY becomes active when provider clicks "Start" button (status becomes 'in_progress')
-    // Payment is NOT part of this timeline - it's handled separately
-    // - Status 'in_progress' → YELLOW (provider has started, job ongoing)
-    // - Status 'completed' → GREEN (job completed)
-    // - Status 'scheduled' (payment done) → GREY (waiting for provider to click Start)
+    // - scheduled → YELLOW (waiting for provider to click Start)
+    // - in_progress → GREEN (provider has started, job active – client can mark complete)
+    // - reviewing → YELLOW (provider finished, client must verify and mark complete)
+    // - completed → GREEN (job done)
     
     if (request.status === 'in_progress') {
+      // Provider has started – GREEN so it clearly differs from "waiting for provider"
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
-        description: 'Provider is on site working. Chat to track progress. Mark complete when done.',
+        description: 'Provider is on site working. Mark complete when satisfied with the work.',
         status: 'In Progress',
+        accent: '#DCFCE7',
+        dotColor: '#6A9B00',
+        isActive: true,
+        isCompleted: false,
+        icon: Wrench,
+      });
+    } else if (request.status === 'reviewing') {
+      // Provider marked complete – YELLOW: client must verify and release payment
+      timeline.push({
+        id: 'step-5',
+        title: 'Job in Progress',
+        description: 'Provider has finished. Verify the work and mark complete to release payment.',
+        status: 'Awaiting your confirmation',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
         isActive: true,
         isCompleted: false,
         icon: Wrench,
       });
-    } else if (request.status === 'reviewing' || request.status === 'completed') {
+    } else if (request.status === 'completed') {
       timeline.push({
         id: 'step-5',
         title: 'Job in Progress',
-        description: 'Work completed. Review and mark as complete to release payment.',
+        description: 'Work completed. Payment released to provider.',
         status: 'Completed',
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
@@ -548,7 +542,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-6',
         title: 'Complete',
-        description: 'Provider has finished. Confirm satisfaction to release payment from escrow.',
+        description: 'Verify the work is satisfactory, then tap Mark as complete to release payment from escrow to the provider.',
         status: 'Confirm to release payment',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
@@ -561,7 +555,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-6',
         title: 'Complete',
-        description: 'Once the provider finishes the work and you are satisfied with the results, you can mark the job as complete. This will release payment from escrow to the provider.',
+        description: 'When the provider finishes the work, verify the results and mark complete to release payment from escrow to the provider.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -622,10 +616,10 @@ export default function OngoingJobDetails() {
 
     if (request.status === 'reviewing') {
       return {
-        title: 'Provider finished',
-        subtitle: 'Review the work and mark complete to release payment.',
+        title: 'Provider has finished',
+        subtitle: 'Verify the work is satisfactory, then tap Mark as complete to release payment to the provider.',
         variant: 'neutral' as const,
-        statusPill: 'Awaiting confirmation',
+        statusPill: 'Awaiting your confirmation',
         pillBg: '#FEF9C3',
         pillText: '#92400E',
         timestamp: request.updatedAt ? formatTimeAgo(request.updatedAt) : null,
@@ -764,10 +758,10 @@ export default function OngoingJobDetails() {
     }
   }, []);
 
-  const loadRequestData = useCallback(async () => {
+  const loadRequestData = useCallback(async (silent = false) => {
     if (!params.requestId) return;
 
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     try {
       const requestId = parseInt(params.requestId, 10);
 
@@ -804,8 +798,7 @@ export default function OngoingJobDetails() {
       const errorMessage = getSpecificErrorMessage(error, 'get_request_details');
       showError(errorMessage);
     } finally {
-      // Only show the page after everything is ready, to avoid flicker/glitches
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [params.requestId, loadQuotations, showError, checkPaymentTransaction]);
 
@@ -1017,17 +1010,39 @@ export default function OngoingJobDetails() {
     }
   }, [params.requestId]);
 
-  // Refresh data when screen comes into focus (e.g., returning from another screen)
-  // This ensures timeline and status are always up to date with NO mid‑load glitches.
+  // Refresh when screen focuses + poll when job is active (scheduled, in_progress, reviewing)
+  const loadRequestDataRef = useRef(loadRequestData);
+  loadRequestDataRef.current = loadRequestData;
+
   useFocusEffect(
     useCallback(() => {
-      if (params.requestId) {
-        const timer = setTimeout(() => {
-          loadRequestData();
-        }, 500); // small delay to let backend settle after actions like payment
-        return () => clearTimeout(timer);
-      }
-    }, [params.requestId, loadRequestData])
+      if (!params.requestId) return;
+
+      // Initial load
+      const initTimer = setTimeout(() => {
+        loadRequestDataRef.current();
+      }, 500);
+
+      // Poll every 8s when job could be updated by provider (Start / Mark complete)
+      const activeStatuses = ['scheduled', 'in_progress', 'reviewing'];
+      const poll = () => {
+        loadRequestDataRef.current(true);
+      };
+      const pollInterval = setInterval(poll, 8000);
+      // First poll sooner (2s) so updates appear quickly
+      const firstPollTimer = setTimeout(poll, 2000);
+
+      const sub = AppState.addEventListener('change', (state) => {
+        if (state === 'active') poll();
+      });
+
+      return () => {
+        clearTimeout(initTimer);
+        clearTimeout(firstPollTimer);
+        clearInterval(pollInterval);
+        sub.remove();
+      };
+    }, [params.requestId])
   );
 
   // Handle accept quotation (6.4 endpoint)
@@ -1526,10 +1541,7 @@ export default function OngoingJobDetails() {
               <Text className="text-base text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
                 {provider.name}
               </Text>
-              <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
-                {provider.role}
-              </Text>
-              {provider.distanceKm && (
+              {provider.distanceKm != null && (
                 <Text className="text-xs text-gray-400 mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
                   {provider.distanceKm.toFixed(1)} km away • ~{provider.minutesAway} min
                 </Text>
@@ -1704,7 +1716,7 @@ export default function OngoingJobDetails() {
               Unable to load job details. Please try again.
             </Text>
             <TouchableOpacity
-              onPress={loadRequestData}
+              onPress={() => loadRequestData()}
               className="mt-6 px-6 py-3 bg-[#6A9B00] rounded-xl"
               activeOpacity={0.85}
             >
@@ -1714,7 +1726,21 @@ export default function OngoingJobDetails() {
             </TouchableOpacity>
           </View>
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 120 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={async () => {
+                  setRefreshing(true);
+                  await loadRequestData(true);
+                  setRefreshing(false);
+                }}
+                tintColor="#6A9B00"
+              />
+            }
+          >
             {activeTab === 'Updates' ? (
               <>
                 {/* Provider / quotation section is shown ABOVE the timeline for better visibility */}
@@ -1735,6 +1761,49 @@ export default function OngoingJobDetails() {
                   </View>
                   ) : null // Don't show message if job is in progress - providers have accepted
                 )}
+
+                {/* VISIT REQUEST BANNER - Clearly visible when provider requested inspection */}
+                {(() => {
+                  const vr = (request as any)?.visitRequest;
+                  const hasVR = !!(vr && (vr.scheduledDate || vr.logisticsCost != null));
+                  const vPaid = vr?.logisticsStatus === 'paid';
+                  if (!hasVR || vPaid) return null;
+                  return (
+                    <View style={{ marginHorizontal: 20, marginBottom: 20, backgroundColor: '#FEF9C3', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#FDE047' }}>
+                      <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: '#92400E', marginBottom: 6 }}>
+                        Provider requested inspection visit
+                      </Text>
+                      <Text style={{ fontSize: 14, fontFamily: 'Poppins-Regular', color: '#713F12', marginBottom: 12 }}>
+                        {vr.scheduledDate || vr.scheduledTime ? `Scheduled: ${vr.scheduledDate || ''} ${vr.scheduledTime || ''}` : 'Confirm or decline the visit.'} Pay ₦{vr.logisticsCost ?? 0} to confirm.
+                      </Text>
+                      <View style={{ flexDirection: 'row', gap: 12 }}>
+                        <TouchableOpacity
+                          onPress={() => router.push({ pathname: '/ConfirmWalletPaymentScreen', params: { requestId: params.requestId, amount: String(vr.logisticsCost ?? 0), paymentType: 'logistics_fee', serviceName: request?.jobTitle || 'Inspection' } } as any)}
+                          style={{ flex: 1, backgroundColor: '#6A9B00', paddingVertical: 12, borderRadius: 10, alignItems: 'center' }}
+                          activeOpacity={0.85}
+                        >
+                          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: '#FFFFFF' }}>Confirm & Pay ₦{vr.logisticsCost ?? 0}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => Alert.alert('Decline visit?', 'Provider can send a quotation directly without visiting.', [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Decline visit', style: 'destructive', onPress: async () => {
+                              try {
+                                await serviceRequestService.declineVisit(Number(params.requestId));
+                                showSuccess('Visit declined.');
+                                loadRequestData();
+                              } catch (e: any) { showError(getSpecificErrorMessage(e, 'decline_visit') ?? e?.message); }
+                            }},
+                          ])}
+                          style={{ paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', justifyContent: 'center' }}
+                          activeOpacity={0.85}
+                        >
+                          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: '#6B7280' }}>Decline visit</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })()}
 
                 {/* Status card - hide when provider cards already show same "Inspection in Progress" content */}
                 {timelineHeader && !(mappedProviders.length > 0 && (timelineHeader as any).statusPill === 'Provider accepted') && (
@@ -1779,9 +1848,6 @@ export default function OngoingJobDetails() {
                             <View className="flex-1">
                               <Text className="text-base text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
                                 {(timelineHeader as any).provider?.name || 'Professional Service Provider'}
-                              </Text>
-                              <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
-                                Professional Service Provider
                               </Text>
                               {(() => {
                                 const mp = mappedProviders.find(m => m.providerId === (timelineHeader as any).provider?.id) ?? mappedProviders[0];
@@ -1935,6 +2001,7 @@ export default function OngoingJobDetails() {
 
                 {renderTimeline()}
 
+                {/* Mark as complete: GREEN when status is in_progress (provider started) or reviewing (provider marked complete, client confirms to release payment) */}
                 <TouchableOpacity
                   disabled={!['in_progress', 'reviewing'].includes(request.status) || isLoading}
                   className={`rounded-xl py-4 items-center justify-center mb-8 ${
@@ -2026,9 +2093,6 @@ export default function OngoingJobDetails() {
                                 <Ionicons name="checkmark-circle" size={16} color="#6A9B00" style={{ marginLeft: 6 }} />
                               )}
                             </View>
-                            <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Medium' }}>
-                              Professional Service Provider
-                            </Text>
                               <Text className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
                               {quotations[currentQuoteIndex].provider.phoneNumber}
                               </Text>

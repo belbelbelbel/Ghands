@@ -203,15 +203,16 @@ const HomeScreen = React.memo(() => {
       ? request.categoryName.charAt(0).toUpperCase() + request.categoryName.slice(1).replace(/([A-Z])/g, ' $1')
       : 'Service';
 
-    // Map status: If providers have accepted, show "In Progress" even if request status is "pending"
+    // Map status: scheduled = paid; reviewing = provider marked complete
     let status: 'Completed' | 'In Progress' | 'Pending' = 'Pending';
     if (request.status === 'completed') {
       status = 'Completed';
-    } else if (request.status === 'accepted' || request.status === 'in_progress') {
+    } else if (request.status === 'accepted' || request.status === 'in_progress' ||
+               request.status === 'scheduled' || request.status === 'reviewing' ||
+               (request.status as any) === 'inspecting') {
       status = 'In Progress';
     } else if (acceptedProvidersCount > 0) {
-      // Providers have accepted, but request status is still "pending" (waiting for client selection)
-      status = 'In Progress'; // Show as "In Progress" to indicate providers have accepted
+      status = 'In Progress';
     }
 
     // Get quotations count (if available)
@@ -259,8 +260,9 @@ const HomeScreen = React.memo(() => {
           return false;
         }
 
-        // For Job Activity we now allow all non‑cancelled statuses (including "pending")
-        // so the user always sees their recent bookings, even if nearbyProviders is empty.
+        // Hide when all providers declined
+        const status = ((request as any).status ?? '').toString().toLowerCase();
+        if (status === 'rejected' || status === 'no_providers') return false;
         return true;
       });
 

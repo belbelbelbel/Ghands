@@ -57,17 +57,20 @@ export const InputField = forwardRef<TextInput, InputFieldProps>((props, ref) =>
   const charCount = maxLength ? value.length : null;
   const remainingChars = maxLength ? maxLength - value.length : null;
 
+  const iconSize = 36;
+  const inputMinHeight = INPUT_HEIGHTS.small;
+
   return (
     <View style={{ marginBottom: Spacing.md }}>
       <View
         style={{
           backgroundColor: Colors.backgroundGray,
           borderRadius: BorderRadius.default,
-          paddingHorizontal: Spacing.lg,
-          paddingVertical: Spacing.sm,
+          paddingHorizontal: Spacing.md,
+          paddingVertical: 6,
           flexDirection: 'row',
           alignItems: 'center',
-          minHeight: INPUT_HEIGHTS.medium,
+          minHeight: inputMinHeight,
           borderWidth: showError || isFocused ? 2 : 0,
           borderColor: showError ? Colors.error : isFocused ? Colors.accent : 'transparent',
           opacity: disabled ? 0.6 : 1,
@@ -76,9 +79,9 @@ export const InputField = forwardRef<TextInput, InputFieldProps>((props, ref) =>
       {iconPosition === 'left' && (
         <View
           style={{
-            width: 48,
-            height: 48,
-            marginRight: Spacing.lg,
+            width: iconSize,
+            height: iconSize,
+            marginRight: Spacing.md,
             backgroundColor: Colors.accent,
             borderRadius: BorderRadius.default,
             alignItems: 'center',
@@ -115,7 +118,7 @@ export const InputField = forwardRef<TextInput, InputFieldProps>((props, ref) =>
         style={{
           flex: 1,
           color: Colors.textPrimary,
-          fontSize: 16,
+          fontSize: 15,
           fontFamily: 'Poppins-Medium',
         }}
         placeholderTextColor={Colors.textSecondaryDark}
@@ -123,9 +126,9 @@ export const InputField = forwardRef<TextInput, InputFieldProps>((props, ref) =>
       {iconPosition === 'right' && (
         <View
           style={{
-            width: 48,
-            height: 48,
-            marginLeft: Spacing.lg,
+            width: iconSize,
+            height: iconSize,
+            marginLeft: Spacing.md,
             backgroundColor: Colors.accent,
             borderRadius: BorderRadius.default,
             alignItems: 'center',

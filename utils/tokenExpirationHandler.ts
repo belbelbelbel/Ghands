@@ -10,15 +10,12 @@ const AUTH_ROLE_KEY = '@ghands:user_role';
  */
 export async function handleTokenExpiration(): Promise<string | null> {
   try {
-    // Get user role before clearing tokens
+    // Get user role before clearing tokens (needed to determine redirect)
     const role = await AsyncStorage.getItem(AUTH_ROLE_KEY);
     
-    // Clear all auth tokens via AuthService.
-    // IMPORTANT: We intentionally DO NOT clear the saved role here.
-    // The role tells us whether the user is a client or provider so we can
-    // send them to the correct login screen. Clearing it would make the app
-    // think this is a brand‑new user and send them back to the role selection.
     await authService.clearAuthTokens();
+    // Clear role after use – aligns with handleAuthErrorRedirect (auth failed = full logout)
+    await AsyncStorage.removeItem(AUTH_ROLE_KEY);
     
     // Return appropriate login route based on role
     // Users with expired tokens should login again, not signup

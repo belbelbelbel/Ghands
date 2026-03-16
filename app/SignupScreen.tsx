@@ -30,7 +30,7 @@ export default function SignupScreen() {
   const [phoneError, setPhoneError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
-  const [passwordStrength, setPasswordStrength] = useState<{ strength: 'weak' | 'medium' | 'strong'; message: string } | null>(null);
+  const [passwordStrength, setPasswordStrength] = useState<{ strength: 'weak' | 'medium' | 'strong'; message: string; score: number } | null>(null);
   
   // Refs for auto-focus
   const phoneInputRef = useRef<TextInput>(null);
@@ -158,23 +158,22 @@ export default function SignupScreen() {
 
       await authService.userSignup(signupPayload);
       
-      // Token is already saved by authService.userSignup
+      // CRITICAL: Set role so index.tsx routes correctly (client came from SelectAccountTypeScreen)
+      await AsyncStorage.setItem('@ghands:user_role', 'client');
+      
       // Save email and phone for profile completion later
       await AsyncStorage.setItem('@ghands:signup_email', email.trim());
       if (phoneNumber.trim()) {
         await AsyncStorage.setItem('@ghands:signup_phone', phoneNumber.trim());
       }
       
-      // Mark profile as incomplete (user needs to complete firstName, lastName, gender)
       await AsyncStorage.setItem('@ghands:profile_complete', 'false');
       
       haptics.success();
-      showSuccess('Signup successful! Please complete your profile.');
+      showSuccess('Signup successful!');
       
-      // Navigate to home - profile completion will be prompted when needed
-      setTimeout(() => {
-        router.replace('/(tabs)/home');
-      }, 1500);
+      // Navigate immediately – no delay so user doesn't get redirected back
+      router.replace('/(tabs)/home');
     } catch (error: any) {
       haptics.error();
       
@@ -260,7 +259,7 @@ export default function SignupScreen() {
         {/* Email Input */}
         <InputField
           placeholder="Email"
-          icon={<Mail size={20} color={'white'}/>}
+          icon={<Mail size={18} color={'white'}/>}
           keyboardType="email-address"
           value={email}
           onChangeText={handleEmailChange}
@@ -276,7 +275,7 @@ export default function SignupScreen() {
         {/* Phone Number Input */}
         <InputField
           placeholder="Phone Number (11 digits)"
-          icon={<Phone size={20} color={'white'}/>}
+          icon={<Phone size={18} color={'white'}/>}
           keyboardType="phone-pad"
           value={phoneNumber}
           onChangeText={handlePhoneChange}
@@ -293,7 +292,7 @@ export default function SignupScreen() {
         <View>
           <InputField
             placeholder="Password (min 6 characters)"
-            icon={<Lock size={20} color={'white'}/>}
+            icon={<Lock size={18} color={'white'}/>}
             secureTextEntry={true}
             value={password}
             onChangeText={handlePasswordChange}
@@ -346,7 +345,7 @@ export default function SignupScreen() {
         {/* Confirm Password Input */}
         <InputField
           placeholder="Confirm password"
-          icon={<Lock size={20} color={'white'}/>}
+          icon={<Lock size={18} color={'white'}/>}
           secureTextEntry={true}
           value={confirmPassword}
           onChangeText={handleConfirmPasswordChange}

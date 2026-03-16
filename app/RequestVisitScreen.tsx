@@ -36,6 +36,7 @@ export default function RequestVisitScreen() {
     requestId?: string;
     jobTitle?: string;
   }>();
+  const requestId = typeof params.requestId === 'string' ? params.requestId : Array.isArray(params.requestId) ? params.requestId[0] : undefined;
   const { toast, showError, showSuccess, hideToast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -184,7 +185,7 @@ export default function RequestVisitScreen() {
   };
 
   const handleConfirmAppointment = async () => {
-    if (!params.requestId || !selectedDate || !selectedTime) return;
+    if (!requestId || !selectedDate || !selectedTime) return;
 
     // Validate date is not in the past
     const today = new Date();
@@ -197,29 +198,31 @@ export default function RequestVisitScreen() {
 
     setIsSubmitting(true);
     try {
-      const requestId = Number(params.requestId);
+      const rid = Number(requestId);
       const year = selectedDate.getFullYear();
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const formattedDate = `${year}-${month}-${day}`;
       const timeFormatted = formattedTimeForSummary || `${selectedTime} AM`;
 
-      // Accept first if not already — "Request visit" implies provider accepts
+      // Only send visit request here – acceptance is handled on the previous screen
       try {
-        await providerService.acceptRequest(requestId);
-      } catch (acceptErr: any) {
-        const msg = (acceptErr?.message || acceptErr?.details?.data?.message || '').toLowerCase();
-        const canProceed = msg.includes('already accepted') ||
-          msg.includes('not available for acceptance') || // Request may be taken / provider already in
-          msg.includes('already accepted by');
-        if (!canProceed) throw acceptErr;
+        await providerService.requestVisit(rid, {
+          scheduledDate: formattedDate,
+          scheduledTime: timeFormatted,
+          logisticsCost: parseFloat(logisticsCost) || 0,
+        });
+      } catch (visitErr: any) {
+        const msg = (visitErr?.message || visitErr?.details?.data?.message || '').toLowerCase();
+        if (msg.includes('visit has already been requested') || msg.includes('already been requested')) {
+          haptics.success();
+          showSuccess('Visit request was already submitted. Client has been notified.');
+          setShowSummaryModal(false);
+          setTimeout(() => router.back(), 1500);
+          return;
+        }
+        throw visitErr;
       }
-
-      await providerService.requestVisit(requestId, {
-        scheduledDate: formattedDate,
-        scheduledTime: timeFormatted,
-        logisticsCost: parseFloat(logisticsCost) || 0,
-      });
 
       haptics.success();
       showSuccess('Visit request submitted successfully!');
@@ -239,6 +242,48 @@ export default function RequestVisitScreen() {
     opacity: fadeAnim,
     transform: [{ translateY: slideAnim }],
   }), [fadeAnim, slideAnim]);
+
+  // Missing requestId: navigation went wrong (e.g. from wrong screen). Show clear message and back.
+  if (!requestId || requestId === '') {
+    return (
+      <SafeAreaWrapper backgroundColor={Colors.white}>
+        <View style={{ flex: 1, paddingHorizontal: Spacing.lg, paddingTop: 40, alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{
+              alignSelf: 'flex-start',
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: Colors.backgroundGray,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 24,
+            }}
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={20} color={Colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 16, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 8 }}>
+            Job details are missing. Please go back and open "Request visit" from the job screen.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{
+              backgroundColor: Colors.accent,
+              paddingVertical: 14,
+              paddingHorizontal: 24,
+              borderRadius: 12,
+              marginTop: 16,
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>Go back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.white}>
@@ -284,7 +329,7 @@ export default function RequestVisitScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
               paddingHorizontal: Spacing.lg,
-              paddingBottom: 100,
+              paddingBottom: 120,
             }}
           >
             {/* Logistics Cost */}
@@ -590,31 +635,44 @@ export default function RequestVisitScreen() {
               </View>
             </View>
 
-            {/* Submit Button */}
-            <TouchableOpacity
-              onPress={handleSubmit}
-              style={{
-                backgroundColor: Colors.accent,
-                paddingVertical: Spacing.md,
-                borderRadius: BorderRadius.default,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginTop: Spacing.lg,
-              }}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.white,
-                }}
-              >
-                Submit Request
-              </Text>
-            </TouchableOpacity>
+            {/* Spacer so content is not hidden behind sticky button */}
+            <View style={{ height: 24 }} />
           </ScrollView>
         </Animated.View>
+
+        {/* Sticky primary button: always visible so user can always tap "Review & send" */}
+        <View
+          style={{
+            paddingHorizontal: Spacing.lg,
+            paddingVertical: Spacing.md,
+            paddingBottom: 28,
+            backgroundColor: Colors.white,
+            borderTopWidth: 1,
+            borderTopColor: Colors.border,
+          }}
+        >
+          <TouchableOpacity
+            onPress={handleSubmit}
+            style={{
+              backgroundColor: Colors.accent,
+              paddingVertical: 16,
+              borderRadius: 12,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={{
+                fontSize: 16,
+                fontFamily: 'Poppins-SemiBold',
+                color: Colors.white,
+              }}
+            >
+              Review & send visit request
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Summary Modal */}
@@ -666,7 +724,7 @@ export default function RequestVisitScreen() {
                     textAlign: 'center',
                   }}
                 >
-                  Confirm Appointment
+                  Send visit request to client?
                 </Text>
 
                 {/* Date Selected */}
@@ -787,7 +845,7 @@ export default function RequestVisitScreen() {
                         color: Colors.white,
                       }}
                     >
-                      Okay
+                      Yes, send visit request
                     </Text>
                   )}
                 </TouchableOpacity>

@@ -1,21 +1,23 @@
 import { Colors } from '@/lib/designSystem';
 import { haptics } from '@/hooks/useHaptics';
+import useOnboarding from '../hooks/useOnboarding';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, Image, ImageBackground, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, ImageBackground, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthRole } from '../hooks/useAuth';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function SelectAccountTypeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { setRole } = useAuthRole();
+  const { isOnboardingComplete } = useOnboarding();
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const logoScaleAnim = useRef(new Animated.Value(0.8)).current;
   const buttonSlideAnim = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
-    // Animate logo and buttons on mount
     Animated.parallel([
       Animated.spring(fadeAnim, {
         toValue: 1,
@@ -23,23 +25,13 @@ export default function SelectAccountTypeScreen() {
         friction: 8,
         useNativeDriver: true,
       }),
-      Animated.spring(logoScaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Animate buttons with delay
-    setTimeout(() => {
       Animated.spring(buttonSlideAnim, {
         toValue: 0,
         tension: 50,
         friction: 8,
         useNativeDriver: true,
-      }).start();
-    }, 300);
+      }),
+    ]).start();
   }, []);
 
   const handleRoleSelect = async (role: 'client' | 'provider') => {
@@ -48,17 +40,20 @@ export default function SelectAccountTypeScreen() {
     await setRole(role);
     
     if (role === 'client') {
-      // Navigate to client onboarding
-      router.replace('/onboarding');
+      // First time: show client onboarding. Afterwards, go straight to signup.
+      if (isOnboardingComplete) {
+        router.replace('/SignupScreen');
+      } else {
+        router.replace('/onboarding');
+      }
     } else {
-      // Navigate directly to provider onboarding (skip splash screen)
-      router.replace('/provider-onboarding');
+      // First time: show provider onboarding. Afterwards, go straight to provider signup.
+      if (isOnboardingComplete) {
+        router.replace('/ProviderSignUpScreen');
+      } else {
+        router.replace('/provider-onboarding');
+      }
     }
-  };
-
-  const logoStyle = {
-    opacity: fadeAnim,
-    transform: [{ scale: logoScaleAnim }],
   };
 
   const buttonStyle = {
@@ -80,18 +75,7 @@ export default function SelectAccountTypeScreen() {
         <View style={styles.overlay} />
 
         {/* Content */}
-        <View style={styles.content}>
-          {/* App Logo */}
-          <Animated.View style={[styles.logoContainer, logoStyle]}>
-            <View style={styles.logoImageContainer}>
-              <Image 
-                source={require('../assets/images/icon.png')} 
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-          </Animated.View>
-
+        <View style={[styles.content, { paddingBottom: Math.max(insets.bottom, 24) + 24 }]}>
           {/* Buttons Container */}
           <Animated.View style={[styles.buttonsContainer, buttonStyle]}>
             {/* Sign Up as a Client Button - Green */}
@@ -110,6 +94,18 @@ export default function SelectAccountTypeScreen() {
               activeOpacity={0.9}
             >
               <Text style={styles.providerButtonText}>Sign Up as a Provider</Text>
+            </TouchableOpacity>
+
+            {/* Already have an account - Log in */}
+            <TouchableOpacity
+              style={styles.loginLink}
+              onPress={() => {
+                haptics.selection();
+                router.replace('/LoginScreen');
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.loginLinkText}>Already have an account? Log in</Text>
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -133,44 +129,17 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'space-between',
-    paddingTop: 80,
-    paddingBottom: 56,
-    paddingHorizontal: 24,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoImageContainer: {
-    width: 128,
-    height: 128,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(106, 155, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 12,
-    overflow: 'hidden',
-  },
-  logoImage: {
-    width: '85%',
-    height: '85%',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
   },
   buttonsContainer: {
-    gap: 14,
-    paddingHorizontal: 4,
+    gap: 10,
   },
   clientButton: {
     width: '100%',
-    height: 58,
+    height: 48,
     backgroundColor: '#6A9B00',
-    borderRadius: 16,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#6A9B00',
@@ -180,16 +149,16 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   clientButtonText: {
-    fontSize: 17,
+    fontSize: 15,
     fontFamily: 'Poppins-SemiBold',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
   providerButton: {
     width: '100%',
-    height: 58,
+    height: 48,
     backgroundColor: 'rgba(18, 18, 18, 0.85)',
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: 'rgba(106, 155, 0, 0.7)',
     alignItems: 'center',
@@ -201,9 +170,19 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   providerButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Poppins-SemiBold',
     color: '#FFFFFF',
     letterSpacing: 0.2,
+  },
+  loginLink: {
+    marginTop: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  loginLinkText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    color: 'rgba(255, 255, 255, 0.9)',
   },
 });

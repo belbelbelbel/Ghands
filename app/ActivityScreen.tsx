@@ -2,12 +2,12 @@ import { EmptyState } from '@/components/EmptyState';
 import FilterTransactionsModal from '@/components/FilterTransactionsModal';
 import { TransactionCardSkeleton } from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors } from '@/lib/designSystem';
+import { BorderRadius, Colors, REFRESH_CONTROL } from '@/lib/designSystem';
 import { walletService } from '@/services/api';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, CheckCircle, Clock, Filter, Receipt, Search, XCircle } from 'lucide-react-native';
 import React, { useState, useCallback, useEffect } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface Transaction {
   id: string;
@@ -26,6 +26,7 @@ export default function ActivityScreen() {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Helper function to format date
   const formatDate = useCallback((dateString: string): { date: string; time: string } => {
@@ -120,7 +121,12 @@ export default function ActivityScreen() {
     loadTransactions();
   }, [loadTransactions]);
 
-  // Refresh transactions when screen comes into focus
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadTransactions();
+    setRefreshing(false);
+  }, [loadTransactions]);
+
   useFocusEffect(
     useCallback(() => {
       loadTransactions();
@@ -218,6 +224,14 @@ export default function ActivityScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={REFRESH_CONTROL.tintColor}
+            colors={REFRESH_CONTROL.colors as unknown as string[]}
+          />
+        }
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingBottom: 100,
@@ -645,7 +659,7 @@ export default function ActivityScreen() {
         onClose={() => setShowFilterModal(false)}
         onApply={(filters) => {
           // Handle filter application
-          console.log('Applied filters:', filters);
+          if (__DEV__) console.log('Filters applied');
         }}
       />
     </SafeAreaWrapper>

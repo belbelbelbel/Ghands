@@ -67,23 +67,14 @@ export default function LocationPermissionScreen() {
         mayShowUserSettingsDialog: true, // Allow user to enable location services if disabled
       });
       
-      // Log coordinates for debugging
+      // Validate coordinates - check if they look like default/mock location
       if (__DEV__) {
-        console.log('🔍 [LocationPermissionScreen] GPS Coordinates obtained:', {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          accuracy: location.coords.accuracy, // Accuracy in meters
-          timestamp: new Date(location.timestamp).toISOString(),
-        });
-        
-        // Validate coordinates - check if they look like default/mock location
-        const isLikelyNigeria = location.coords.latitude >= 4.0 && location.coords.latitude <= 14.0 && 
-                                location.coords.longitude >= 2.7 && location.coords.longitude <= 14.7;
-        const isLikelySanFrancisco = Math.abs(location.coords.latitude - 37.785834) < 0.1 && 
-                                     Math.abs(location.coords.longitude - (-122.406417)) < 0.1;
-        
+        const isLikelyNigeria = location.coords.latitude >= 4.0 && location.coords.latitude <= 14.0 &&
+          location.coords.longitude >= 2.7 && location.coords.longitude <= 14.7;
+        const isLikelySanFrancisco = Math.abs(location.coords.latitude - 37.785834) < 0.1 &&
+          Math.abs(location.coords.longitude - (-122.406417)) < 0.1;
         if (isLikelySanFrancisco && !isLikelyNigeria) {
-          console.warn('⚠️ [LocationPermissionScreen] Detected San Francisco coordinates - might be simulator default location');
+          console.warn('Simulator default location detected');
         }
       }
 
@@ -99,7 +90,16 @@ export default function LocationPermissionScreen() {
       const userId = await authService.getUserId();
       if (userId) {
         try {
-          await locationService.saveUserLocation(userId, { placeId: locationDetails.placeId });
+          await locationService.saveUserLocation(userId, {
+            placeId: locationDetails.placeId,
+            address: locationDetails.address,
+            formattedAddress: locationDetails.formattedAddress,
+            latitude: locationDetails.latitude,
+            longitude: locationDetails.longitude,
+            city: locationDetails.city,
+            state: locationDetails.state,
+            country: locationDetails.country,
+          });
         } catch (apiError: any) {
           // API save failed, but local save succeeded - log warning but don't fail
           if (__DEV__) {

@@ -3,6 +3,8 @@ import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { serviceRequestService, authService } from '@/services/api';
+import { AuthError } from '@/utils/errors';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -247,6 +249,10 @@ export default function DateTimeScreen() {
         } as any);
       }, 1000);
     } catch (error: any) {
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
       console.error('Error updating date/time:', error);
       const errorMessage = getSpecificErrorMessage(error, 'update_date_time');
       showError(errorMessage);

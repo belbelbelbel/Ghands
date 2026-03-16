@@ -145,7 +145,7 @@ class PerformanceService {
     } catch (error) {
       // Silently fail to avoid performance monitoring affecting performance
       if (__DEV__) {
-        console.log('Performance metric:', metric);
+        if (__DEV__) console.log('Performance:', metric.name);
       }
     }
   }

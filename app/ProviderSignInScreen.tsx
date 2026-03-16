@@ -8,13 +8,14 @@ import { useToast } from '@/hooks/useToast';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Lock, Mail } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { providerService } from '@/services/api';
 import { haptics } from '@/hooks/useHaptics';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isValidEmail } from '@/utils/inputFormatting';
 
 export default function ProviderSignInScreen() {
   const router = useRouter();
@@ -22,8 +23,22 @@ export default function ProviderSignInScreen() {
   const { setRole } = useAuthRole();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleEmailChange = useCallback((text: string) => {
+    setEmail(text);
+    if (text.trim() && !isValidEmail(text.trim())) setEmailError('Please enter a valid email address');
+    else setEmailError('');
+  }, []);
+
+  const handlePasswordChange = useCallback((text: string) => {
+    setPassword(text);
+    if (text.length > 0 && text.length < 6) setPasswordError('Password must be at least 6 characters');
+    else setPasswordError('');
+  }, []);
 
   const handleLogin = async () => {
     // Prevent duplicate submissions
@@ -34,15 +49,27 @@ export default function ProviderSignInScreen() {
       return;
     }
 
-    if (!email.trim() || !password.trim()) {
-      showError('Please fill in all required fields');
-      return;
+    let hasErrors = false;
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      hasErrors = true;
+    } else if (!isValidEmail(email.trim())) {
+      setEmailError('Please enter a valid email address');
+      hasErrors = true;
+    } else {
+      setEmailError('');
     }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      showError('Please enter a valid email address');
+    if (!password.trim()) {
+      setPasswordError('Password is required');
+      hasErrors = true;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      hasErrors = true;
+    } else {
+      setPasswordError('');
+    }
+    if (hasErrors) {
+      showError('Please fix the errors above');
       return;
     }
 
@@ -76,15 +103,12 @@ export default function ProviderSignInScreen() {
       haptics.success();
       showSuccess('Login successful!');
       
-      // Navigate to provider home
-      setTimeout(() => {
-        router.replace('/provider/home');
-      }, 1000);
+      router.replace('/provider/home');
     } catch (error: any) {
       console.error('Provider login error:', error);
       haptics.error();
       
-      const errorMessage = getSpecificErrorMessage(error);
+      const errorMessage = getSpecificErrorMessage(error, 'provider_login');
       showError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -113,27 +137,31 @@ export default function ProviderSignInScreen() {
         </TouchableOpacity> */}
       </View>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-        <Text className="text-3xl font-bold text-black mb-8" style={{
+        <Text className="text-2xl font-bold text-black mb-6" style={{
           fontFamily: 'Poppins-ExtraBold',
         }}>Sign In</Text>
 
         <InputField
           placeholder="Email"
-          icon={<Mail size={20} color={'white'}/>}
+          icon={<Mail size={18} color={'white'}/>}
           keyboardType="email-address"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={handleEmailChange}
           iconPosition="left"
           autoCapitalize="none"
+          error={!!emailError}
+          errorMessage={emailError}
         />
 
         <InputField
           placeholder="Password"
-          icon={<Lock size={20} color={'white'}/>}
+          icon={<Lock size={18} color={'white'}/>}
           secureTextEntry={true}
           value={password}
-          onChangeText={setPassword}
+          onChangeText={handlePasswordChange}
           iconPosition="right"
+          error={!!passwordError}
+          errorMessage={passwordError}
         />
 
         <View className="items-end mb-4">

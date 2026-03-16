@@ -7,6 +7,8 @@ import { useRouter } from 'expo-router';
 import { MapPin, TrendingUp } from 'lucide-react-native';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useUserLocation } from '@/hooks/useUserLocation';
+import ServiceMap, { ServiceProvider } from '@/components/ServiceMap';
 
 interface TrendingService {
   id: string;
@@ -118,6 +120,7 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const { location } = useUserLocation();
 
   React.useEffect(() => {
     Animated.parallel([
@@ -550,52 +553,33 @@ export default function DiscoverScreen() {
               style={{
                 backgroundColor: Colors.backgroundGray,
                 borderRadius: BorderRadius.xl,
-                padding: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: 160,
+                overflow: 'hidden',
                 borderWidth: 1,
                 borderColor: Colors.border,
-                borderStyle: 'dashed',
               }}
             >
-              <View
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  backgroundColor: Colors.white,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 12,
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                }}
-              >
-                <MapPin size={28} color={Colors.textSecondaryDark} />
+              <View style={{ height: 260 }}>
+                <ServiceMap
+                  providers={[]}
+                  selectedCategory="All"
+                  onCategoryChange={() => {}}
+                  selectedProviders={[]}
+                  onProviderSelect={() => {}}
+                  showList={false}
+                  onToggleList={() => {}}
+                  userLocation={
+                    location
+                      ? {
+                          latitude: Number((location as any).latitude) || 6.5244,
+                          longitude: Number((location as any).longitude) || 3.3794,
+                        }
+                      : undefined
+                  }
+                  categories={['All']}
+                  serviceLocation={location || 'Your current area'}
+                  onServiceLocationChange={() => {}}
+                />
               </View>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                  marginBottom: 6,
-                  letterSpacing: -0.2,
-                }}
-              >
-                Map View Coming Soon
-              </Text>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
-                  textAlign: 'center',
-                  lineHeight: 18,
-                }}
-              >
-                Explore popular services in your area
-              </Text>
             </View>
           </View>
 

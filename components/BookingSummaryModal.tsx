@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View, Image, StyleSheet } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View, Image, StyleSheet, InteractionManager } from 'react-native';
 import AnimatedModal from './AnimatedModal';
 import { Colors, BorderRadius, Spacing } from '@/lib/designSystem';
 import { Edit2, Calendar, Clock, MapPin, Image as ImageIcon, Users, ChevronRight, X } from 'lucide-react-native';
@@ -71,8 +71,10 @@ export default function BookingSummaryModal({
     const profileComplete = await checkProfileComplete();
     
     if (!profileComplete) {
-      // Show profile completion modal (only if not already complete)
-      setShowProfileModal(true);
+      // Defer opening nested modal until after animations settle (reduces hang)
+      InteractionManager.runAfterInteractions(() => {
+        setShowProfileModal(true);
+      });
       return;
     }
 
@@ -81,7 +83,7 @@ export default function BookingSummaryModal({
     onConfirm();
   };
 
-  const handleProfileComplete = async (profileData: { firstName: string; lastName: string; gender: string }) => {
+  const handleProfileComplete = async (profileData: { firstName: string; lastName: string; phoneNumber?: string; gender: string }) => {
     // Mark profile as complete immediately to prevent showing modal again
     await markProfileComplete();
     
@@ -295,14 +297,14 @@ export default function BookingSummaryModal({
         </View>
       </View>
 
-      {/* Profile Completion Modal - Only show when profile is explicitly incomplete (never after user has completed) */}
-      <ProfileCompletionModal
-        visible={showProfileModal && isProfileComplete === false}
-        onClose={() => {
-          setShowProfileModal(false);
-        }}
-        onComplete={handleProfileComplete}
-      />
+      {/* Profile Completion Modal - Lazy mount to reduce nested modal jank */}
+      {showProfileModal && isProfileComplete === false && (
+        <ProfileCompletionModal
+          visible={true}
+          onClose={() => setShowProfileModal(false)}
+          onComplete={handleProfileComplete}
+        />
+      )}
     </AnimatedModal>
   );
 }

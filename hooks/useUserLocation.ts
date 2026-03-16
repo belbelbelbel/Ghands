@@ -40,9 +40,6 @@ export function useUserLocation(): UseUserLocationReturn {
         const storedLocation = await AsyncStorage.getItem(USER_LOCATION_STORAGE_KEY);
         setLocationState(storedLocation);
         setIsLoading(false);
-        if (__DEV__) {
-          console.log('✅ Provider detected - skipping user location API call (will use provider endpoint)');
-        }
         return;
       }
       
@@ -65,9 +62,6 @@ export function useUserLocation(): UseUserLocationReturn {
             return;
           }
           // Location not set in API, fallback to local storage
-          if (__DEV__) {
-            console.log('No saved location in API, using local storage');
-          }
         }
       }
 

@@ -100,7 +100,7 @@ const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
           className="text-xs text-gray-500"
           style={{ fontFamily: 'Poppins-Medium' }}
         >
-          {activity.quotes} quotes received
+          {activity.quotes} {activity.quotes === 1 ? 'quote' : 'quotes'} received
         </Text>
         <Text
           className="text-sm text-black"

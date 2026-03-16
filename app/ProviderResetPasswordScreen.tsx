@@ -47,7 +47,7 @@ export default function ProviderResetPasswordScreen() {
             onPress={() => setShowNewPassword(!showNewPassword)}
             className="w-12 h-12 bg-[#6A9B00] border border-[#6A9B00] rounded-xl items-center justify-center ml-4"
           >
-            {showNewPassword ? <EyeOff size={20} color="black" /> : <Eye size={20} color="black" />}
+            {showNewPassword ? <EyeOff size={20} color="white" /> : <Eye size={20} color="white" />}
           </TouchableOpacity>
         </View>
 
@@ -65,7 +65,7 @@ export default function ProviderResetPasswordScreen() {
             onPress={() => setShowConfirmPassword(!showConfirmPassword)}
             className="w-12 h-12 bg-[#6A9B00] border border-[#6A9B00] rounded-xl items-center justify-center ml-4"
           >
-            {showConfirmPassword ? <EyeOff size={20} color="black" /> : <Eye size={20} color="black" />}
+            {showConfirmPassword ? <EyeOff size={20} color="white" /> : <Eye size={20} color="white" />}
           </TouchableOpacity>
         </View>
 

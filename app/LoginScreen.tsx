@@ -11,6 +11,7 @@ import { InputField } from '../components/InputField';
 import { SocialButton } from '../components/SocialButton';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { isValidEmail } from '@/utils/inputFormatting';
 
 export default function LoginScreen() {
@@ -89,54 +90,10 @@ export default function LoginScreen() {
       haptics.success();
       showSuccess('Login successful!');
       
-      // Navigate directly to home - skip onboarding/account selection for authenticated users
-      setTimeout(() => {
-        router.replace('/(tabs)/home');
-      }, 1000);
+      router.replace('/(tabs)/home');
     } catch (error: any) {
       haptics.error();
-      
-      // Check if it's a network error first
-      const isNetworkError = error?.isNetworkError || 
-                            error?.message?.includes('Network') || 
-                            error?.message?.includes('Failed to fetch') ||
-                            error?.message?.includes('Network request failed');
-      
-      if (isNetworkError) {
-        showError('No internet connection. Please check your connection and reconnect to continue.');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Extract error message from API response
-      // API returns errors as: { "data": { "error": "..." }, "success": false }
-      let errorMessage = 'Login failed. Please check your credentials and try again.';
-      
-      // Check if it's a server error (HTML response or 500 error)
-      if (error.message && (
-        error.message.includes('Server error') || 
-        error.message.includes('Internal Server Error') ||
-        error.status === 500
-      )) {
-        errorMessage = 'Server error: The login service is temporarily unavailable. Please try again in a few moments.';
-      }
-      // Check nested data.error first (actual API format)
-      else if (error.details?.data?.error) {
-        errorMessage = error.details.data.error;
-      } else if (error.details?.error) {
-        errorMessage = error.details.error;
-      } else if (error.message && error.message !== 'Failed' && error.message !== 'Request failed' && !error.message.includes('<!DOCTYPE')) {
-        errorMessage = error.message;
-      } else if (error.error) {
-        errorMessage = error.error;
-      } else if (error.details) {
-        if (typeof error.details === 'string') {
-          errorMessage = error.details;
-        } else if (error.details.message) {
-          errorMessage = error.details.message;
-        }
-      }
-      
+      const errorMessage = getSpecificErrorMessage(error, 'user_login');
       showError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -144,8 +101,11 @@ export default function LoginScreen() {
   };
 
   const handleSignup = () => {
-    // Navigate to signup screen
-    router.push('/SignupScreen');
+    router.replace('/SignupScreen');
+  };
+
+  const handleProviderLogin = () => {
+    router.replace('/ProviderSignInScreen');
   };
 
   const handleGoogleLogin = () => {
@@ -170,11 +130,11 @@ export default function LoginScreen() {
         {/* Title */}
         <Text
           style={{
-            fontSize: 32,
+            fontSize: 28,
             fontFamily: 'Poppins-ExtraBold',
             color: '#000000',
-            marginBottom: 32,
-            lineHeight: 40,
+            marginBottom: 24,
+            lineHeight: 34,
           }}
         >
           Login
@@ -183,7 +143,7 @@ export default function LoginScreen() {
         {/* Email Input */}
         <InputField
           placeholder="Email"
-          icon={<Mail size={20} color={'white'}/>}
+          icon={<Mail size={18} color={'white'}/>}
           keyboardType="email-address"
           value={email}
           onChangeText={handleEmailChange}
@@ -200,7 +160,7 @@ export default function LoginScreen() {
         <InputField
           ref={passwordInputRef}
           placeholder="Password"
-          icon={<Lock size={20} color={'white'}/>}
+          icon={<Lock size={18} color={'white'}/>}
           secureTextEntry={true}
           value={password}
           onChangeText={handlePasswordChange}
@@ -234,6 +194,15 @@ export default function LoginScreen() {
             loading={isLoading}
             disabled={isLoading}
           />
+        </View>
+
+        {/* Provider login link */}
+        <View style={{ alignItems: 'center', marginBottom: 8 }}>
+          <TouchableOpacity onPress={handleProviderLogin} activeOpacity={0.7}>
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: '#6B7280' }}>
+              Provider? <Text style={{ fontFamily: 'Poppins-SemiBold', color: '#6A9B00' }}>Sign in here</Text>
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Signup Link */}

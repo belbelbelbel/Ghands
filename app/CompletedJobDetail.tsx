@@ -424,9 +424,9 @@ export default function CompletedJobDetail() {
               </TouchableOpacity>
             </View>
             <Demcatorline />
-            <View className="mt-6 mb-6">
+            <View className="mt-8 mb-8 px-1">
               <Text
-                className="text-xl mb-4"
+                className="text-xl mb-5"
                 style={{
                   fontFamily: 'Poppins-SemiBold',
                 }}
@@ -434,7 +434,7 @@ export default function CompletedJobDetail() {
                 Job Description
               </Text>
               <Text
-                className="text-sm text-[#4B5563] leading-5"
+                className="text-sm text-[#4B5563] leading-6"
                 style={{
                   fontFamily: 'Poppins-Regular',
                 }}

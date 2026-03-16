@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { useToast } from '@/hooks/useToast';
-import { locationService, authService, LocationSearchResult } from '@/services/api';
+import { locationService, authService, LocationSearchResult, UpdateLocationPayload } from '@/services/api';
 import Toast from '@/components/Toast';
 import * as Location from 'expo-location';
 import { Search, Send, X, MapPin } from 'lucide-react-native';
@@ -141,16 +141,46 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
         }
       }
 
-      // Always save to local storage first (works without sign-in)
-      await setLocation(locationText);
-      
-      // Try to save to API if user is signed in (optional)
+      // Try to save to API first if user is signed in (optional)
       const userId = await authService.getUserId();
-      if (userId && selectedLocation) {
+      if (userId && locationToSave?.placeId) {
         try {
-          await locationService.saveUserLocation(userId, { placeId: selectedLocation.placeId });
+          let payload: UpdateLocationPayload;
+          if (locationToSave.placeId.startsWith('lat_')) {
+            const m = locationToSave.placeId.match(/lat_([\d.-]+)_([\d.-]+)/);
+            if (m?.[1] != null && m?.[2] != null) {
+              const lat = parseFloat(m[1]);
+              const lng = parseFloat(m[2]);
+              if (!isNaN(lat) && !isNaN(lng)) {
+                payload = {
+                  placeId: locationToSave.placeId,
+                  formattedAddress: locationToSave.fullAddress,
+                  address: locationToSave.address,
+                  latitude: lat,
+                  longitude: lng,
+                };
+              } else {
+                payload = { placeId: locationToSave.placeId };
+              }
+            } else {
+              payload = { placeId: locationToSave.placeId };
+            }
+          } else {
+            const details = await locationService.getLocationDetails(locationToSave.placeId);
+            payload = {
+              placeId: details.placeId || locationToSave.placeId,
+              address: details.address || locationToSave.address,
+              formattedAddress: details.formattedAddress || locationToSave.fullAddress,
+              latitude: details.latitude,
+              longitude: details.longitude,
+              city: details.city,
+              state: details.state,
+              country: details.country,
+            };
+          }
+          await locationService.saveUserLocation(userId, payload);
         } catch (apiError: any) {
-          // API save failed, but local save succeeded - log warning but don't fail
+          // API save failed, but local save will still succeed - log warning but don't fail
           console.warn('Failed to save location to API, but saved locally:', apiError.message);
           if (__DEV__) {
             console.warn('API Error details:', {
@@ -160,7 +190,12 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
           }
         }
       }
-      
+
+      // Always update local storage (works without sign-in, keeps cache in sync)
+      if (locationText) {
+        await setLocation(locationText);
+      }
+
       if (onLocationSelected) {
         onLocationSelected(locationText);
       }

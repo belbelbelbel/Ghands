@@ -2,7 +2,7 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Colors, Spacing, BorderRadius, SHADOWS } from '@/lib/designSystem';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Phone, PhoneOff, Mic, MicOff, Volume2, Shield } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { haptics } from '@/hooks/useHaptics';
+import { communicationService } from '@/services/api';
 
 export type CallState = 'incoming' | 'outgoing' | 'active' | 'ended';
 
@@ -48,11 +49,14 @@ export default function CallScreen() {
   const initialCallState: CallState = (params.callState as CallState) || 'incoming';
   const [callState, setCallState] = useState<CallState>(initialCallState);
   const [callDuration, setCallDuration] = useState(0); // in seconds
+  const [callId, setCallId] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [isProvider] = useState(params.isProvider === 'true');
   
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const requestIdNum = params.requestId ? parseInt(params.requestId, 10) : null;
+  const hasRequestId = requestIdNum !== null && !isNaN(requestIdNum);
 
   // Job details from params
   const jobDetails: JobDetails = {
@@ -68,16 +72,12 @@ export default function CallScreen() {
   const callerName = params.callerName || (isProvider ? 'JohnDoe Akpan' : 'AquaFix Solutions');
   const callerImage = params.callerImage;
 
-  // Format call duration
+  // Format call duration (HH:MM:SS)
   const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   // Start call duration timer
@@ -100,15 +100,38 @@ export default function CallScreen() {
     };
   }, [callState]);
 
+  // Initiate call via API when outgoing and we have requestId
+  useEffect(() => {
+    if (callState === 'outgoing' && hasRequestId && !callId) {
+      communicationService
+        .initiateCall(requestIdNum!)
+        .then(({ callId: id }) => setCallId(id || null))
+        .catch(() => {
+          if (__DEV__) console.warn('Could not initiate call via API');
+        });
+    }
+  }, [callState, hasRequestId, requestIdNum, callId]);
+
+  const updateStatus = useCallback(async (status: string) => {
+    if (callId) {
+      try {
+        await communicationService.updateCallStatus(callId, status);
+      } catch {
+        if (__DEV__) console.warn('Could not update call status');
+      }
+    }
+  }, [callId]);
 
   const handleAcceptCall = () => {
     haptics.success();
+    updateStatus('connected');
     setCallState('active');
     setCallDuration(0);
   };
 
   const handleDeclineCall = () => {
     haptics.error();
+    updateStatus('ended');
     setCallState('ended');
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
@@ -117,6 +140,7 @@ export default function CallScreen() {
 
   const handleEndCall = () => {
     haptics.error();
+    updateStatus('ended');
     setCallState('ended');
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
@@ -135,9 +159,17 @@ export default function CallScreen() {
 
   const handleCallAgain = () => {
     haptics.light();
+    setCallId(null);
     setCallState('outgoing');
     setCallDuration(0);
-    // In real implementation, initiate call
+    if (hasRequestId) {
+      communicationService
+        .initiateCall(requestIdNum!)
+        .then(({ callId: id }) => setCallId(id || null))
+        .catch(() => {
+          if (__DEV__) console.warn('Could not initiate call via API');
+        });
+    }
   };
 
   const handleMessage = () => {
@@ -260,6 +292,24 @@ export default function CallScreen() {
           </Text>
         </View>
       </View>
+      {callState === 'ended' && (
+        <TouchableOpacity
+          onPress={handleCheckUpdates}
+          activeOpacity={0.8}
+          style={{
+            marginTop: Spacing.lg,
+            alignSelf: 'center',
+            backgroundColor: Colors.textPrimary,
+            paddingHorizontal: Spacing.lg,
+            paddingVertical: Spacing.sm,
+            borderRadius: BorderRadius.default,
+          }}
+        >
+          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+            Check updates
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -297,14 +347,6 @@ export default function CallScreen() {
           <View style={{ flex: 1, alignItems: 'center' }}>
             {callState === 'active' && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                <View
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: '#10B981',
-                  }}
-                />
                 <Text
                   style={{
                     fontSize: 16,
@@ -323,6 +365,14 @@ export default function CallScreen() {
                 >
                   {formatDuration(callDuration)}
                 </Text>
+                <View
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: '#EF4444',
+                  }}
+                />
               </View>
             )}
             {callState === 'ended' && (
@@ -576,28 +626,6 @@ export default function CallScreen() {
               gap: Spacing.lg,
             }}
           >
-            <TouchableOpacity
-              onPress={handleCheckUpdates}
-              activeOpacity={0.8}
-              style={{
-                backgroundColor: Colors.accent,
-                paddingHorizontal: Spacing.xl,
-                paddingVertical: Spacing.md,
-                borderRadius: BorderRadius.lg,
-                ...SHADOWS.sm,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.white,
-                }}
-              >
-                Check updates
-              </Text>
-            </TouchableOpacity>
-
             <View style={{ flexDirection: 'row', gap: Spacing.xl }}>
               <TouchableOpacity
                 onPress={handleMessage}

@@ -90,10 +90,13 @@ export default function WalletScreen() {
   const loadTransactions = useCallback(async () => {
     try {
       setIsLoadingTransactions(true);
-      const result = await walletService.getTransactions({ limit: 10, offset: 0 });
+      const result = await walletService.getTransactions({ limit: 15, offset: 0 });
       const mappedTransactions = result.transactions
         .map(mapTransactionToUI)
-        .filter((t): t is Transaction => t !== null);
+        .filter((t): t is Transaction => t !== null)
+        // Hide pending Wallet Deposits from Recent Activity - they're in-process top-ups, not settled
+        .filter((t) => !(t.serviceName === 'Wallet Deposit' && t.status === 'pending'))
+        .slice(0, 5);
       setTransactions(mappedTransactions);
     } catch (error) {
       if (__DEV__) {

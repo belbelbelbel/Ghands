@@ -1,9 +1,9 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Colors, Fonts } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
-import { Building2, User, ArrowLeft, Users } from 'lucide-react-native';
+import { Building2, User, Users } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
-import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, ScrollView, Text, View } from 'react-native';
 import { AccountTypeCard } from '../components/AccountTypeCard';
 import { haptics } from '@/hooks/useHaptics';
 
@@ -26,11 +26,6 @@ export default function ClientTypeSelectionScreen() {
       }),
     ]).start();
   }, []);
-
-  const handleBack = () => {
-    haptics.light();
-    router.back();
-  };
 
   const handleIndividualClient = () => {
     haptics.selection();
@@ -56,37 +51,12 @@ export default function ClientTypeSelectionScreen() {
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Back Button */}
-          <TouchableOpacity
-            onPress={handleBack}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 20,
-              paddingTop: 16,
-              paddingBottom: 8,
-            }}
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={24} color={Colors.textPrimary} />
-            <Text
-              style={{
-                marginLeft: 8,
-                color: Colors.textPrimary,
-                fontFamily: 'Poppins-Medium',
-                fontSize: 16,
-              }}
-            >
-              Back
-            </Text>
-          </TouchableOpacity>
-
           {/* Header Icon */}
           <Animated.View
             style={[
               {
                 alignItems: 'center',
-                marginTop: 24,
+                marginTop: 40,
                 marginBottom: 32,
               },
               animatedStyle,

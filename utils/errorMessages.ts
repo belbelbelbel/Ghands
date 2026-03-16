@@ -26,19 +26,65 @@ export const getErrorMessage = (error: ApiError | Error | any, defaultMessage: s
     return formatApiErrorMessage(error);
   }
 
-  // Check if it's a network error first (comprehensive detection)
+  // 1. Network errors – handle first (user has no connection)
   const errorMessage = (error?.message || '').toLowerCase();
-  if (error?.isNetworkError || 
-      errorMessage.includes('network') || 
+  if (error?.isNetworkError ||
+      errorMessage.includes('network') ||
       errorMessage.includes('failed to fetch') ||
       errorMessage.includes('network request failed') ||
       errorMessage.includes('econnrefused') ||
       errorMessage.includes('enotfound') ||
       errorMessage.includes('timeout') ||
-      errorMessage.includes('offline') ||
+      errorMessage.includes('network connection') ||
       errorMessage.includes('no internet') ||
+      errorMessage.includes('offline') ||
       (error?.name === 'TypeError' && errorMessage.includes('fetch'))) {
-    return 'No internet connection. Please check your connection and reconnect to continue.';
+    return 'No internet connection. Please check your connection and try again.';
+  }
+
+  // 2. Try to extract a clear backend message up front (before generic status-based fallbacks)
+  const rawBackendMessage =
+    (error?.details?.data?.error ||
+      error?.details?.data?.message ||
+      error?.details?.error ||
+      error?.details?.message ||
+      error?.message ||
+      '') as string;
+  const rawBackendMessageLower = rawBackendMessage.toLowerCase();
+
+  if (
+    rawBackendMessage &&
+    // Ignore very generic wrappers – we want real validation text like `"field" must be a positive number`
+    !rawBackendMessageLower.includes('request failed with status') &&
+    !rawBackendMessageLower.includes('something went wrong') &&
+    !rawBackendMessageLower.includes('invalid information provided') &&
+    !rawBackendMessageLower.includes('failed to') // e.g. \"Failed to send quotation\"
+  ) {
+    return formatApiErrorMessage(rawBackendMessage);
+  }
+
+  // 3. HTTP status codes – use explicit user messages before raw backend text
+  const status = error?.status ?? error?.response?.status;
+  if (typeof status === 'number') {
+    // 401 / 403 – invalid credentials or forbidden
+    if (status === 401 || status === 403) {
+      return 'Invalid email or password. Please try again.';
+    }
+    // 500+ – server error, avoid exposing technical details
+    if (status >= 500) {
+      return 'The server is having trouble right now. Please try again in a moment.';
+    }
+    // 4xx – use status-specific messages
+    if (status >= 400 && status < 500) {
+      const statusMsg = getStatusErrorMessage(status);
+      if (statusMsg) return statusMsg;
+    }
+  }
+
+  // 3. Technical backend errors (e.g. DB schema) – treat as server error
+  const rawMsg = (error?.message || error?.details?.data?.error || error?.details?.error || '').toLowerCase();
+  if (rawMsg.includes('column') && (rawMsg.includes('does not exist') || rawMsg.includes('do not exist'))) {
+    return 'The server is having trouble right now. Please try again in a moment.';
   }
 
   // Check nested error structure (API format)
@@ -124,6 +170,9 @@ const formatApiErrorMessage = (message: string): string => {
     'TypeError: Network request failed': 'No internet connection. Please check your connection and reconnect to continue.',
     'timeout': 'The request took too long. Please check your connection and try again.',
     'Duplicate categories are not allowed': 'You have selected duplicate categories. Please select each category only once.',
+    'You have already accepted this request': 'You have already accepted this request. You can schedule a visit or send a quotation.',
+    'Service request is not available for acceptance': 'This request is no longer available for acceptance.',
+    'A visit has already been requested for this request': 'A visit has already been scheduled. The client will be notified.',
     'app client does not exist': 'Your account needs to be set up properly. Please complete your profile setup or contact support.',
     'property app client does not exist': 'Your account setup is incomplete. Please complete your profile setup first.',
   };
@@ -204,8 +253,10 @@ const getStatusErrorMessage = (status: number): string => {
 /**
  * Gets a user-friendly error message for specific error types
  */
-export const getSpecificErrorMessage = (error: ApiError | Error | any, context: string): string => {
+export const getSpecificErrorMessage = (error: ApiError | Error | any, context?: string): string => {
   const defaultMessages: { [key: string]: string } = {
+    'provider_login': 'Login failed. Please check your email and password, then try again.',
+    'user_login': 'Login failed. Please check your email and password, then try again.',
     'request_visit': 'Failed to request visit. Please try again.',
     'request_visit_must_accept': 'Please accept the request first, then request a visit.',
     'pay_logistics_fee': 'Failed to pay logistics fee. Please try again.',
@@ -237,6 +288,9 @@ export const getSpecificErrorMessage = (error: ApiError | Error | any, context: 
     'complete_service_request': 'Failed to complete job. Please ensure payment is completed and try again.',
     'start_work_order': 'Failed to start work order. Please try again.',
     'provider_mark_complete': 'Failed to mark work complete. Please try again.',
+    'initialize_deposit': 'Failed to initialize deposit. Please try again.',
+    'verify_deposit': 'Failed to verify deposit. Please try again.',
+    'withdraw': 'Withdrawal failed. Check your PIN and balance, then try again.',
   };
 
   const defaultMessage = defaultMessages[context] || 'Something went wrong. Please try again.';

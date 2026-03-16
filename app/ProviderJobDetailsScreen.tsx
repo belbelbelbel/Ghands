@@ -27,6 +27,7 @@ export default function ProviderJobDetailsScreen() {
   const { toast, showError, showSuccess, hideToast } = useToast();
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [quotation, setQuotation] = useState<Quotation | null>(null);
@@ -42,6 +43,7 @@ export default function ProviderJobDetailsScreen() {
   const [showProceedModal, setShowProceedModal] = useState(false);
   const [workOrderStatus, setWorkOrderStatus] = useState<'pending' | 'in_progress' | 'active'>('pending');
   const [refreshing, setRefreshing] = useState(false);
+  const [isStartingJob, setIsStartingJob] = useState(false);
 
   // Update work order status based on request status
   // CRITICAL: Request status is the source of truth - if 'in_progress' or 'completed', work order is active
@@ -255,9 +257,12 @@ export default function ProviderJobDetailsScreen() {
     
     let requestDetails: ServiceRequest | null = null;
 
+    // Mark that we've started a load attempt
+    setHasAttemptedLoad(true);
+
     // Only show loading spinner on initial load, not on silent refreshes
     if (!silent && !hasInitialLoadRef.current) {
-    setIsLoading(true);
+      setIsLoading(true);
     }
     try {
       const requestId = parseInt(params.requestId, 10);
@@ -271,18 +276,42 @@ export default function ProviderJobDetailsScreen() {
         }
       
       
-      // Load from provider accepted list (single source – backend must keep this up to date)
+      // 1) Try provider accepted list (primary source)
       const acceptedRequests = await providerService.getAcceptedRequests();
       requestDetails = acceptedRequests.find((req) => req.id === requestId) || null;
 
+      // 2) If not there, fall back to available requests (pending invites)
       if (!requestDetails) {
         const availableRequests = await providerService.getAvailableRequests();
         requestDetails = availableRequests.find((req) => req.id === requestId) || null;
-        if (requestDetails) setIsFromAcceptedRequests(false);
+        if (requestDetails) {
+          setIsFromAcceptedRequests(false);
+        }
       } else {
         setIsFromAcceptedRequests(true);
       }
-      
+
+      // 3) Final fallback: fetch full request details directly.
+      // This covers cases where the backend has moved the job out of
+      // "accepted" and "available" lists (e.g. after visit requested / scheduled),
+      // but the provider should still be able to open the job.
+      if (!requestDetails) {
+        try {
+          const fullDetails = await serviceRequestService.getRequestDetails(requestId);
+          if (fullDetails) {
+            requestDetails = fullDetails as ServiceRequest;
+            const status = (fullDetails as any).status?.toString().toLowerCase();
+            if (status === 'accepted' || status === 'scheduled' || status === 'in_progress') {
+              setIsFromAcceptedRequests(true);
+            } else {
+              setIsFromAcceptedRequests(false);
+            }
+          }
+        } catch {
+          // Ignore here – we'll handle missing details below with a user-friendly message.
+        }
+      }
+
       if (!requestDetails) {
         showError('Job details not found');
         setIsLoading(false);
@@ -409,8 +438,43 @@ export default function ProviderJobDetailsScreen() {
 
     try {
       const requestId = parseInt(params.requestId, 10);
-      await providerService.acceptRequest(requestId);
-      
+      try {
+        await providerService.acceptRequest(requestId);
+      } catch (acceptErr: any) {
+        const msg = (acceptErr?.message || acceptErr?.details?.data?.message || '').toLowerCase();
+        const alreadyAccepted =
+          msg.includes('already accepted') ||
+          msg.includes('not available for acceptance') ||
+          msg.includes('already accepted by');
+        if (alreadyAccepted) {
+          haptics.success();
+          showSuccess('Request already accepted. Proceeding...');
+          if (proceedType === 'visit') {
+            setTimeout(() => {
+              router.push({
+                pathname: '/RequestVisitScreen' as any,
+                params: { requestId: params.requestId, jobTitle: request?.jobTitle },
+              } as any);
+            }, 500);
+          } else {
+            setTimeout(() => {
+              router.push({
+                pathname: '/SendQuotationScreen' as any,
+                params: {
+                  requestId: params.requestId,
+                  jobTitle: request?.jobTitle,
+                  returnToTab: 'Quotations',
+                },
+              } as any);
+            }, 500);
+          }
+          loadRequestDetails();
+          setIsAccepting(false);
+          return;
+        }
+        throw acceptErr;
+      }
+
       haptics.success();
       
       if (proceedType === 'visit') {
@@ -499,7 +563,7 @@ export default function ProviderJobDetailsScreen() {
       id: 'step-1',
       title: 'Job Request Received',
       description: 'Review job details and send a quotation.',
-      status: `Completed - ${formatTimeAgo(request.createdAt || new Date().toISOString())}`,
+      status: `Completed - ${formatTimeAgo(request.createdAt || request.updatedAt)}`,
       accent: '#DCFCE7',
       dotColor: '#6A9B00',
       lineColor: '#6A9B00',
@@ -627,7 +691,7 @@ export default function ProviderJobDetailsScreen() {
         lineColor: '#9CA3AF',
         isActive: false,
         isCompleted: false,
-        icon: Circle,
+        icon: MapPinned,
         showRequestVisit: false,
       });
     }
@@ -674,7 +738,7 @@ export default function ProviderJobDetailsScreen() {
         lineColor: '#9CA3AF',
         isActive: false,
         isCompleted: false,
-        icon: Circle,
+        icon: FileText,
         canEdit: false,
       });
     }
@@ -724,7 +788,7 @@ export default function ProviderJobDetailsScreen() {
         lineColor: '#9CA3AF',
         isActive: false,
         isCompleted: false,
-        icon: Circle,
+        icon: FileText,
       });
     }
     
@@ -768,7 +832,7 @@ export default function ProviderJobDetailsScreen() {
         lineColor: '#9CA3AF',
         isActive: false,
         isCompleted: false,
-        icon: Circle,
+        icon: Wallet,
         showStartButton: true,
         startButtonEnabled: true, // GREEN button - payment received, can start
       });
@@ -800,7 +864,7 @@ export default function ProviderJobDetailsScreen() {
         lineColor: '#9CA3AF',
         isActive: false,
         isCompleted: false,
-        icon: Circle,
+        icon: Clock,
         showStartButton: true,
         startButtonEnabled: false, // GRAY button - payment not received, cannot start
       });
@@ -859,7 +923,7 @@ export default function ProviderJobDetailsScreen() {
         lineColor: '#9CA3AF',
         isActive: false,
         isCompleted: false,
-        icon: Circle,
+        icon: Wrench,
       });
     }
 
@@ -869,7 +933,7 @@ export default function ProviderJobDetailsScreen() {
         id: 'step-6',
         title: 'Complete',
         description: 'Job completed. Payment released to your account. Thank you!',
-        status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
+        status: `Completed - ${formatTimeAgo(request.updatedAt || request.createdAt)}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
         lineColor: '#6A9B00',
@@ -901,7 +965,7 @@ export default function ProviderJobDetailsScreen() {
         lineColor: '#9CA3AF',
         isActive: false,
         isCompleted: false,
-        icon: Circle,
+        icon: CheckCircle,
       });
     }
 
@@ -909,21 +973,32 @@ export default function ProviderJobDetailsScreen() {
   }, [request, quotationWithProvider, selectionCountdown, providerId]);
 
   // Create animation values for timeline
+  const stepCount = timelineSteps.length;
   const timelineAnimations = useMemo(
-    () => timelineSteps.map(() => new Animated.Value(0)),
-    [timelineSteps]
+    () => Array.from({ length: Math.max(stepCount, 1) }, () => new Animated.Value(0)),
+    [stepCount]
   );
-
   const lineAnimations = useMemo(
-    () => timelineSteps.slice(0, -1).map(() => new Animated.Value(0)),
-    [timelineSteps]
+    () => Array.from({ length: Math.max(stepCount - 1, 0) }, () => new Animated.Value(0)),
+    [stepCount]
   );
+  const hasAnimatedTimelineRef = useRef(false);
+  const lastRequestIdRef = useRef<string | null>(null);
 
-  // Animate timeline on mount and when steps change
+  useEffect(() => {
+    if (params.requestId !== lastRequestIdRef.current) {
+      lastRequestIdRef.current = params.requestId ?? null;
+      hasAnimatedTimelineRef.current = false;
+    }
+  }, [params.requestId]);
+
+  // Animate timeline only on first load – avoid re-animating on every refresh (causes glitching)
   useEffect(() => {
     if (timelineSteps.length === 0) return;
+    if (hasAnimatedTimelineRef.current) return;
+    hasAnimatedTimelineRef.current = true;
 
-    const timelineSequence = timelineAnimations.map((anim, index) =>
+    const timelineSequence = timelineAnimations.slice(0, timelineSteps.length).map((anim, index) =>
       Animated.spring(anim, {
         toValue: 1,
         useNativeDriver: true,
@@ -936,7 +1011,7 @@ export default function ProviderJobDetailsScreen() {
       haptics.light();
     });
 
-    const lineSequence = lineAnimations.map((anim, index) =>
+    const lineSequence = lineAnimations.slice(0, Math.max(0, timelineSteps.length - 1)).map((anim, index) =>
       Animated.timing(anim, {
         toValue: 1,
         duration: 400,
@@ -1024,7 +1099,9 @@ export default function ProviderJobDetailsScreen() {
     return { title: 'Request received', message: 'Processing your request', showDetails: true, variant: 'neutral' as const };
   }, [request, quotationWithProvider, clientName, isFromAcceptedRequests, selectionCountdown, quotation]);
 
-  if (isLoading) {
+  // While the first load is still in progress (or hasn't been triggered yet),
+  // show only the loading state – don't flash the fallback "Job not found" UI.
+  if (isLoading || !hasAttemptedLoad) {
     return (
       <SafeAreaWrapper backgroundColor={Colors.white}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -1048,7 +1125,7 @@ export default function ProviderJobDetailsScreen() {
             The job details could not be loaded. Please try again.
           </Text>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => router.replace('/provider/home' as any)}
             style={{
               backgroundColor: Colors.accent,
               paddingVertical: 12,
@@ -1080,7 +1157,9 @@ export default function ProviderJobDetailsScreen() {
           }}
         >
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => {
+              router.replace('/provider/home' as any);
+            }}
             style={{
               width: 40,
               height: 40,
@@ -1701,12 +1780,13 @@ export default function ProviderJobDetailsScreen() {
                           {(step as any).showStartButton && step.id === 'step-4' && (
                             <TouchableOpacity
                               onPress={async () => {
-                                if (!(step as any).startButtonEnabled) {
-                                  showError('Payment must be received before starting work.');
+                                if (!(step as any).startButtonEnabled || isStartingJob) {
+                                  if (!(step as any).startButtonEnabled) showError('Payment must be received before starting work.');
                                   return;
                                 }
                                 haptics.success();
                                 actionCooldownUntilRef.current = Date.now() + 2500;
+                                setIsStartingJob(true);
                                 try {
                                   if (params.requestId) {
                                     const reqId = parseInt(params.requestId, 10);
@@ -1726,30 +1806,36 @@ export default function ProviderJobDetailsScreen() {
                                   } else {
                                     showError(getSpecificErrorMessage(error, 'start_work_order'));
                                   }
+                                } finally {
+                                  setIsStartingJob(false);
                                 }
                               }}
                               style={{
-                                backgroundColor: (step as any).startButtonEnabled ? Colors.accent : Colors.backgroundGray,
+                                backgroundColor: (step as any).startButtonEnabled && !isStartingJob ? Colors.accent : Colors.backgroundGray,
                                 paddingVertical: 10,
                                 paddingHorizontal: 20,
                                 borderRadius: BorderRadius.default,
                                 minWidth: 80,
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                opacity: (step as any).startButtonEnabled ? 1 : 0.5,
+                                opacity: (step as any).startButtonEnabled && !isStartingJob ? 1 : 0.5,
                               }}
-                              activeOpacity={(step as any).startButtonEnabled ? 0.8 : 1}
-                              disabled={!(step as any).startButtonEnabled}
+                              activeOpacity={(step as any).startButtonEnabled && !isStartingJob ? 0.8 : 1}
+                              disabled={!(step as any).startButtonEnabled || isStartingJob}
                             >
-                              <Text
-                                style={{
-                                  fontSize: 14,
-                                  fontFamily: 'Poppins-SemiBold',
-                                  color: (step as any).startButtonEnabled ? Colors.white : Colors.textSecondaryDark,
-                                }}
-                              >
-                                Start
-                              </Text>
+                              {isStartingJob ? (
+                                <ActivityIndicator size="small" color={Colors.white} />
+                              ) : (
+                                <Text
+                                  style={{
+                                    fontSize: 14,
+                                    fontFamily: 'Poppins-SemiBold',
+                                    color: (step as any).startButtonEnabled ? Colors.white : Colors.textSecondaryDark,
+                                  }}
+                                >
+                                  Start
+                                </Text>
+                              )}
                             </TouchableOpacity>
                           )}
                         </View>
@@ -1823,8 +1909,8 @@ export default function ProviderJobDetailsScreen() {
             style={{
               backgroundColor: Colors.white,
               borderRadius: BorderRadius.xl,
-              padding: 14,
-              marginBottom: 16,
+              padding: 20,
+              marginBottom: 20,
               borderWidth: 1,
               borderColor: Colors.border,
             }}
@@ -1834,7 +1920,7 @@ export default function ProviderJobDetailsScreen() {
                   fontSize: 15,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
-                marginBottom: 12,
+                marginBottom: 14,
               }}
             >
               Work Order Details
@@ -1844,7 +1930,7 @@ export default function ProviderJobDetailsScreen() {
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginBottom: 12,
+                marginBottom: 14,
               }}
             >
               <Text
@@ -1880,7 +1966,7 @@ export default function ProviderJobDetailsScreen() {
                 fontSize: 12,
                 fontFamily: 'Poppins-Regular',
                 color: Colors.textSecondaryDark,
-                marginBottom: 12,
+                marginBottom: 14,
               }}
             >
               Order #{request.id || 'N/A'}
@@ -1892,8 +1978,8 @@ export default function ProviderJobDetailsScreen() {
             style={{
               backgroundColor: Colors.white,
               borderRadius: BorderRadius.xl,
-              padding: 14,
-              marginBottom: 16,
+              padding: 20,
+              marginBottom: 20,
               borderWidth: 1,
               borderColor: Colors.border,
             }}
@@ -1903,17 +1989,17 @@ export default function ProviderJobDetailsScreen() {
                 fontSize: 15,
                 fontFamily: 'Poppins-SemiBold',
                 color: Colors.textPrimary,
-                marginBottom: 10,
+                marginBottom: 14,
               }}
             >
               Description
             </Text>
             <Text
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 fontFamily: 'Poppins-Regular',
                 color: Colors.textSecondaryDark,
-                lineHeight: 20,
+                lineHeight: 22,
               }}
             >
               {request.description || request.jobTitle || 'No description provided.'}
@@ -1925,8 +2011,8 @@ export default function ProviderJobDetailsScreen() {
             style={{
               backgroundColor: Colors.white,
               borderRadius: BorderRadius.xl,
-              padding: 14,
-              marginBottom: 16,
+              padding: 20,
+              marginBottom: 20,
               borderWidth: 1,
               borderColor: Colors.border,
             }}
@@ -3175,7 +3261,7 @@ export default function ProviderJobDetailsScreen() {
                 </Text>
               </TouchableOpacity>
             </>
-          ) : request && (isFromAcceptedRequests || request.status === 'accepted' || request.status === 'in_progress') ? (
+          ) : request && (isFromAcceptedRequests || request.status === 'accepted' || request.status === 'in_progress' || (request as any)?.visitRequest) ? (
             <>
               {/* Request visit & Send quote - persistent actions when no quotation sent */}
               {!quotation && !quotationWithProvider && (
@@ -3275,7 +3361,7 @@ export default function ProviderJobDetailsScreen() {
                 </Text>
               </TouchableOpacity>
             </>
-          ) : request && request.status === 'pending' && !isFromAcceptedRequests ? (
+          ) : request && request.status === 'pending' && !isFromAcceptedRequests && !(request as any)?.visitRequest && !quotation && !quotationWithProvider ? (
             <>
               <TouchableOpacity
                 style={{

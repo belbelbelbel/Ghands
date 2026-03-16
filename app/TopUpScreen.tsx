@@ -10,11 +10,15 @@ import { walletService, profileService, authService } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import { haptics } from '@/hooks/useHaptics';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import { AuthError } from '@/utils/errors';
 import Toast from '@/components/Toast';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PRESET_AMOUNTS = [5000, 10000, 20000, 50000]; // More realistic amounts in Naira
 const DEPOSIT_REFERENCE_KEY = '@ghands:pending_deposit_reference';
+// TODO: Replace with API-fetched bank details when backend provides them. Currently placeholder.
+const BANK_TRANSFER_ACCOUNT = { number: '2219300511', name: 'BAMCHURCH LTD' };
 
 export default function TopUpScreen() {
   const router = useRouter();
@@ -72,20 +76,20 @@ export default function TopUpScreen() {
         ? wallet.balance 
         : parseFloat(String(wallet.balance)) || 0;
       
-      if (__DEV__) {
-        console.log('💰 [TopUpScreen] Loaded wallet balance:', balanceValue, 'from wallet:', wallet);
-      }
       
       setBalance(balanceValue);
       return balanceValue;
-    } catch (error) {
+    } catch (error: any) {
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return 0;
+      }
       if (__DEV__) {
         console.error('Error loading wallet balance:', error);
       }
-      // Don't throw - just return current balance state
       return 0;
     }
-  }, []);
+  }, [router]);
 
   // Load wallet balance and user profile on mount
   useEffect(() => {
@@ -105,11 +109,12 @@ export default function TopUpScreen() {
           name = profile?.firstName && profile?.lastName 
             ? `${profile.firstName} ${profile.lastName}` 
             : profile?.name || '';
-        } catch (profileError) {
-          // Method 2: If profile API fails, try extracting from token
-          if (__DEV__) {
-            console.log('Profile API failed, trying token extraction:', profileError);
+        } catch (profileError: any) {
+          if (profileError instanceof AuthError) {
+            await handleAuthErrorRedirect(router);
+            return;
           }
+          // Method 2: If profile API fails, try extracting from token
           const tokenEmail = await extractEmailFromToken();
           if (tokenEmail) {
             email = tokenEmail;
@@ -127,9 +132,6 @@ export default function TopUpScreen() {
         setUserEmail(email);
         setUserName(name);
         
-        if (__DEV__) {
-          console.log('📧 [TopUpScreen] Loaded user data:', { email, name, hasEmail: !!email });
-        }
         
         // Check for pending deposit reference (from previous session)
         const storedReference = await AsyncStorage.getItem(DEPOSIT_REFERENCE_KEY);
@@ -138,10 +140,13 @@ export default function TopUpScreen() {
           // Auto-verify if we have a pending reference
           verifyPendingDeposit(storedReference);
         }
-      } catch (error) {
-        // Silently fail - user can still top up
-        console.error('Error loading wallet/profile:', error);
+    } catch (error: any) {
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
       }
+      if (__DEV__) console.error('Error loading wallet/profile:', error);
+    }
     };
     loadData();
   }, [loadWalletBalance]);
@@ -165,15 +170,9 @@ export default function TopUpScreen() {
         hasVerifiedRef.current = true;
       }
       
-      if (__DEV__) {
-        console.log('🔍 [TopUpScreen] Verifying deposit with reference:', reference);
-      }
       
       const verification = await walletService.verifyDeposit(reference);
       
-      if (__DEV__) {
-        console.log('✅ [TopUpScreen] Verification response:', verification);
-      }
       
       if (verification.status === 'completed') {
         haptics.success();
@@ -233,15 +232,15 @@ export default function TopUpScreen() {
       }
     } catch (error: any) {
       hasVerifiedRef.current = false;
-      
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
       if (__DEV__) {
         console.error('❌ [TopUpScreen] Verification error:', error);
       }
-      
       const errorMsg = getSpecificErrorMessage(error, 'verify_deposit');
       const status = error?.status || error?.response?.status;
-      
-      // Provide more helpful error messages
       if (status === 404) {
         showError('Payment reference not found. If you have already paid, please contact support.');
       } else if (status === 500) {
@@ -252,7 +251,7 @@ export default function TopUpScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [params.returnTo, params.returnParams, router, showSuccess, showError]);
+  }, [params.returnTo, params.returnParams, router, showSuccess, showError, loadWalletBalance]);
 
   // Verify deposit when screen comes into focus (user returns from payment gateway)
   useFocusEffect(
@@ -315,7 +314,7 @@ export default function TopUpScreen() {
       } catch (error) {
         // Token extraction failed - will show modal
         if (__DEV__) {
-          console.log('Token extraction failed:', error);
+          if (__DEV__) console.log('Token extraction failed');
         }
       }
     }
@@ -423,41 +422,34 @@ export default function TopUpScreen() {
     } catch (error: any) {
       haptics.error();
       setIsProcessingCard(false);
-      
-      // Log error for debugging
-      if (__DEV__) {
-        console.error('Error initializing deposit:', {
-          error,
-          message: error?.message,
-          status: error?.status,
-          details: error?.details,
-        });
+      if (error instanceof AuthError) {
+        showError('Session expired. Signing you in again…');
+        await handleAuthErrorRedirect(router);
+        return;
       }
-      
-      // Extract error message
-      const errorMessage = error?.message || error?.details?.data?.error || error?.details?.error || '';
+      if (__DEV__) {
+        console.error('Error initializing deposit:', { error, message: error?.message, status: error?.status });
+      }
+      const errorMessage = (error?.message || error?.details?.data?.error || error?.details?.error || '').toString();
+      const msgLower = errorMessage.toLowerCase();
       let errorMsg = getSpecificErrorMessage(error, 'initialize_deposit');
-      
-      // If no specific error message, provide helpful default
       if (!errorMsg || errorMsg === 'Failed to initialize payment. Please try again.') {
-        if (errorMessage.toLowerCase().includes('email')) {
+        if (msgLower.includes('email')) {
           errorMsg = 'Invalid email address. Please check and try again.';
-        } else if (errorMessage.toLowerCase().includes('amount')) {
+        } else if (msgLower.includes('amount')) {
           errorMsg = 'Invalid amount. Minimum deposit is ₦100.';
+        } else if (msgLower.includes('kora') || msgLower.includes('no authorization token') || msgLower.includes('authorization token found')) {
+          // Backend called Kora without API key – payment provider not configured on server
+          errorMsg = 'Card payments are temporarily unavailable. Please try bank transfer or contact support.';
         } else if (error?.status === 400) {
           errorMsg = 'Invalid payment information. Please check your details and try again.';
-        } else if (error?.status === 401) {
-          errorMsg = 'Session expired. Please sign in again.';
         } else if (error?.status === 500) {
           errorMsg = 'Server error. Please try again in a moment.';
         } else {
           errorMsg = errorMessage || 'Failed to initialize payment. Please try again.';
         }
       }
-      
       showError(errorMsg);
-      
-      // If it's an email-related error, show email modal again
       if (errorMessage.toLowerCase().includes('email') || error?.status === 400) {
         setShowEmailModal(true);
         setPendingAmount(amount);
@@ -939,7 +931,7 @@ export default function TopUpScreen() {
                   color: Colors.textPrimary,
                 }}
               >
-                2219300511
+                {BANK_TRANSFER_ACCOUNT.number}
               </Text>
             </View>
           </View>
@@ -1010,7 +1002,7 @@ export default function TopUpScreen() {
                   color: Colors.textPrimary,
                 }}
               >
-                BAMCHURCH LTD
+                {BANK_TRANSFER_ACCOUNT.name}
               </Text>
             </View>
           </View>

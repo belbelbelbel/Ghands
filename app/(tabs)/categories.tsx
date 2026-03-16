@@ -20,7 +20,7 @@ interface CategoryData extends ServiceCategory {
 
 export default function CategoryPage() {
   const routes = useRouter();
-  const params = useLocalSearchParams<{ selectedCategoryId?: string, searchQuery?: string }>();
+  const params = useLocalSearchParams<{ selectedCategoryId?: string, searchQuery?: string; fromAddButton?: string }>();
   const { toast, showError, hideToast } = useToast();
   const [isToggle, setIsToggle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -326,7 +326,7 @@ export default function CategoryPage() {
               userId = extractedUserId;
               await authService.setUserId(userId);
               if (__DEV__) {
-                console.log('✅ User ID extracted from token and saved:', userId);
+                if (__DEV__) console.log('User ID extracted from token');
               }
             } else {
               if (__DEV__) {
@@ -382,7 +382,8 @@ export default function CategoryPage() {
     }
   };
 
-  const isFromNavigation = !!params.selectedCategoryId || hasNavigatedFromHome;
+  const isFromStackScreen = !!params.fromAddButton;
+  const isFromNavigation = !!params.selectedCategoryId || hasNavigatedFromHome || isFromStackScreen;
 
   return (
     <SafeAreaWrapper>
@@ -392,9 +393,11 @@ export default function CategoryPage() {
               <TouchableOpacity
                 onPress={() => {
                   haptics.light();
-                  // Explicitly navigate to home instead of using router.back()
-                  // This prevents navigation stack issues
-                  routes.replace('/(tabs)/home');
+                  if (isFromStackScreen) {
+                    routes.back();
+                  } else {
+                    routes.replace('/(tabs)/home');
+                  }
                 }}
                 className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
               >
@@ -676,7 +679,7 @@ export default function CategoryPage() {
           </ScrollView>
           <TouchableOpacity
             disabled={!isToggle || isCreatingRequest}
-            className={`bg-black mt-10 mb-16 flex items-center justify-center mx-auto w-[90%] h-14 rounded-xl ${!isToggle || isCreatingRequest ? 'bg-gray-400' : 'bg-black'}`}
+            className={`bg-black mt-8 mb-24 flex items-center justify-center mx-auto w-[90%] h-14 rounded-xl ${!isToggle || isCreatingRequest ? 'bg-gray-400' : 'bg-black'}`}
             onPress={handleNextJobsScreen}
             activeOpacity={!isToggle || isCreatingRequest ? 0.5 : 0.85}
           >

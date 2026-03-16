@@ -62,6 +62,9 @@ export default function ProviderProfileSetupScreen() {
   };
 
   const handleLocationPress = () => {
+    if (businessName.trim()) {
+      AsyncStorage.setItem('@ghands:business_name', businessName.trim());
+    }
     router.push({
       pathname: '/LocationSearchScreen',
       params: {
@@ -116,22 +119,33 @@ export default function ProviderProfileSetupScreen() {
     }
   }, [selectedCategories, showError]);
 
-  // Load business name from storage on mount (preserve it when location is set)
+  // Load business name from storage on mount and when returning to screen
+  useFocusEffect(
+    useCallback(() => {
+      const loadBusinessName = async () => {
+        try {
+          const savedBusinessName = await AsyncStorage.getItem('@ghands:business_name');
+          if (savedBusinessName) {
+            setBusinessName((prev) => prev || savedBusinessName); // Restore only if current is empty
+          }
+        } catch (error) {
+          if (__DEV__) {
+            console.error('Error loading business name:', error);
+          }
+        }
+      };
+      loadBusinessName();
+    }, [])
+  );
+
+  // Persist business name to storage when user types (so it survives navigation)
   useEffect(() => {
-    const loadBusinessName = async () => {
-      try {
-        const savedBusinessName = await AsyncStorage.getItem('@ghands:business_name');
-        if (savedBusinessName && !businessName) {
-          setBusinessName(savedBusinessName);
-        }
-      } catch (error) {
-        if (__DEV__) {
-          console.error('Error loading business name:', error);
-        }
-      }
-    };
-    loadBusinessName();
-  }, []); // Only run on mount
+    if (!businessName.trim()) return;
+    const t = setTimeout(() => {
+      AsyncStorage.setItem('@ghands:business_name', businessName.trim());
+    }, 300);
+    return () => clearTimeout(t);
+  }, [businessName]);
 
   // Load categories when modal opens
   useEffect(() => {
@@ -248,12 +262,6 @@ export default function ProviderProfileSetupScreen() {
       // Company and Provider are the same thing - use company ID directly for provider endpoints
       // No need to check if provider exists separately - company ID IS the provider ID
       if (__DEV__) {
-        console.log('✅ ========== PROVIDER PROFILE SETUP ==========');
-        console.log('✅ Using company ID as provider ID:', providerId);
-        console.log('✅ Token exists:', !!token);
-        console.log('✅ Token length:', token.length);
-        console.log('✅ Company and Provider are the same entity - proceeding with provider endpoints');
-        console.log('✅ ===========================================');
       }
 
       // Update location - ONLY send address in request body (as per API requirement)
@@ -283,16 +291,6 @@ export default function ProviderProfileSetupScreen() {
       }
       
       try {
-        if (__DEV__) {
-          console.log('🔍 [ProviderProfileSetupScreen] Saving location to API:', {
-            address: cleanAddress,
-            addressLength: cleanAddress.length,
-            hasPlaceId: !!locationPlaceId,
-            hasCoordinates: !!(exactLatitude && exactLongitude),
-            coordinates: exactLatitude && exactLongitude ? { lat: exactLatitude, lng: exactLongitude } : null,
-          });
-        }
-        
         // Send placeId or coordinates if available (more accurate than address)
         // Priority: placeId > coordinates > address
         // IMPORTANT: This will REPLACE any existing location - only one location is stored per provider
@@ -314,17 +312,7 @@ export default function ProviderProfileSetupScreen() {
         // This call REPLACES the old location with the new one
         await providerService.updateLocation(locationPayload);
         
-        if (__DEV__) {
-          console.log('✅ [ProviderProfileSetupScreen] Location saved successfully');
-        }
       } catch (locationError: any) {
-        if (__DEV__) {
-          console.log('🔍 [ProviderProfileSetupScreen] Error saving location:', {
-            error: locationError,
-            errorMessage: locationError?.message,
-            errorStatus: locationError?.status,
-          });
-        }
         // Show specific error message from API
         const errorMessage = getSpecificErrorMessage(locationError, 'save_location');
         showError(errorMessage);
@@ -454,7 +442,12 @@ export default function ProviderProfileSetupScreen() {
             Service Categories {selectedCategories.length > 0 && `(${selectedCategories.length} selected)`}
           </Text>
           <TouchableOpacity 
-            onPress={() => setShowServiceDropdown(true)}
+            onPress={() => {
+              if (businessName.trim()) {
+                AsyncStorage.setItem('@ghands:business_name', businessName.trim());
+              }
+              setShowServiceDropdown(true);
+            }}
             className="bg-gray-100 rounded-xl px-4 py-3 flex-row items-center justify-between"
             activeOpacity={0.7}
           >

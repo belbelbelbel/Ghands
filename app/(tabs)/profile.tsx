@@ -1,11 +1,12 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useAuthRole } from '@/hooks/useAuth';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
+import { BorderRadius, Colors, REFRESH_CONTROL, Spacing } from '@/lib/designSystem';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowRight, Bell, ChevronRight, CreditCard, HelpCircle, MapPin, Settings, Share2, Star, Trash2, User, Wallet } from 'lucide-react-native';
 import React, { useState, useCallback } from 'react';
-import { Alert, Dimensions, Image, ScrollView, Share, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { Alert, Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { shareReferral } from '@/utils/referral';
 import { profileService, walletService } from '@/services/api';
 
 const ProfileScreen = () => {
@@ -14,6 +15,7 @@ const ProfileScreen = () => {
   const { location } = useUserLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [userData, setUserData] = useState({
     name: 'Loading...',
     location: location || 'New York, NY',
@@ -88,7 +90,12 @@ const ProfileScreen = () => {
     }
   }, [location, loadWalletBalance]);
 
-  // Load profile when screen comes into focus
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadUserProfile();
+    setRefreshing(false);
+  }, [loadUserProfile]);
+
   useFocusEffect(
     useCallback(() => {
       loadUserProfile();
@@ -110,15 +117,7 @@ const ProfileScreen = () => {
   };
 
   const handleShareReferral = async () => {
-    try {
-      const message = `Join GHands using my referral code ${userData.referralCode} and get $10!`;
-      await Share.share({
-        message,
-        title: 'Refer GHands',
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Failed to share referral code');
-    }
+    await shareReferral({ role: 'client', code: userData.referralCode });
   };
 
   const handleSignOut = async () => {
@@ -241,8 +240,16 @@ const ProfileScreen = () => {
         </View>
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={REFRESH_CONTROL.tintColor}
+            colors={REFRESH_CONTROL.colors as unknown as string[]}
+          />
+        }
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingBottom: 100,

@@ -216,7 +216,30 @@ export default function SendQuotationScreen() {
     } catch (error: any) {
       console.error('Error sending quotation:', error);
       haptics.error();
-      const errorMessage = getSpecificErrorMessage(error, 'send_quotation') || 'Failed to send quotation. Please try again.';
+
+      // Prefer specific backend validation messages (e.g. `"serviceCharge" must be a positive number`)
+      const rawMsg =
+        (error?.details?.data?.error ||
+          error?.details?.error ||
+          error?.details?.message ||
+          error?.message ||
+          '') as string;
+      const normalized = rawMsg.toLowerCase();
+
+      let errorMessage =
+        getSpecificErrorMessage(error, 'send_quotation') ||
+        'Failed to send quotation. Please try again.';
+
+      // If backend gives a clear validation message, surface it directly
+      if (
+        rawMsg &&
+        !normalized.includes('request failed with status') &&
+        !normalized.includes('invalid information') &&
+        !normalized.includes('failed to send quotation')
+      ) {
+        errorMessage = rawMsg;
+      }
+
       showError(errorMessage);
     } finally {
       setIsSubmitting(false);

@@ -6,13 +6,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AUTH_ROLE_KEY = '@ghands:user_role';
 
-// List of screens that should NOT be redirected away from
+// Routes that don't require auth – never redirect away from these
 const ALLOWED_UNAUTHENTICATED_ROUTES = [
   '/LoginScreen',
   '/ProviderSignInScreen',
   '/SignupScreen',
+  '/ProviderSignUpScreen',
   '/ProviderSignupScreen',
   '/SelectAccountTypeScreen',
+  '/ClientTypeSelectionScreen',
   '/ResetPassword',
   '/CreatePINScreen',
   '/provider-onboarding',
@@ -50,17 +52,14 @@ export default function EntryPoint() {
         const role = await AsyncStorage.getItem(AUTH_ROLE_KEY);
         
         if (token && role) {
-          // User is authenticated - go directly to their home screen based on role
-          // Skip onboarding check for authenticated users
-          // Only redirect if not already on the target screen
+          // User is authenticated – never redirect to signup/login
           const targetRoute = role === 'provider' ? '/provider/home' : '/(tabs)/home';
-          if (normalizedRoute !== targetRoute && !normalizedRoute.includes(targetRoute)) {
+          const isOnTarget = normalizedRoute === targetRoute || 
+            normalizedRoute.includes('(tabs)') || 
+            normalizedRoute.startsWith('/provider');
+          if (!isOnTarget) {
             hasRedirectedRef.current = true;
-            if (role === 'provider') {
-              router.replace('/provider/home');
-            } else {
-              router.replace('/(tabs)/home');
-            }
+            router.replace(targetRoute);
           }
           setIsCheckingAuth(false);
           return;

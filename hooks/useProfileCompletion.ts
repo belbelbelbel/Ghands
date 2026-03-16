@@ -1,17 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PROFILE_COMPLETE_KEY = '@ghands:profile_complete';
 
+/**
+ * Tracks whether the user has completed the first-time profile modal (name, phone, gender)
+ * during the booking flow. Strictly first-time only - once marked complete, modal never shows again.
+ */
 export function useProfileCompletion() {
   const [isProfileComplete, setIsProfileComplete] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    checkProfileComplete();
-  }, []);
-
-  const checkProfileComplete = async (): Promise<boolean> => {
+  const checkProfileComplete = useCallback(async (): Promise<boolean> => {
     try {
       setIsLoading(true);
       const value = await AsyncStorage.getItem(PROFILE_COMPLETE_KEY);
@@ -25,7 +26,15 @@ export function useProfileCompletion() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      checkProfileComplete();
+    });
+    return () => task.cancel();
+  }, [checkProfileComplete]);
+
 
   const markProfileComplete = async () => {
     try {

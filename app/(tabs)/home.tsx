@@ -1,5 +1,5 @@
 import { CoachMarkTarget } from '@/components/CoachMarkTarget';
-import CoachMarks, { CoachMarkStep } from '@/components/CoachMarks';
+import useCoachMarks from '@/hooks/useCoachMarks';
 import LiveSupportScreen from '@/components/LiveSupportScreen';
 import { JobCardSkeleton } from '@/components/LoadingSkeleton';
 import LocationSearchModal from '@/components/LocationSearchModal';
@@ -8,12 +8,13 @@ import JobActivityCard from '@/components/home/JobActivityCard';
 import PromoCodeCard from '@/components/home/PromoCodeCard';
 import RecommendedCard from '@/components/home/RecommendedCard';
 import TodoCard from '@/components/home/TodoCard';
-import { promoCodes, quickActions, recommendedServices, todoItems, type JobActivity, type QuickAction } from '@/components/home/data';
-import useCoachMarks from '@/hooks/useCoachMarks';
+import { promoCodes, quickActions, todoItems, type QuickAction } from '@/components/home/data';
+import type { JobActivity } from '@/components/home/JobActivityCard';
 import { haptics } from '@/hooks/useHaptics';
+import { shareReferral } from '@/utils/referral';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { Colors } from '@/lib/designSystem';
+import { Colors, REFRESH_CONTROL } from '@/lib/designSystem';
 import { ServiceRequest, authService, serviceRequestService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getCategoryIcon } from '@/utils/categoryIcons';
@@ -22,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ServiceCategory } from '../../data/serviceCategories';
 
 const CategoryItem = React.memo(({
@@ -70,81 +71,14 @@ const HomeScreen = React.memo(() => {
   const { location, isLoading, refreshLocation } = useUserLocation();
   const [jobActivities, setJobActivities] = useState<JobActivity[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Coach marks configuration
-  const coachMarkSteps: CoachMarkStep[] = [
-    {
-      id: 'location',
-      target: 'location-selector',
-      title: 'Set Your Location',
-      description: 'Tap here to set your location. This helps us show you nearby service providers.',
-      position: 'bottom',
-    },
-    {
-      id: 'search',
-      target: 'search-bar',
-      title: 'Search Services',
-      description: 'Use the search bar to quickly find any service you need.',
-      position: 'bottom',
-    },
-    {
-      id: 'categories',
-      target: 'categories-section',
-      title: 'Browse Categories',
-      description: 'Explore different service categories or tap "View all" to see everything.',
-      position: 'bottom',
-    },
-    {
-      id: 'quick-actions',
-      target: 'quick-actions',
-      title: 'Quick Actions',
-      description: 'Access emergency services, book again, or manage your wallet quickly.',
-      position: 'bottom',
-    },
-    {
-      id: 'job-activity',
-      target: 'job-activity',
-      title: 'Track Your Jobs',
-      description: 'See all your active and completed service requests here.',
-      position: 'bottom',
-    },
-  ];
-
-  const {
-    isComplete: isCoachMarksComplete,
-    isLoading: isLoadingCoachMarks,
-    currentStep,
-    startTour,
-    nextStep,
-    previousStep,
-    skipTour,
-    completeTour,
-  } = useCoachMarks(coachMarkSteps);
-
-  // Start coach marks tour on first visit
-  useEffect(() => {
-    if (!isLoadingCoachMarks && !isCoachMarksComplete && coachMarkSteps.length > 0) {
-      // Small delay to ensure layout is complete
-      const timer = setTimeout(() => {
-        startTour();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoadingCoachMarks, isCoachMarksComplete, startTour, coachMarkSteps.length]);
+  // Tour disabled - keep hook to avoid runtime errors, use empty steps so tour never shows
+  useCoachMarks([]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const categoriesFadeAnim = useRef(new Animated.Value(1)).current; // Start visible for dummy data
-
-  // Refresh location and jobs when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      // Reload location from storage when screen comes into focus
-      refreshLocation();
-      // Reload job activities
-      loadJobActivities();
-    }, [refreshLocation, loadJobActivities])
-  );
 
   // Refresh location when modal closes
   useEffect(() => {
@@ -197,8 +131,13 @@ const HomeScreen = React.memo(() => {
     }
   }, []);
 
-  // Map ServiceRequest to JobActivity
-  const mapRequestToJobActivity = useCallback((request: ServiceRequest, acceptedProvidersCount: number = 0): JobActivity => {
+  // Map ServiceRequest to JobActivity (priceFromQuotations = best total from quotes when request has no price)
+  const mapRequestToJobActivity = useCallback((
+    request: ServiceRequest,
+    acceptedProvidersCount: number = 0,
+    quotesCount: number = 0,
+    priceFromQuotations?: number | null
+  ): JobActivity => {
     const categoryDisplayName = request.categoryName
       ? request.categoryName.charAt(0).toUpperCase() + request.categoryName.slice(1).replace(/([A-Z])/g, ' $1')
       : 'Service';
@@ -215,11 +154,9 @@ const HomeScreen = React.memo(() => {
       status = 'In Progress';
     }
 
-    // Get quotations count (if available)
-    const quotesCount = 0; // TODO: Get from request if available
-
-    // Format price range (if available)
-    const priceRange = request.price ? `₦${request.price.toLocaleString()}` : 'Price pending';
+    const requestPrice = (request as any).price ?? (request as any).total;
+    const price = requestPrice != null ? Number(requestPrice) : priceFromQuotations;
+    const priceRange = price != null && !isNaN(price) ? `₦${Number(price).toLocaleString()}` : 'Price pending';
 
     return {
       id: request.id.toString(),
@@ -232,126 +169,111 @@ const HomeScreen = React.memo(() => {
     };
   }, [formatTimeAgo]);
 
-  // Load job activities from API
+  // Load job activities – after mapRequestToJobActivity
   const loadJobActivities = useCallback(async () => {
     setIsLoadingJobs(true);
     try {
-      // Fetch all requests
       const requests = await serviceRequestService.getUserRequests();
-
       if (!Array.isArray(requests) || requests.length === 0) {
         setJobActivities([]);
         return;
       }
-
-      // Filter out requests that are clearly incomplete or cancelled
-      // We want Job Activity to always reflect what the user has tried to book,
-      // even if the backend hasn't yet attached nearbyProviders.
       const confirmedRequests = requests.filter((request) => {
-        // Exclude cancelled requests - they should only show in Jobs tab
-        if (request.status === 'cancelled') {
-          return false;
-        }
-
-        // Must have both jobTitle and description
+        if (request.status === 'cancelled') return false;
         const hasJobTitle = request.jobTitle && request.jobTitle.trim().length > 0;
         const hasDescription = request.description && request.description.trim().length > 0;
-        if (!hasJobTitle || !hasDescription) {
-          return false;
-        }
-
-        // Hide when all providers declined
+        if (!hasJobTitle || !hasDescription) return false;
         const status = ((request as any).status ?? '').toString().toLowerCase();
         if (status === 'rejected' || status === 'no_providers') return false;
         return true;
       });
-
-      // Map to JobActivity format for ALL confirmed requests,
-      // so we can sort by both status (In Progress > Pending > Completed)
-      // and recency (latest createdAt first), then pick the top 2.
       const activityEntries = await Promise.all(
         confirmedRequests.map(async (request) => {
-          // Check if providers have accepted this request
           let acceptedProvidersCount = 0;
+          let quotesCount = 0;
+          let priceFromQuotations: number | null = null;
           try {
-            const acceptedProviders = await serviceRequestService.getAcceptedProviders(request.id);
+            const [acceptedProviders, quotations] = await Promise.all([
+              serviceRequestService.getAcceptedProviders(request.id),
+              serviceRequestService.getQuotations(request.id).catch(() => []),
+            ]);
             acceptedProvidersCount = acceptedProviders?.length || 0;
-          } catch (error) {
-            // Silently fail - if we can't load accepted providers, use request status
-            if (__DEV__) {
-              console.log(`Could not load accepted providers for request ${request.id}:`, error);
+            const qList = Array.isArray(quotations) ? quotations : [];
+            const sentQuotes = qList.filter((q: any) => q.sentAt || (q.status && q.status !== null));
+            quotesCount = sentQuotes.length;
+            if (sentQuotes.length > 0) {
+              const toNum = (v: any) => (typeof v === 'number' && !isNaN(v) ? v : parseFloat(v));
+              const accepted = sentQuotes.find((q: any) => q.status === 'accepted');
+              if (accepted != null) {
+                const t = toNum((accepted as any).total);
+                if (!isNaN(t) && t >= 0) priceFromQuotations = t;
+              }
+              if (priceFromQuotations == null) {
+                const totals = sentQuotes.map((q: any) => toNum(q.total));
+                const validTotals = totals.filter((t) => !isNaN(t) && t >= 0);
+                if (validTotals.length > 0) priceFromQuotations = Math.min(...validTotals);
+              }
             }
+          } catch {
+            if (__DEV__) { /* backend schema error - continue */ }
           }
-
-          const activity = mapRequestToJobActivity(request, acceptedProvidersCount);
+          const activity = mapRequestToJobActivity(request, acceptedProvidersCount, quotesCount, priceFromQuotations);
           const createdAtMs = request?.createdAt ? new Date(request.createdAt).getTime() : 0;
           return { activity, createdAtMs };
         })
       );
-
-      // Sort by status priority first, then by recency using createdAt
-      const statusPriority: Record<JobActivity['status'], number> = {
-        'In Progress': 0,
-        'Pending': 1,
-        'Completed': 2,
-      };
-
+      const statusPriority: Record<JobActivity['status'], number> = { 'In Progress': 0, Pending: 1, Completed: 2 };
       const sortedActivities = activityEntries
         .sort((a, b) => {
           const statusDiff = statusPriority[a.activity.status] - statusPriority[b.activity.status];
-          if (statusDiff !== 0) return statusDiff;
-          return b.createdAtMs - a.createdAtMs;
+          return statusDiff !== 0 ? statusDiff : b.createdAtMs - a.createdAtMs;
         })
-        .slice(0, 2) // show only 2 most important/recent
-        .map(entry => entry.activity);
-
+        .slice(0, 2)
+        .map((entry) => entry.activity);
       setJobActivities(sortedActivities);
     } catch (error: any) {
-      // If AuthError, redirect immediately
       if (error instanceof AuthError) {
         await handleAuthErrorRedirect(router);
         return;
       }
-
-      // Check if it's a network error
-      const isNetworkError = error?.isNetworkError ||
-        error?.message?.includes('Network') ||
-        error?.message?.includes('Failed to fetch') ||
-        error?.message?.includes('Network request failed');
-
+      const isNetworkError = error?.isNetworkError || (error?.message || '').includes('Network') || (error?.message || '').includes('Failed to fetch');
       if (isNetworkError) {
-        // Don't show error for network issues on home screen - just show empty state
         setJobActivities([]);
         return;
       }
-
-      // Check if it's a 500 error - might indicate invalid/expired token
       const status = (error as any)?.status;
       if (status === 500) {
-        // 500 errors on protected routes often mean invalid token
-        // Check if we have a token - if not, redirect
         try {
           const token = await authService.getAuthToken();
           if (!token) {
-            // No token = redirect to login
             await handleAuthErrorRedirect(router);
             return;
           }
-        } catch (tokenError) {
-          // Can't get token = redirect
+        } catch {
           await handleAuthErrorRedirect(router);
           return;
         }
       }
-
-      if (__DEV__ && !(error instanceof AuthError)) {
-        console.error('Error loading job activities:', error?.message || error);
-      }
+      if (__DEV__) console.error('Error loading job activities:', error?.message || error);
       setJobActivities([]);
     } finally {
       setIsLoadingJobs(false);
     }
   }, [mapRequestToJobActivity, router]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    refreshLocation();
+    await loadJobActivities();
+    setRefreshing(false);
+  }, [loadJobActivities, refreshLocation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshLocation();
+      loadJobActivities();
+    }, [refreshLocation, loadJobActivities])
+  );
 
   // Fetch categories from API on mount
   useEffect(() => {
@@ -399,10 +321,10 @@ const HomeScreen = React.memo(() => {
 
       // Map API categories to ServiceCategory format with icons
       const categoriesWithIcons: ServiceCategory[] = categories
-        .map((cat) => {
+        .map((cat: any) => {
           const IconComponent = getCategoryIcon(cat.name, cat.displayName, cat.description);
           return {
-            id: cat.name || cat.categoryName || `category-${cat.id}`,
+            id: cat.name || cat.categoryName || cat.id || `category-${cat.name}`,
             title: cat.displayName || cat.name || 'Service',
             icon: IconComponent,
           };
@@ -484,63 +406,8 @@ const HomeScreen = React.memo(() => {
     router.push('/(tabs)/jobs' as any);
   }, [router]);
 
-  // Generate personalized recommendations based on booking history
-  const personalizedRecommendations = useMemo(() => {
-    if (jobActivities.length === 0) {
-      // If no booking history, show default recommendations
-      return recommendedServices;
-    }
-
-    // Extract categories from job history
-    const bookedCategories = jobActivities.map(job => job.category.toLowerCase());
-    const uniqueCategories = [...new Set(bookedCategories)];
-
-    // Generate recommendations based on booking history
-    // If user booked plumbing, suggest related services or rebooking
-    const personalized = uniqueCategories.map((category, index) => {
-      // Map category names to category IDs
-      const categoryMap: { [key: string]: { id: string; title: string; image: any } } = {
-        'plumbing': {
-          id: 'plumber',
-          title: 'Plumbing',
-          image: require('../../assets/images/plumbericon2.png')
-        },
-        'electrical': {
-          id: 'electrician',
-          title: 'Electrical',
-          image: require('../../assets/images/electricianicon2.png')
-        },
-        'cleaning': {
-          id: 'cleaning',
-          title: 'Cleaning',
-          image: require('../../assets/images/cleanericon2.png')
-        },
-        'painting': {
-          id: 'painter',
-          title: 'Painting',
-          image: require('../../assets/images/paintericon2.png')
-        },
-      };
-
-      const categoryInfo = categoryMap[category] || {
-        id: category,
-        title: category.charAt(0).toUpperCase() + category.slice(1),
-        image: require('../../assets/images/plumbericon2.png'),
-      };
-
-      return {
-        id: `personalized-${category}-${index}`,
-        title: categoryInfo.title,
-        subtitle: `Based on your ${category} booking${jobActivities.filter(j => j.category.toLowerCase() === category).length > 1 ? 's' : ''}`,
-        image: categoryInfo.image,
-        categoryId: categoryInfo.id,
-      };
-    });
-
-    // Add some default recommendations if we have space
-    const remaining = recommendedServices.slice(0, 3 - personalized.length);
-    return [...personalized, ...remaining].slice(0, 3);
-  }, [jobActivities]);
+  // Temporarily disabling home recommendations until we plug in real data
+  const personalizedRecommendations: any[] = [];
 
   const animatedStyles = useMemo(() => ({
     opacity: fadeAnim,
@@ -558,7 +425,17 @@ const HomeScreen = React.memo(() => {
 
   return (
     <SafeAreaWrapper>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={REFRESH_CONTROL.tintColor}
+            colors={REFRESH_CONTROL.colors as unknown as string[]}
+          />
+        }
+      >
         <Animated.View
           style={[animatedStyles, { flex: 1, paddingTop: 10 }]}
         >
@@ -791,7 +668,7 @@ const HomeScreen = React.memo(() => {
                       }}
                     >
                       <Ionicons
-                        name={action.iconName}
+                        name={action.iconName as any}
                         size={24}
                         color={action.id === 'emergency' ? '#DC2626' : '#000000'}
                       />
@@ -849,63 +726,31 @@ const HomeScreen = React.memo(() => {
                   >
                     Get $10 credit for each friend who signs up
                   </Text>
-                  <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <TouchableOpacity
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#000000',
+                      borderRadius: 10,
+                      paddingVertical: 10,
+                      paddingHorizontal: 18,
+                      alignSelf: 'flex-start',
+                    }}
+                    onPress={async () => {
+                      haptics.light();
+                      await shareReferral({ role: 'client', code: undefined });
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text
                       style={{
-                        backgroundColor: '#000000',
-                        borderRadius: 10,
-                        paddingVertical: 10,
-                        paddingHorizontal: 18,
-                        flex: 1,
+                        fontSize: 13,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: '#FFFFFF',
+                        textAlign: 'center',
                       }}
-                      onPress={() => {
-                        haptics.light();
-                        // TODO: Implement share/referral flow
-                        // For now, can navigate to a referral screen or show share dialog
-                        router.push('/(tabs)/categories' as any);
-                      }}
-                      activeOpacity={0.8}
                     >
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontFamily: 'Poppins-SemiBold',
-                          color: '#FFFFFF',
-                          textAlign: 'center',
-                        }}
-                      >
-                        Invite Now
-                      </Text>
-                    </TouchableOpacity>
-                    {!isCoachMarksComplete && (
-                      <TouchableOpacity
-                        style={{
-                          backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                          borderRadius: 10,
-                          paddingVertical: 10,
-                          paddingHorizontal: 14,
-                          borderWidth: 1,
-                          borderColor: 'rgba(0, 0, 0, 0.2)', 
-                        }}
-                        onPress={() => {
-                          haptics.light();
-                          startTour();
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            fontFamily: 'Poppins-Medium',
-                            color: '#000000',
-                            textAlign: 'center',
-                          }}
-                        >
-                          Take Tour
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                      Invite Now
+                    </Text>
+                  </TouchableOpacity>
                 </View>
                 <View
                   style={{
@@ -924,9 +769,7 @@ const HomeScreen = React.memo(() => {
             </View>
           </View>
           <View className='px-4 mb-6 hidden'>
-            <Text style={{
-              fontFamily: 'Poppins-Bold'
-            }} className='text-lg font-bold mb-2' style={{ letterSpacing: -0.3 }}>Todo</Text>
+            <Text className='text-lg font-bold mb-2' style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}>Todo</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className='flex mt-0  flex-row '>
               {todoItems.map((item) => (
                 <TodoCard key={item.id} {...item} />
@@ -938,8 +781,7 @@ const HomeScreen = React.memo(() => {
               <View className="flex-row items-center justify-between mb-3">
                 <Text
                   className="text-lg font-bold text-black"
-                  style={{ letterSpacing: -0.3 }}
-                  style={{ fontFamily: 'Poppins-Bold' }}
+                  style={{ letterSpacing: -0.3, fontFamily: 'Poppins-Bold' }}
                 >
                   Job Activity
                 </Text>
@@ -1020,52 +862,13 @@ const HomeScreen = React.memo(() => {
             </View>
           </CoachMarkTarget>
 
-          <View className="px-4 mb-10">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text
-                className="text-lg font-bold text-black"
-                style={{ letterSpacing: -0.3 }}
-                style={{ fontFamily: 'Poppins-Bold' }}
-              >
-                Recommended for you
-              </Text>
-              {jobActivities.length > 0 && (
-                <View className="flex-row items-center">
-                  <Ionicons name="sparkles" size={16} color="#6A9B00" style={{ marginRight: 4 }} />
-                  <Text
-                    className="text-xs text-[#6A9B00]"
-                    style={{ fontFamily: 'Poppins-Medium' }}
-                  >
-                    Personalized
-                  </Text>
-                </View>
-              )}
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {personalizedRecommendations.map((service) => (
-                <RecommendedCard
-                  key={service.id}
-                  {...service}
-                  onPress={() => {
-                    haptics.light();
-                    if (service.categoryId) {
-                      router.push({
-                        pathname: '/(tabs)/categories',
-                        params: { selectedCategoryId: service.categoryId },
-                      });
-                    }
-                  }}
-                />
-              ))}
-            </ScrollView>
-          </View>
+          {/* Recommended for you section temporarily removed until we have real recommendations */}
 
           <View className="px-4 mb-10">
             <View className="flex-row items-center justify-between mb-5">
               <Text
                 className="text-lg font-bold text-black"
-                style={{ letterSpacing: -0.3 }}
-                style={{ fontFamily: 'Poppins-Bold' }}
+                style={{ letterSpacing: -0.3, fontFamily: 'Poppins-Bold' }}
               >
                 Promo Codes
               </Text>
@@ -1085,25 +888,7 @@ const HomeScreen = React.memo(() => {
         </Animated.View>
       </ScrollView>
 
-      {/* Coach Marks */}
-      <CoachMarks
-        steps={coachMarkSteps}
-        visible={!isCoachMarksComplete && !isLoadingCoachMarks && currentStep >= 0 && currentStep < coachMarkSteps.length}
-        onComplete={completeTour}
-        onSkip={skipTour}
-        currentStep={currentStep}
-        onStepChange={(step) => {
-          if (step < coachMarkSteps.length) {
-            if (step > currentStep) {
-              nextStep();
-            } else if (step < currentStep) {
-              previousStep();
-            }
-          } else {
-            completeTour();
-          }
-        }}
-      />
+      {/* Coach Marks - disabled */}
 
       {/* Location Search Modal */}
       <LocationSearchModal

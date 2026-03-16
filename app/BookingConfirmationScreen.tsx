@@ -111,7 +111,7 @@ export default function BookingConfirmationScreen() {
 
   const progressSteps = useMemo((): ProgressStep[] => {
     const providerCount = params.providerCount ? parseInt(params.providerCount, 10) : (request?.nearbyProviders?.length ?? acceptedProviders.length ?? 0);
-    const totalSent = providerCount > 0 ? providerCount : (acceptedProviders.length || 0) || 1;
+    const totalSent = providerCount > 0 ? providerCount : (acceptedProviders.length || 0);
     const sentText = totalSent > 0
       ? `Sent to ${totalSent} nearby ${totalSent === 1 ? 'provider' : 'providers'}. They will respond shortly.`
       : 'Submitted. Nearby providers will be notified and can respond.';
@@ -204,8 +204,8 @@ export default function BookingConfirmationScreen() {
     haptics.selection();
     if (params.requestId) {
       router.replace({
-        pathname: '/(tabs)/jobs',
-        params: { initialTab: 'Ongoing', requestId: params.requestId },
+        pathname: '/OngoingJobDetails',
+        params: { requestId: params.requestId, fromBooking: '1' },
       } as any);
     } else {
       router.push('/(tabs)/jobs' as any);

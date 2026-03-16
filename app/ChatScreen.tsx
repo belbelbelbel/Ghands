@@ -92,13 +92,15 @@ export default function ChatScreen() {
    * Format date to time string (e.g., "2:30pm")
    */
   const formatTime = useCallback((dateString: string): string => {
+    if (!dateString) return '';
     try {
       const date = new Date(dateString);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    const period = hours >= 12 ? 'pm' : 'am';
-    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-    return `${displayHours}:${minutes.toString().padStart(2, '0')}${period}`;
+      if (isNaN(date.getTime())) return '';
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      const period = hours >= 12 ? 'pm' : 'am';
+      const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+      return `${displayHours}:${minutes.toString().padStart(2, '0')}${period}`;
     } catch {
       return '';
     }
@@ -108,28 +110,42 @@ export default function ChatScreen() {
    * Convert API message to UI message format
    * Standard layout: my messages = right, received = left
    */
-  const mapApiMessageToUI = useCallback((apiMessage: ApiMessage, currentUserId: number | null): UIMessage => {
-    const isFromClient = apiMessage.senderType === 'user';
-    const sender: 'user' | 'provider' = isFromClient ? 'user' : 'provider';
+  const mapApiMessageToUI = useCallback(
+    (apiMessage: ApiMessage, currentUserId: number | null): UIMessage => {
+      // Normalize sender type coming from backend: could be 'user', 'client', 'customer', 'provider'
+      const rawSenderType = ((apiMessage as any).senderType || (apiMessage as any).sender_type || '')
+        .toString()
+        .toLowerCase();
+      const isFromClient =
+        rawSenderType === 'user' || rawSenderType === 'client' || rawSenderType === 'customer';
+      const sender: 'user' | 'provider' = isFromClient ? 'user' : 'provider';
 
-    // My messages go right: match by senderId, or fallback by view (client view = user is me, provider view = provider is me)
-    const isFromCurrentUser =
-      (currentUserId !== null && apiMessage.senderId === currentUserId) ||
-      (isProviderView ? sender === 'provider' : sender === 'user');
+      // My messages go right: prefer senderId match; fallback on view + normalized sender role
+      const isFromCurrentUser =
+        (currentUserId !== null && apiMessage.senderId === currentUserId) ||
+        (isProviderView ? sender === 'provider' : sender === 'user');
 
-    return {
-      id: String(apiMessage.id),
-      text: apiMessage.content,
-      sender,
-      timestamp: apiMessage.createdAt,
-      time: formatTime(apiMessage.createdAt),
-      status: isFromCurrentUser 
-        ? (apiMessage.isRead || apiMessage.readAt ? 'read' : 'delivered')
-        : undefined,
-      isRead: apiMessage.isRead || !!apiMessage.readAt,
-      isFromCurrentUser, // Store this for alignment logic
-    };
-  }, [formatTime, isProviderView]);
+      const rawContent = (apiMessage as any).content ?? (apiMessage as any).body ?? (apiMessage as any).text ?? '';
+      const safeText = (rawContent == null || String(rawContent).toLowerCase() === 'null') ? '' : String(rawContent);
+      const createdAt = apiMessage.createdAt || apiMessage.updatedAt || new Date().toISOString();
+
+      return {
+        id: String(apiMessage.id),
+        text: safeText,
+        sender,
+        timestamp: createdAt,
+        time: formatTime(createdAt),
+        status: isFromCurrentUser
+          ? apiMessage.isRead || apiMessage.readAt
+            ? 'read'
+            : 'delivered'
+          : undefined,
+        isRead: apiMessage.isRead || !!apiMessage.readAt,
+        isFromCurrentUser, // Store this for alignment logic
+      };
+    },
+    [formatTime, isProviderView]
+  );
 
   /**
    * Load messages from API
@@ -277,6 +293,7 @@ export default function ChatScreen() {
       // Send message to API
       const sentMessage = await communicationService.sendMessage(requestId!, {
         content: messageText,
+        type: 'text',
       });
 
       // Replace optimistic message with real message
@@ -290,7 +307,7 @@ export default function ChatScreen() {
 
       // Don't refresh here – backend may not include the new message yet, causing it to disappear.
       // The 5s auto-refresh will pick up replies from the other party.
-    } catch (error) {
+    } catch (error: any) {
       if (__DEV__) {
         console.error('Error sending message:', error);
       }
@@ -300,7 +317,9 @@ export default function ChatScreen() {
           msg.id === optimisticMessage.id ? { ...msg, status: 'failed' as const } : msg
         )
       );
-      showError('Message failed to send. Tap to retry.');
+      const msg = (error?.message || '').toLowerCase();
+      const isServerSide = msg.includes('foreign key') || msg.includes('receiverid');
+      showError(isServerSide ? 'Message could not be sent. Please try again or contact support.' : 'Message failed to send. Tap to retry.');
     } finally {
       setIsSending(false);
     }
@@ -318,17 +337,21 @@ export default function ChatScreen() {
       try {
         const sentMessage = await communicationService.sendMessage(requestId!, {
           content: msg.text,
+          type: 'text',
         });
         setMessages((prev) =>
           prev.map((m) =>
             m.id === msg.id ? mapApiMessageToUI(sentMessage as ApiMessage, currentUserId) : m
           )
         );
-      } catch (error) {
+      } catch (error: any) {
         if (__DEV__) console.error('Error retrying message:', error);
         setMessages((prev) =>
           prev.map((m) => (m.id === msg.id ? { ...m, status: 'failed' as const } : m))
         );
+        const errMsg = (error?.message || '').toLowerCase();
+        const isServerSide = errMsg.includes('foreign key') || errMsg.includes('receiverid');
+        showError(isServerSide ? 'Message could not be sent. Please try again or contact support.' : 'Message failed to send. Tap to retry.');
         showError('Failed to send. Tap to retry.');
       }
     },
@@ -446,7 +469,6 @@ export default function ChatScreen() {
     // Standard chat layout: MY messages → right, RECEIVED → left (like WhatsApp/iMessage)
     return (
       <View
-        key={item.id}
         style={{
           flexDirection: 'row',
           alignItems: 'flex-end',

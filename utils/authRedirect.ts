@@ -1,5 +1,4 @@
 import { authService } from '@/services/authService';
-import { handleTokenExpiration } from './tokenExpirationHandler';
 
 /**
  * Handles AuthError by clearing tokens and redirecting to login

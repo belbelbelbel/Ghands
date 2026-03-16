@@ -111,6 +111,7 @@ const ServiceMapScreen = () => {
   const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   const [serviceLocationCoords, setServiceLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [providerError, setProviderError] = useState<string | null>(null);
+  const [hasTriedLoadProviders, setHasTriedLoadProviders] = useState(false);
   const [bookingPhotoUris, setBookingPhotoUris] = useState<string[]>([]);
   
   // Booking data state - synced with params
@@ -243,6 +244,7 @@ const ServiceMapScreen = () => {
         } else if (!serviceLocationCoords) {
           setProviderError('Please set your service location');
         }
+        setHasTriedLoadProviders(true);
         return;
       }
 
@@ -257,6 +259,7 @@ const ServiceMapScreen = () => {
           const errorMsg = `Invalid category name: "${categoryName}". Please select a valid service category.`;
           setProviderError(errorMsg);
           setProviders([]);
+          setHasTriedLoadProviders(true);
           return;
         }
 
@@ -314,6 +317,7 @@ const ServiceMapScreen = () => {
         setProviderError(`Unable to find providers at the moment. ${errorMessage}`);
       } finally {
         setIsLoadingProviders(false);
+        setHasTriedLoadProviders(true);
       }
     };
 
@@ -380,7 +384,7 @@ const ServiceMapScreen = () => {
               Finding nearby providers...
             </Text>
           </View>
-        ) : providerError && providers.length === 0 ? (
+        ) : hasTriedLoadProviders && providerError && providers.length === 0 ? (
           <View style={{ flex: 1, backgroundColor: Colors.white }}>
             {/* Back Button */}
             <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg }}>
@@ -516,7 +520,7 @@ const ServiceMapScreen = () => {
               </View>
             </View>
           </View>
-        ) : providers.length === 0 ? (
+        ) : hasTriedLoadProviders && providers.length === 0 ? (
           <View style={{ flex: 1, backgroundColor: Colors.white }}>
             {/* Back Button */}
             <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg }}>

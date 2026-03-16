@@ -329,7 +329,7 @@ export default function JobDetailsScreen() {
     <SafeAreaWrapper>
       <Animated.View style={[animatedStyles, { flex: 1 }]}>
         <View className="px-4 pb-2" style={{ paddingTop: 20 }}>
-          <View className="flex-row items-center mb-4">
+          <View className="flex-row items-center mb-6">
             <TouchableOpacity
               onPress={handleBack}
               className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
@@ -345,10 +345,10 @@ export default function JobDetailsScreen() {
         <ScrollView
           className="flex-1 px-4"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={{ paddingBottom: 32, paddingTop: 8 }}
         >
-          <View className="mb-6 rounded-2xl bg-gray-100 px-4 py-4 border border-[#D7FF6B]/30">
-            <View className="flex-row items-center justify-between mb-3">
+          <View className="mb-8 rounded-2xl bg-gray-100 px-5 py-5 border border-[#D7FF6B]/30">
+            <View className="flex-row items-center justify-between mb-4">
               <View className="flex-row items-center">
                 <View className="w-8 h-8 rounded-full bg-[#000] items-center justify-center mr-2">
                   <MapPin size={16} color="#81b60eff" />
@@ -368,7 +368,7 @@ export default function JobDetailsScreen() {
               {parsedLocation.street}
             </Text>
             {parsedLocation.city && (
-              <Text className="text-sm text-gray-600 mb-3" style={{ fontFamily: 'Poppins-Medium' }}>
+              <Text className="text-sm text-gray-600 mb-4" style={{ fontFamily: 'Poppins-Medium' }}>
                 {parsedLocation.city}
               </Text>
             )}
@@ -389,15 +389,15 @@ export default function JobDetailsScreen() {
             </View>
           </View>
 
-          <View className="mb-6">
-            <Text className="text-sm text-black mb-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+          <View className="mb-8">
+            <Text className="text-sm text-black mb-3" style={{ fontFamily: 'Poppins-SemiBold' }}>
               Job Title <Text className="text-[#EF4444]">*</Text>
             </Text>
             <TextInput
               value={jobTitle}
               onChangeText={handleJobTitleChange}
               placeholder="e.g., Kitchen faucet repair, Electrical outlet..."
-              className={`rounded-xl border bg-white px-4 py-3 text-base text-black ${
+              className={`rounded-xl border bg-white px-5 py-4 text-base text-black ${
                 errors.jobTitle ? 'border-[#EF4444]' : 'border-gray-200'
               }`}
               placeholderTextColor="#9CA3AF"
@@ -405,18 +405,18 @@ export default function JobDetailsScreen() {
               maxLength={MAX_JOB_TITLE_LENGTH}
             />
             {errors.jobTitle ? (
-              <Text className="text-xs text-[#EF4444] mt-1.5" style={{ fontFamily: 'Poppins-Medium' }}>
+              <Text className="text-xs text-[#EF4444] mt-2" style={{ fontFamily: 'Poppins-Medium' }}>
                 {errors.jobTitle}
               </Text>
             ) : (
-              <Text className="text-xs text-gray-500 mt-1.5" style={{ fontFamily: 'Poppins-Regular' }}>
+              <Text className="text-xs text-gray-500 mt-2" style={{ fontFamily: 'Poppins-Regular' }}>
                 Be specific about what needs to be done ({jobTitle.length}/{MAX_JOB_TITLE_LENGTH}).
               </Text>
             )}
           </View>
 
-          <View className="mb-6">
-            <Text className="text-sm text-black mb-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+          <View className="mb-8">
+            <Text className="text-sm text-black mb-3" style={{ fontFamily: 'Poppins-SemiBold' }}>
               Description <Text className="text-[#EF4444]">*</Text>
             </Text>
             <TextInput
@@ -426,17 +426,17 @@ export default function JobDetailsScreen() {
               multiline
               numberOfLines={6}
               maxLength={MAX_DESCRIPTION_LENGTH}
-              className={`rounded-xl border bg-white px-4 py-3 text-base text-black ${
+              className={`rounded-xl border bg-white px-5 py-4 text-base text-black ${
                 errors.description ? 'border-[#EF4444]' : 'border-gray-200'
               }`}
               placeholderTextColor="#9CA3AF"
               style={{
                 fontFamily: 'Poppins-Medium',
-                minHeight: 120,
+                minHeight: 140,
                 textAlignVertical: 'top',
               }}
             />
-            <View className="flex-row items-center justify-between mt-1.5">
+            <View className="flex-row items-center justify-between mt-3">
               {errors.description ? (
                 <Text className="text-xs text-[#EF4444]" style={{ fontFamily: 'Poppins-Medium' }}>
                   {errors.description}

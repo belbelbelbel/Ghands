@@ -24,7 +24,8 @@ type JobItem = {
   time: string;
   location: string;
   requestId?: number;
-  acceptedProvidersCount?: number; // Track if providers have accepted
+  acceptedProvidersCount?: number;
+  quotationsCount?: number;
 };
 
 // Helper to format date
@@ -41,8 +42,11 @@ const formatDate = (dateString?: string, timeString?: string): string => {
 };
 
 // Map ServiceRequest to JobItem
-// Note: This function should be called with acceptedProviders data if available
-const mapRequestToJobItem = (request: ServiceRequest, acceptedProvidersCount: number = 0): JobItem => {
+const mapRequestToJobItem = (
+  request: ServiceRequest,
+  acceptedProvidersCount: number = 0,
+  quotationsCount: number = 0
+): JobItem => {
   const providerName = request.provider?.name || request.nearbyProviders?.[0]?.name || 'Provider TBD';
   const categoryDisplayName = request.categoryName
     ? request.categoryName.charAt(0).toUpperCase() + request.categoryName.slice(1).replace(/([A-Z])/g, ' $1')
@@ -74,7 +78,8 @@ const mapRequestToJobItem = (request: ServiceRequest, acceptedProvidersCount: nu
     name: providerName,
     time: formatDate(request.scheduledDate, request.scheduledTime),
     location: request.location?.formattedAddress || request.location?.address || 'Location not specified',
-    acceptedProvidersCount, // Include accepted providers count
+    acceptedProvidersCount,
+    quotationsCount,
   };
 };
 
@@ -117,19 +122,21 @@ export default function JobsScreen() {
       // Map to job items - Load accepted providers for each request to determine correct status
       const jobItems = await Promise.all(
         confirmedRequests.map(async (request) => {
-          // Check if providers have accepted this request
           let acceptedProvidersCount = 0;
+          let quotationsCount = 0;
           try {
-            const acceptedProviders = await serviceRequestService.getAcceptedProviders(request.id);
+            const [acceptedProviders, quotations] = await Promise.all([
+              serviceRequestService.getAcceptedProviders(request.id).catch(() => []),
+              serviceRequestService.getQuotations(request.id).catch(() => []),
+            ]);
             acceptedProvidersCount = acceptedProviders?.length || 0;
+            quotationsCount = (quotations || []).filter((q) => q.sentAt || (q.status && q.status !== null)).length;
           } catch (error) {
-            // Silently fail - if we can't load accepted providers, use request status
             if (__DEV__) {
-              console.log(`Could not load accepted providers for request ${request.id}:`, error);
+              console.log(`Could not load providers/quotations for request ${request.id}:`, error);
             }
           }
-          
-          return mapRequestToJobItem(request, acceptedProvidersCount);
+          return mapRequestToJobItem(request, acceptedProvidersCount, quotationsCount);
         })
       );
       setAllJobs(jobItems);
@@ -349,6 +356,16 @@ export default function JobsScreen() {
                 </View>
               </View>
 
+              {(job.status === 'Pending' || job.status === 'In Progress') && (job.quotationsCount ?? 0) >= 0 && (
+                <View className="flex-row items-center gap-3 mt-2">
+                  <Ionicons name="document-text-outline" size={16} color="#4B5563" />
+                  <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
+                    {job.quotationsCount === 0
+                      ? '0 quotes received'
+                      : `${job.quotationsCount} quote${job.quotationsCount === 1 ? '' : 's'} received`}
+                  </Text>
+                </View>
+              )}
               <View className="flex-row items-center gap-3 mt-2">
                 <Ionicons name="person-outline" size={16} color="#4B5563" />
                 <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>

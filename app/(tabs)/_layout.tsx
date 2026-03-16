@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import { Redirect, Tabs } from 'expo-router';
+import { Redirect, Tabs, useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useAuthRole } from '@/hooks/useAuth';
@@ -101,6 +101,7 @@ const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
 
 
 export default function TabLayout() {
+  const router = useRouter();
   const { role, isLoading } = useAuthRole();
   if (isLoading) {
     return null;
@@ -172,7 +173,12 @@ export default function TabLayout() {
           title: 'Request',
           tabBarLabel: '',
           tabBarIcon: () => <MaterialIcons name="add" size={30} color="white" />,
-          tabBarButton: (props) => <CentralTabButton {...props} />,
+          tabBarButton: (props) => (
+            <CentralTabButton
+              {...props}
+              onPress={() => router.push({ pathname: '/request-service', params: { fromAddButton: '1' } })}
+            />
+          ),
         }}
       />
       <Tabs.Screen

@@ -208,6 +208,7 @@ export default function RootLayout() {
         <Stack.Screen name="ResetPassword" options={{ headerShown: false }} />
         <Stack.Screen name="OtpScreen" options={{ headerShown: false }} />
         <Stack.Screen name='categories' options={{headerShown: false}}/>
+        <Stack.Screen name="request-service" options={{ headerShown: false }} />
         {/* <Stack.Screen name='chat' options={{headerShown: false}}/> */}
         <Stack.Screen name="PasswordConfirmation" options={{ headerShown: false }} />
         <Stack.Screen name="LocationPermissionScreen" options={{ headerShown: false }} />
@@ -246,6 +247,7 @@ export default function RootLayout() {
         <Stack.Screen name="ConfirmWalletPaymentScreen" options={{ headerShown: false }} />
         <Stack.Screen name="WalletScreen" options={{ headerShown: false }} />
         <Stack.Screen name="TopUpScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="WithdrawScreen" options={{ headerShown: false }} />
         <Stack.Screen name="BankTransferScreen" options={{ headerShown: false }} />
         <Stack.Screen name="PaymentPendingScreen" options={{ headerShown: false }} />
         <Stack.Screen name="PaymentSuccessfulScreen" options={{ headerShown: false }} />

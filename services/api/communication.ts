@@ -1,0 +1,94 @@
+import { apiClient, extractResponseData } from './client';
+import type { Message, SendMessagePayload, SendMessageResponse, GetMessagesResponse, UnreadCountResponse } from './types';
+
+export type { Message, SendMessagePayload, SendMessageResponse, GetMessagesResponse, UnreadCountResponse };
+
+export const communicationService = {
+  sendMessage: async (requestId: number, payload: SendMessagePayload): Promise<SendMessageResponse> => {
+    const body = { ...payload, type: payload.type ?? 'text' };
+    const response = await apiClient.post<{ data: SendMessageResponse }>(`/api/communication/requests/${requestId}/messages`, body);
+    const raw = extractResponseData<any>(response);
+    const messageData = raw?.data ?? raw?.message ?? raw;
+    if (!messageData || typeof messageData !== 'object') throw new Error('Invalid response from send message API.');
+    const content = messageData.content ?? messageData.body ?? messageData.text ?? '';
+    const safeContent = content == null || String(content).toLowerCase() === 'null' ? '' : String(content);
+    return {
+      id: messageData.id ?? 0,
+      requestId: messageData.requestId ?? requestId,
+      senderId: messageData.senderId ?? 0,
+      senderType: (messageData.senderType ?? messageData.sender_type ?? 'user') as 'user' | 'provider' | 'company',
+      content: safeContent,
+      createdAt: messageData.createdAt ?? messageData.created_at ?? new Date().toISOString(),
+      updatedAt: messageData.updatedAt ?? messageData.updated_at ?? new Date().toISOString(),
+    };
+  },
+
+  getMessages: async (requestId: number, options: { limit?: number; offset?: number } = {}): Promise<GetMessagesResponse> => {
+    const { limit = 50, offset = 0 } = options;
+    const queryParams = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
+    const endpoint = `/api/communication/requests/${requestId}/messages?${queryParams.toString()}`;
+    const response = await apiClient.get<any>(endpoint);
+    const responseData = extractResponseData<any>(response);
+    if (!responseData) throw new Error('Invalid response from get messages API.');
+    const messages = responseData.messages || [];
+    const total = responseData.total ?? 0;
+    const responseOffset = responseData.offset ?? 0;
+    const hasMore = (responseOffset + messages.length) < total;
+    return { messages, total, limit: responseData.limit || limit, offset: responseOffset, hasMore };
+  },
+
+  markMessagesAsRead: async (requestId: number): Promise<{ message: string }> => {
+    const response = await apiClient.patch<any>(`/api/communication/requests/${requestId}/messages/read`);
+    const responseData = extractResponseData<any>(response);
+    if (!responseData) throw new Error('Invalid response from mark messages as read API.');
+    return responseData;
+  },
+
+  getUnreadCount: async (requestId: number): Promise<UnreadCountResponse> => {
+    const response = await apiClient.get<any>(`/api/communication/requests/${requestId}/messages/unread-count`);
+    const responseData = extractResponseData<any>(response);
+    if (!responseData) throw new Error('Invalid response from unread count API.');
+    return { count: responseData.count || 0 };
+  },
+
+  initiateCall: async (requestId: number): Promise<{ callId: string; callReference: string }> => {
+    const response = await apiClient.post<any>(`/api/communication/requests/${requestId}/calls`, {});
+    const raw = extractResponseData<any>(response);
+    const data = raw?.data ?? raw;
+    return {
+      callId: data?.callId ?? data?.call_id ?? data?.id ?? '',
+      callReference: data?.callReference ?? data?.call_reference ?? data?.callId ?? data?.call_id ?? data?.id ?? '',
+    };
+  },
+
+  updateCallStatus: async (callId: string, status: string): Promise<{ status: string }> => {
+    const response = await apiClient.patch<any>(`/api/communication/calls/${callId}/status`, { status });
+    const raw = extractResponseData<any>(response);
+    const data = raw?.data ?? raw ?? {};
+    return { status: data?.status ?? status };
+  },
+
+  getCallHistory: async (
+    requestId: number,
+    options: { limit?: number; offset?: number } = {}
+  ): Promise<{ calls: any[]; total: number; hasMore: boolean }> => {
+    const { limit = 50, offset = 0 } = options;
+    const qs = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    const response = await apiClient.get<any>(`/api/communication/requests/${requestId}/calls?${qs.toString()}`);
+    const raw = extractResponseData<any>(response);
+    const data = raw?.data ?? raw;
+    const calls = Array.isArray(data?.calls) ? data.calls : Array.isArray(data) ? data : [];
+    const total = data?.total ?? calls.length;
+    return { calls, total, hasMore: (offset + calls.length) < total };
+  },
+
+  getCallSession: async (callReference: string): Promise<any> => {
+    const response = await apiClient.get<any>(`/api/communication/calls/${callReference}/session`);
+    return extractResponseData<any>(response);
+  },
+
+  getIceCandidates: async (callReference: string): Promise<any> => {
+    const response = await apiClient.get<any>(`/api/communication/calls/${callReference}/ice-candidates`);
+    return extractResponseData<any>(response);
+  },
+};

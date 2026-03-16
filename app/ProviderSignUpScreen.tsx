@@ -86,8 +86,8 @@ export default function ProviderSignUpScreen() {
 
       const response = await authService.companySignup(signupPayload);
       
-      // Set role to provider
       await setRole('provider');
+      await AsyncStorage.setItem('@ghands:user_role', 'provider');
       
       // Save company info
       const companyName = companyEmail.split('@')[0] || 'Company';
@@ -98,10 +98,7 @@ export default function ProviderSignUpScreen() {
       haptics.success();
       showSuccess('Company registration successful!');
       
-      // Navigate to profile setup (onboarding flow)
-      setTimeout(() => {
-        router.replace('/ProviderProfileSetupScreen');
-      }, 1500);
+      router.replace('/ProviderProfileSetupScreen');
     } catch (error: any) {
       console.error('Company signup error:', error);
       haptics.error();
@@ -147,7 +144,7 @@ export default function ProviderSignUpScreen() {
         {/* Company Email */}
         <InputField
           placeholder="Company email"
-          icon={<Mail size={20} color={'white'}/>}
+          icon={<Mail size={18} color={'white'}/>}
           keyboardType="email-address"
           value={companyEmail}
           onChangeText={setCompanyEmail}
@@ -174,14 +171,14 @@ export default function ProviderSignUpScreen() {
             style={{ fontFamily: 'Poppins-Medium' }}
           />
           <View className="w-12 h-12 ml-4 bg-[#6A9B00] border-black rounded-xl items-center justify-center">
-            <Phone size={20} color="white" />
+            <Phone size={18} color="white" />
           </View>
         </View>
 
         {/* Password */}
         <InputField
           placeholder="Create password"
-          icon={<Lock size={20} color={'white'}/>}
+          icon={<Lock size={18} color={'white'}/>}
           secureTextEntry={true}
           value={companyPassword}
           onChangeText={setCompanyPassword}
@@ -191,7 +188,7 @@ export default function ProviderSignUpScreen() {
         {/* Confirm Password */}
         <InputField
           placeholder="Create password"
-          icon={<Lock size={20} color={'white'}/>}
+          icon={<Lock size={18} color={'white'}/>}
           secureTextEntry={true}
           value={confirmPassword}
           onChangeText={setConfirmPassword}

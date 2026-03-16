@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/useToast';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { BorderRadius, Colors } from '@/lib/designSystem';
-import { AvailableRequest, ServiceRequest, authService, providerService, serviceRequestService } from '@/services/api';
+import { AvailableRequest, ServiceRequest, authService, providerService, serviceRequestService, walletService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { AuthError } from '@/utils/errors';
@@ -16,12 +16,22 @@ import { calculateDistance, estimateTravelTime } from '@/utils/navigationUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { shareReferral } from '@/utils/referral';
 import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, TrendingUp, Users } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const scale = SCREEN_WIDTH < 375 ? 0.85 : SCREEN_WIDTH < 414 ? 0.92 : 1.0;
+
+// Helper to format amounts in Nigerian Naira
+const formatNaira = (amount: number | null | undefined): string => {
+  const value = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
+  return `₦${value.toLocaleString('en-NG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
 
 interface JobCard {
   id: string;
@@ -121,6 +131,7 @@ export default function ProviderHomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [providerName, setProviderName] = useState<string>('Guest');
   const [isScreenFocused, setIsScreenFocused] = useState(true);
+  const [monthlyEarnings, setMonthlyEarnings] = useState<number | null>(null);
   const activeJobsRef = useRef<JobCard[]>([]);
   const [acceptedJobModal, setAcceptedJobModal] = useState<{
     visible: boolean;
@@ -223,11 +234,49 @@ export default function ProviderHomeScreen() {
     }
   }, []);
 
+  // Load provider earnings for the current month (used in dashboard card)
+  const loadMonthlyEarnings = useCallback(async () => {
+    try {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Fetch recent transactions – increase limit if needed as app scales
+      const result = await walletService.getTransactions({ limit: 200, offset: 0 });
+      const transactions = Array.isArray(result?.transactions) ? result.transactions : [];
+
+      const total = transactions
+        .filter((tx: any) => {
+          if (!tx) return false;
+          // Only completed credits count as earnings
+          if (tx.status !== 'completed') return false;
+          const rawAmount = Number(tx.amount ?? 0);
+          if (!isFinite(rawAmount) || rawAmount <= 0) return false;
+
+          const ts = tx.createdAt || tx.updatedAt || tx.timestamp;
+          if (!ts) return false;
+          const d = new Date(ts);
+          if (isNaN(d.getTime())) return false;
+
+          return d >= monthStart;
+        })
+        .reduce((sum: number, tx: any) => sum + Number(tx.amount ?? 0), 0);
+
+      setMonthlyEarnings(total);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error loading monthly earnings:', error);
+      }
+      // Fall back to 0 instead of stale value
+      setMonthlyEarnings(0);
+    }
+  }, []);
+
   // Load provider name on mount and when screen comes into focus
   useEffect(() => {
     loadProviderName();
     loadProviderLocation();
-  }, [loadProviderName, loadProviderLocation]);
+    loadMonthlyEarnings();
+  }, [loadProviderName, loadProviderLocation, loadMonthlyEarnings]);
 
   useFocusEffect(
     useCallback(() => {
@@ -788,7 +837,7 @@ export default function ProviderHomeScreen() {
                   </TouchableOpacity>
                 </View>
                 <Text style={{ fontSize: 36, fontFamily: 'Poppins-Bold', color: Colors.black, marginBottom: 8 }}>
-                  $4,285.50
+                  {formatNaira(monthlyEarnings)}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <TrendingUp size={14} color={Colors.black} style={{ marginRight: 4 }} />
@@ -924,8 +973,8 @@ export default function ProviderHomeScreen() {
               }}
               onPress={() => {
                 haptics.light();
-                // Share referral link or navigate to referral screen
-                router.push('/provider/profile' as any);
+                // Share provider referral invite
+                shareReferral({ role: 'provider', code: undefined });
               }}
               activeOpacity={0.7}
             >

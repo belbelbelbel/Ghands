@@ -1,9 +1,9 @@
 import { useToast } from '@/hooks/useToast';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
-import { apiClient, profileService } from '@/services/api';
+import { apiClient } from '@/services/api';
 import { authService } from '@/services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { User, X } from 'lucide-react-native';
+import { Phone, User, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AnimatedModal from './AnimatedModal';
@@ -13,7 +13,7 @@ import { Button } from './ui/Button';
 interface ProfileCompletionModalProps {
   visible: boolean;
   onClose: () => void;
-  onComplete: (data: { firstName: string; lastName: string; gender: string }) => void;
+  onComplete: (data: { firstName: string; lastName: string; phoneNumber: string; gender: string }) => void;
 }
 
 export default function ProfileCompletionModal({
@@ -24,11 +24,12 @@ export default function ProfileCompletionModal({
   const { showError } = useToast();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [gender, setGender] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleComplete = async () => {
-    if (!firstName.trim() || !lastName.trim() || !gender) {
+    if (!firstName.trim() || !lastName.trim() || !phoneNumber.trim() || !gender) {
       showError('Please fill in all fields');
       return;
     }
@@ -43,66 +44,46 @@ export default function ProfileCompletionModal({
       return;
     }
 
+    const trimmedPhone = phoneNumber.trim().replace(/\s/g, '');
+    if (trimmedPhone.length < 10) {
+      showError('Please enter a valid phone number');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // Get user ID from token
       const userId = await authService.getUserId();
       if (!userId) {
         throw new Error('User not authenticated');
       }
 
-      // Save profile to API
-      // Note: The endpoint /api/user/profile might not be implemented yet on backend
-      // This is handled gracefully by marking profile as complete locally
+      // First-time signup completion - strictly for users who haven't completed profile
       try {
-        // Try to update profile using the standard endpoint format
-        // If this endpoint doesn't exist (404), we'll still mark as complete locally
-        await apiClient.put(`/api/user/profile`, {
+        await apiClient.post(`/api/user/complete-signup`, {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
+          phoneNumber: trimmedPhone,
           gender: gender.toLowerCase(),
         });
-        
-        if (__DEV__) {
-          console.log('✅ Profile saved to API successfully');
-        }
       } catch (apiError: any) {
-        // If API call fails (404 or other error), still mark as complete locally
-        // This allows the user to proceed even if backend endpoint is not yet implemented
-        // or backend is temporarily unavailable
-        if (__DEV__) {
-          const errorStatus = apiError?.status || apiError?.response?.status;
-          const is404 = errorStatus === 404;
-          
-          if (is404) {
-            console.log('ℹ️ Profile update endpoint not available (404) - marking as complete locally');
-          } else {
-            console.warn('⚠️ Failed to save profile to API, but marking as complete locally:', {
-              error: apiError instanceof Error ? apiError.message : apiError,
-              status: errorStatus,
-              note: 'Profile will be marked as complete locally to allow user to proceed',
-            });
-          }
-        }
+        // If API fails, still mark complete locally so user isn't stuck
+        if (__DEV__) console.warn('complete-signup API error:', apiError);
       }
-      
-      // Mark profile as complete in local storage
+
       await AsyncStorage.setItem('@ghands:profile_complete', 'true');
-      
-      // Reset form
+
       setFirstName('');
       setLastName('');
+      setPhoneNumber('');
       setGender('');
       setIsSubmitting(false);
-      
-      // Close modal first
       onClose();
-      
-      // Call the onComplete callback after a short delay to allow modal to close
+
       setTimeout(() => {
         onComplete({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
+          phoneNumber: trimmedPhone,
           gender: gender.toLowerCase(),
         });
       }, 300);
@@ -140,10 +121,10 @@ export default function ProfileCompletionModal({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Title */}
+          {/* Title - Shown only for first-time users who haven't completed profile */}
           <Text style={styles.title}>Complete Your Profile</Text>
           <Text style={styles.subtitle}>
-            Just one more step! This will only take a minute.
+            Just one more step! Add your name, phone, and gender to continue.
           </Text>
 
           {/* Form */}
@@ -171,6 +152,19 @@ export default function ProfileCompletionModal({
                 onChangeText={setLastName}
                 iconPosition="right"
                 autoCapitalize="words"
+              />
+            </View>
+
+            {/* Phone Number */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Phone Number</Text>
+              <InputField
+                placeholder="Enter your phone number"
+                icon={<Phone size={20} color={'white'} />}
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                iconPosition="left"
+                keyboardType="phone-pad"
               />
             </View>
 

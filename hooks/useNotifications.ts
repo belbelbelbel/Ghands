@@ -44,7 +44,7 @@ export function useNotifications() {
             try {
               await registerPushToken(token);
               if (__DEV__) {
-                console.log('✅ Push token registered with backend successfully');
+                if (__DEV__) console.log('Push token registered');
               }
             } catch (error) {
               // Log error but don't block app initialization
@@ -54,7 +54,7 @@ export function useNotifications() {
               // Token is still stored locally, will retry on next app start
             }
           } else if (__DEV__) {
-            console.log('ℹ️ Push token already registered, skipping backend registration');
+            if (__DEV__) console.log('Push token already registered');
           }
         }
       } catch (error) {
@@ -70,7 +70,7 @@ export function useNotifications() {
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
       setNotification(notification);
       if (__DEV__) {
-        console.log('Notification received (foreground):', notification);
+        if (__DEV__) console.log('Notification received');
       }
     });
 
@@ -78,7 +78,7 @@ export function useNotifications() {
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
       if (__DEV__) {
-        console.log('Notification tapped:', data);
+        if (__DEV__) console.log('Notification tapped');
       }
       // Navigation is handled in _layout.tsx via the notification state
       setNotification(response.notification);
@@ -134,7 +134,7 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
     const projectId = '82fb8167-b26b-4fcf-84c2-fb858f717a03'; // From app.config.js
     token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
     if (__DEV__) {
-      console.log('Expo push token:', token);
+      if (__DEV__) console.log('Expo push token obtained');
     }
   } catch (error) {
     if (__DEV__) {
@@ -166,7 +166,7 @@ async function registerPushToken(token: string): Promise<void> {
       deviceId: Device.modelName || 'unknown',
     });
     if (__DEV__) {
-      console.log('Push token registered with backend');
+      if (__DEV__) console.log('Push token registered');
     }
   } catch (error) {
     if (__DEV__) {

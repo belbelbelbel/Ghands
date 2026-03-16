@@ -58,7 +58,7 @@ class AnalyticsService {
         });
       } catch (error) {
         if (__DEV__) {
-          console.log('Analytics event:', event);
+          if (__DEV__) console.log('Analytics:', event.name);
         }
       }
     });

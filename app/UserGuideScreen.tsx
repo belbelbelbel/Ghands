@@ -13,6 +13,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Colors, BorderRadius, Spacing } from '@/lib/designSystem';
+import appLogo from '@/assets/images/icon.png';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -181,10 +182,13 @@ export default function UserGuideScreen() {
             // Intro Page
             <View style={styles.introContainer}>
               <View style={styles.introContent}>
-                {/* Green Book Icon */}
+                {/* App logo in circular container */}
                 <View style={styles.bookIconContainer}>
-                  <BookOpen size={60} color={Colors.accent} />
-          </View>
+                  <Image
+                    source={appLogo}
+                    style={{ width: 80, height: 80, resizeMode: 'contain' }}
+                  />
+                </View>
 
                 {/* Title */}
                 <Text style={styles.introTitle}>{currentStepData.title}</Text>

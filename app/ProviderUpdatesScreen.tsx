@@ -10,30 +10,7 @@ import { useToast } from '@/hooks/useToast';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
-
-// Helper function to format time ago
-const formatTimeAgo = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffDays > 0) {
-      return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
-    } else if (diffHours > 0) {
-      return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-    } else if (diffMinutes > 0) {
-      return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
-    } else {
-      return 'Just now';
-    }
-  } catch {
-    return 'Recently';
-  }
-};
+import { formatTimeAgo } from '@/utils/dateFormatting';
 
 export default function ProviderUpdatesScreen() {
   const router = useRouter();
@@ -182,7 +159,7 @@ export default function ProviderUpdatesScreen() {
       id: 'step-1',
       title: 'Job Request Received',
       description: 'You received this service request',
-      status: `Completed - ${formatTimeAgo(request.createdAt || new Date().toISOString())}`,
+      status: `Completed - ${formatTimeAgo(request.createdAt || request.updatedAt)}`,
       accent: '#DCFCE7',
       dotColor: '#6A9B00',
       lineColor: '#6A9B00',
@@ -299,7 +276,7 @@ export default function ProviderUpdatesScreen() {
         lineColor: '#9CA3AF',
         isActive: false,
         isCompleted: false,
-        icon: Circle,
+        icon: FileText,
       });
     }
 
@@ -328,7 +305,7 @@ export default function ProviderUpdatesScreen() {
         lineColor: '#9CA3AF',
         isActive: false,
         isCompleted: false,
-        icon: Circle,
+        icon: CreditCard,
       });
     }
 
@@ -370,7 +347,7 @@ export default function ProviderUpdatesScreen() {
         lineColor: '#9CA3AF',
         isActive: false,
         isCompleted: false,
-        icon: Circle,
+        icon: Wrench,
       });
     }
 
@@ -380,7 +357,7 @@ export default function ProviderUpdatesScreen() {
         id: 'step-5',
         title: 'Complete',
         description: 'Job completed and approved',
-        status: `Completed - ${formatTimeAgo(request.updatedAt || new Date().toISOString())}`,
+        status: `Completed - ${formatTimeAgo(request.updatedAt || request.createdAt)}`,
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
         lineColor: '#6A9B00',
@@ -399,7 +376,7 @@ export default function ProviderUpdatesScreen() {
         lineColor: '#9CA3AF',
         isActive: false,
         isCompleted: false,
-        icon: Circle,
+        icon: CheckCircle,
       });
     }
 

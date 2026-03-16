@@ -25,9 +25,10 @@ import {
 } from 'lucide-react-native';
 import React, { useState, useCallback, useEffect } from 'react';
 import { Dimensions, ActivityIndicator } from 'react-native';
-import { Alert, Image, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
-import { providerService, Provider, serviceRequestService, ServiceCategory, ProviderQuotationListItem, authService } from '@/services/api';
+import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { providerService, Provider, serviceRequestService, ServiceCategory, ProviderQuotationListItem, authService, walletService } from '@/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { shareReferral } from '@/utils/referral';
 
 // Helper function to format category name (camelCase to readable)
 const formatCategoryName = (categoryName: string, allCategories: ServiceCategory[] = []): string => {
@@ -56,6 +57,21 @@ export default function ProviderProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [providerName, setProviderName] = useState<string>('Loading...');
   const [firstCategory, setFirstCategory] = useState<string>('');
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [isLoadingWallet, setIsLoadingWallet] = useState(false);
+
+  const loadWalletBalance = useCallback(async () => {
+    setIsLoadingWallet(true);
+    try {
+      const wallet = await walletService.getWallet();
+      const value = typeof wallet.balance === 'number' ? wallet.balance : parseFloat(String(wallet.balance)) || 0;
+      setWalletBalance(value);
+    } catch {
+      setWalletBalance(0);
+    } finally {
+      setIsLoadingWallet(false);
+    }
+  }, []);
 
   // Load provider data
   const loadProviderData = useCallback(async () => {
@@ -163,19 +179,13 @@ export default function ProviderProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       loadProviderData();
-    }, [loadProviderData])
+      loadWalletBalance();
+    }, [loadProviderData, loadWalletBalance])
   );
 
   const handleShareReferral = async () => {
-    try {
-      const referralLink = 'https://www.ghandsdummylink.com/chima';
-      await Share.share({
-        message: `Join GHands using my referral link: ${referralLink}`,
-        title: 'Refer GHands',
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Failed to share referral link');
-    }
+    const code = (provider as any)?.referralCode ?? null;
+    await shareReferral({ role: 'provider', code });
   };
 
   const handleCopyLink = () => {
@@ -246,11 +256,13 @@ export default function ProviderProfileScreen() {
     const [isLoadingQuotations, setIsLoadingQuotations] = useState(false);
 
     const loadQuotations = useCallback(async () => {
+      // Avoid re-triggering while already loading
+      if (isLoadingQuotations) return;
       setIsLoadingQuotations(true);
       try {
         const data = await providerService.getProviderQuotations();
-        // Show only first 3 quotations
-        setQuotations(data.slice(0, 3));
+        // Show only first 2 quotations in profile preview
+        setQuotations(data.slice(0, 2));
       } catch (error: any) {
         // If AuthError, redirect immediately
         if (error instanceof AuthError) {
@@ -265,7 +277,7 @@ export default function ProviderProfileScreen() {
       } finally {
         setIsLoadingQuotations(false);
       }
-    }, []);
+    }, [isLoadingQuotations]);
 
     useEffect(() => {
       loadQuotations();
@@ -305,7 +317,7 @@ export default function ProviderProfileScreen() {
       }
     };
 
-    if (isLoadingQuotations) {
+    if (isLoadingQuotations && quotations.length === 0) {
       return (
         <View style={{ alignItems: 'center', paddingVertical: 20 }}>
           <ActivityIndicator size="small" color={Colors.accent} />
@@ -638,6 +650,45 @@ export default function ProviderProfileScreen() {
             </View>
           </View>
 
+          {/* Wallet balance – live from API, Naira */}
+          <TouchableOpacity
+            onPress={() => {
+              haptics.light();
+              router.push('/provider/wallet' as any);
+            }}
+            activeOpacity={0.7}
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: BorderRadius.xl,
+              padding: 16,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: Colors.border,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <View>
+              <Text style={{ fontSize: 13, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 4 }}>
+                Wallet balance
+              </Text>
+              {isLoadingWallet ? (
+                <ActivityIndicator size="small" color={Colors.accent} />
+              ) : (
+                <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
+                  ₦{walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              )}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.accent, marginRight: 4 }}>
+                View
+              </Text>
+              <ArrowRight size={16} color={Colors.accent} />
+            </View>
+          </TouchableOpacity>
+
           {/* About Section */}
           <View
             style={{
@@ -711,21 +762,48 @@ export default function ProviderProfileScreen() {
               borderColor: Colors.border,
             }}
           >
-            <Text
+            <View
               style={{
-                fontSize: 16,
-                fontFamily: 'Poppins-Bold',
-                color: Colors.textPrimary,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 marginBottom: 12,
               }}
             >
-              Services Offered
-            </Text>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                }}
+              >
+                Services Offered
+              </Text>
+              {(services.length > 2 || (!services.length && provider?.categories && provider.categories.length > 2)) && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    haptics.light();
+                    router.push('/YourServicesScreen' as any);
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.accent,
+                    }}
+                  >
+                    View all
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {isLoading ? (
                 <ActivityIndicator size="small" color={Colors.accent} />
               ) : services.length > 0 ? (
-                services.map((service) => (
+                services.slice(0, 2).map((service) => (
                   <View
                     key={service.id}
                     style={{
@@ -747,7 +825,7 @@ export default function ProviderProfileScreen() {
                   </View>
                 ))
               ) : provider?.categories && provider.categories.length > 0 ? (
-                provider.categories.map((category, index) => (
+                provider.categories.slice(0, 2).map((category, index) => (
                   <View
                     key={index}
                     style={{
@@ -792,7 +870,7 @@ export default function ProviderProfileScreen() {
                 activeOpacity={0.7}
                 onPress={() => {
                   haptics.light();
-                  router.push('/ProviderProfileSetupScreen' as any);
+                  router.push('/YourServicesScreen' as any);
                 }}
               >
                 <Plus size={20} color={Colors.white} />

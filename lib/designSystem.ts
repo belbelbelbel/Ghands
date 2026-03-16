@@ -53,6 +53,14 @@ export const INPUT_HEIGHTS = {
 } as const;
 
 /**
+ * RefreshControl styling (tintColor for iOS, colors for Android)
+ */
+export const REFRESH_CONTROL = {
+  tintColor: Colors.accent,
+  colors: [Colors.accent] as const,
+} as const;
+
+/**
  * Standardized shadow styles
  */
 export const SHADOWS = {

@@ -1,10 +1,12 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { haptics } from '@/hooks/useHaptics';
 import { BorderRadius, Colors } from '@/lib/designSystem';
+import { providerService, serviceRequestService } from '@/services/api';
+import { formatDateShort } from '@/utils/dateFormatting';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, MessageCircle, Phone, CheckCircle2, FileText, Wrench, CheckCircle, CreditCard, Circle } from 'lucide-react-native';
-import React from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { haptics } from '@/hooks/useHaptics';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Animated, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 const TIMELINE_STEPS = [
   {
@@ -77,7 +79,44 @@ const TIMELINE_STEPS = [
 export default function ProviderCompletedJobScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ requestId?: string }>();
-  
+  const [request, setRequest] = useState<any>(null);
+  const [quotation, setQuotation] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadData = useCallback(async () => {
+    const id = params.requestId ? parseInt(params.requestId, 10) : NaN;
+    if (!params.requestId || isNaN(id)) {
+      setIsLoading(false);
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const [req, quot] = await Promise.all([
+        serviceRequestService.getRequestDetails(id).catch(() => null),
+        providerService.getQuotation(id).catch(() => null),
+      ]);
+      setRequest(req || null);
+      setQuotation(quot || null);
+    } catch {
+      setRequest(null);
+      setQuotation(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [params.requestId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const clientName = request?.clientName ?? quotation?.provider?.name ?? 'Client';
+  const jobTitle = request?.jobTitle ?? request?.description ?? 'Service Request';
+  const jobDescription = request?.description ?? 'No description provided.';
+  const locationText = request?.location?.formattedAddress ?? request?.location?.address ?? 'Location not specified';
+  const completionDate = request?.updatedAt ?? quotation?.acceptedAt ?? new Date().toISOString();
+  const costFormatted = quotation?.total != null ? `₦${Number(quotation.total).toFixed(2)}` : 'N/A';
+  const orderNumber = request?.id ? `Order #${request.id}` : 'N/A';
+
   // Create animation values for each timeline step
   const timelineAnimations = useMemo(
     () => TIMELINE_STEPS.map(() => new Animated.Value(0)),
@@ -154,6 +193,12 @@ export default function ProviderCompletedJobScreen() {
             paddingBottom: 100,
           }}
         >
+          {isLoading && params.requestId ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+              <ActivityIndicator size="large" color={Colors.accent} />
+            </View>
+          ) : (
+            <>
           {/* Client Information Card */}
           <View
             style={{
@@ -185,7 +230,7 @@ export default function ProviderCompletedJobScreen() {
                     marginBottom: 3,
                   }}
                 >
-                  Lawal Johnson
+                  {clientName}
                 </Text>
                 <Text
                   style={{
@@ -225,8 +270,8 @@ export default function ProviderCompletedJobScreen() {
                     router.push({
                       pathname: '/ChatScreen',
                       params: {
-                        clientName: 'Client',
-                        requestId: params.requestId,
+                        clientName,
+                        requestId: params.requestId ?? String(request?.id ?? ''),
                       },
                     } as any);
                   }}
@@ -242,8 +287,8 @@ export default function ProviderCompletedJobScreen() {
             style={{
               backgroundColor: Colors.white,
               borderRadius: BorderRadius.xl,
-              padding: 14,
-              marginBottom: 16,
+              padding: 20,
+              marginBottom: 20,
               borderWidth: 1,
               borderColor: Colors.border,
             }}
@@ -253,21 +298,20 @@ export default function ProviderCompletedJobScreen() {
                 fontSize: 15,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
-                marginBottom: 10,
+                marginBottom: 14,
               }}
             >
               Job Description
             </Text>
             <Text
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 fontFamily: 'Poppins-Regular',
                 color: Colors.textSecondaryDark,
-                lineHeight: 20,
+                lineHeight: 22,
               }}
             >
-              Kitchen sink pipe has developed a leak underneath the cabinet. Water is dripping continuously and needs
-              immediate repair. The pipe appears to be loose at the joint connection.
+              {jobDescription}
             </Text>
           </View>
 
@@ -379,7 +423,7 @@ export default function ProviderCompletedJobScreen() {
                     color: Colors.textSecondaryDark,
                   }}
                 >
-                  123 Main St, Apt 48, shomolu Estate
+                  {locationText}
                 </Text>
               </View>
             </View>
@@ -397,7 +441,7 @@ export default function ProviderCompletedJobScreen() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
-              onPress={() => router.push('/ProviderReceiptScreen' as any)}
+              onPress={() => router.push({ pathname: '/ProviderReceiptScreen' as any, params: { requestId: params.requestId ?? String(request?.id ?? '') } } as any)}
               activeOpacity={0.8}
             >
               <Text
@@ -422,20 +466,20 @@ export default function ProviderCompletedJobScreen() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
-              onPress={() => {
-                haptics.light();
-                router.push({
-                  pathname: '/ReportIssueScreen',
-                  params: {
-                    requestId: 'WO-2024-1157', // TODO: Get from actual request data
-                    jobTitle: 'Kitchen sink replacement', // TODO: Get from actual request data
-                    orderNumber: 'Order #WO-2024-1157', // TODO: Get from actual request data
-                    cost: '₦48,500.00', // TODO: Get from actual request data
-                    assignee: 'JohnDoe Akpan', // TODO: Get from actual request data
-                    completionDate: 'Oct 20, 2025', // TODO: Get from actual request data
-                  },
-                } as any);
-              }}
+                onPress={() => {
+                  haptics.light();
+                  router.push({
+                    pathname: '/ReportIssueScreen',
+                    params: {
+                      requestId: params.requestId ?? String(request?.id ?? ''),
+                      jobTitle,
+                      orderNumber,
+                      cost: costFormatted,
+                      assignee: clientName,
+                      completionDate: formatDateShort(completionDate),
+                    },
+                  } as any);
+                }}
               activeOpacity={0.8}
             >
               <Text
@@ -613,6 +657,8 @@ export default function ProviderCompletedJobScreen() {
               Job Completed
             </Text>
           </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
       </View>
     </SafeAreaWrapper>

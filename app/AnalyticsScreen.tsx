@@ -1,13 +1,14 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { walletService, providerService } from '@/services/api';
 import { Colors, BorderRadius, Spacing } from '@/lib/designSystem';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, ArrowUp, Bell, CheckCircle, Info, Star, ThumbsUp, Wallet } from 'lucide-react-native';
-import React from 'react';
-import { Dimensions, ScrollView, Text, TouchableOpacity, View, Image } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Dimensions, ScrollView, Text, TouchableOpacity, View, Image, ActivityIndicator } from 'react-native';
+import { Button } from '@/components/ui/Button';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const scale = SCREEN_WIDTH < 375 ? 0.85 : SCREEN_WIDTH < 414 ? 0.92 : 1.0;
-import { Button } from '@/components/ui/Button';
 
 interface Review {
   id: string;
@@ -21,29 +22,126 @@ interface Review {
 export default function AnalyticsScreen() {
   const router = useRouter();
 
-  const reviews: Review[] = [
-    {
-      id: '1',
-      name: 'Sarah Miller',
-      time: '2 days ago',
-      rating: 5,
-      comment: 'Excellent work! Marcus was professional, on time, and fixed our electrical issue quickly. Highly recommend!',
-    },
-    {
-      id: '2',
-      name: 'Sarah Miller',
-      time: '2 days ago',
-      rating: 5,
-      comment: 'Excellent work! Marcus was professional, on time, and fixed our electrical issue quickly. Highly recommend!',
-    },
-    {
-      id: '3',
-      name: 'Sarah Miller',
-      time: '2 days ago',
-      rating: 5,
-      comment: 'Excellent work! Marcus was professional, on time, and fixed our electrical issue quickly. Highly recommend!',
-    },
-  ];
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [monthlyEarnings, setMonthlyEarnings] = useState<number | null>(null);
+  const [totalJobs, setTotalJobs] = useState<number | null>(null);
+  const [completedJobs, setCompletedJobs] = useState<number | null>(null);
+  const [averageRating, setAverageRating] = useState<number | null>(null);
+  const [reviewCount, setReviewCount] = useState<number | null>(null);
+  const [recentReviews, setRecentReviews] = useState<Review[]>([]);
+
+  const formatNaira = useCallback((value: number | null | undefined) => {
+    if (!value || !isFinite(value)) return '₦0.00';
+    return (
+      '₦' +
+      Number(value).toLocaleString('en-NG', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    );
+  }, []);
+
+  const loadAnalytics = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      // 1) Wallet balance
+      const wallet = await walletService.getWallet();
+      const balanceValue =
+        typeof wallet.balance === 'number'
+          ? wallet.balance
+          : parseFloat(String(wallet.balance)) || 0;
+      setBalance(balanceValue);
+
+      // 2) Recent transactions – used to compute monthly earnings
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const txResult = await walletService.getTransactions({ limit: 200, offset: 0 });
+      const transactions = Array.isArray(txResult?.transactions) ? txResult.transactions : [];
+
+      const monthTotal = transactions
+        .filter((tx: any) => {
+          if (!tx) return false;
+          if (tx.status !== 'completed') return false;
+          const amt = Number(tx.amount ?? 0);
+          if (!isFinite(amt) || amt <= 0) return false;
+          const ts = tx.createdAt || tx.updatedAt || tx.timestamp;
+          if (!ts) return false;
+          const d = new Date(ts);
+          if (isNaN(d.getTime())) return false;
+          return d >= monthStart;
+        })
+        .reduce((sum: number, tx: any) => sum + Number(tx.amount ?? 0), 0);
+      setMonthlyEarnings(monthTotal);
+
+      // 3) Provider stats (jobs + rating)
+      const provider = await providerService.getProvider();
+      const stats: any = (provider as any)?.stats || {};
+      setTotalJobs(
+        typeof stats.totalJobs === 'number' ? stats.totalJobs : stats.totalCompletedJobs ?? null
+      );
+      setCompletedJobs(
+        typeof stats.totalCompletedJobs === 'number'
+          ? stats.totalCompletedJobs
+          : stats.completedJobs ?? null
+      );
+      setAverageRating(
+        typeof stats.averageRating === 'number'
+          ? stats.averageRating
+          : typeof (provider as any)?.rating === 'number'
+          ? (provider as any).rating
+          : null
+      );
+      setReviewCount(
+        typeof stats.reviewCount === 'number'
+          ? stats.reviewCount
+          : (provider as any)?.reviewCount ?? null
+      );
+
+      // 4) Recent reviews (if provider has them)
+      const rawReviews: any[] = Array.isArray((provider as any)?.recentReviews)
+        ? (provider as any).recentReviews
+        : [];
+      const mappedReviews: Review[] = rawReviews.slice(0, 5).map((r: any, index: number) => ({
+        id: String(r.id ?? index),
+        name: r.reviewerName || r.clientName || 'Client',
+        time: r.createdAt
+          ? new Date(r.createdAt).toLocaleDateString('en-NG', {
+              month: 'short',
+              day: 'numeric',
+            })
+          : '',
+        rating: Number(r.rating ?? r.stars ?? 0) || 0,
+        comment: r.comment || r.feedback || '',
+        avatar: r.avatarUrl,
+      }));
+      setRecentReviews(mappedReviews);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error loading analytics:', error);
+      }
+      // On error fall back to safe defaults
+      setBalance((prev) => prev ?? 0);
+      setMonthlyEarnings((prev) => prev ?? 0);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [formatNaira]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Refresh when user comes back to the screen
+      setIsRefreshing(true);
+      loadAnalytics();
+    }, [loadAnalytics])
+  );
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.white}>
@@ -135,80 +233,60 @@ export default function AnalyticsScreen() {
             >
               Earnings Overview
             </Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-              <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                }}
+              >
+                This Month
+              </Text>
+              {monthlyEarnings != null && (
                 <Text
                   style={{
-                    fontSize: 13,
+                    fontSize: 11,
                     fontFamily: 'Poppins-Regular',
-                    color: Colors.textSecondaryDark,
-                    marginBottom: 4,
+                    color: Colors.textTertiary,
                   }}
                 >
-                  This Week
+                  Based on completed wallet payments
                 </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontFamily: 'Poppins-Bold',
-                      color: Colors.textPrimary,
-                      marginRight: 8,
-                    }}
-                  >
-                    $1,245
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <ArrowUp size={14} color={Colors.accent} />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontFamily: 'Poppins-SemiBold',
-                        color: Colors.accent,
-                        marginLeft: 2,
-                      }}
-                    >
-                      12%
-                    </Text>
-                  </View>
-                </View>
-              </View>
-              <View style={{ flex: 1, alignItems: 'flex-end' }}>
+              )}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text
+                style={{
+                  fontSize: 24,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                }}
+              >
+                {formatNaira(monthlyEarnings)}
+              </Text>
+              {/* Placeholder growth chip – we don't fabricate %; show neutral label instead */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#E5E7EB',
+                  borderRadius: 999,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                }}
+              >
+                <ArrowUp size={14} color={Colors.textSecondaryDark} />
                 <Text
                   style={{
-                    fontSize: 13,
-                    fontFamily: 'Poppins-Regular',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Medium',
                     color: Colors.textSecondaryDark,
-                    marginBottom: 4,
+                    marginLeft: 4,
                   }}
                 >
-                  This Month
+                  Monthly earnings
                 </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontFamily: 'Poppins-Bold',
-                      color: Colors.textPrimary,
-                      marginRight: 8,
-                    }}
-                  >
-                    $4,890
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <ArrowUp size={14} color={Colors.accent} />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontFamily: 'Poppins-SemiBold',
-                        color: Colors.accent,
-                        marginLeft: 2,
-                      }}
-                    >
-                      8%
-                    </Text>
-                  </View>
-                </View>
               </View>
             </View>
           </View>
@@ -242,7 +320,7 @@ export default function AnalyticsScreen() {
                 marginBottom: 8,
               }}
             >
-              $2,156.50
+              {formatNaira(balance)}
             </Text>
             <Text
               style={{
@@ -255,9 +333,9 @@ export default function AnalyticsScreen() {
               Funds available for withdrawal.
             </Text>
             <Button
-              title="Withdraw Funds"
+              title="Go to wallet"
               onPress={() => {
-                // Navigate to withdraw screen
+                router.push('/provider/wallet' as any);
               }}
               variant="primary"
               fullWidth
@@ -307,7 +385,7 @@ export default function AnalyticsScreen() {
                   marginBottom: 4,
                 }}
               >
-                24
+                {completedJobs ?? totalJobs ?? 0}
               </Text>
               <Text
                 style={{
@@ -316,7 +394,7 @@ export default function AnalyticsScreen() {
                   color: Colors.textSecondaryDark,
                 }}
               >
-                Completed this week
+                Total completed jobs
               </Text>
             </View>
 
@@ -352,7 +430,9 @@ export default function AnalyticsScreen() {
                   marginBottom: 4,
                 }}
               >
-                78%
+                {averageRating && reviewCount && reviewCount > 0
+                  ? averageRating.toFixed(1)
+                  : '—'}
               </Text>
               <Text
                 style={{
@@ -361,7 +441,7 @@ export default function AnalyticsScreen() {
                   color: Colors.textSecondaryDark,
                 }}
               >
-                Quotation approval
+                Average rating ({reviewCount ?? 0} reviews)
               </Text>
             </View>
           </View>
@@ -394,7 +474,7 @@ export default function AnalyticsScreen() {
                   marginRight: 8,
                 }}
               >
-                4.8
+                {averageRating ? averageRating.toFixed(1) : '—'}
               </Text>
               <Star size={24} color={Colors.accent} fill={Colors.accent} />
             </View>
@@ -405,7 +485,9 @@ export default function AnalyticsScreen() {
                 color: Colors.textSecondaryDark,
               }}
             >
-              Based on customer reviews
+              {reviewCount && reviewCount > 0
+                ? `${reviewCount} review${reviewCount === 1 ? '' : 's'}`
+                : 'No reviews yet'}
             </Text>
           </View>
 
@@ -421,7 +503,18 @@ export default function AnalyticsScreen() {
             >
               Latest Reviews
             </Text>
-            {reviews.map((review) => (
+            {recentReviews.length === 0 && (
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                }}
+              >
+                You don&apos;t have any reviews yet. Completed jobs with ratings will appear here.
+              </Text>
+            )}
+            {recentReviews.map((review) => (
               <View
                 key={review.id}
                 style={{

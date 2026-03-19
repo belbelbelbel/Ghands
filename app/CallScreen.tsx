@@ -50,6 +50,7 @@ export default function CallScreen() {
   const [callState, setCallState] = useState<CallState>(initialCallState);
   const [callDuration, setCallDuration] = useState(0); // in seconds
   const [callId, setCallId] = useState<string | null>(null);
+  const [callReference, setCallReference] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [isProvider] = useState(params.isProvider === 'true');
@@ -105,7 +106,10 @@ export default function CallScreen() {
     if (callState === 'outgoing' && hasRequestId && !callId) {
       communicationService
         .initiateCall(requestIdNum!)
-        .then(({ callId: id }) => setCallId(id || null))
+        .then(({ callId: id, callReference: ref }) => {
+          setCallId(id || null);
+          setCallReference(ref || null);
+        })
         .catch(() => {
           if (__DEV__) console.warn('Could not initiate call via API');
         });
@@ -160,12 +164,16 @@ export default function CallScreen() {
   const handleCallAgain = () => {
     haptics.light();
     setCallId(null);
+    setCallReference(null);
     setCallState('outgoing');
     setCallDuration(0);
     if (hasRequestId) {
       communicationService
         .initiateCall(requestIdNum!)
-        .then(({ callId: id }) => setCallId(id || null))
+        .then(({ callId: id, callReference: ref }) => {
+          setCallId(id || null);
+          setCallReference(ref || null);
+        })
         .catch(() => {
           if (__DEV__) console.warn('Could not initiate call via API');
         });

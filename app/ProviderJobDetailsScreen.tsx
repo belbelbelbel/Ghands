@@ -1286,57 +1286,6 @@ export default function ProviderJobDetailsScreen() {
             );
           })()}
 
-          {/* Work Order Assigned Card - Show when quotation exists */}
-          {quotation && (
-            <View
-              style={{
-                backgroundColor: '#FFF7ED',
-                borderRadius: BorderRadius.xl,
-                padding: 16,
-                marginBottom: 16,
-                borderLeftWidth: 4,
-                borderLeftColor: '#F97316',
-                flexDirection: 'row',
-                alignItems: 'center',
-              }}
-            >
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 8,
-                  backgroundColor: '#F97316',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 12,
-                }}
-              >
-                <CheckCircle2 size={20} color={Colors.white} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontFamily: 'Poppins-Bold',
-                    color: Colors.textPrimary,
-                    marginBottom: 4,
-                  }}
-                >
-                  Work Order Assigned
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.textSecondaryDark,
-                  }}
-                >
-                  Review details and accept to proceed.
-                </Text>
-              </View>
-            </View>
-          )}
-
           {/* Client Information Section */}
           <View
             style={{
@@ -1465,7 +1414,7 @@ export default function ProviderJobDetailsScreen() {
           </View>
 
           {/* Status Message Card - Above Timeline (same design as client: neutral/action/success) */}
-          {statusMessage && (
+          {statusMessage && statusMessage.message !== 'Review and accept to proceed' && (
           <View
             style={{
               backgroundColor: statusMessage.variant === 'action' ? '#E8F5E9' : statusMessage.variant === 'success' ? '#E8F5E9' : '#F9FAFB',
@@ -2316,57 +2265,6 @@ export default function ProviderJobDetailsScreen() {
             <>
               {quotation ? (
                 <>
-              {/* Work Order Assigned Banner */}
-              {quotation && (
-                <View
-                  style={{
-                    backgroundColor: '#FFF7ED',
-                    borderRadius: BorderRadius.xl,
-                    padding: 16,
-                    marginBottom: 16,
-                    borderLeftWidth: 4,
-                    borderLeftColor: '#F97316',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 8,
-                      backgroundColor: '#F97316',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 12,
-                    }}
-                  >
-                    <CheckCircle2 size={20} color={Colors.white} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 15,
-                        fontFamily: 'Poppins-Bold',
-                        color: Colors.textPrimary,
-                        marginBottom: 4,
-                      }}
-                    >
-                      Work Order Assigned
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontFamily: 'Poppins-Regular',
-                        color: Colors.textSecondaryDark,
-                      }}
-                    >
-                      Review details and accept to proceed.
-                    </Text>
-                  </View>
-                </View>
-              )}
-
               {/* Client Information Section */}
               <View
                 style={{

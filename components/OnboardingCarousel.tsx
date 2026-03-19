@@ -119,13 +119,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingBottom: 22,
     backgroundColor: 'transparent',
   },
   paginationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
     gap: 8,
   },
   pill: {
@@ -142,8 +142,8 @@ const styles = StyleSheet.create({
   },
   ctaButton: {
     width: '100%',
-    height: 56,
-    borderRadius: 16,
+    height: 50,
+    borderRadius: 14,
     backgroundColor: Colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   ctaText: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Poppins-SemiBold',
     color: Colors.black,
   },

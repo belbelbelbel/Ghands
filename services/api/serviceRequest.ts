@@ -219,4 +219,17 @@ export const serviceRequestService = {
     const data = extractResponseData<any>(response);
     return data ?? { requestId, visitStatus: 'declined', message: 'Visit declined.' };
   },
+
+  reviewProvider: async (
+    requestId: number,
+    payload: { rating: number; comment?: string }
+  ): Promise<any> => {
+    const response = await apiClient.post<any>(
+      `/api/request-service/requests/${requestId}/review`,
+      payload
+    );
+    // Most endpoints return `{ data: ... }` but keep it flexible.
+    const data = extractResponseData<any>(response);
+    return data ?? (response as any)?.data ?? response;
+  },
 };

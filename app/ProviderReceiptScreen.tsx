@@ -107,10 +107,11 @@ export default function ProviderReceiptScreen() {
       }));
 
       // Build receipt data
+      const rawRequest = request as any;
       const receipt: ReceiptData = {
         receiptNumber: `RCP-${requestId}-${Date.now().toString().slice(-6)}`,
         jobTitle: request.jobTitle || request.description || 'Service Request',
-        clientName: request.clientName || 'Client',
+        clientName: rawRequest.clientName || rawRequest.client?.name || 'Client',
         serviceDate,
         serviceTime,
         laborCost: quotation.laborCost || 0,
@@ -135,7 +136,7 @@ export default function ProviderReceiptScreen() {
     loadReceiptData();
   }, [loadReceiptData]);
 
-  const materialTotal = receiptData.materials.reduce(
+  const materialTotal = (receiptData?.materials ?? []).reduce(
     (sum, mat) => sum + mat.price * mat.quantity,
     0
   );
@@ -152,6 +153,7 @@ export default function ProviderReceiptScreen() {
   };
 
   const handleShareReceipt = async () => {
+    if (!receiptData) return;
     try {
       await Share.share({
         message: `Job Receipt\nReceipt Number: ${receiptData.receiptNumber}\nTotal Amount: ₦${formatCurrency(receiptData.totalAmount)}`,
@@ -161,6 +163,69 @@ export default function ProviderReceiptScreen() {
       Alert.alert('Error', 'Failed to share receipt');
     }
   };
+
+  if (isLoading) {
+    return (
+      <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={Colors.accent} />
+          <Text style={{ marginTop: 12, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
+            Loading receipt...
+          </Text>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
+
+  if (!receiptData) {
+    return (
+      <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
+          <FileText size={44} color={Colors.textTertiary} />
+          <Text
+            style={{
+              marginTop: 12,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.textPrimary,
+              fontSize: 16,
+              textAlign: 'center',
+            }}
+          >
+            Unable to load receipt
+          </Text>
+          <Text
+            style={{
+              marginTop: 8,
+              fontFamily: 'Poppins-Regular',
+              color: Colors.textSecondaryDark,
+              fontSize: 13,
+              textAlign: 'center',
+              lineHeight: 18,
+            }}
+          >
+            Please try again.
+          </Text>
+          <TouchableOpacity
+            onPress={() => {
+              setReceiptData(null);
+              setIsLoading(true);
+              loadReceiptData();
+            }}
+            style={{
+              marginTop: 18,
+              backgroundColor: Colors.accent,
+              paddingVertical: 14,
+              paddingHorizontal: 24,
+              borderRadius: 12,
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={{ fontFamily: 'Poppins-SemiBold', color: Colors.white }}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>

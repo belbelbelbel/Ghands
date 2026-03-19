@@ -87,8 +87,24 @@ export const communicationService = {
     return extractResponseData<any>(response);
   },
 
+  // Send local WebRTC signaling data (SDP / session) to backend.
+  // Backend typically stores it so the other party can fetch it via GET.
+  patchCallSession: async (callReference: string, payload: any): Promise<any> => {
+    const response = await apiClient.patch<any>(`/api/communication/calls/${callReference}/session`, payload);
+    const raw = extractResponseData<any>(response);
+    return raw ?? (response as any)?.data ?? response;
+  },
+
   getIceCandidates: async (callReference: string): Promise<any> => {
     const response = await apiClient.get<any>(`/api/communication/calls/${callReference}/ice-candidates`);
     return extractResponseData<any>(response);
+  },
+
+  // Send local WebRTC ICE candidates to backend.
+  // Backend typically stores it so the other party can fetch via GET.
+  patchIceCandidates: async (callReference: string, payload: any): Promise<any> => {
+    const response = await apiClient.patch<any>(`/api/communication/calls/${callReference}/ice-candidates`, payload);
+    const raw = extractResponseData<any>(response);
+    return raw ?? (response as any)?.data ?? response;
   },
 };

@@ -18,6 +18,11 @@ type TimelineHeaderData = {
   showPayButton?: boolean;
   payAmount?: number;
   acceptedQuotation?: any;
+  // Visit logistics (inspection fee) UI
+  showVisitPayButton?: boolean;
+  visitLogisticsCost?: number;
+  onVisitPay?: () => void;
+  onVisitDecline?: () => void;
 };
 
 type MappedProviderSummary = {
@@ -227,46 +232,124 @@ const TimelineStatusCardComponent = ({
       <View className="px-5 mt-2 mb-5">
         <View
           style={{
-            backgroundColor: '#E0F2FE',
+            backgroundColor: '#E5E7EB',
             borderRadius: 16,
             paddingHorizontal: 16,
             paddingVertical: 14,
+            overflow: 'hidden',
+            position: 'relative',
           }}
         >
-          <Text
+          {/* Subtle premium accent overlay (keeps gray-200 base) */}
+          <View
+            pointerEvents="none"
             style={{
-              fontSize: 15,
-              fontFamily: 'Poppins-Bold',
-              color: Colors.textPrimary,
-              marginBottom: 6,
+              position: 'absolute',
+              top: -20,
+              left: -60,
+              width: 140,
+              height: 80,
+              backgroundColor: Colors.accent,
+              opacity: 0.12,
+              transform: [{ rotate: '8deg' }],
             }}
-          >
-            {header.title}
-          </Text>
-          {header.subtitle ? (
+          />
+
+          <View style={{ position: 'relative' }}>
             <Text
               style={{
-                fontSize: 14,
-                fontFamily: 'Poppins-Regular',
-                color: '#374151',
-                lineHeight: 21,
+                fontSize: 16,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+                marginBottom: 6,
               }}
             >
-              {header.subtitle}
+              {header.title}
             </Text>
-          ) : null}
-          {(header as any).timestamp ? (
-            <Text
-              style={{
-                fontSize: 12,
-                fontFamily: 'Poppins-Regular',
-                color: '#6B7280',
-                marginTop: 8,
-              }}
-            >
-              {(header as any).timestamp}
-            </Text>
-          ) : null}
+            {header.subtitle ? (
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Poppins-Regular',
+                  color: '#374151',
+                  lineHeight: 20,
+                }}
+              >
+                {header.subtitle}
+              </Text>
+            ) : null}
+            {(header as any).timestamp ? (
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontFamily: 'Poppins-Regular',
+                  color: '#6B7280',
+                  marginTop: 8,
+                }}
+              >
+                {(header as any).timestamp}
+              </Text>
+            ) : null}
+
+          {(header as any).showVisitPayButton && (
+            <View style={{ marginTop: 14 }}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => (header as any).onVisitPay?.()}
+                style={{
+                  backgroundColor: Colors.accent,
+                  paddingVertical: 14,
+                  paddingHorizontal: 18,
+                  borderRadius: 12,
+                  alignSelf: 'stretch',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.white,
+                    textAlign: 'center',
+                  }}
+                >
+                  Confirm & pay visit fee — ₦
+                  {(((header as any).visitLogisticsCost ?? 0) as number).toLocaleString('en-NG', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  })}
+                </Text>
+              </TouchableOpacity>
+
+              {(header as any).onVisitDecline ? (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => (header as any).onVisitDecline?.()}
+                  style={{
+                    marginTop: 12,
+                    paddingVertical: 10,
+                    alignSelf: 'center',
+                    paddingHorizontal: 16,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
+                    backgroundColor: Colors.white,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.textSecondaryDark,
+                      textAlign: 'center',
+                    }}
+                  >
+                    Decline visit
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          )}
+
           {(header as any).showPayButton && (header as any).payAmount > 0 && (
             <TouchableOpacity
               activeOpacity={0.85}
@@ -296,6 +379,7 @@ const TimelineStatusCardComponent = ({
               </Text>
             </TouchableOpacity>
           )}
+          </View>
         </View>
       </View>
     </View>

@@ -20,7 +20,7 @@ export const notificationService = {
     }
     return {
       notifications,
-      total: innerData?.total ?? notifications.length,
+      total: innerData?.total ?? notifications.length, 
       limit: innerData?.limit ?? limit,
       offset: innerData?.offset ?? offset,
     };

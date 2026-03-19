@@ -8,6 +8,7 @@ interface AnimatedStatusChipProps {
   textColor?: string;
   size?: 'small' | 'medium' | 'large';
   animated?: boolean;
+  variant?: 'chip' | 'text';
 }
 
 /**
@@ -20,6 +21,7 @@ export default function AnimatedStatusChip({
   textColor,
   size = 'medium',
   animated = true,
+  variant = 'chip',
 }: AnimatedStatusChipProps) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const colorAnim = useRef(new Animated.Value(0)).current;
@@ -71,16 +73,25 @@ export default function AnimatedStatusChip({
 
   const currentSize = sizeStyles[size];
 
+  const isTextOnly = variant === 'text';
+
   return (
     <Animated.View
       style={[
         styles.chip,
         {
-          backgroundColor: statusColor,
+          backgroundColor: isTextOnly ? 'transparent' : statusColor,
           transform: [{ scale }],
-          borderRadius: BorderRadius.default,
+          borderRadius: isTextOnly ? 0 : BorderRadius.default,
         },
         currentSize,
+        isTextOnly
+          ? {
+              paddingHorizontal: 0,
+              paddingVertical: 0,
+              alignSelf: 'flex-start',
+            }
+          : null,
       ]}
     >
       <Text

@@ -169,10 +169,13 @@ const ServiceMapScreen = () => {
 
   // Update serviceLocation when savedLocation changes
   useEffect(() => {
-    if (savedLocation && !serviceLocation) {
+    if (!savedLocation) return;
+    // Keep the map header/location text in sync with the latest saved location.
+    // The previous logic only set it when serviceLocation was empty, which caused stale UI.
+    if (savedLocation !== serviceLocation) {
       setServiceLocation(savedLocation);
     }
-  }, [savedLocation]);
+  }, [savedLocation, serviceLocation]);
 
   // Get coordinates from service location
   useEffect(() => {
@@ -234,6 +237,7 @@ const ServiceMapScreen = () => {
       const categoryName = params.categoryName || params.serviceType;
       
       // Reset error state
+      setHasTriedLoadProviders(false);
       setProviderError(null);
       
       if (!categoryName || !serviceLocationCoords) {
@@ -384,7 +388,14 @@ const ServiceMapScreen = () => {
               Finding nearby providers...
             </Text>
           </View>
-        ) : hasTriedLoadProviders && providerError && providers.length === 0 ? (
+        ) : !serviceLocationCoords ? (
+          <View className="flex-1 items-center justify-center bg-white">
+            <ActivityIndicator size="large" color="#6A9B00" />
+            <Text className="mt-4 text-gray-600" style={{ fontFamily: 'Poppins-Medium' }}>
+              Getting your location...
+            </Text>
+          </View>
+        ) : hasTriedLoadProviders && !!serviceLocationCoords && providerError && providers.length === 0 ? (
           <View style={{ flex: 1, backgroundColor: Colors.white }}>
             {/* Back Button */}
             <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg }}>
@@ -520,7 +531,7 @@ const ServiceMapScreen = () => {
               </View>
             </View>
           </View>
-        ) : hasTriedLoadProviders && providers.length === 0 ? (
+        ) : hasTriedLoadProviders && !!serviceLocationCoords && providers.length === 0 ? (
           <View style={{ flex: 1, backgroundColor: Colors.white }}>
             {/* Back Button */}
             <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg }}>
@@ -643,7 +654,12 @@ const ServiceMapScreen = () => {
           />
         )}
       </View>
-      <Toast toast={toast} onHide={hideToast} />
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onClose={hideToast}
+      />
       {selectedProviders.length > 0 && (
         <View className="bg-white border-t border-gray-100 px-4 py-4 shadow-[0px_-8px_24px_rgba(15,23,42,0.08)]">
           <Text className="text-sm text-gray-600 mb-2" style={{ fontFamily: 'Poppins-Medium' }}>

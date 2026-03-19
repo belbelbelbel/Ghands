@@ -59,6 +59,16 @@ export default function ProviderProfileScreen() {
   const [firstCategory, setFirstCategory] = useState<string>('');
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [isLoadingWallet, setIsLoadingWallet] = useState(false);
+  const [monthlyEarnings, setMonthlyEarnings] = useState<number>(0);
+  const [lastMonthEarnings, setLastMonthEarnings] = useState<number>(0);
+  const [isLoadingMonthlyEarnings, setIsLoadingMonthlyEarnings] = useState(false);
+
+  const formatNaira = (value: number) => {
+    return value.toLocaleString('en-NG', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
 
   const loadWalletBalance = useCallback(async () => {
     setIsLoadingWallet(true);
@@ -70,6 +80,59 @@ export default function ProviderProfileScreen() {
       setWalletBalance(0);
     } finally {
       setIsLoadingWallet(false);
+    }
+  }, []);
+
+  // Load provider earnings for current month (used in the insights card)
+  const loadMonthlyEarnings = useCallback(async () => {
+    setIsLoadingMonthlyEarnings(true);
+    try {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+      const result = await walletService.getTransactions({ limit: 200, offset: 0 });
+      const transactions = Array.isArray(result?.transactions) ? result.transactions : [];
+
+      const isEarningTx = (tx: any) => {
+        if (!tx) return false;
+        const statusOk = tx.status === 'completed';
+        if (!statusOk) return false;
+
+        const amount = Number(tx.amount ?? 0);
+        if (!isFinite(amount) || amount <= 0) return false;
+
+        const typeLower = String(tx.type ?? '').toLowerCase();
+        const descLower = String(tx.description ?? '').toLowerCase();
+
+        // Earnings are usually typed as `earnings`, but keep a fallback for description-based matching.
+        return typeLower === 'earnings' || descLower.includes('earnings');
+      };
+
+      const getTotalBetween = (start: Date, end: Date) => {
+        return transactions
+          .filter(isEarningTx)
+          .filter((tx: any) => {
+            const ts = tx.createdAt || tx.updatedAt || tx.timestamp;
+            if (!ts) return false;
+            const d = new Date(ts);
+            if (isNaN(d.getTime())) return false;
+            return d >= start && d < end;
+          })
+          .reduce((sum: number, tx: any) => sum + Number(tx.amount ?? 0), 0);
+      };
+
+      const currentTotal = getTotalBetween(monthStart, nextMonthStart);
+      const prevTotal = getTotalBetween(lastMonthStart, monthStart);
+
+      setMonthlyEarnings(currentTotal);
+      setLastMonthEarnings(prevTotal);
+    } catch {
+      setMonthlyEarnings(0);
+      setLastMonthEarnings(0);
+    } finally {
+      setIsLoadingMonthlyEarnings(false);
     }
   }, []);
 
@@ -180,11 +243,12 @@ export default function ProviderProfileScreen() {
     useCallback(() => {
       loadProviderData();
       loadWalletBalance();
-    }, [loadProviderData, loadWalletBalance])
+      loadMonthlyEarnings();
+    }, [loadProviderData, loadWalletBalance, loadMonthlyEarnings])
   );
 
   const handleShareReferral = async () => {
-    const code = (provider as any)?.referralCode ?? null;
+    const code = (provider as any)?.referralCode ?? (provider as any)?.referral_code ?? null;
     await shareReferral({ role: 'provider', code });
   };
 
@@ -1165,16 +1229,20 @@ export default function ProviderProfileScreen() {
               >
                 Total Earnings This Month
               </Text>
-              <Text
-                style={{
-                  fontSize: Math.min(32, Dimensions.get('window').width * 0.08),
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.white,
-                  marginBottom: 4,
-                }}
-              >
-                $4,285.50
-              </Text>
+              {isLoadingMonthlyEarnings ? (
+                <ActivityIndicator size="small" color={Colors.white} style={{ marginBottom: 4 }} />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: Math.min(32, Dimensions.get('window').width * 0.08),
+                    fontFamily: 'Poppins-Bold',
+                    color: Colors.white,
+                    marginBottom: 4,
+                  }}
+                >
+                  ₦{formatNaira(monthlyEarnings)}
+                </Text>
+              )}
               <Text
                 style={{
                   fontSize: 12,
@@ -1182,7 +1250,11 @@ export default function ProviderProfileScreen() {
                   color: Colors.white,
                 }}
               >
-                ↑ +12.5% vs last month
+                {lastMonthEarnings > 0
+                  ? `${monthlyEarnings >= lastMonthEarnings ? '↑' : '↓'} ${Math.abs(
+                      ((monthlyEarnings - lastMonthEarnings) / lastMonthEarnings) * 100
+                    ).toFixed(1)}% vs last month`
+                  : 'Start earning to see trends.'}
               </Text>
             </View>
           </View>
@@ -1211,7 +1283,7 @@ export default function ProviderProfileScreen() {
                 marginBottom: 12,
               }}
             >
-              Get $10 for each referral
+              Invite friends and earn rewards
             </Text>
             <View
               style={{
@@ -1239,7 +1311,9 @@ export default function ProviderProfileScreen() {
                     color: Colors.textPrimary,
                   }}
                 >
-                  {providerName.toUpperCase().slice(0, 5)}2024
+                  {(provider as any)?.referralCode ||
+                    (provider as any)?.referral_code ||
+                    '—'}
                 </Text>
               </Text>
               <TouchableOpacity

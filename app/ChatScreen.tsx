@@ -82,7 +82,7 @@ export default function ChatScreen() {
 
   // Refs
   const flatListRef = useRef<FlatList>(null);
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMarkingAsReadRef = useRef(false);
 
   // Determine if this is provider view (has clientName) or user view
@@ -352,7 +352,6 @@ export default function ChatScreen() {
         const errMsg = (error?.message || '').toLowerCase();
         const isServerSide = errMsg.includes('foreign key') || errMsg.includes('receiverid');
         showError(isServerSide ? 'Message could not be sent. Please try again or contact support.' : 'Message failed to send. Tap to retry.');
-        showError('Failed to send. Tap to retry.');
       }
     },
     [isValidRequestId, requestId, isSending, mapApiMessageToUI, currentUserId, showError]

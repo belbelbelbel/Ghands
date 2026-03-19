@@ -9,10 +9,10 @@ import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Animated, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Animated, Image, ScrollView, Text, TouchableOpacity, TextInput, View } from "react-native";
 import { analytics } from '@/services/analytics';
 import { CheckCircle2, FileText, Wrench, CheckCircle } from 'lucide-react-native';
-import { Colors } from '@/lib/designSystem';
+import { BorderRadius, Colors } from '@/lib/designSystem';
 
 // Helper to format time ago
 const formatTimeAgo = (dateString: string): string => {
@@ -54,11 +54,15 @@ const formatDate = (dateString?: string, timeString?: string): string => {
 export default function CompletedJobDetail() {
   const router = useRouter();
   const params = useLocalSearchParams<{ requestId?: string }>();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [rating, setRating] = useState<number>(0);
+  const [comment, setComment] = useState<string>('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
 
   useEffect(() => {
     if (params.requestId) {
@@ -100,6 +104,36 @@ export default function CompletedJobDetail() {
       showError(errorMessage);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!params.requestId) return;
+    if (!rating || rating < 1) {
+      showError('Please select a star rating (1-5).');
+      return;
+    }
+    if (hasSubmittedReview) return;
+
+    const requestId = parseInt(params.requestId, 10);
+    if (isNaN(requestId)) return;
+
+    setIsSubmittingReview(true);
+    try {
+      const payload = {
+        rating,
+        comment: comment.trim() ? comment.trim() : undefined,
+      };
+
+      await serviceRequestService.reviewProvider(requestId, payload);
+      setHasSubmittedReview(true);
+      showSuccess('Thank you for your review!');
+      analytics.track('submit_provider_review', { job_id: requestId, rating });
+    } catch (e: any) {
+      const msg = getSpecificErrorMessage(e, 'review_provider') ?? e?.message ?? 'Failed to submit review.';
+      showError(msg);
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -493,21 +527,120 @@ export default function CompletedJobDetail() {
               {renderTimeline()}
             </View>
 
-            
-            <TouchableOpacity
-              className="w-full py-4 rounded-xl items-center justify-center bg-gray-400 mb-4"
-              activeOpacity={0.85}
-              disabled
+            <View
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.xl,
+                padding: 16,
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: Colors.border,
+              }}
             >
               <Text
-                className="text-white text-base"
                 style={{
-                  fontFamily: 'Poppins-SemiBold',
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                  marginBottom: 6,
                 }}
               >
-                Job Completed
+                Rate your provider
               </Text>
-            </TouchableOpacity>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  marginBottom: 14,
+                  lineHeight: 18,
+                }}
+              >
+                Tap stars to rate (1-5). Your selection stays until you submit.
+              </Text>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const starValue = i + 1;
+                  const filled = starValue <= rating;
+                  return (
+                    <TouchableOpacity
+                      key={starValue}
+                      onPress={() => {
+                        if (hasSubmittedReview) return;
+                        haptics.selection();
+                        setRating(starValue);
+                      }}
+                      disabled={hasSubmittedReview}
+                      activeOpacity={0.85}
+                      style={{ padding: 6 }}
+                    >
+                      <Ionicons
+                        name={filled ? 'star' : 'star-outline'}
+                        size={22}
+                        color={filled ? '#FACC15' : '#CBD5E1'}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 13,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  {rating > 0 ? `${rating}/5` : '—/5'}
+                </Text>
+              </View>
+
+              <TextInput
+                value={comment}
+                onChangeText={setComment}
+                editable={!hasSubmittedReview}
+                placeholder="Write a comment (optional)"
+                placeholderTextColor="#9CA3AF"
+                multiline
+                numberOfLines={3}
+                style={{
+                  marginTop: 14,
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                  borderRadius: BorderRadius.default,
+                  padding: 12,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textPrimary,
+                  backgroundColor: Colors.backgroundGray,
+                }}
+              />
+
+              <TouchableOpacity
+                className="w-full py-4 rounded-xl items-center justify-center"
+                activeOpacity={0.85}
+                disabled={hasSubmittedReview || isSubmittingReview || rating < 1}
+                onPress={handleSubmitReview}
+                style={{
+                  backgroundColor:
+                    hasSubmittedReview || rating < 1 ? Colors.backgroundGray : Colors.accent,
+                  marginTop: 16,
+                }}
+              >
+                {isSubmittingReview ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <Text
+                    style={{
+                      fontFamily: 'Poppins-SemiBold',
+                      color: hasSubmittedReview ? Colors.textSecondaryDark : Colors.white,
+                      fontSize: 14,
+                    }}
+                  >
+                    {hasSubmittedReview ? 'Review submitted' : 'Submit rating'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
     </SafeAreaWrapper>

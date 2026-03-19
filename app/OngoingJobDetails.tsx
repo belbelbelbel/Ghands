@@ -344,8 +344,10 @@ export default function OngoingJobDetails() {
           isActive: !visitPaid,
           isCompleted: visitPaid,
           icon: MapPinned,
-          showPayLogistics: !visitPaid,
-          showRejectVisit: !visitPaid,
+          // Visit fee accept/decline UI moved into TimelineStatusCard header
+          // to keep the timeline list clean.
+          showPayLogistics: false,
+          showRejectVisit: false,
           logisticsCost: visitRequest.logisticsCost ?? 0,
         });
       } else {
@@ -611,7 +613,59 @@ export default function OngoingJobDetails() {
     if (hasAcceptedProviders) {
       const firstAccept = acceptedProviders?.[0];
       const acceptedAt = firstAccept?.acceptance?.acceptedAt ?? request.updatedAt ?? request.selectedAt;
-      return { title: 'Inspection in progress', subtitle: 'Provider has accepted your request. Waiting for inspection and quotation.', statusPill: 'Provider accepted', pillBg: '#FEF9C3', pillText: '#92400E', timestamp: acceptedAt ? formatTimeAgo(acceptedAt) : null, provider: headerProvider };
+      const vr = (request as any)?.visitRequest;
+      const hasVR = !!(vr && (vr.scheduledDate || vr.logisticsCost != null));
+      const vPaid = vr?.logisticsStatus === 'paid';
+      const logisticsCost = vr?.logisticsCost ?? 0;
+
+      return {
+        title: 'Inspection in progress',
+        subtitle: 'Provider has accepted your request. Waiting for inspection and quotation.',
+        statusPill: 'Provider accepted',
+        pillBg: '#FEF9C3',
+        pillText: '#92400E',
+        timestamp: acceptedAt ? formatTimeAgo(acceptedAt) : null,
+        provider: headerProvider,
+        showVisitPayButton: hasVR && !vPaid,
+        visitLogisticsCost: logisticsCost,
+        onVisitPay: () => {
+          if (params.requestId == null) return;
+          haptics.light();
+          router.push({
+            pathname: '/ConfirmWalletPaymentScreen',
+            params: {
+              requestId: params.requestId,
+              amount: String(logisticsCost),
+              paymentType: 'logistics_fee',
+              serviceName: request?.jobTitle || 'Inspection',
+            },
+          } as any);
+        },
+        onVisitDecline: async () => {
+          const rid = Number(params.requestId);
+          if (isNaN(rid)) return;
+          Alert.alert('Decline visit?', 'Provider can send a quotation directly without visiting.', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Decline visit',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await serviceRequestService.declineVisit(rid);
+                  showSuccess('Visit declined.');
+                  await loadRequestData();
+                } catch (e: any) {
+                  if (e instanceof AuthError) {
+                    await handleAuthErrorRedirect(router);
+                    return;
+                  }
+                  showError(getSpecificErrorMessage(e, 'decline_visit') ?? e?.message);
+                }
+              },
+            },
+          ]);
+        },
+      };
     }
     return { title: 'Waiting for providers', subtitle: 'Nearby providers are being notified. Updates will appear here.', statusPill: 'Pending', pillBg: '#F3F4F6', pillText: '#6B7280', timestamp: null, provider: null };
   }, [request, acceptedProviders, quotations, cameFromPaymentSuccess, paymentTransaction]);
@@ -1216,7 +1270,7 @@ export default function OngoingJobDetails() {
     if (timelineSteps.length === 0) return null;
 
     return (
-      <View className="mb-10">
+      <View className="mb-10 mt-2">
         {timelineSteps.map((step, index) => {
           const isLast = index === timelineSteps.length - 1;
           const animation = timelineAnimations[index];
@@ -1292,7 +1346,6 @@ export default function OngoingJobDetails() {
               <Animated.View
                 style={{
                   flex: 1,
-                  paddingBottom: isLast ? 0 : 0,
                   opacity: animation,
                   transform: [
                     {
@@ -1302,35 +1355,65 @@ export default function OngoingJobDetails() {
                       }),
                     },
                   ],
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                  paddingTop: 16,
+                  paddingBottom: 16,
+                  paddingLeft: 14,
+                  paddingRight: 14,
+                  marginBottom: 6,
+                  marginRight: 10,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.04,
+                  shadowRadius: 8,
+                  elevation: 2,
                 }}
               >
-                <Text 
-                  style={{ 
-                    fontSize: 13,
-                    fontFamily: 'Poppins-Bold',
-                    color: step.isCompleted || step.isActive ? Colors.textPrimary : Colors.textSecondaryDark,
-                    marginBottom: 2,
+                <View
+                  style={{
+                    backgroundColor: step.isCompleted || step.isActive ? '#E0F2FE' : '#F9FAFB',
+                    borderRadius: 12,
+                    paddingHorizontal: 14,
+                    paddingVertical: 14,
+                    marginTop: 4,
+                    marginBottom: 10,
                   }}
                 >
-                  {step.title}
-                </Text>
-                <Text 
-                  style={{ 
-                    fontSize: 11,
-                    fontFamily: 'Poppins-Regular',
-                    color: step.isCompleted || step.isActive ? Colors.textSecondaryDark : Colors.textTertiary,
-                    marginBottom: 4,
-                  }}
-                >
-                  {step.description}
-                </Text>
-                <AnimatedStatusChip
-                  status={step.status}
-                  statusColor={step.accent}
-                  textColor={step.isCompleted ? '#166534' : step.isActive ? '#92400E' : '#6B7280'}
-                  size="small"
-                  animated={true}
-                />
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Bold',
+                      color: step.isCompleted || step.isActive ? Colors.textPrimary : Colors.textSecondaryDark,
+                      marginBottom: 6,
+                      lineHeight: 18,
+                    }}
+                  >
+                    {step.title}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Regular',
+                      color: step.isCompleted || step.isActive ? Colors.textSecondaryDark : Colors.textTertiary,
+                      lineHeight: 18,
+                    }}
+                  >
+                    {step.description}
+                  </Text>
+                </View>
+                <View style={{ marginTop: 8 }}>
+                  <AnimatedStatusChip
+                    status={step.status}
+                    statusColor={step.accent}
+                    textColor={step.isCompleted ? '#166534' : step.isActive ? '#92400E' : '#6B7280'}
+                    size="small"
+                    animated={true}
+                    variant="text"
+                  />
+                </View>
                 {((step as any).showPayLogistics || (step as any).showRejectVisit || (step as any).showPayService) && (
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
                     {(step as any).showPayService && (
@@ -1695,79 +1778,7 @@ export default function OngoingJobDetails() {
           >
             {activeTab === 'Updates' ? (
               <>
-                {/* Pending visit: show FIRST so Confirm button is impossible to miss */}
-                {(() => {
-                  const vr = (request as any)?.visitRequest;
-                  const hasVR = !!(vr && (vr.scheduledDate || vr.logisticsCost != null));
-                  const vPaid = vr?.logisticsStatus === 'paid';
-                  if (!hasVR || vPaid) return null;
-                  const amount = vr.logisticsCost ?? 0;
-                  const amountStr = typeof amount === 'number' ? amount.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : String(amount);
-                  return (
-                    <View style={{ marginHorizontal: 16, marginBottom: 20, backgroundColor: '#FFFBEB', borderRadius: 20, padding: 20, borderWidth: 2, borderColor: '#F59E0B', overflow: 'hidden' }}>
-                      <Text style={{ fontSize: 17, fontFamily: 'Poppins-Bold', color: '#92400E', marginBottom: 6 }}>
-                        Provider requested an inspection visit
-                      </Text>
-                      <Text style={{ fontSize: 14, fontFamily: 'Poppins-Regular', color: '#78350F', marginBottom: 16, lineHeight: 21 }}>
-                        {vr.scheduledDate || vr.scheduledTime
-                          ? `Scheduled: ${vr.scheduledDate || ''} ${vr.scheduledTime || ''}. Pay the visit fee to confirm.`
-                          : (vr.logisticsCost == null || Number(vr.logisticsCost) === 0)
-                            ? 'Provider requested a visit. Confirm or decline when visit details are sent.'
-                            : 'Pay the logistics fee below to confirm the visit, or decline if you prefer a quotation only.'}
-                      </Text>
-                      {(amount == null || Number(amount) > 0) ? (
-                        <TouchableOpacity
-                          onPress={() => {
-                            haptics.light();
-                            router.push({
-                              pathname: '/ConfirmWalletPaymentScreen',
-                              params: {
-                                requestId: params.requestId,
-                                amount: String(amount),
-                                paymentType: 'logistics_fee',
-                                serviceName: request?.jobTitle || 'Inspection',
-                              },
-                            } as any);
-                          }}
-                          style={{ backgroundColor: '#6A9B00', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginBottom: 12 }}
-                          activeOpacity={0.85}
-                        >
-                          <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: '#FFFFFF' }}>
-                            Confirm & pay visit fee — ₦{amountStr}
-                          </Text>
-                        </TouchableOpacity>
-                      ) : null}
-                      <TouchableOpacity
-                        onPress={() =>
-                          Alert.alert('Decline visit?', 'Provider can send a quotation directly without visiting.', [
-                            { text: 'Cancel', style: 'cancel' },
-                            {
-                              text: 'Decline visit',
-                              style: 'destructive',
-                              onPress: async () => {
-                                try {
-                                  await serviceRequestService.declineVisit(Number(params.requestId));
-                                  showSuccess('Visit declined.');
-                                  loadRequestData();
-                                } catch (e: any) {
-                                  if (e instanceof AuthError) {
-                                    await handleAuthErrorRedirect(router);
-                                    return;
-                                  }
-                                  showError(getSpecificErrorMessage(e, 'decline_visit') ?? e?.message);
-                                }
-                              },
-                            },
-                          ])
-                        }
-                        style={{ paddingVertical: 12, alignItems: 'center' }}
-                        activeOpacity={0.85}
-                      >
-                        <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: '#6B7280' }}>Decline visit</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })()}
+                {/* Visit fee accept/decline moved into TimelineStatusCard header (cleaner layout) */}
 
                 {/* Provider cards: only when there are quotations to show (keeps Updates tab clean during inspection) */}
                 {(() => {
@@ -1799,14 +1810,16 @@ export default function OngoingJobDetails() {
 
                 {/* Standard status card: current job status with provider info + blue status box */}
                 {timelineHeader && (
-                  <TimelineStatusCard
-                    header={timelineHeader as any}
-                    quotations={quotations}
-                    acceptedProviders={acceptedProviders}
-                    mappedProviders={mappedProviders as any}
-                    request={request}
-                    requestId={params.requestId}
-                  />
+                  <View style={{ marginBottom: 16 }}>
+                    <TimelineStatusCard
+                      header={timelineHeader as any}
+                      quotations={quotations}
+                      acceptedProviders={acceptedProviders}
+                      mappedProviders={mappedProviders as any}
+                      request={request}
+                      requestId={params.requestId}
+                    />
+                  </View>
                 )}
 
                 {renderTimeline()}

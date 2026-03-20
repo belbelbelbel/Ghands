@@ -18,7 +18,10 @@ export default function CancelRequestScreen() {
   const [additionalNote, setAdditionalNote] = useState('');
 
   const handleSubmit = () => {
-    router.push('/(tabs)/jobs');
+    router.replace({
+      pathname: '/(tabs)/jobs',
+      params: { initialTab: 'Cancelled' },
+    } as any);
   };
 
   return (

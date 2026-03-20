@@ -5,7 +5,13 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Download, FileText, Share2 } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Alert, ScrollView, Share, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { providerService, serviceRequestService } from '@/services/api';
+import {
+  providerService,
+  serviceRequestService,
+  type Quotation,
+  type ProviderQuotationListItem,
+  type ServiceRequest,
+} from '@/services/api';
 
 // Helper function to format dates
 const formatDate = (date: Date, format: string = 'MMM dd, yyyy'): string => {
@@ -60,12 +66,74 @@ export default function ProviderReceiptScreen() {
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load receipt data from API
+  // Load receipt data from API (tolerant: singular quotation endpoint often 404s; use list + request fallback)
   const loadReceiptData = useCallback(async () => {
     if (!params.requestId) {
       setIsLoading(false);
       return;
     }
+
+    const parseMoney = (v: unknown): number => {
+      if (v == null) return 0;
+      if (typeof v === 'number' && !Number.isNaN(v)) return v;
+      if (typeof v === 'string') {
+        const n = parseFloat(String(v).replace(/[₦$,\s]/g, '').trim());
+        return Number.isNaN(n) ? 0 : n;
+      }
+      return 0;
+    };
+
+    const isQuotationEmpty = (q: Quotation | null): boolean =>
+      !q ||
+      (q.total === 0 && q.laborCost === 0 && !(q.materials?.length));
+
+    const quotationFromListItem = (pick: any, requestId: number): Quotation => ({
+      id: Number(pick.id) || 0,
+      requestId,
+      laborCost: parseMoney(pick.laborCost),
+      logisticsCost: parseMoney(pick.logisticsCost),
+      materials: Array.isArray(pick.materials) ? pick.materials : [],
+      findingsAndWorkRequired: pick.findingsAndWorkRequired || '',
+      serviceCharge: parseMoney(pick.serviceCharge),
+      tax: parseMoney(pick.tax),
+      total: parseMoney(pick.total),
+      status: pick.status || 'pending',
+      sentAt: pick.sentAt || new Date().toISOString(),
+      acceptedAt: pick.acceptedAt ?? null,
+      rejectedAt: pick.rejectedAt ?? null,
+      message: pick.message,
+    });
+
+    const requestFromProviderQuotationItem = (
+      item: ProviderQuotationListItem
+    ): ServiceRequest => {
+      const r = item.request;
+      const st = String(r?.status || 'completed').toLowerCase();
+      const allowed: ServiceRequest['status'][] = [
+        'pending',
+        'accepted',
+        'inspecting',
+        'quoting',
+        'scheduled',
+        'in_progress',
+        'reviewing',
+        'completed',
+        'cancelled',
+      ];
+      const status = (allowed.includes(st as ServiceRequest['status'])
+        ? st
+        : 'completed') as ServiceRequest['status'];
+      return {
+        id: r.id,
+        categoryName: '',
+        jobTitle: r.jobTitle || 'Service Request',
+        description: r.description || '',
+        status,
+        createdAt: item.sentAt,
+        updatedAt: item.sentAt,
+        user: item.user as ServiceRequest['user'],
+      };
+    };
 
     try {
       setIsLoading(true);
@@ -74,59 +142,138 @@ export default function ProviderReceiptScreen() {
         throw new Error('Invalid request ID');
       }
 
-      // Fetch request details and quotation in parallel
-      const [request, quotation] = await Promise.all([
-        serviceRequestService.getRequestDetails(requestId).catch(() => null),
-        providerService.getQuotation(requestId).catch(() => null),
-      ]);
+      let request: ServiceRequest | null = null;
+      let quotationFromProviderRow: Quotation | null = null;
 
-      if (!request || !quotation) {
-        throw new Error('Unable to load receipt data');
+      try {
+        request = await serviceRequestService.getRequestDetails(requestId);
+      } catch {
+        request = null;
       }
 
-      // Format dates
-      const serviceDate = request.scheduledDate 
-        ? formatDate(new Date(request.scheduledDate), 'MMMM dd, yyyy')
-        : request.createdAt 
-        ? formatDate(new Date(request.createdAt), 'MMMM dd, yyyy')
-        : 'N/A';
-      
-      const serviceTime = request.scheduledTime || 'N/A';
-      
-      const paymentDate = quotation.acceptedAt
-        ? formatDate(new Date(quotation.acceptedAt), 'MMM dd, yyyy \'at\' h:mm a')
-        : quotation.sentAt
-        ? formatDate(new Date(quotation.sentAt), 'MMM dd, yyyy \'at\' h:mm a')
-        : 'N/A';
+      if (!request) {
+        request = await providerService.getAcceptedRequestById(requestId);
+      }
 
-      // Calculate materials total
-      const materials = (quotation.materials || []).map((mat) => ({
+      if (!request) {
+        const quoteItem = await providerService.getQuotationListItemForRequest(requestId);
+        if (quoteItem) {
+          request = requestFromProviderQuotationItem(quoteItem);
+          quotationFromProviderRow = quotationFromListItem(quoteItem, requestId);
+        }
+      }
+
+      if (!request) {
+        throw new Error(
+          'Could not load this receipt. Your session is fine — the server had trouble returning job details. Pull to refresh or try again shortly.'
+        );
+      }
+
+      let quotation: Quotation | null = quotationFromProviderRow;
+
+      if (!quotation) {
+        try {
+          quotation = await providerService.getQuotation(requestId);
+        } catch {
+          quotation = null;
+        }
+      }
+
+      if (isQuotationEmpty(quotation)) {
+        try {
+          const list = await serviceRequestService.getQuotations(requestId);
+          const pick =
+            list.find((q) => q.status === 'accepted') ||
+            list.find((q) => q.status === 'pending') ||
+            list[0];
+          if (pick) {
+            quotation = quotationFromListItem(pick, requestId);
+          }
+        } catch {
+          /* keep previous quotation or null */
+        }
+      }
+
+      if (isQuotationEmpty(quotation) && quotationFromProviderRow) {
+        quotation = quotationFromProviderRow;
+      }
+
+      const rawRequest = request as any;
+      const totalFromRequest =
+        parseMoney(rawRequest.totalCost) ||
+        parseMoney(rawRequest.total_amount) ||
+        parseMoney(rawRequest.paymentAmount) ||
+        parseMoney(rawRequest.amount);
+
+      // Format dates
+      const serviceDate = request.scheduledDate
+        ? formatDate(new Date(request.scheduledDate), 'MMMM dd, yyyy')
+        : request.createdAt
+          ? formatDate(new Date(request.createdAt), 'MMMM dd, yyyy')
+          : 'N/A';
+
+      const serviceTime = request.scheduledTime || 'N/A';
+
+      const paymentDate = quotation?.acceptedAt
+        ? formatDate(new Date(quotation.acceptedAt), "MMM dd, yyyy 'at' h:mm a")
+        : quotation?.sentAt
+          ? formatDate(new Date(quotation.sentAt), "MMM dd, yyyy 'at' h:mm a")
+          : rawRequest.updatedAt
+            ? formatDate(new Date(rawRequest.updatedAt), "MMM dd, yyyy 'at' h:mm a")
+            : 'N/A';
+
+      const materials = (quotation?.materials || []).map((mat) => ({
         name: mat.name || 'Material',
         quantity: mat.quantity || 0,
         price: mat.unitPrice || 0,
       }));
 
-      // Build receipt data
-      const rawRequest = request as any;
+      const laborCost = quotation?.laborCost ?? 0;
+      const platformFee = quotation?.serviceCharge ?? 0;
+      const tax = quotation?.tax ?? 0;
+      let totalAmount = quotation?.total ?? 0;
+      if (totalAmount <= 0 && totalFromRequest > 0) {
+        totalAmount = totalFromRequest;
+      }
+
+      let paymentStatus = 'Details unavailable';
+      if (quotation) {
+        paymentStatus =
+          quotation.status === 'accepted' ? 'Paid' : quotation.status === 'pending' ? 'Pending' : 'Unpaid';
+      } else if (request.status === 'completed') {
+        paymentStatus = 'Completed';
+      }
+
+      const clientFirst = rawRequest.user?.firstName || rawRequest.client?.firstName;
+      const clientLast = rawRequest.user?.lastName || rawRequest.client?.lastName;
+      const clientFromUser = [clientFirst, clientLast].filter(Boolean).join(' ').trim();
+
       const receipt: ReceiptData = {
         receiptNumber: `RCP-${requestId}-${Date.now().toString().slice(-6)}`,
         jobTitle: request.jobTitle || request.description || 'Service Request',
-        clientName: rawRequest.clientName || rawRequest.client?.name || 'Client',
+        clientName:
+          rawRequest.clientName ||
+          rawRequest.client?.name ||
+          clientFromUser ||
+          'Client',
         serviceDate,
         serviceTime,
-        laborCost: quotation.laborCost || 0,
+        laborCost,
         materials,
-        platformFee: quotation.serviceCharge || 0,
-        tax: quotation.tax || 0,
-        totalAmount: quotation.total || 0,
-        paymentStatus: quotation.status === 'accepted' ? 'Paid' : quotation.status === 'pending' ? 'Pending' : 'Unpaid',
+        platformFee,
+        tax,
+        totalAmount,
+        paymentStatus,
         paymentDate,
       };
 
       setReceiptData(receipt);
     } catch (error: any) {
-      console.error('Error loading receipt data:', error);
-      Alert.alert('Error', 'Failed to load receipt data. Please try again.');
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.warn('Receipt load failed:', error?.message || error);
+      }
+      Alert.alert('Error', error?.message || 'Failed to load receipt data. Please try again.');
     } finally {
       setIsLoading(false);
     }

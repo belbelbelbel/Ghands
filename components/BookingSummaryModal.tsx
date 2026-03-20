@@ -7,6 +7,7 @@ import { Button } from './ui/Button';
 import { haptics } from '@/hooks/useHaptics';
 import ProfileCompletionModal from './ProfileCompletionModal';
 import { useProfileCompletion } from '@/hooks/useProfileCompletion';
+import { formatSkillLabel } from '@/utils/formatSkillLabel';
 
 export interface BookingSummaryData {
   serviceType?: string;
@@ -136,7 +137,9 @@ export default function BookingSummaryModal({
                 )}
               </View>
               <View style={styles.sectionContent}>
-                <Text style={styles.sectionValue}>{data.serviceType}</Text>
+                <Text style={styles.sectionValue}>
+                  {formatSkillLabel(String(data.serviceType || '')) || data.serviceType}
+                </Text>
               </View>
             </View>
           )}
@@ -276,7 +279,9 @@ export default function BookingSummaryModal({
                     )}
                     <View style={styles.providerInfo}>
                       <Text style={styles.providerName}>{provider.name}</Text>
-                      <Text style={styles.providerCategory}>{provider.category}</Text>
+                      <Text style={styles.providerCategory}>
+                        {formatSkillLabel(String(provider.category || '')) || provider.category}
+                      </Text>
                     </View>
                   </View>
                 ))}

@@ -30,11 +30,39 @@ export const communicationService = {
     const response = await apiClient.get<any>(endpoint);
     const responseData = extractResponseData<any>(response);
     if (!responseData) throw new Error('Invalid response from get messages API.');
-    const messages = responseData.messages || [];
-    const total = responseData.total ?? 0;
-    const responseOffset = responseData.offset ?? 0;
+
+    // Be tolerant to backend response shape variations:
+    // - { messages, total, limit, offset }
+    // - { data: { messages, ... } }
+    // - { data: [...] }
+    // - [...] (array of messages)
+    let messages: any[] = [];
+    let total = 0;
+    let responseOffset = offset;
+    let responseLimit = limit;
+
+    if (Array.isArray(responseData)) {
+      messages = responseData;
+      total = responseData.length;
+    } else if (Array.isArray(responseData?.messages)) {
+      messages = responseData.messages;
+      total = responseData.total ?? messages.length;
+      responseOffset = responseData.offset ?? offset;
+      responseLimit = responseData.limit ?? limit;
+    } else if (Array.isArray(responseData?.data?.messages)) {
+      messages = responseData.data.messages;
+      total = responseData.data.total ?? responseData.total ?? messages.length;
+      responseOffset = responseData.data.offset ?? responseData.offset ?? offset;
+      responseLimit = responseData.data.limit ?? responseData.limit ?? limit;
+    } else if (Array.isArray(responseData?.data)) {
+      messages = responseData.data;
+      total = responseData.total ?? messages.length;
+      responseOffset = responseData.offset ?? offset;
+      responseLimit = responseData.limit ?? limit;
+    }
+
     const hasMore = (responseOffset + messages.length) < total;
-    return { messages, total, limit: responseData.limit || limit, offset: responseOffset, hasMore };
+    return { messages, total, limit: responseLimit, offset: responseOffset, hasMore };
   },
 
   markMessagesAsRead: async (requestId: number): Promise<{ message: string }> => {
@@ -87,24 +115,8 @@ export const communicationService = {
     return extractResponseData<any>(response);
   },
 
-  // Send local WebRTC signaling data (SDP / session) to backend.
-  // Backend typically stores it so the other party can fetch it via GET.
-  patchCallSession: async (callReference: string, payload: any): Promise<any> => {
-    const response = await apiClient.patch<any>(`/api/communication/calls/${callReference}/session`, payload);
-    const raw = extractResponseData<any>(response);
-    return raw ?? (response as any)?.data ?? response;
-  },
-
   getIceCandidates: async (callReference: string): Promise<any> => {
     const response = await apiClient.get<any>(`/api/communication/calls/${callReference}/ice-candidates`);
     return extractResponseData<any>(response);
-  },
-
-  // Send local WebRTC ICE candidates to backend.
-  // Backend typically stores it so the other party can fetch via GET.
-  patchIceCandidates: async (callReference: string, payload: any): Promise<any> => {
-    const response = await apiClient.patch<any>(`/api/communication/calls/${callReference}/ice-candidates`, payload);
-    const raw = extractResponseData<any>(response);
-    return raw ?? (response as any)?.data ?? response;
   },
 };

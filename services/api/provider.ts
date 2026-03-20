@@ -66,6 +66,11 @@ const providerService = {
     const providerId = providerData?.id || providerData?.companyId || (response as any)?.id || response?.data?.id;
     if (!token) throw new Error('Login failed: No token received from server.');
     await authServiceInstance.setAuthToken(token);
+    if (__DEV__) {
+      // Temporary debug logs for integration testing
+      // eslint-disable-next-line no-console
+      console.log('🔐 [provider token]', token);
+    }
     let finalProviderId: number | undefined = undefined;
     if (providerId) {
       finalProviderId = typeof providerId === 'number' ? providerId : parseInt(providerId.toString(), 10);
@@ -98,6 +103,78 @@ const providerService = {
     const providerData = extractResponseData<Provider>(response);
     if (providerData?.categories && !Array.isArray(providerData.categories)) providerData.categories = [];
     return providerData;
+  },
+
+  getPublicProfile: async (
+    providerId: number
+  ): Promise<{
+    provider: {
+      id: number;
+      name: string | null;
+      professionTitle: string | null;
+      isOnline: boolean;
+      rating: number;
+      totalReviews: number;
+      milesAway: number | null;
+      jobsDone: number;
+      responseTimeMinutes: number | null;
+      onTimeRate: number | null;
+      skills: string[];
+      recentWork: string[];
+      about: string | null;
+    };
+    reviews: Array<any>;
+  }> => {
+    const response = await apiClient.get<any>(`/api/provider/${providerId}/profile`);
+    const raw = extractResponseData<any>(response);
+    const nested = raw?.data?.data ?? raw?.data ?? raw;
+    const provider = nested?.provider ?? {};
+    const reviews = Array.isArray(nested?.reviews) ? nested.reviews : [];
+    return {
+      provider: {
+        id: Number(provider.id ?? providerId),
+        name: provider.name ?? null,
+        professionTitle: provider.professionTitle ?? provider.profession_title ?? null,
+        isOnline: provider.isOnline ?? provider.is_online ?? false,
+        rating: Number(provider.rating ?? 0) || 0,
+        totalReviews: Number(provider.totalReviews ?? provider.total_reviews ?? 0) || 0,
+        milesAway: provider.milesAway ?? provider.miles_away ?? null,
+        jobsDone: Number(provider.jobsDone ?? provider.jobs_done ?? 0) || 0,
+        responseTimeMinutes:
+          provider.responseTimeMinutes ?? provider.response_time_minutes ?? null,
+        onTimeRate: provider.onTimeRate ?? provider.on_time_rate ?? null,
+        skills: Array.isArray(provider.skills) ? provider.skills : [],
+        recentWork: Array.isArray(provider.recentWork) ? provider.recentWork : [],
+        about: provider.about ?? null,
+      },
+      reviews,
+    };
+  },
+
+  /**
+   * Public provider gallery / profile images.
+   * Expected: `{ "image": ["https://..."] }` (may be nested under data).
+   */
+  getProviderPublicImages: async (providerId: number): Promise<string[]> => {
+    try {
+      const response = await apiClient.get<any>(`/api/provider/${providerId}/image`);
+      const raw = extractResponseData<any>(response);
+      const nested = raw?.data?.data ?? raw?.data ?? raw;
+      const arr = nested?.image ?? nested?.images ?? nested?.data?.image;
+      const urls: string[] = [];
+      if (Array.isArray(arr)) {
+        for (const item of arr) {
+          if (typeof item === 'string' && item.trim()) {
+            urls.push(item.trim());
+          }
+        }
+      } else if (typeof arr === 'string' && arr.trim()) {
+        urls.push(arr.trim());
+      }
+      return urls.filter((u) => /^https?:\/\//i.test(u));
+    } catch {
+      return [];
+    }
   },
 
   updateLocation: async (payload: ProviderLocationPayload): Promise<{ providerId: number; location: SavedLocation; message: string }> => {
@@ -168,6 +245,40 @@ const providerService = {
     } catch (error: any) {
       if (error instanceof AuthError) throw error;
       return [];
+    }
+  },
+
+  /** Single accepted job (for receipts) when client GET /request-service/requests/:id fails for provider token. */
+  getAcceptedRequestById: async (requestId: number): Promise<ServiceRequest | null> => {
+    try {
+      const all = await providerService.getAcceptedRequests();
+      const id = Number(requestId);
+      const match = (all || []).find((r: any) => Number(r?.id) === id);
+      return match ?? null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * This provider's quotation row for a request (line items + totals) when other quotation endpoints fail.
+   */
+  getQuotationListItemForRequest: async (requestId: number): Promise<ProviderQuotationListItem | null> => {
+    try {
+      const response = await apiClient.get<any>('/api/provider/quotations');
+      let list: any[] = [];
+      const raw = extractResponseData<any>(response);
+      if (Array.isArray(raw)) list = raw;
+      else if (Array.isArray(raw?.quotations)) list = raw.quotations;
+      else if (Array.isArray(raw?.data)) list = raw.data;
+      else if (Array.isArray((response as any)?.data?.data)) list = (response as any).data.data;
+      const id = Number(requestId);
+      const item = list.find(
+        (q: any) => Number(q?.requestId) === id || Number(q?.request?.id) === id
+      );
+      return item ?? null;
+    } catch {
+      return null;
     }
   },
 
@@ -263,6 +374,71 @@ const providerService = {
   getProviderQuotations: async (): Promise<ProviderQuotationListItem[]> => {
     const response = await apiClient.get<any>('/api/provider/quotations');
     return extractResponseData<ProviderQuotationListItem[]>(response) || [];
+  },
+
+  getProviderReviews: async (
+    options: { limit?: number; offset?: number } = {}
+  ): Promise<{ reviews: any[]; total: number; limit: number; offset: number }> => {
+    const { limit = 10, offset = 0 } = options;
+    const response = await apiClient.get<any>(
+      `/api/provider/reviews?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`
+    );
+    const raw = extractResponseData<any>(response);
+    const nested = raw?.data?.data ?? raw?.data ?? raw;
+    const reviews = Array.isArray(nested?.reviews) ? nested.reviews : [];
+    return {
+      reviews,
+      total: Number(nested?.total ?? reviews.length) || 0,
+      limit: Number(nested?.limit ?? limit) || limit,
+      offset: Number(nested?.offset ?? offset) || offset,
+    };
+  },
+
+  getProviderAnalytics: async (): Promise<{
+    earningsOverview: {
+      thisWeek: number;
+      thisMonth: number;
+      percentChangeWeek: number;
+      percentChangeMonth: number;
+    };
+    availableBalance: number;
+    jobsCompletedThisWeek: number;
+    quotationApproval: {
+      approvalRate: number;
+      accepted: number;
+      rejected: number;
+    };
+    ratings: {
+      providerId: number;
+      averageRating: number;
+      totalReviews: number;
+    };
+    latestReviews: any[];
+  }> => {
+    const response = await apiClient.get<any>('/api/provider/analytics');
+    const raw = extractResponseData<any>(response);
+    const nested = raw?.data?.data ?? raw?.data ?? raw ?? {};
+    return {
+      earningsOverview: {
+        thisWeek: Number(nested?.earningsOverview?.thisWeek ?? 0) || 0,
+        thisMonth: Number(nested?.earningsOverview?.thisMonth ?? 0) || 0,
+        percentChangeWeek: Number(nested?.earningsOverview?.percentChangeWeek ?? 0) || 0,
+        percentChangeMonth: Number(nested?.earningsOverview?.percentChangeMonth ?? 0) || 0,
+      },
+      availableBalance: Number(nested?.availableBalance ?? 0) || 0,
+      jobsCompletedThisWeek: Number(nested?.jobsCompletedThisWeek ?? 0) || 0,
+      quotationApproval: {
+        approvalRate: Number(nested?.quotationApproval?.approvalRate ?? 0) || 0,
+        accepted: Number(nested?.quotationApproval?.accepted ?? 0) || 0,
+        rejected: Number(nested?.quotationApproval?.rejected ?? 0) || 0,
+      },
+      ratings: {
+        providerId: Number(nested?.ratings?.providerId ?? 0) || 0,
+        averageRating: Number(nested?.ratings?.averageRating ?? 0) || 0,
+        totalReviews: Number(nested?.ratings?.totalReviews ?? 0) || 0,
+      },
+      latestReviews: Array.isArray(nested?.latestReviews) ? nested.latestReviews : [],
+    };
   },
 };
 

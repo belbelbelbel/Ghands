@@ -40,6 +40,18 @@ function getIcon(category: ProviderCategory) {
   return categoryIcons[category] ?? require('../assets/images/plumbericon2.png');
 }
 
+/** Numeric company id for API / ProviderDetailScreen (list id is often `provider-123`). */
+export function getBackendProviderNumericId(p: ServiceProvider): number | null {
+  if (p.providerId != null && !Number.isNaN(Number(p.providerId))) {
+    return Number(p.providerId);
+  }
+  const str = String(p.id);
+  const m = str.match(/^provider-(\d+)$/i);
+  if (m) return parseInt(m[1], 10);
+  const n = parseInt(str, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
 export type ServiceMapProps = {
   providers: ServiceProvider[];
   selectedCategory: ProviderCategory;
@@ -278,12 +290,13 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
                       setActiveProvider(provider);
                     }}
                     onLongPress={() => {
-                      // Navigate to provider detail on long press
+                      const numericId = getBackendProviderNumericId(provider);
+                      if (numericId == null) return;
                       router.push({
                         pathname: '/ProviderDetailScreen',
                         params: {
                           providerName: provider.name,
-                          providerId: provider.id,
+                          providerId: String(numericId),
                         },
                       } as any);
                     }}
@@ -392,12 +405,13 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
             </View>
             <TouchableOpacity
               onPress={() => {
-                // Navigate to provider detail screen
+                const numericId = getBackendProviderNumericId(activeProvider);
+                if (numericId == null) return;
                 router.push({
                   pathname: '/ProviderDetailScreen',
                   params: {
                     providerName: activeProvider.name,
-                    providerId: activeProvider.id,
+                    providerId: String(numericId),
                   },
                 } as any);
               }}

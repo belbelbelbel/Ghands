@@ -90,6 +90,11 @@ export const authService = {
         throw new Error('Login failed: No user data or token received from server.');
       }
       await authServiceInstance.setAuthToken(token);
+      if (__DEV__) {
+        // Temporary debug logs for integration testing
+        // eslint-disable-next-line no-console
+        console.log('🔐 [client token]', token);
+      }
       if (!id) {
         const extracted = extractUserIdFromToken(token);
         if (extracted) await authServiceInstance.setUserId(extracted);

@@ -43,6 +43,7 @@ export default function NotificationsScreen() {
   const [previewNotification, setPreviewNotification] = useState<UINotification | null>(null);
   const [filterPill, setFilterPill] = useState<FilterPill>('all');
   const [archivedIds, setArchivedIds] = useState<Set<number>>(new Set());
+  const [userRole, setUserRole] = useState<'client' | 'provider'>('client');
   const swipeableRefs = useRef<Map<number, Swipeable | null>>(new Map());
 
   const hasNotifications = notifications.length > 0;
@@ -81,11 +82,28 @@ export default function NotificationsScreen() {
     }
   };
 
+  useEffect(() => {
+    const loadRole = async () => {
+      try {
+        const role = await AsyncStorage.getItem('@ghands:user_role');
+        if (role === 'provider') {
+          setUserRole('provider');
+        } else {
+          setUserRole('client');
+        }
+      } catch {
+        setUserRole('client');
+      }
+    };
+    loadRole();
+  }, []);
+
   // Map backend notification type to UI presentation
   const mapNotificationToUI = (notification: Notification): UINotification => {
     // Default UI values
     let typeLabel = notification.title || 'Notification';
-    let description = notification.description || notification.message || '';
+    const rawBackendDescription = String(notification.description || notification.message || '').trim();
+    let description = rawBackendDescription.replace(/^null[\s:,-]*/i, '').trim();
     let barColor = Colors.accent;
     let IconComponent: any = FileText;
     let iconBgColor = '#E5E7EB';
@@ -231,6 +249,27 @@ export default function NotificationsScreen() {
         // Fallback styling
         if (notification.type === 'message' || notification.type === 'chat_new') {
           typeLabel = 'New message';
+          // Keep message notifications backend-driven (no invented text).
+          // Also fix direction wording when sender metadata indicates current side.
+          const senderType = String(
+            notification.metadata?.senderType ??
+              (notification.metadata as any)?.sender_type ??
+              ''
+          ).toLowerCase();
+          if (description) {
+            const fromCurrentSide =
+              (userRole === 'client' &&
+                (senderType === 'user' || senderType === 'client' || senderType === 'customer')) ||
+              (userRole === 'provider' &&
+                (senderType === 'provider' || senderType === 'company'));
+            if (fromCurrentSide) {
+              description = description
+                .replace(/provider sent you a text/gi, 'You sent a message')
+                .replace(/sent you a text/gi, 'You sent a message');
+            }
+          } else {
+            description = '';
+          }
           barColor = '#3B82F6';
           IconComponent = MessageCircle;
           iconBgColor = '#E5E7EB';
@@ -409,6 +448,16 @@ export default function NotificationsScreen() {
     const rawNotification = 'raw' in notification ? notification.raw : notification;
 
     switch (rawNotification.type) {
+      case 'message':
+      case 'chat_new':
+        if (rawNotification.requestId) {
+          router.push({
+            pathname: '/ChatScreen' as any,
+            params: { requestId: String(rawNotification.requestId) },
+          } as any);
+          return;
+        }
+        break;
       case 'request_accepted':
       case 'quotation_sent':
       case 'quotation_accepted':
@@ -427,7 +476,15 @@ export default function NotificationsScreen() {
         router.push('/WalletScreen' as any);
         return;
       default:
-        // For other notification types, show preview modal
+        // If request-linked but not explicitly handled, still open details screen.
+        if (rawNotification.requestId) {
+          router.push({
+            pathname: userRole === 'provider' ? '/ProviderJobDetailsScreen' : '/OngoingJobDetails',
+            params: { requestId: String(rawNotification.requestId) },
+          } as any);
+          return;
+        }
+        // For other notification types without route, show preview modal
         const uiNotif = 'raw' in notification ? notification : mapNotificationToUI(rawNotification);
         setPreviewNotification(uiNotif);
         break;
@@ -766,17 +823,19 @@ export default function NotificationsScreen() {
                       >
                         {notification.type}
                       </Text>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontFamily: 'Poppins-Regular',
-                          color: Colors.textSecondaryDark,
-                          marginBottom: 8,
-                          lineHeight: 18,
-                        }}
-                      >
-                        {notification.description}
-                      </Text>
+                      {!!notification.description && (
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontFamily: 'Poppins-Regular',
+                            color: Colors.textSecondaryDark,
+                            marginBottom: 8,
+                            lineHeight: 18,
+                          }}
+                        >
+                          {notification.description}
+                        </Text>
+                      )}
                       <TouchableOpacity
                         onPress={() => {
                           // When user taps "View details", mark as read and navigate
@@ -928,17 +987,19 @@ export default function NotificationsScreen() {
                 </View>
 
                 {/* Description */}
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.textSecondaryDark,
-                    marginBottom: 24,
-                    lineHeight: 20,
-                  }}
-                >
-                  {previewNotification.description}
-                </Text>
+                {!!previewNotification.description && (
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      marginBottom: 24,
+                      lineHeight: 20,
+                    }}
+                  >
+                    {previewNotification.description}
+                  </Text>
+                )}
 
                 {/* Action Buttons */}
                 <View style={{ flexDirection: 'row', gap: 12 }}>

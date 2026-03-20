@@ -809,9 +809,8 @@ export default function ProviderProfileScreen() {
                 lineHeight: 20,
               }}
             >
-              Licensed electrician with 8+ years of experience. Specialized in residential and commercial electrical
-              work. Committed to safety, quality, and customer satisfaction. Available for emergency calls and
-              scheduled appointments.
+              {(provider as any)?.about?.trim?.() ||
+                'No profile bio available yet.'}
             </Text>
           </View>
 

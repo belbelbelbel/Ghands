@@ -47,75 +47,50 @@ export default function AnalyticsScreen() {
     try {
       setIsLoading(true);
 
-      // 1) Wallet balance
-      const wallet = await walletService.getWallet();
+      // Load all analytics sources in parallel
+      const [wallet, providerAnalytics, providerReviews] = await Promise.all([
+        walletService.getWallet(),
+        providerService.getProviderAnalytics(),
+        providerService.getProviderReviews({ limit: 10, offset: 0 }),
+      ]);
+
       const balanceValue =
         typeof wallet.balance === 'number'
           ? wallet.balance
           : parseFloat(String(wallet.balance)) || 0;
       setBalance(balanceValue);
 
-      // 2) Recent transactions – used to compute monthly earnings
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const txResult = await walletService.getTransactions({ limit: 200, offset: 0 });
-      const transactions = Array.isArray(txResult?.transactions) ? txResult.transactions : [];
-
-      const monthTotal = transactions
-        .filter((tx: any) => {
-          if (!tx) return false;
-          if (tx.status !== 'completed') return false;
-          const amt = Number(tx.amount ?? 0);
-          if (!isFinite(amt) || amt <= 0) return false;
-          const ts = tx.createdAt || tx.updatedAt || tx.timestamp;
-          if (!ts) return false;
-          const d = new Date(ts);
-          if (isNaN(d.getTime())) return false;
-          return d >= monthStart;
-        })
-        .reduce((sum: number, tx: any) => sum + Number(tx.amount ?? 0), 0);
-      setMonthlyEarnings(monthTotal);
-
-      // 3) Provider stats (jobs + rating)
-      const provider = await providerService.getProvider();
-      const stats: any = (provider as any)?.stats || {};
+      // Primary source: /api/provider/analytics
+      setMonthlyEarnings(providerAnalytics.earningsOverview.thisMonth ?? 0);
+      setCompletedJobs(providerAnalytics.jobsCompletedThisWeek ?? 0);
+      setAverageRating(providerAnalytics.ratings.averageRating ?? 0);
+      setReviewCount(providerAnalytics.ratings.totalReviews ?? 0);
       setTotalJobs(
-        typeof stats.totalJobs === 'number' ? stats.totalJobs : stats.totalCompletedJobs ?? null
-      );
-      setCompletedJobs(
-        typeof stats.totalCompletedJobs === 'number'
-          ? stats.totalCompletedJobs
-          : stats.completedJobs ?? null
-      );
-      setAverageRating(
-        typeof stats.averageRating === 'number'
-          ? stats.averageRating
-          : typeof (provider as any)?.rating === 'number'
-          ? (provider as any).rating
-          : null
-      );
-      setReviewCount(
-        typeof stats.reviewCount === 'number'
-          ? stats.reviewCount
-          : (provider as any)?.reviewCount ?? null
+        (providerAnalytics.quotationApproval?.accepted ?? 0) +
+          (providerAnalytics.quotationApproval?.rejected ?? 0)
       );
 
-      // 4) Recent reviews (if provider has them)
-      const rawReviews: any[] = Array.isArray((provider as any)?.recentReviews)
-        ? (provider as any).recentReviews
-        : [];
+      const rawReviews: any[] = Array.isArray(providerAnalytics.latestReviews) && providerAnalytics.latestReviews.length > 0
+        ? providerAnalytics.latestReviews
+        : providerReviews.reviews;
+
       const mappedReviews: Review[] = rawReviews.slice(0, 5).map((r: any, index: number) => ({
         id: String(r.id ?? index),
-        name: r.reviewerName || r.clientName || 'Client',
+        name:
+          r.reviewerName ||
+          r.user?.name ||
+          `${r.user?.firstName || ''} ${r.user?.lastName || ''}`.trim() ||
+          r.clientName ||
+          'Client',
         time: r.createdAt
           ? new Date(r.createdAt).toLocaleDateString('en-NG', {
               month: 'short',
               day: 'numeric',
             })
-          : '',
+          : 'Recently',
         rating: Number(r.rating ?? r.stars ?? 0) || 0,
         comment: r.comment || r.feedback || '',
-        avatar: r.avatarUrl,
+        avatar: r.avatarUrl || r.user?.image,
       }));
       setRecentReviews(mappedReviews);
     } catch (error) {

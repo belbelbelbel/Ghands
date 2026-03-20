@@ -1,7 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Colors, Spacing, BorderRadius, SHADOWS } from '@/lib/designSystem';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Phone, PhoneOff, Mic, MicOff, Volume2, Shield } from 'lucide-react-native';
+import { ArrowLeft, Phone, PhoneOff, Mic, MicOff, Volume2, Shield, User, Calendar, MapPin, Hash, MessageCircle } from 'lucide-react-native';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
@@ -51,11 +51,13 @@ export default function CallScreen() {
   const [callDuration, setCallDuration] = useState(0); // in seconds
   const [callId, setCallId] = useState<string | null>(null);
   const [callReference, setCallReference] = useState<string | null>(null);
+  const [isCreatingCall, setIsCreatingCall] = useState(false);
+  const [callSetupError, setCallSetupError] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [isProvider] = useState(params.isProvider === 'true');
   
-  const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const requestIdNum = params.requestId ? parseInt(params.requestId, 10) : null;
   const hasRequestId = requestIdNum !== null && !isNaN(requestIdNum);
 
@@ -104,14 +106,24 @@ export default function CallScreen() {
   // Initiate call via API when outgoing and we have requestId
   useEffect(() => {
     if (callState === 'outgoing' && hasRequestId && !callId) {
+      setIsCreatingCall(true);
+      setCallSetupError(null);
       communicationService
         .initiateCall(requestIdNum!)
         .then(({ callId: id, callReference: ref }) => {
           setCallId(id || null);
           setCallReference(ref || null);
+          // Mark call as ringing once call record exists
+          if (id) {
+            communicationService.updateCallStatus(id, 'ringing').catch(() => {});
+          }
         })
         .catch(() => {
+          setCallSetupError('Could not start call. Please try again.');
           if (__DEV__) console.warn('Could not initiate call via API');
+        })
+        .finally(() => {
+          setIsCreatingCall(false);
         });
     }
   }, [callState, hasRequestId, requestIdNum, callId]);
@@ -165,19 +177,9 @@ export default function CallScreen() {
     haptics.light();
     setCallId(null);
     setCallReference(null);
+    setCallSetupError(null);
     setCallState('outgoing');
     setCallDuration(0);
-    if (hasRequestId) {
-      communicationService
-        .initiateCall(requestIdNum!)
-        .then(({ callId: id, callReference: ref }) => {
-          setCallId(id || null);
-          setCallReference(ref || null);
-        })
-        .catch(() => {
-          if (__DEV__) console.warn('Could not initiate call via API');
-        });
-    }
   };
 
   const handleMessage = () => {
@@ -211,12 +213,13 @@ export default function CallScreen() {
   const JobDetailsCard = () => (
     <View
       style={{
-        backgroundColor: Colors.backgroundGray,
+        backgroundColor: '#F3F4F6',
         borderRadius: BorderRadius.lg,
         padding: Spacing.lg,
         marginHorizontal: Spacing.lg,
         marginTop: Spacing.xl,
-        ...SHADOWS.sm,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
       }}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md }}>
@@ -262,20 +265,9 @@ export default function CallScreen() {
         {jobDetails.description}
       </Text>
 
-      <Text
-        style={{
-          fontSize: 13,
-          fontFamily: 'Poppins-Medium',
-          color: Colors.textSecondaryDark,
-          marginBottom: Spacing.md,
-        }}
-      >
-        Order no. {jobDetails.orderNumber}
-      </Text>
-
-      <View style={{ gap: Spacing.sm }}>
+      <View style={{ gap: Spacing.sm, marginTop: 2 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ fontSize: 14, color: Colors.textSecondaryDark, marginRight: Spacing.sm }}>📅</Text>
+          <Calendar size={15} color={Colors.textSecondaryDark} style={{ marginRight: Spacing.sm }} />
           <Text
             style={{
               fontSize: 13,
@@ -288,7 +280,7 @@ export default function CallScreen() {
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ fontSize: 14, color: Colors.textSecondaryDark, marginRight: Spacing.sm }}>📍</Text>
+          <MapPin size={15} color={Colors.textSecondaryDark} style={{ marginRight: Spacing.sm }} />
           <Text
             style={{
               fontSize: 13,
@@ -297,6 +289,19 @@ export default function CallScreen() {
             }}
           >
             {jobDetails.location}
+          </Text>
+        </View>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Hash size={15} color={Colors.textSecondaryDark} style={{ marginRight: Spacing.sm }} />
+          <Text
+            style={{
+              fontSize: 13,
+              fontFamily: 'Poppins-Regular',
+              color: Colors.textSecondaryDark,
+            }}
+          >
+            {jobDetails.orderNumber}
           </Text>
         </View>
       </View>
@@ -402,7 +407,13 @@ export default function CallScreen() {
                   color: Colors.textPrimary,
                 }}
               >
-                {callState === 'incoming' ? 'Incoming call' : 'Outgoing'}
+                {callState === 'incoming'
+                  ? 'Incoming call'
+                  : isCreatingCall
+                  ? 'Starting call...'
+                  : callSetupError
+                  ? 'Call failed'
+                  : 'Ringing...'}
               </Text>
             )}
           </View>
@@ -417,7 +428,7 @@ export default function CallScreen() {
               width: 120,
               height: 120,
               borderRadius: 60,
-              backgroundColor: Colors.textPrimary,
+              backgroundColor: '#111827',
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: Spacing.lg,
@@ -443,7 +454,7 @@ export default function CallScreen() {
                   justifyContent: 'center',
                 }}
               >
-                <Text style={{ fontSize: 40, color: Colors.white }}>👤</Text>
+                <User size={40} color={Colors.white} />
               </View>
             )}
           </View>
@@ -468,6 +479,23 @@ export default function CallScreen() {
               }}
             >
               {isProvider ? 'Client' : 'Provider'}
+            </Text>
+          )}
+
+          {callState === 'outgoing' && (
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: 'Poppins-Regular',
+                color: callSetupError ? '#DC2626' : Colors.textSecondaryDark,
+                marginTop: Spacing.sm,
+              }}
+            >
+              {callSetupError
+                ? callSetupError
+                : isCreatingCall
+                ? 'Preparing secure call session...'
+                : 'Waiting for recipient to answer'}
             </Text>
           )}
 
@@ -541,11 +569,13 @@ export default function CallScreen() {
               alignItems: 'center',
               marginTop: 'auto',
               paddingBottom: Spacing.xxl,
+              gap: Spacing.md,
             }}
           >
             <TouchableOpacity
               onPress={handleEndCall}
               activeOpacity={0.8}
+              disabled={isCreatingCall}
               style={{
                 width: 70,
                 height: 70,
@@ -553,11 +583,37 @@ export default function CallScreen() {
                 backgroundColor: '#EF4444',
                 alignItems: 'center',
                 justifyContent: 'center',
+                opacity: isCreatingCall ? 0.6 : 1,
                 ...SHADOWS.md,
               }}
             >
               <PhoneOff size={32} color={Colors.white} />
             </TouchableOpacity>
+
+            {!!callSetupError && (
+              <TouchableOpacity
+                onPress={handleCallAgain}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: Colors.backgroundGray,
+                  borderRadius: BorderRadius.default,
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                  paddingVertical: 10,
+                  paddingHorizontal: 18,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  Retry call
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -654,7 +710,7 @@ export default function CallScreen() {
                     ...SHADOWS.sm,
                   }}
                 >
-                  <Text style={{ fontSize: 24 }}>💬</Text>
+                  <MessageCircle size={22} color={Colors.textPrimary} />
                 </View>
                 <Text
                   style={{

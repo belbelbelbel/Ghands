@@ -5,6 +5,7 @@ import { ArrowLeft, AlertCircle, FileText, Image as ImageIcon, Mic, Phone, Send,
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   FlatList,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +19,7 @@ import {
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { providerService, communicationService, authService, Message as ApiMessage } from '@/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * UI Message interface - adapted from API message for display
@@ -79,14 +81,70 @@ export default function ChatScreen() {
   const [hasQuotation, setHasQuotation] = useState<boolean>(false);
   const [isCheckingQuotation, setIsCheckingQuotation] = useState<boolean>(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [isSyncDegraded, setIsSyncDegraded] = useState(false);
+  const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [deletedMessageIds, setDeletedMessageIds] = useState<string[]>([]);
 
   // Refs
   const flatListRef = useRef<FlatList>(null);
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMarkingAsReadRef = useRef(false);
+  const ownershipByMessageIdRef = useRef<Record<string, boolean>>({});
+  const stableCurrentUserIdRef = useRef<number | null>(null);
 
   // Determine if this is provider view (has clientName) or user view
   const isProviderView = !!params.clientName;
+  const chatCacheKey = isValidRequestId ? `@ghands:chat_messages:${requestId}` : null;
+  const deletedIdsKey = isValidRequestId ? `@ghands:chat_deleted_ids:${requestId}` : null;
+  const providerIdNum = params.providerId ? Number(params.providerId) : null;
+
+  const loadCachedMessages = useCallback(async (): Promise<UIMessage[] | null> => {
+    if (!chatCacheKey) return null;
+    try {
+      const raw = await AsyncStorage.getItem(chatCacheKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as UIMessage[]) : null;
+    } catch {
+      return null;
+    }
+  }, [chatCacheKey]);
+
+  const persistMessagesCache = useCallback(
+    async (nextMessages: UIMessage[]) => {
+      if (!chatCacheKey || !Array.isArray(nextMessages) || nextMessages.length === 0) return;
+      try {
+        await AsyncStorage.setItem(chatCacheKey, JSON.stringify(nextMessages));
+      } catch {
+        // Non-fatal cache failure
+      }
+    },
+    [chatCacheKey]
+  );
+
+  const loadDeletedMessageIds = useCallback(async (): Promise<string[]> => {
+    if (!deletedIdsKey) return [];
+    try {
+      const raw = await AsyncStorage.getItem(deletedIdsKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.map((v) => String(v)) : [];
+    } catch {
+      return [];
+    }
+  }, [deletedIdsKey]);
+
+  const persistDeletedMessageIds = useCallback(
+    async (ids: string[]) => {
+      if (!deletedIdsKey) return;
+      try {
+        await AsyncStorage.setItem(deletedIdsKey, JSON.stringify(ids));
+      } catch {
+        // Non-fatal
+      }
+    },
+    [deletedIdsKey]
+  );
 
   /**
    * Format date to time string (e.g., "2:30pm")
@@ -120,10 +178,42 @@ export default function ChatScreen() {
         rawSenderType === 'user' || rawSenderType === 'client' || rawSenderType === 'customer';
       const sender: 'user' | 'provider' = isFromClient ? 'user' : 'provider';
 
-      // My messages go right: prefer senderId match; fallback on view + normalized sender role
-      const isFromCurrentUser =
-        (currentUserId !== null && apiMessage.senderId === currentUserId) ||
-        (isProviderView ? sender === 'provider' : sender === 'user');
+      const senderIdRaw = (apiMessage as any).senderId ?? (apiMessage as any).sender_id;
+      const senderIdNum = Number(senderIdRaw);
+      const currentUserIdNum = currentUserId != null ? Number(currentUserId) : null;
+
+      const messageId = String((apiMessage as any).id ?? '');
+
+      // My messages go right:
+      // 1) strongest source: senderId matches current user/company id
+      // 2) if sender matches known providerId in client view, it is incoming
+      // 3) keep previous ownership for this message ID to avoid left/right flipping on refresh
+      // 4) fallback to senderType role mapping
+      let isFromCurrentUser = false;
+      if (
+        currentUserIdNum !== null &&
+        Number.isFinite(currentUserIdNum) &&
+        Number.isFinite(senderIdNum) &&
+        senderIdNum === currentUserIdNum
+      ) {
+        isFromCurrentUser = true;
+      } else if (
+        !isProviderView &&
+        providerIdNum !== null &&
+        Number.isFinite(providerIdNum) &&
+        Number.isFinite(senderIdNum) &&
+        senderIdNum === providerIdNum
+      ) {
+        isFromCurrentUser = false;
+      } else if (messageId && ownershipByMessageIdRef.current[messageId] !== undefined) {
+        isFromCurrentUser = ownershipByMessageIdRef.current[messageId];
+      } else {
+        isFromCurrentUser = isProviderView ? sender === 'provider' : sender === 'user';
+      }
+
+      if (messageId) {
+        ownershipByMessageIdRef.current[messageId] = isFromCurrentUser;
+      }
 
       const rawContent = (apiMessage as any).content ?? (apiMessage as any).body ?? (apiMessage as any).text ?? '';
       const safeText = (rawContent == null || String(rawContent).toLowerCase() === 'null') ? '' : String(rawContent);
@@ -144,7 +234,7 @@ export default function ChatScreen() {
         isFromCurrentUser, // Store this for alignment logic
       };
     },
-    [formatTime, isProviderView]
+    [formatTime, isProviderView, providerIdNum]
   );
 
   /**
@@ -159,6 +249,10 @@ export default function ChatScreen() {
     try {
       if (showLoading) {
         setIsLoading(true);
+        const cached = await loadCachedMessages();
+        if (cached && cached.length > 0) {
+          setMessages(cached);
+        }
       }
 
       const result = await communicationService.getMessages(requestId!, {
@@ -167,10 +261,16 @@ export default function ChatScreen() {
       });
 
       // Get current user ID to determine message sender
-      let userId: number | null = null;
+      let userId: number | null = stableCurrentUserIdRef.current;
       try {
-        userId = await authService.getUserId();
-        setCurrentUserId(userId);
+        const fetchedUserId = isProviderView
+          ? await authService.getCompanyId()
+          : await authService.getUserId();
+        if (fetchedUserId != null && !isNaN(Number(fetchedUserId))) {
+          userId = Number(fetchedUserId);
+          stableCurrentUserIdRef.current = userId;
+          setCurrentUserId(userId);
+        }
       } catch (error) {
         if (__DEV__) {
           console.error('Error getting user ID:', error);
@@ -185,13 +285,26 @@ export default function ChatScreen() {
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
 
+      // Apply "delete for me" local filter
+      const filteredMessages = deletedMessageIds.length
+        ? uiMessages.filter((m) => !deletedMessageIds.includes(m.id))
+        : uiMessages;
+
       // Don't overwrite with empty on background refresh – API may return bad/malformed data
       // and we'd wipe sent messages. Only overwrite if we got messages or this is initial load.
       setMessages((prev) => {
-        if (showLoading || uiMessages.length > 0) return uiMessages;
+        if (filteredMessages.length > 0) return filteredMessages;
+        if (prev.length > 0) return prev;
         // Background refresh returned 0 messages – keep existing to avoid disappearing messages
-        return prev;
+        return filteredMessages;
       });
+
+      if (filteredMessages.length > 0) {
+        await persistMessagesCache(filteredMessages);
+      }
+
+      setIsSyncDegraded(false);
+      setLastSyncError(null);
 
       // Scroll to bottom after loading
       setTimeout(() => {
@@ -202,11 +315,48 @@ export default function ChatScreen() {
         console.error('Error loading messages:', error);
       }
       // Keep existing messages on error
+      const msg = (error as any)?.message ?? 'Unable to sync messages right now.';
+      setIsSyncDegraded(true);
+      setLastSyncError(String(msg));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [isValidRequestId, requestId, mapApiMessageToUI]);
+  }, [
+    isValidRequestId,
+    requestId,
+    mapApiMessageToUI,
+    loadCachedMessages,
+    persistMessagesCache,
+    isProviderView,
+    deletedMessageIds,
+  ]);
+
+  useEffect(() => {
+    (async () => {
+      const ids = await loadDeletedMessageIds();
+      setDeletedMessageIds(ids);
+    })();
+  }, [loadDeletedMessageIds]);
+
+  const handleDeleteMessageForMe = useCallback(
+    (msg: UIMessage) => {
+      Alert.alert('Delete message?', 'This will remove the message from your view only.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const nextIds = Array.from(new Set([...deletedMessageIds, msg.id]));
+            setDeletedMessageIds(nextIds);
+            setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+            await persistDeletedMessageIds(nextIds);
+          },
+        },
+      ]);
+    },
+    [deletedMessageIds, persistDeletedMessageIds]
+  );
 
   /**
    * Mark messages as read
@@ -280,6 +430,7 @@ export default function ChatScreen() {
       status: 'sending',
       isFromCurrentUser: true, // Optimistic messages are always from current user
     };
+    ownershipByMessageIdRef.current[optimisticMessage.id] = true;
 
     setMessages((prev) => [...prev, optimisticMessage]);
     haptics.selection();
@@ -503,6 +654,7 @@ export default function ChatScreen() {
           }}
           activeOpacity={item.status === 'failed' && isFromCurrentUser ? 0.7 : 1}
           onPress={item.status === 'failed' && isFromCurrentUser ? () => retryFailedMessage(item) : undefined}
+          onLongPress={() => handleDeleteMessageForMe(item)}
         >
           <View
             style={{
@@ -679,6 +831,7 @@ export default function ChatScreen() {
                     callState: 'outgoing',
                     callerName: isProviderView ? clientName : providerName,
                     callerId: params.providerId,
+                    requestId: params.requestId,
                     jobTitle: 'Service Request',
                     jobDescription: 'Ongoing service request',
                     orderNumber: '#WO-2024-1157',
@@ -723,6 +876,29 @@ export default function ChatScreen() {
         </View>
 
         {/* Messages Area */}
+        {isSyncDegraded && (
+          <View
+            style={{
+              backgroundColor: '#FEF3C7',
+              borderBottomWidth: 1,
+              borderBottomColor: '#FDE68A',
+              paddingHorizontal: Spacing.lg,
+              paddingVertical: 8,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: 'Poppins-Medium',
+                color: '#92400E',
+              }}
+              numberOfLines={1}
+            >
+              Reconnecting messages... {lastSyncError ? 'Showing last saved chat.' : ''}
+            </Text>
+          </View>
+        )}
+
         {isLoading && messages.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator size="large" color={Colors.accent} />

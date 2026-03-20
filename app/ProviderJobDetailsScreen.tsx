@@ -41,9 +41,11 @@ export default function ProviderJobDetailsScreen() {
   const [quotationWithProvider, setQuotationWithProvider] = useState<QuotationWithProvider | null>(null);
   const [activeTab, setActiveTab] = useState<'Updates' | 'Quotations'>('Updates');
   const [showProceedModal, setShowProceedModal] = useState(false);
+  const [showCompletedActionsModal, setShowCompletedActionsModal] = useState(false);
   const [workOrderStatus, setWorkOrderStatus] = useState<'pending' | 'in_progress' | 'active'>('pending');
   const [refreshing, setRefreshing] = useState(false);
   const [isStartingJob, setIsStartingJob] = useState(false);
+  const [isMarkingComplete, setIsMarkingComplete] = useState(false);
 
   // Update work order status based on request status
   // CRITICAL: Request status is the source of truth - if 'in_progress' or 'completed', work order is active
@@ -1181,6 +1183,33 @@ export default function ProviderJobDetailsScreen() {
           >
             Job Details
           </Text>
+          {request?.status === 'completed' && (
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                setShowCompletedActionsModal(true);
+              }}
+              style={{
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                borderRadius: 999,
+                backgroundColor: '#EEF7EA',
+                borderWidth: 1,
+                borderColor: '#CDE6BC',
+              }}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: '#365314',
+                }}
+              >
+                View actions
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Full-width tabs with green underline for active tab */}
@@ -1347,7 +1376,9 @@ export default function ProviderJobDetailsScreen() {
                     color: Colors.textPrimary,
                   }}
                 >
-                  Jan 2023
+                  {(request?.user as any)?.createdAt
+                    ? formatDate((request?.user as any)?.createdAt)
+                    : 'N/A'}
                 </Text>
               </View>
             </View>
@@ -1742,6 +1773,8 @@ export default function ProviderJobDetailsScreen() {
                                     await providerService.startWorkOrder(reqId);
                                     showSuccess('Work order started! Job is now in progress.');
                                     setWorkOrderStatus('active');
+                                    // Optimistic local update so UI changes immediately
+                                    setRequest((prev) => (prev ? { ...prev, status: 'in_progress' as any } : prev));
                                     lastLoadTimeRef.current = Date.now();
                                     await loadRequestDetails();
                                   }
@@ -1806,50 +1839,77 @@ export default function ProviderJobDetailsScreen() {
                 );
               })}
 
-              {request && (request.status === 'in_progress' || workOrderStatus === 'active') && (
-                <TouchableOpacity
-                  onPress={async () => {
-                    haptics.light();
-                    if (!params.requestId) return;
-                    actionCooldownUntilRef.current = Date.now() + 2500;
-                    try {
-                      const reqId = parseInt(params.requestId, 10);
-                      await providerService.markWorkComplete(reqId);
-                      showSuccess('Work marked complete! Client will confirm to release payment.');
-                      lastLoadTimeRef.current = Date.now();
-                      await loadRequestDetails();
-                    } catch (error: any) {
-                      haptics.error();
-                      const msg = (error?.message || '').toLowerCase();
-                      if (msg.includes('404') || msg.includes('not found')) {
-                        showSuccess('Work marked complete! (Sync pending – client can confirm when ready.)');
+              {request &&
+                ['in_progress', 'reviewing', 'completed'].includes(request.status) && (
+                  <TouchableOpacity
+                    onPress={async () => {
+                      if (request.status !== 'in_progress' || isMarkingComplete) return;
+                      haptics.light();
+                      if (!params.requestId) return;
+                      actionCooldownUntilRef.current = Date.now() + 2500;
+                      setIsMarkingComplete(true);
+                      try {
+                        const reqId = parseInt(params.requestId, 10);
+                        await providerService.markWorkComplete(reqId);
+                        showSuccess('Work marked complete! Client will confirm to release payment.');
+                        lastLoadTimeRef.current = Date.now();
                         await loadRequestDetails();
-                      } else {
-                        showError(getSpecificErrorMessage(error, 'provider_mark_complete'));
+                      } catch (error: any) {
+                        haptics.error();
+                        const msg = (error?.message || '').toLowerCase();
+                        if (msg.includes('404') || msg.includes('not found')) {
+                          showSuccess('Work marked complete! (Sync pending – client can confirm when ready.)');
+                          await loadRequestDetails();
+                        } else {
+                          showError(getSpecificErrorMessage(error, 'provider_mark_complete'));
+                        }
+                      } finally {
+                        setIsMarkingComplete(false);
                       }
-                    }
-                  }}
-                  style={{
-                    backgroundColor: Colors.accent,
-                    paddingVertical: 14,
-                    borderRadius: BorderRadius.default,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginTop: 16,
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'Poppins-SemiBold',
-                      color: Colors.white,
                     }}
+                    disabled={
+                      request.status !== 'in_progress' || isMarkingComplete
+                    }
+                    style={{
+                      backgroundColor:
+                        request.status === 'in_progress' && !isMarkingComplete
+                          ? Colors.accent
+                          : Colors.backgroundGray,
+                      paddingVertical: 14,
+                      borderRadius: BorderRadius.default,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 16,
+                      borderWidth:
+                        request.status !== 'in_progress' ? 1 : 0,
+                      borderColor: Colors.border,
+                    }}
+                    activeOpacity={
+                      request.status === 'in_progress' && !isMarkingComplete ? 0.8 : 1
+                    }
                   >
-                    Mark as complete
-                  </Text>
-                </TouchableOpacity>
-              )}
+                    {isMarkingComplete ? (
+                      <ActivityIndicator size="small" color={Colors.white} />
+                    ) : (
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontFamily: 'Poppins-SemiBold',
+                          color:
+                            request.status === 'in_progress'
+                              ? Colors.white
+                              : Colors.textSecondaryDark,
+                        }}
+                      >
+                        {request.status === 'completed'
+                          ? 'Job completed'
+                          : request.status === 'reviewing'
+                            ? 'Waiting for client confirmation'
+                            : 'Mark as complete'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )}
             </View>
           )}
 
@@ -2318,11 +2378,13 @@ export default function ProviderJobDetailsScreen() {
                     >
                       {user.email || 'Client'}
                     </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
-                        ⭐ 4.8 (127 reviews)
-                      </Text>
-                    </View>
+                    {(request?.user as any)?.rating != null || (request?.user as any)?.totalReviews != null ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
+                          ⭐ {Number((request?.user as any)?.rating ?? 0).toFixed(1)} ({Number((request?.user as any)?.totalReviews ?? 0)})
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity
@@ -2875,6 +2937,7 @@ export default function ProviderJobDetailsScreen() {
         </ScrollView>
 
         {/* Bottom Action Buttons - Fixed */}
+        {request?.status !== 'completed' && (
         <View
           style={{
             position: 'absolute',
@@ -3053,109 +3116,6 @@ export default function ProviderJobDetailsScreen() {
                   }}
                 >
                   Message Administrator
-                </Text>
-              </TouchableOpacity>
-            </>
-          ) : request && request.status === 'completed' ? (
-            <>
-              {/* View Receipt Button */}
-              <TouchableOpacity
-                style={{
-                  backgroundColor: Colors.accent,
-                  paddingVertical: 14,
-                  borderRadius: BorderRadius.default,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexDirection: 'row',
-                  marginBottom: 12,
-                }}
-                activeOpacity={0.8}
-                onPress={() => {
-                  haptics.light();
-                  router.push({
-                    pathname: '/ProviderReceiptScreen' as any,
-                    params: {
-                      requestId: params.requestId,
-                    },
-                  } as any);
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.white,
-                    marginRight: 8,
-                  }}
-                >
-                  View receipt
-                </Text>
-                <ArrowRight size={16} color={Colors.white} />
-              </TouchableOpacity>
-
-              {/* Report Issue Button */}
-              <TouchableOpacity
-                style={{
-                  backgroundColor: '#FEE2E2',
-                  paddingVertical: 14,
-                  borderRadius: BorderRadius.default,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 1,
-                  borderColor: Colors.error,
-                  marginBottom: 12,
-                }}
-                activeOpacity={0.8}
-                onPress={() => {
-                  haptics.light();
-                  router.push({
-                    pathname: '/ReportIssueScreen' as any,
-                    params: {
-                      requestId: params.requestId,
-                      jobTitle: request.categoryName || 'Service Request',
-                      orderNumber: `Order #${request.id || 'N/A'}`,
-                      cost: quotation?.total ? `₦${quotation.total.toFixed(2)}` : 'N/A',
-                      assignee: clientName,
-                      completionDate: request.updatedAt ? formatDate(request.updatedAt) : 'N/A',
-                    },
-                  } as any);
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.error,
-                  }}
-                >
-                  Report Issue
-                </Text>
-              </TouchableOpacity>
-
-              {/* Job Completed Button */}
-              <TouchableOpacity
-                style={{
-                  backgroundColor: '#4B5563',
-                  paddingVertical: 14,
-                  borderRadius: BorderRadius.default,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                activeOpacity={0.8}
-                onPress={() => {
-                  haptics.success();
-                  // Job is already completed
-                  showSuccess('Job completed successfully!');
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.white,
-                  }}
-                >
-                  Job Completed
                 </Text>
               </TouchableOpacity>
             </>
@@ -3376,6 +3336,7 @@ export default function ProviderJobDetailsScreen() {
             </TouchableOpacity>
           )}
         </View>
+        )}
       </View>
       <Toast
         message={toast.message}
@@ -3527,6 +3488,148 @@ export default function ProviderJobDetailsScreen() {
                 Cancel
               </Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Completed Actions Modal */}
+      <Modal
+        visible={showCompletedActionsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCompletedActionsModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            justifyContent: 'center',
+            paddingHorizontal: 20,
+          }}
+        >
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
+            activeOpacity={1}
+            onPress={() => setShowCompletedActionsModal(false)}
+          />
+
+          <View
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: BorderRadius.xl,
+              padding: 18,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 17,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+                marginBottom: 4,
+              }}
+            >
+              Job actions
+            </Text>
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.textSecondaryDark,
+                marginBottom: 16,
+              }}
+            >
+              Manage this completed job from one place.
+            </Text>
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#F0FDF4',
+                borderWidth: 1,
+                borderColor: '#BBF7D0',
+                borderRadius: 12,
+                paddingVertical: 12,
+                paddingHorizontal: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 10,
+              }}
+              activeOpacity={0.85}
+              onPress={() => {
+                haptics.light();
+                setShowCompletedActionsModal(false);
+                router.push({
+                  pathname: '/ProviderReceiptScreen' as any,
+                  params: { requestId: params.requestId },
+                } as any);
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Receipt size={16} color={'#166534'} style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: '#166534' }}>
+                  View receipt
+                </Text>
+              </View>
+              <ArrowRight size={16} color={'#166534'} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#FEF2F2',
+                borderWidth: 1,
+                borderColor: '#FECACA',
+                borderRadius: 12,
+                paddingVertical: 12,
+                paddingHorizontal: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 10,
+              }}
+              activeOpacity={0.85}
+              onPress={() => {
+                if (!request) return;
+                haptics.light();
+                setShowCompletedActionsModal(false);
+                router.push({
+                  pathname: '/ReportIssueScreen' as any,
+                  params: {
+                    requestId: params.requestId,
+                    jobTitle: request.categoryName || 'Service Request',
+                    orderNumber: `Order #${request.id || 'N/A'}`,
+                    cost: quotation?.total ? `₦${quotation.total.toFixed(2)}` : 'N/A',
+                    assignee: clientName,
+                    completionDate: request.updatedAt ? formatDate(request.updatedAt) : 'N/A',
+                  },
+                } as any);
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Activity size={16} color={Colors.error} style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.error }}>
+                  Report issue
+                </Text>
+              </View>
+              <ExternalLink size={15} color={Colors.error} />
+            </TouchableOpacity>
+
+            <View
+              style={{
+                backgroundColor: '#F3F4F6',
+                borderRadius: 12,
+                paddingVertical: 11,
+                paddingHorizontal: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <CheckCircle2 size={16} color={'#4B5563'} style={{ marginRight: 8 }} />
+              <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: '#4B5563' }}>
+                Job completed
+              </Text>
+            </View>
           </View>
         </View>
       </Modal>

@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { providerService, locationService, authService, serviceRequestService } from '@/services/api';
 import { getCategoryIcon } from '@/utils/categoryIcons';
 import { normalizeCategoryName, isValidCategoryName } from '@/utils/categoryMapping';
+import { formatSkillLabel } from '@/utils/formatSkillLabel';
 import { useToast } from '@/hooks/useToast';
 import Toast from '@/components/Toast';
 import { Colors, Spacing, BorderRadius, SHADOWS } from '@/lib/designSystem';
@@ -287,8 +288,22 @@ const ServiceMapScreen = () => {
         const mappedProviders: ServiceProvider[] = providersArray.map((provider, index) => {
           // Get icon for category
           const IconComponent = getCategoryIcon(normalizedCategory, categoryName, '');
-          const categoryDisplayName = categoryName.split(' ')[0]; // "Plumbing Service" -> "Plumber"
-          
+          const categoryDisplayName = formatSkillLabel(
+            categoryName.split(' ')[0] || normalizedCategory || 'Service'
+          ) as ProviderCategory;
+
+          const rawName = (provider.name || '').trim();
+          const slug = (s: string) =>
+            s.toLowerCase().replace(/[\s_-]/g, '');
+          const nameLooksLikeCategory =
+            !!rawName &&
+            slug(rawName) === slug(normalizedCategory || '') &&
+            slug(rawName) === slug(categoryName || '');
+          const displayName =
+            rawName && !nameLooksLikeCategory
+              ? rawName
+              : `Service provider #${provider.id}`;
+
           // Calculate approximate provider coordinates based on distance and angle
           // API doesn't return exact coordinates, so we distribute providers around service location
           const angle = (index * 45) * (Math.PI / 180); // Distribute providers around service location
@@ -297,7 +312,7 @@ const ServiceMapScreen = () => {
           return {
             id: `provider-${provider.id}`,
             providerId: provider.id, // Store real backend provider ID for API calls
-            name: provider.name,
+            name: displayName,
             category: categoryDisplayName as ProviderCategory,
             rating: 4.5, // Default rating (API doesn't provide this yet)
             reviews: 0, // Default reviews (API doesn't provide this yet)

@@ -119,16 +119,6 @@ export const serviceRequestService = {
           };
         }
 
-        if (__DEV__) {
-          // Helpful debug log to verify visit + status coming from backend
-          // eslint-disable-next-line no-console
-          console.log('🔍 [getRequestDetails] mapped request', {
-            id: raw.id,
-            status: raw.status,
-            visitRequestedAt: raw.visitRequestedAt ?? raw.visit_requested_at,
-            visitRequest: (requestData as any).visitRequest ?? null,
-          });
-        }
       }
       return requestData;
     } catch (error) {
@@ -154,7 +144,13 @@ export const serviceRequestService = {
 
   cancelRequest: async (requestId: number): Promise<{ requestId: number; status: string; message: string }> => {
     const response = await apiClient.delete<any>(`/api/request-service/requests/${requestId}`);
-    return (response as any).data;
+    const data = extractResponseData<any>(response);
+    const inner = data?.data?.data ?? data?.data ?? data ?? {};
+    return {
+      requestId: Number(inner.requestId ?? inner.id ?? requestId) || requestId,
+      status: String(inner.status ?? 'cancelled'),
+      message: String(inner.message ?? 'Request cancelled.'),
+    };
   },
 
   getAcceptedProviders: async (requestId: number): Promise<Array<{

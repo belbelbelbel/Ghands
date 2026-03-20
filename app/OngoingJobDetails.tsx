@@ -1792,19 +1792,8 @@ export default function OngoingJobDetails() {
                       </View>
                     );
                   }
-                  if (request?.status === 'pending') {
-                    return (
-                      <View className="items-center justify-center py-12">
-                        <Ionicons name="people-outline" size={48} color="#9CA3AF" />
-                        <Text className="text-gray-600 mt-4 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
-                          No providers have accepted this request yet.
-                        </Text>
-                        <Text className="text-gray-500 mt-2 text-center text-sm" style={{ fontFamily: 'Poppins-Regular' }}>
-                          Providers will appear here once they accept your request.
-                        </Text>
-                      </View>
-                    );
-                  }
+                  // Pending + no quotations yet: status card + timeline already explain "waiting";
+                  // avoid duplicating the same empty-state message here.
                   return null;
                 })()}
 

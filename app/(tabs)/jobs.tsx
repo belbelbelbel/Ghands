@@ -8,7 +8,7 @@ import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View, Modal, Pressable, StyleSheet } from 'react-native';
 import { JobHistoryCardSkeleton } from '@/components/LoadingSkeleton';
 import { Colors } from '@/lib/designSystem';
@@ -93,7 +93,7 @@ export default function JobsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
 
   // Load user requests from API
   const loadRequests = useCallback(async () => {
@@ -166,6 +166,14 @@ export default function JobsScreen() {
       setIsLoading(false);
     }
   }, [showError]);
+
+  // Deep-link / post-cancel: switch tab when initialTab param is passed
+  useEffect(() => {
+    const tab = params.initialTab;
+    if (tab === 'Cancelled') setActiveTab('Cancelled');
+    else if (tab === 'Completed') setActiveTab('Completed');
+    else if (tab === 'Ongoing') setActiveTab('Ongoing');
+  }, [params.initialTab]);
 
   // Load data on mount and when screen comes into focus
   useFocusEffect(
@@ -502,12 +510,23 @@ export default function JobsScreen() {
                     try {
                       await serviceRequestService.cancelRequest(job.requestId);
                       haptics.success();
-                      // Reload requests
+                      showSuccess('Request cancelled.');
+                      // Optimistic: move to Cancelled tab immediately so UI matches intent
+                      setAllJobs((prev) =>
+                        prev.map((j) =>
+                          j.requestId === job.requestId ? { ...j, status: 'Cancelled' } : j
+                        )
+                      );
+                      setActiveTab('Cancelled');
                       await loadRequests();
-                      router.push('/CancelRequestScreen' as any);
+                      router.replace({
+                        pathname: '/(tabs)/jobs',
+                        params: { initialTab: 'Cancelled' },
+                      } as any);
                     } catch (error: any) {
                       const errorMessage = getSpecificErrorMessage(error, 'cancel_request');
                       showError(errorMessage);
+                      await loadRequests();
                     }
                   }
                 }}

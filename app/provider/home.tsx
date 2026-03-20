@@ -20,6 +20,7 @@ import { shareReferral } from '@/utils/referral';
 import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, TrendingUp, Users } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { formatTimeAgo as formatTimeAgoUtil } from '@/utils/dateFormatting';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const scale = SCREEN_WIDTH < 375 ? 0.85 : SCREEN_WIDTH < 414 ? 0.92 : 1.0;
@@ -59,24 +60,8 @@ const formatDate = (dateString: string): string => {
   }
 };
 
-// Helper function to format time ago
-const formatTimeAgo = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}min. ago`;
-    if (diffHours < 24) return `${diffHours}hr. ago`;
-    if (diffDays < 7) return `${diffDays}day${diffDays > 1 ? 's' : ''} ago`;
-    return formatDate(dateString);
-  } catch {
-    return '';
-  }
+const formatTimeAgoSafe = (value?: string | null): string => {
+  return value ? formatTimeAgoUtil(value) : '';
 };
 
 // Map API request to JobCard format
@@ -104,7 +89,7 @@ const mapRequestToJobCard = (request: AvailableRequest | ServiceRequest, isActiv
     time,
     location,
     status: isActive ? 'in-progress' : 'pending',
-    matchedTime: isActive ? undefined : formatTimeAgo(request.createdAt || ''),
+    matchedTime: isActive ? undefined : formatTimeAgoSafe(request.createdAt as any),
     images: [
       require('../../assets/images/jobcardimg.png'),
       require('../../assets/images/jobcardimg.png'),

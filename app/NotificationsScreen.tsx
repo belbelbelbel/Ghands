@@ -10,6 +10,7 @@ import { Archive, Calendar, Clock, FileText, Handshake, MessageCircle, Trash2, W
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
+import { formatTimeAgo } from '@/utils/dateFormatting';
 
 type UINotificationSection = 'Recent' | 'Yesterday' | 'Last week';
 
@@ -47,25 +48,6 @@ export default function NotificationsScreen() {
   const swipeableRefs = useRef<Map<number, Swipeable | null>>(new Map());
 
   const hasNotifications = notifications.length > 0;
-
-  const formatTimeAgo = (isoDate: string): string => {
-    try {
-      const created = new Date(isoDate).getTime();
-      const now = Date.now();
-      const diffMs = Math.max(0, now - created);
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
-      const diffHours = Math.floor(diffMinutes / 60);
-      const diffDays = Math.floor(diffHours / 24);
-
-      if (diffMinutes < 1) return 'Just now';
-      if (diffMinutes < 60) return `${diffMinutes}mins ago`;
-      if (diffHours < 24) return `${diffHours}hrs ago`;
-      if (diffDays === 1) return 'Yesterday';
-      return `${diffDays} days ago`;
-    } catch {
-      return '';
-    }
-  };
 
   const getSectionFromDate = (isoDate: string): UINotificationSection => {
     try {

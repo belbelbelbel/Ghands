@@ -204,7 +204,7 @@ class ApiClient {
         if (attempt === retries) {
           if (error instanceof AuthError) throw error;
           const errorMessage = isNetworkErr
-            ? 'No internet connection. Please check your connection and reconnect to continue.'
+            ? 'Whoops! No internet connection found. Check your internet connection or try again.'
             : (error instanceof Error ? error.message : 'Request failed');
           const statusCode = (error as any)?.status || (error as any)?.response?.status;
           // Only 401/403 → redirect to login. Never redirect for 500, 404, 400, etc. (user has a valid token).

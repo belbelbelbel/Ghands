@@ -14,33 +14,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { analytics } from '@/services/analytics';
 import { CheckCircle2, FileText, Wrench, CheckCircle } from 'lucide-react-native';
 import { BorderRadius, Colors } from '@/lib/designSystem';
+import { formatTimeAgo } from '@/utils/dateFormatting';
 
 const reviewSubmittedStorageKey = (requestId: number) =>
   `@ghands:review_submitted_${requestId}`;
-
-// Helper to format time ago
-const formatTimeAgo = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-    
-    if (diffDays > 0) {
-      return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
-    } else if (diffHours > 0) {
-      return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-    } else if (diffMinutes > 0) {
-      return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
-    } else {
-      return 'Just now';
-    }
-  } catch {
-    return 'Recently';
-  }
-};
 
 // Helper to format date
 const formatDate = (dateString?: string, timeString?: string): string => {

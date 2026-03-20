@@ -4,7 +4,7 @@ import { BorderRadius, Colors } from '@/lib/designSystem';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Download, FileText, Share2 } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Alert, ScrollView, Share, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { ScrollView, Share, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import {
   providerService,
   serviceRequestService,
@@ -12,6 +12,8 @@ import {
   type ProviderQuotationListItem,
   type ServiceRequest,
 } from '@/services/api';
+import { useToast } from '@/hooks/useToast';
+import { getErrorMessage } from '@/utils/errorMessages';
 
 // Helper function to format dates
 const formatDate = (date: Date, format: string = 'MMM dd, yyyy'): string => {
@@ -63,6 +65,7 @@ interface ReceiptData {
 export default function ProviderReceiptScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ requestId?: string }>();
+  const { showError, showSuccess } = useToast();
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -273,7 +276,7 @@ export default function ProviderReceiptScreen() {
         // eslint-disable-next-line no-console
         console.warn('Receipt load failed:', error?.message || error);
       }
-      Alert.alert('Error', error?.message || 'Failed to load receipt data. Please try again.');
+      showError(getErrorMessage(error, 'Failed to load receipt data. Please try again.'));
     } finally {
       setIsLoading(false);
     }
@@ -296,7 +299,7 @@ export default function ProviderReceiptScreen() {
   };
 
   const handleDownloadReceipt = () => {
-    Alert.alert('Download', 'Receipt will be downloaded shortly.');
+    showSuccess('Receipt will be downloaded shortly.');
   };
 
   const handleShareReceipt = async () => {
@@ -307,7 +310,7 @@ export default function ProviderReceiptScreen() {
         title: 'Job Receipt',
       });
     } catch (error) {
-      Alert.alert('Error', 'Failed to share receipt');
+      showError(getErrorMessage(error, 'Failed to share receipt'));
     }
   };
 

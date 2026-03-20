@@ -14,6 +14,7 @@ import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import { formatTimeAgo as formatTimeAgoUtil } from '@/utils/dateFormatting';
 
 type JobStatus = 'Ongoing' | 'Pending' | 'Completed';
 
@@ -42,24 +43,8 @@ const formatDate = (dateString: string): string => {
   }
 };
 
-// Helper function to format time ago
-const formatTimeAgo = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}min. ago`;
-    if (diffHours < 24) return `${diffHours}hr. ago`;
-    if (diffDays < 7) return `${diffDays}day${diffDays > 1 ? 's' : ''} ago`;
-    return formatDate(dateString);
-  } catch {
-    return '';
-  }
+const formatTimeAgoSafe = (value?: string | null): string => {
+  return value ? formatTimeAgoUtil(value) : '';
 };
 
 // Map API status to JobStatus
@@ -124,8 +109,8 @@ const mapAcceptedRequestToJobItem = (request: ServiceRequest): JobItem => {
     time: scheduledTime,
     location,
     status,
-    matchedTime: status === 'Pending' ? formatTimeAgo(request.createdAt || '') : undefined,
-    completedTime: status === 'Completed' ? formatTimeAgo(request.updatedAt || request.createdAt || '') : undefined,
+    matchedTime: status === 'Pending' ? formatTimeAgoSafe(request.createdAt as any) : undefined,
+    completedTime: status === 'Completed' ? formatTimeAgoSafe(request.updatedAt || request.createdAt) : undefined,
     images: [
       require('../../assets/images/jobcardimg.png'),
       require('../../assets/images/jobcardimg.png'),
@@ -161,8 +146,8 @@ const mapAvailableRequestToJobItem = (request: ServiceRequest): JobItem => {
     time: scheduledTime,
     location,
     status,
-    matchedTime: status === 'Pending' ? formatTimeAgo(request.createdAt || '') : undefined,
-    completedTime: status === 'Completed' ? formatTimeAgo(request.updatedAt || request.createdAt || '') : undefined,
+    matchedTime: status === 'Pending' ? formatTimeAgoSafe(request.createdAt as any) : undefined,
+    completedTime: status === 'Completed' ? formatTimeAgoSafe(request.updatedAt || request.createdAt) : undefined,
     images: [
       require('../../assets/images/jobcardimg.png'),
       require('../../assets/images/jobcardimg.png'),

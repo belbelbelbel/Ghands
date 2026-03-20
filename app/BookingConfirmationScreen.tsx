@@ -8,6 +8,7 @@ import { Animated, ScrollView, Text, TouchableOpacity, View, RefreshControl, Act
 import { serviceRequestService, profileService } from '@/services/api';
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import { formatTimeAgo } from '@/utils/dateFormatting';
 
 type ProgressStepStatus = 'completed' | 'in-progress' | 'pending';
 
@@ -19,23 +20,6 @@ interface ProgressStep {
   statusText: string;
   statusColor: string;
   icon?: any;
-}
-
-function formatTimeAgo(dateString: string): string {
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays > 0) return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
-    if (diffHours > 0) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-    if (diffMinutes > 0) return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
-    return 'Just now';
-  } catch {
-    return 'Recently';
-  }
 }
 
 export default function BookingConfirmationScreen() {

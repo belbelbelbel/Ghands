@@ -1,7 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useAuthRole } from '@/hooks/useAuth';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { BorderRadius, Colors, REFRESH_CONTROL, Spacing } from '@/lib/designSystem';
+import { BorderRadius, Colors, REFRESH_CONTROL, Spacing, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowRight, Bell, ChevronRight, CreditCard, HelpCircle, MapPin, Settings, Share2, Star, Trash2, User, Wallet } from 'lucide-react-native';
 import React, { useState, useCallback } from 'react';
@@ -10,6 +10,8 @@ import { shareReferral } from '@/utils/referral';
 import { profileService, walletService } from '@/services/api';
 
 const ProfileScreen = () => {
+  const headerTopPad = useTabScrollContentPaddingTop(16);
+  const scrollBodyTopPad = useTabScrollContentPaddingTop(20);
   const router = useRouter();
   const { logout, switchRole } = useAuthRole();
   const { location } = useUserLocation();
@@ -180,7 +182,7 @@ const ProfileScreen = () => {
   };
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.white}>
+    <SafeAreaWrapper backgroundColor={Colors.white} tabletShellTop>
       {/* Header */}
       <View
         style={{
@@ -188,7 +190,7 @@ const ProfileScreen = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: 20,
-          paddingTop: 16,
+          paddingTop: headerTopPad,
           paddingBottom: 16,
           backgroundColor: Colors.white,
         }}
@@ -260,7 +262,7 @@ const ProfileScreen = () => {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            marginTop: 20,
+            marginTop: scrollBodyTopPad,
             marginBottom: 24,
           }}
         >

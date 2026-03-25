@@ -77,6 +77,8 @@ export const DESIGN_TOKENS = {
     borderLight: '#F3F4F6',
     backgroundLight: '#FFFFFF',
     backgroundGray: '#F3F4F6',
+    /** Outer margin on tablet “phone lane” — contrasts with backgroundLight inside the lane */
+    tabletBackdrop: '#242420',
     
     // Status colors
     success: '#166534',

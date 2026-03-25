@@ -7,7 +7,7 @@ import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { BorderRadius, Colors } from '@/lib/designSystem';
+import { BorderRadius, Colors, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { AvailableRequest, ServiceRequest, authService, providerService, serviceRequestService, walletService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
@@ -106,6 +106,7 @@ export default function ProviderHomeScreen() {
   const { isChecking } = useTokenGuard();
   const { location, refreshLocation } = useUserLocation();
   const { toast, showError, showSuccess, hideToast } = useToast();
+  const tabScrollTop = useTabScrollContentPaddingTop(17);
   const [isOnline, setIsOnline] = useState(true);
   const [hasActiveJobs, setHasActiveJobs] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -698,7 +699,7 @@ export default function ProviderHomeScreen() {
   }
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.white}>
+    <SafeAreaWrapper backgroundColor={Colors.white} tabletShellTop>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -713,7 +714,7 @@ export default function ProviderHomeScreen() {
           />
         }
       >
-        <View style={{ paddingHorizontal: 16, paddingTop: 17, paddingBottom: 12 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: tabScrollTop, paddingBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <TouchableOpacity
               style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}

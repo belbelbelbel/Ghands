@@ -12,7 +12,7 @@ import { getCategoryIcon } from '@/utils/categoryIcons';
 import { haptics } from '@/hooks/useHaptics';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { extractUserIdFromToken } from '@/utils/tokenUtils';
-import { Colors, Spacing, SHADOWS } from '@/lib/designSystem';
+import { Colors, Spacing, SHADOWS, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 
 interface CategoryData extends ServiceCategory {
   IconComponent: React.ComponentType;
@@ -30,6 +30,7 @@ export default function CategoryPage() {
   const [hasNavigatedFromHome, setHasNavigatedFromHome] = useState(false);
   const [isCreatingRequest, setIsCreatingRequest] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const tabScrollTop = useTabScrollContentPaddingTop(20);
   const searchInputRef = useRef<TextInput>(null);
   const categoryRefs = useRef<{ [key: string]: number }>({});
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -386,8 +387,8 @@ export default function CategoryPage() {
   const isFromNavigation = !!params.selectedCategoryId || hasNavigatedFromHome || isFromStackScreen;
 
   return (
-    <SafeAreaWrapper>
-      <View style={{ flex: 1, paddingHorizontal: 10, paddingTop: 20 }}>
+    <SafeAreaWrapper tabletShellTop>
+      <View style={{ flex: 1, paddingHorizontal: 10, paddingTop: tabScrollTop }}>
           {isFromNavigation ? (
             <View className=' flex flex-row px-3 items-center mb-6 gap-20'>
               <TouchableOpacity

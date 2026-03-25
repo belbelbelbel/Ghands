@@ -1,7 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
 import { getCategoryIcon } from '@/utils/categoryIcons';
-import { Colors, BorderRadius, Spacing } from '@/lib/designSystem';
+import { Colors, BorderRadius, Spacing, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { MapPin, TrendingUp } from 'lucide-react-native';
@@ -118,6 +118,7 @@ const serviceTips: ServiceTip[] = [
 
 export default function DiscoverScreen() {
   const router = useRouter();
+  const tabScrollTop = useTabScrollContentPaddingTop(10);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const { location } = useUserLocation();
@@ -158,9 +159,9 @@ export default function DiscoverScreen() {
   }), [fadeAnim, slideAnim]);
 
   return (
-    <SafeAreaWrapper>
+    <SafeAreaWrapper tabletShellTop>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Animated.View style={[animatedStyles, { flex: 1, paddingTop: 10 }]}>
+        <Animated.View style={[animatedStyles, { flex: 1, paddingTop: tabScrollTop }]}>
           {/* Header Section */}
           <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 }}>
             <Text

@@ -14,7 +14,7 @@ import { haptics } from '@/hooks/useHaptics';
 import { shareReferral } from '@/utils/referral';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { Colors, REFRESH_CONTROL } from '@/lib/designSystem';
+import { Colors, REFRESH_CONTROL, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { ServiceRequest, authService, serviceRequestService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getCategoryIcon } from '@/utils/categoryIcons';
@@ -417,6 +417,7 @@ const HomeScreen = React.memo(() => {
   const searchBarStyle = useMemo(() => ({ height: 50 }), []);
 
   const bottomSpacerStyle = useMemo(() => ({ height: 90 }), []);
+  const tabScrollTop = useTabScrollContentPaddingTop(10);
 
   // If checking token, show nothing (will redirect if no token)
   if (isChecking) {
@@ -424,7 +425,7 @@ const HomeScreen = React.memo(() => {
   }
 
   return (
-    <SafeAreaWrapper>
+    <SafeAreaWrapper tabletShellTop>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -437,7 +438,7 @@ const HomeScreen = React.memo(() => {
         }
       >
         <Animated.View
-          style={[animatedStyles, { flex: 1, paddingTop: 10 }]}
+          style={[animatedStyles, { flex: 1, paddingTop: tabScrollTop }]}
         >
           <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>

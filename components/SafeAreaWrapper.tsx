@@ -1,6 +1,7 @@
 import React from 'react';
 import { ViewStyle } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { PHONE_LANE_OUTER_TOP, useIsTablet } from '@/lib/tabletLayout';
 
 interface SafeAreaWrapperProps {
   children: React.ReactNode;
@@ -8,6 +9,17 @@ interface SafeAreaWrapperProps {
   style?: ViewStyle;
   className?: string;
   edges?: ('top' | 'bottom' | 'left' | 'right')[];
+  /** When true on tablet, adds PHONE_LANE_OUTER_TOP under the lane top (no device notch inset). */
+  tabletShellTop?: boolean;
+}
+
+function tabletEdges(
+  edges: SafeAreaWrapperProps['edges'],
+  isTablet: boolean
+): ('top' | 'bottom' | 'left' | 'right')[] {
+  const base = edges ?? ['top', 'bottom'];
+  if (!isTablet) return base;
+  return base.filter((e) => e !== 'top');
 }
 
 export default function SafeAreaWrapper({
@@ -15,24 +27,27 @@ export default function SafeAreaWrapper({
   backgroundColor = '#ffffff',
   style,
   className = '',
-  edges = ['top', 'bottom'],
+  edges,
+  tabletShellTop = false,
 }: SafeAreaWrapperProps) {
+  const isTablet = useIsTablet();
+  const resolvedEdges = tabletEdges(edges, isTablet);
+  const tabletTopPad = isTablet && tabletShellTop ? PHONE_LANE_OUTER_TOP : 0;
+
   return (
-    <SafeAreaProvider>
-      <SafeAreaView
-        style={[
-          {
-            flex: 1,
-            backgroundColor,
-          },
-          style,
-        ]}
-        className={className}
-        edges={edges}
-      >
-        {children}
-      </SafeAreaView>
-    </SafeAreaProvider>
+    <SafeAreaView
+      style={[
+        {
+          flex: 1,
+          backgroundColor,
+          paddingTop: tabletTopPad,
+        },
+        style,
+      ]}
+      className={className}
+      edges={resolvedEdges}
+    >
+      {children}
+    </SafeAreaView>
   );
 }
-

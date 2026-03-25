@@ -3,7 +3,7 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
-import { BorderRadius, Colors } from '@/lib/designSystem';
+import { BorderRadius, Colors, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { ProviderQuotationListItem, providerService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -66,6 +66,7 @@ const getStatusConfig = (status: string) => {
 
 export default function ProviderQuotationsScreen() {
   const router = useRouter();
+  const headerTopPad = useTabScrollContentPaddingTop(16);
   const { toast, showError, hideToast } = useToast();
   const [quotations, setQuotations] = useState<ProviderQuotationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -320,13 +321,13 @@ export default function ProviderQuotationsScreen() {
   }, [router]);
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight} tabletShellTop>
       <View style={{ flex: 1 }}>
         {/* Header - Title Only (No back arrow or icon since it's a tab) */}
         <View
           style={{
             paddingHorizontal: 20,
-            paddingTop: 16,
+            paddingTop: headerTopPad,
             paddingBottom: 12,
             borderBottomWidth: 1,
             borderBottomColor: Colors.border,

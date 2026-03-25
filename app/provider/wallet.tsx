@@ -1,5 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
+import { BorderRadius, Colors, Spacing, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Bell, Check, Clock, Receipt, TrendingUp, Wallet } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -20,6 +20,7 @@ interface ActivityItem {
 
 export default function ProviderWalletScreen() {
   const router = useRouter();
+  const headerTopPad = useTabScrollContentPaddingTop(16);
   const [balance, setBalance] = useState<number>(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -199,7 +200,7 @@ export default function ProviderWalletScreen() {
   );
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.white}>
+    <SafeAreaWrapper backgroundColor={Colors.white} tabletShellTop>
       {/* Header */}
       <View
         style={{
@@ -207,7 +208,7 @@ export default function ProviderWalletScreen() {
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: 20,
-          paddingTop: 16,
+          paddingTop: headerTopPad,
           paddingBottom: 12,
         }}
       >

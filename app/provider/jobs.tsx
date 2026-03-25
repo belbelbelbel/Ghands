@@ -1,5 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Fonts, Spacing } from '@/lib/designSystem';
+import { BorderRadius, Colors, Fonts, Spacing, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Calendar, MapPin } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -162,6 +162,7 @@ const REJECTED_IDS_KEY = '@ghands:provider_rejected_request_ids';
 
 export default function ProviderJobsScreen() {
   const router = useRouter();
+  const tabScrollTop = useTabScrollContentPaddingTop(Spacing.lg);
   const { toast, showError, hideToast, showSuccess } = useToast();
   const [activeTab, setActiveTab] = useState<JobStatus>('Ongoing');
   const [allJobs, setAllJobs] = useState<JobItem[]>([]);
@@ -544,10 +545,10 @@ export default function ProviderJobsScreen() {
   );
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight} tabletShellTop>
       <View style={{ flex: 1 }}>
         
-        <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.md }}>
+        <View style={{ paddingHorizontal: Spacing.lg, paddingTop: tabScrollTop, paddingBottom: Spacing.md }}>
           <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, textAlign: 'center' }}>
             Job History
           </Text>

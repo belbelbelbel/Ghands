@@ -6,6 +6,15 @@ import { DESIGN_TOKENS } from './assets';
  */
 
 export const Colors = DESIGN_TOKENS.colors;
+
+/** Tablet “phone lane” constants and hooks (single import surface with theme). */
+export {
+  TABLET_MIN_SHORT_EDGE,
+  PHONE_LANE_OUTER_TOP,
+  TAB_SCROLL_TOP,
+  useIsTablet,
+  useTabScrollContentPaddingTop,
+} from './tabletLayout';
 export const Spacing = DESIGN_TOKENS.spacing;
 export const Fonts = DESIGN_TOKENS.fonts;
 export const BorderRadius = DESIGN_TOKENS.borderRadius;

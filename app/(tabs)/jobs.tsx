@@ -11,7 +11,7 @@ import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View, Modal, Pressable, StyleSheet } from 'react-native';
 import { JobHistoryCardSkeleton } from '@/components/LoadingSkeleton';
-import { Colors } from '@/lib/designSystem';
+import { Colors, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 
 type JobStatus = 'Ongoing' | 'Completed' | 'Cancelled';
 
@@ -84,6 +84,7 @@ const mapRequestToJobItem = (
 };
 
 export default function JobsScreen() {
+  const tabScrollTop = useTabScrollContentPaddingTop(20);
   const params = useLocalSearchParams<{ initialTab?: string; requestId?: string }>();
   const [activeTab, setActiveTab] = useState<JobStatus>(
     params.initialTab === 'Completed' ? 'Completed' : params.initialTab === 'Cancelled' ? 'Cancelled' : 'Ongoing'
@@ -231,8 +232,8 @@ export default function JobsScreen() {
   };
 
   return (
-    <SafeAreaWrapper>
-      <View className="flex-1 px-4" style={{ paddingTop: 20 }}>
+    <SafeAreaWrapper tabletShellTop>
+      <View className="flex-1 px-4" style={{ paddingTop: tabScrollTop }}>
         <Text className="text-2xl text-black mb-6 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
           Jobs
         </Text>

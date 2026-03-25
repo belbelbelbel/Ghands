@@ -1,5 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
+import { BorderRadius, Colors, Spacing, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { useAuthRole } from '@/hooks/useAuth';
 import { haptics } from '@/hooks/useHaptics';
 import { AuthError } from '@/utils/errors';
@@ -49,6 +49,8 @@ const formatCategoryName = (categoryName: string, allCategories: ServiceCategory
 
 export default function ProviderProfileScreen() {
   const router = useRouter();
+  const headerTopPad = useTabScrollContentPaddingTop(16);
+  const scrollBodyTopPad = useTabScrollContentPaddingTop(20);
   const { logout, switchRole } = useAuthRole();
   const [isOnline, setIsOnline] = useState(true);
   const [provider, setProvider] = useState<Provider | null>(null);
@@ -542,7 +544,7 @@ export default function ProviderProfileScreen() {
   };
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.white}>
+    <SafeAreaWrapper backgroundColor={Colors.white} tabletShellTop>
       <View style={{ flex: 1 }}>
         {/* Header */}
         <View
@@ -551,7 +553,7 @@ export default function ProviderProfileScreen() {
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: 20,
-            paddingTop: 16,
+            paddingTop: headerTopPad,
             paddingBottom: 12,
             borderBottomWidth: 1,
             borderBottomColor: Colors.border,
@@ -610,7 +612,7 @@ export default function ProviderProfileScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 20,
+            paddingTop: scrollBodyTopPad,
             paddingBottom: 100,
           }}
         >

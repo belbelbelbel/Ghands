@@ -1,4 +1,5 @@
 import { apiClient, extractResponseData } from './client';
+
 import type { Notification, NotificationsListResult } from './types';
 
 export type { Notification, NotificationsListResult };

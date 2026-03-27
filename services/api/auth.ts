@@ -93,7 +93,7 @@ export const authService = {
       if (__DEV__) {
         // Temporary debug logs for integration testing
         // eslint-disable-next-line no-console
-        console.log('🔐 [client token]', token);
+        console.log('🔐 [client login] token stored');
       }
       if (!id) {
         const extracted = extractUserIdFromToken(token);

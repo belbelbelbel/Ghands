@@ -4,13 +4,13 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { haptics } from '@/hooks/useHaptics';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { Notification, notificationService } from '@/services/api';
+import { formatTimeAgo } from '@/utils/dateFormatting';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Archive, Calendar, Clock, FileText, Handshake, MessageCircle, Trash2, Wallet, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { formatTimeAgo } from '@/utils/dateFormatting';
 
 type UINotificationSection = 'Recent' | 'Yesterday' | 'Last week';
 
@@ -235,8 +235,8 @@ export default function NotificationsScreen() {
           // Also fix direction wording when sender metadata indicates current side.
           const senderType = String(
             notification.metadata?.senderType ??
-              (notification.metadata as any)?.sender_type ??
-              ''
+            (notification.metadata as any)?.sender_type ??
+            ''
           ).toLowerCase();
           if (description) {
             const fromCurrentSide =
@@ -425,7 +425,7 @@ export default function NotificationsScreen() {
   // Navigate to the correct screen for a backend notification
   const handleNavigateToDetails = (notification: Notification | UINotification) => {
     setPreviewNotification(null);
-    
+
     // Extract raw notification if it's a UINotification
     const rawNotification = 'raw' in notification ? notification.raw : notification;
 
@@ -531,40 +531,40 @@ export default function NotificationsScreen() {
               minHeight: 36,
             }}
           >
-          {(['all', 'unread', 'read', 'archive'] as FilterPill[]).map((pill, index) => {
-            const isActive = filterPill === pill;
-            return (
-              <TouchableOpacity
-                key={pill}
-                onPress={() => {
-                  haptics.light();
-                  setFilterPill(pill);
-                }}
-                activeOpacity={0.7}
-                style={{
-                  paddingHorizontal: 24,
-                  paddingVertical: 10,
-                  borderRadius: 10,
-                  backgroundColor: isActive ? Colors.accent : Colors.backgroundGray,
-                  borderWidth: isActive ? 0 : 1,
-                  borderColor: Colors.border,
-                  marginRight: index < 3 ? 8 : 0,
-                }}
-              >
-                <Text
+            {(['all', 'unread', 'read', 'archive'] as FilterPill[]).map((pill, index) => {
+              const isActive = filterPill === pill;
+              return (
+                <TouchableOpacity
+                  key={pill}
+                  onPress={() => {
+                    haptics.light();
+                    setFilterPill(pill);
+                  }}
+                  activeOpacity={0.7}
                   style={{
-                    fontSize: 12,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: isActive ? Colors.white : Colors.textSecondaryDark,
-                    textTransform: 'capitalize',
-                    lineHeight: 14,
+                    paddingHorizontal: 24,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    backgroundColor: isActive ? Colors.accent : Colors.backgroundGray,
+                    borderWidth: isActive ? 0 : 1,
+                    borderColor: Colors.border,
+                    marginRight: index < 3 ? 8 : 0,
                   }}
                 >
-                  {pill}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: isActive ? Colors.white : Colors.textSecondaryDark,
+                      textTransform: 'capitalize',
+                      lineHeight: 14,
+                    }}
+                  >
+                    {pill}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
 
@@ -661,12 +661,12 @@ export default function NotificationsScreen() {
                 {filterPill === 'archive'
                   ? 'No archived notifications'
                   : filterPill === 'all' && archivedIds.size > 0
-                  ? 'No notifications to show'
-                  : filterPill === 'unread'
-                  ? 'No unread notifications'
-                  : filterPill === 'read'
-                  ? 'No read notifications'
-                  : 'No notifications'}
+                    ? 'No notifications to show'
+                    : filterPill === 'unread'
+                      ? 'No unread notifications'
+                      : filterPill === 'read'
+                        ? 'No read notifications'
+                        : 'No notifications'}
               </Text>
             </View>
           )}
@@ -677,7 +677,6 @@ export default function NotificationsScreen() {
 
             return (
               <View key={section} style={{ marginBottom: 24 }}>
-                {/* Section Header */}
                 <Text
                   style={{
                     fontSize: 16,
@@ -689,7 +688,6 @@ export default function NotificationsScreen() {
                   {section}
                 </Text>
 
-                {/* Notifications in Section */}
                 {sectionNotifications.map((notification, index) => (
                   <Swipeable
                     key={notification.id}
@@ -749,128 +747,128 @@ export default function NotificationsScreen() {
                       );
                     }}
                   >
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      marginBottom: index < sectionNotifications.length - 1 ? 14 : 0,
-                      backgroundColor: Colors.white,
-                      borderRadius: BorderRadius.xl,
-                      paddingVertical: 16,
-                      paddingHorizontal: 10,
-                      borderLeftWidth: 3,
-                      borderColor: notification.isRead ? Colors.accent : '#3B82F6',
-                    }}
-                  >
-                    {/* Colored Bar - Blue for unread, Green for read */}
                     <View
                       style={{
-                        width: 0,
-                        backgroundColor: notification.isRead ? Colors.accent : '#3B82F6',
-                        borderRadius: 2,
-                        marginRight: 12,
-                        alignSelf: 'stretch',
-                        
-                      }}
-                    />
-
-                    {/* Icon */}
-                    <View
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        backgroundColor: notification.iconBgColor,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 12,
+                        flexDirection: 'row',
+                        marginBottom: index < sectionNotifications.length - 1 ? 14 : 0,
+                        backgroundColor: Colors.white,
+                        borderRadius: BorderRadius.xl,
+                        paddingVertical: 10,
+                        paddingHorizontal: 10,
+                        borderLeftWidth: 3,
+                        borderColor: notification.isRead ? Colors.accent : '#3B82F6',
                       }}
                     >
-                      {notification.icon && (
-                        <notification.icon
-                          size={30}
-                          color={notification.iconColor}
-                        />
-                      )}
-                    </View>
 
-                    {/* Content */}
-                    <View style={{ flex: 1 }}>
-                      <Text
+                      <View
                         style={{
-                          fontSize: 14,
-                          fontFamily: 'Poppins-Bold',
-                          color: Colors.textPrimary,
-                          marginBottom: 4,
+                          width: 0,
+                          backgroundColor: notification.isRead ? Colors.accent : '#3B82F6',
+                          borderRadius: 2,
+                          marginRight: 12,
+                          alignSelf: 'stretch',
+
+                        }}
+                      />
+
+
+                      <View
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
+                          backgroundColor: notification.iconBgColor,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 12,
                         }}
                       >
-                        {notification.type}
-                      </Text>
-                      {!!notification.description && (
+                        {notification.icon && (
+                          <notification.icon
+                            size={30}
+                            color={notification.iconColor}
+                          />
+                        )}
+                      </View>
+
+
+                      <View style={{ flex: 1 }}>
                         <Text
                           style={{
-                            fontSize: 13,
-                            fontFamily: 'Poppins-Regular',
-                            color: Colors.textSecondaryDark,
+                            fontSize: 14,
+                            fontFamily: 'Poppins-Bold',
+                            color: Colors.textPrimary,
+                            marginBottom: 0,
+                          }}
+                        >
+                          {notification.type}
+                        </Text>
+                        {!!notification.description && (
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontFamily: 'Poppins-Regular',
+                              color: Colors.textSecondaryDark,
+                              marginBottom: 8,
+                              lineHeight: 18,
+                            }}
+                          >
+                            {notification.description}
+                          </Text>
+                        )}
+                        <TouchableOpacity
+                          onPress={() => {
+
+                            handleMarkAsRead(notification.id);
+
+                            handleNavigateToDetails(notification);
+                          }}
+                          style={{
+                            alignSelf: 'flex-start',
                             marginBottom: 8,
-                            lineHeight: 18,
                           }}
+                          activeOpacity={0.7}
                         >
-                          {notification.description}
-                        </Text>
-                      )}
-                      <TouchableOpacity
-                        onPress={() => {
-                          // When user taps "View details", mark as read and navigate
-                          handleMarkAsRead(notification.id);
-                          // Navigate directly to the appropriate screen
-                          handleNavigateToDetails(notification);
-                        }}
-                        style={{
-                          alignSelf: 'flex-start',
-                          marginBottom: 8,
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            fontFamily: 'Poppins-SemiBold',
-                            color: Colors.accent,
-                          }}
-                        >
-                          View details
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontFamily: 'Poppins-SemiBold',
+                              color: Colors.accent,
+                            }}
+                          >
+                            View details
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
 
-                    {/* Right Side - Time and Mark as read */}
-                    <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontFamily: 'Poppins-Regular',
-                          color: Colors.textSecondaryDark,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {notification.time}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => handleMarkAsRead(notification.id)}
-                        activeOpacity={0.7}
-                      >
+                      {/* Right Side - Time and Mark as read */}
+                      <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
                         <Text
                           style={{
                             fontSize: 11,
                             fontFamily: 'Poppins-Regular',
-                            color: Colors.textTertiary,
+                            color: Colors.textSecondaryDark,
+                            marginBottom: 4,
                           }}
                         >
-                          Mark as read
+                          {notification.time}
                         </Text>
-                      </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleMarkAsRead(notification.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontFamily: 'Poppins-Regular',
+                              color: Colors.textTertiary,
+                            }}
+                          >
+                            Mark as read
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
                   </Swipeable>
                 ))}
               </View>

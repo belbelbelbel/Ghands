@@ -69,7 +69,7 @@ const providerService = {
     if (__DEV__) {
       // Temporary debug logs for integration testing
       // eslint-disable-next-line no-console
-      console.log('🔐 [provider token]', token);
+      console.log('🔐 [provider login] token stored');
     }
     let finalProviderId: number | undefined = undefined;
     if (providerId) {

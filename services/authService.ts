@@ -67,8 +67,7 @@ class AuthService {
       }
       
       return token;
-    } catch (error) {
-      console.error('Error getting auth token:', error);
+    } catch {
       return null;
     }
   }
@@ -81,8 +80,8 @@ class AuthService {
   async setAuthToken(token: string): Promise<void> {
     try {
       await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
-    } catch (error) {
-      console.error('Error setting auth token:', error);
+    } catch {
+      /* storage failure – caller handles missing token */
     }
   }
 
@@ -92,8 +91,7 @@ class AuthService {
   async getRefreshToken(): Promise<string | null> {
     try {
       return await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
-    } catch (error) {
-      console.error('Error getting refresh token:', error);
+    } catch {
       return null;
     }
   }
@@ -104,8 +102,8 @@ class AuthService {
   async setRefreshToken(token: string): Promise<void> {
     try {
       await AsyncStorage.setItem(REFRESH_TOKEN_KEY, token);
-    } catch (error) {
-      console.error('Error setting refresh token:', error);
+    } catch {
+      /* ignore */
     }
   }
 
@@ -136,8 +134,7 @@ class AuthService {
       }
       
       return null;
-    } catch (error) {
-      console.error('Error getting user ID:', error);
+    } catch {
       return null;
     }
   }
@@ -148,8 +145,8 @@ class AuthService {
   async setUserId(userId: number): Promise<void> {
     try {
       await AsyncStorage.setItem(USER_ID_KEY, userId.toString());
-    } catch (error) {
-      console.error('Error setting user ID:', error);
+    } catch {
+      /* ignore */
     }
   }
 
@@ -180,8 +177,7 @@ class AuthService {
       }
       
       return null;
-    } catch (error) {
-      console.error('Error getting company ID:', error);
+    } catch {
       return null;
     }
   }
@@ -192,8 +188,8 @@ class AuthService {
   async setCompanyId(companyId: number): Promise<void> {
     try {
       await AsyncStorage.setItem(COMPANY_ID_KEY, companyId.toString());
-    } catch (error) {
-      console.error('Error setting company ID:', error);
+    } catch {
+      /* ignore */
     }
   }
 
@@ -213,8 +209,8 @@ class AuthService {
         USER_ID_KEY,
         COMPANY_ID_KEY,
       ]);
-    } catch (error) {
-      console.error('Error clearing auth tokens:', error);
+    } catch {
+      /* ignore */
     }
   }
 

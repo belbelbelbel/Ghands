@@ -9,7 +9,7 @@ import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDown, ChevronUp, Minus, Plus, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface MaterialItem {
   id: string;
@@ -267,6 +267,7 @@ export default function SendQuotationScreen() {
                 paddingBottom: 120,
               }}
               style={{ flex: 1 }}
+              keyboardDismissMode="on-drag"
               keyboardShouldPersistTaps="handled"
             >
               {/* Labor Cost */}
@@ -890,7 +891,10 @@ export default function SendQuotationScreen() {
           }}
         >
           <TouchableOpacity
-            onPress={handleSubmit}
+            onPress={() => {
+              Keyboard.dismiss();
+              handleSubmit();
+            }}
             disabled={!canSubmit || isSubmitting}
             style={{
               backgroundColor: canSubmit && !isSubmitting ? Colors.accent : Colors.backgroundGray,

@@ -56,10 +56,8 @@ class AnalyticsService {
             platform: 'mobile',
           }),
         });
-      } catch (error) {
-        if (__DEV__) {
-          if (__DEV__) console.log('Analytics:', event.name);
-        }
+      } catch {
+        // Non-fatal: analytics is best-effort
       }
     });
   }
@@ -81,10 +79,8 @@ class AnalyticsService {
     this.providers.forEach((provider) => {
       try {
         provider(event);
-      } catch (error) {
-        if (__DEV__) {
-          console.error('Error tracking event:', error);
-        }
+      } catch {
+        /* ignore provider failures */
       }
     });
   }
@@ -107,10 +103,8 @@ class AnalyticsService {
           properties: traits,
           userId,
         });
-      } catch (error) {
-        if (__DEV__) {
-          console.error('Error identifying user:', error);
-        }
+      } catch {
+        /* ignore */
       }
     });
   }

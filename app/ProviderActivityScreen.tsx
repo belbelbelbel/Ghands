@@ -526,9 +526,8 @@ export default function ProviderActivityScreen() {
       <FilterTransactionsModal
         visible={showFilterModal}
         onClose={() => setShowFilterModal(false)}
-        onApply={(filters) => {
-          // Handle filter application
-          console.log('Applied filters:', filters);
+        onApply={(_filters) => {
+          // Filter UI can be wired to reload when needed
         }}
       />
     </SafeAreaWrapper>

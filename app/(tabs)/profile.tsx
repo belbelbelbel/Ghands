@@ -40,10 +40,7 @@ const ProfileScreen = () => {
         ...prev,
         balance: balanceValue,
       }));
-    } catch (error) {
-      if (__DEV__) {
-        console.error('Error loading wallet balance:', error);
-      }
+    } catch {
       // Keep current balance on error
     } finally {
       setIsLoadingBalance(false);
@@ -73,18 +70,13 @@ const ProfileScreen = () => {
               name: fullName,
               location: location || prev.location,
             }));
-          } catch (error) {
-            if (__DEV__) {
-              console.error('Error loading user profile:', error);
-            }
+          } catch {
+            // Profile optional; keep cached UI
           }
         })(),
         loadWalletBalance(), // Also load wallet balance
       ]);
-    } catch (error: any) {
-      if (__DEV__) {
-        console.error('Error loading user data:', error);
-      }
+    } catch {
       // Still try to load wallet balance even if profile fails
       await loadWalletBalance();
     } finally {

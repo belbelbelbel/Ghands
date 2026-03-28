@@ -28,8 +28,7 @@ export default function useOnboarding(): UseOnboardingReturn {
       try {
         const value = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
         setIsOnboardingComplete(value === 'true');
-      } catch (error) {
-        console.error('Error checking onboarding status:', error);
+      } catch {
         setIsOnboardingComplete(false);
       } finally {
         setIsLoading(false);
@@ -60,8 +59,7 @@ export default function useOnboarding(): UseOnboardingReturn {
       
       await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
       setIsOnboardingComplete(true);
-    } catch (error) {
-      console.error('Error completing onboarding:', error);
+    } catch {
       setIsOnboardingComplete(true);
     }
   }, []);
@@ -72,8 +70,7 @@ export default function useOnboarding(): UseOnboardingReturn {
       
       await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
       setIsOnboardingComplete(true);
-    } catch (error) {
-      console.error('Error skipping onboarding:', error);
+    } catch {
       setIsOnboardingComplete(true);
     }
   }, []);
@@ -83,8 +80,8 @@ export default function useOnboarding(): UseOnboardingReturn {
       await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY);
       setIsOnboardingComplete(false);
       setCurrentSlideIndex(0);
-    } catch (error) {
-      console.error('Error resetting onboarding:', error);
+    } catch {
+      /* ignore */
     }
   }, []);
 

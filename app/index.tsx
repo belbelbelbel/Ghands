@@ -79,10 +79,7 @@ export default function EntryPoint() {
         } else {
           setIsCheckingAuth(false);
         }
-      } catch (error) {
-        if (__DEV__) {
-          console.error('Error checking auth:', error);
-        }
+      } catch {
         // On error, only redirect if not already on a login/signup screen
         const currentRoute = pathname || '/';
         const normalizedRoute = currentRoute.startsWith('/') ? currentRoute : `/${currentRoute}`;

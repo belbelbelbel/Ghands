@@ -9,7 +9,7 @@ import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Animated, Image, Modal, ScrollView, Text, TouchableOpacity, TextInput, View } from "react-native";
+import { ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, TextInput, View } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { analytics } from '@/services/analytics';
 import { CheckCircle2, FileText, Wrench, CheckCircle } from 'lucide-react-native';
@@ -97,16 +97,14 @@ export default function CompletedJobDetail() {
             // Get the first provider (should be the selected one for completed jobs)
             setSelectedProvider(acceptedProviders[0].provider);
           }
-        } catch (error) {
+        } catch {
           // If no providers found, that's okay
-          console.log('No accepted providers found for completed job');
         }
       }
       
       // Trigger success haptic for completed job
       haptics.success();
     } catch (error: any) {
-      console.error('Error loading request details:', error);
       const errorMessage = getSpecificErrorMessage(error, 'get_request_details');
       showError(errorMessage);
     } finally {
@@ -586,26 +584,38 @@ export default function CompletedJobDetail() {
           animationType="fade"
           onRequestClose={() => {}}
         >
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(0,0,0,0.45)',
-              justifyContent: 'center',
-              paddingHorizontal: 20,
-            }}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ flex: 1 }}
           >
-            <View
+            <Pressable
+              onPress={() => Keyboard.dismiss()}
               style={{
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                padding: 22,
-                borderWidth: 1,
-                borderColor: Colors.border,
-                maxWidth: 400,
-                width: '100%',
-                alignSelf: 'center',
+                flex: 1,
+                backgroundColor: 'rgba(0,0,0,0.45)',
+                justifyContent: 'center',
+                paddingHorizontal: 20,
               }}
             >
+              <Pressable
+                onPress={(e) => e.stopPropagation()}
+                style={{
+                  backgroundColor: Colors.white,
+                  borderRadius: BorderRadius.xl,
+                  padding: 22,
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                  maxWidth: 400,
+                  width: '100%',
+                  alignSelf: 'center',
+                  maxHeight: '82%',
+                }}
+              >
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                  showsVerticalScrollIndicator={false}
+                >
               {postReviewThankYou ? (
                 <>
                   <View style={{ alignItems: 'center', marginBottom: 14 }}>
@@ -769,8 +779,10 @@ export default function CompletedJobDetail() {
                   </TouchableOpacity>
                 </>
               )}
-            </View>
-          </View>
+                </ScrollView>
+              </Pressable>
+            </Pressable>
+          </KeyboardAvoidingView>
         </Modal>
     </SafeAreaWrapper>
   );

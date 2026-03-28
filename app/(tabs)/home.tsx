@@ -242,17 +242,14 @@ const HomeScreen = React.memo(() => {
         return;
       }
       const status = (error as any)?.status;
+      if (status === 401 || status === 403) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
       if (status === 500) {
-        try {
-          const token = await authService.getAuthToken();
-          if (!token) {
-            await handleAuthErrorRedirect(router);
-            return;
-          }
-        } catch {
-          await handleAuthErrorRedirect(router);
-          return;
-        }
+        // Backend/server issue: keep user on screen and show empty state.
+        // Do not redirect to auth flow for non-auth failures.
+        if (__DEV__) console.warn('Job activities API returned 500; skipping redirect.');
       }
       if (__DEV__) console.error('Error loading job activities:', error?.message || error);
       setJobActivities([]);

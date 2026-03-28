@@ -134,10 +134,7 @@ class CrashReportingService {
   /**
    * Add breadcrumb for debugging
    */
-  addBreadcrumb(message: string, category?: string, data?: Record<string, any>) {
-    if (__DEV__) {
-      console.log(`[Breadcrumb] ${category || 'default'}:`, message, data);
-    }
+  addBreadcrumb(_message: string, _category?: string, _data?: Record<string, any>) {
     // Add breadcrumb to providers
     // Example: Sentry.addBreadcrumb({ message, category, data });
   }

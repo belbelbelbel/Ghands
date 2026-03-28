@@ -27,60 +27,33 @@ export function useNotifications() {
 
     const initializeNotifications = async () => {
       try {
-        // Check if we already have a token stored
         const storedToken = await AsyncStorage.getItem(PUSH_TOKEN_STORAGE_KEY);
-        
-        // Get new token (will be same if already registered)
         const token = await registerForPushNotificationsAsync();
-        
+
         if (token && isMounted) {
           setExpoPushToken(token);
-          
-          // Only register with backend if token changed or not stored
+
           if (token !== storedToken) {
             await AsyncStorage.setItem(PUSH_TOKEN_STORAGE_KEY, token);
-            
-            // Register token with backend
             try {
               await registerPushToken(token);
-              if (__DEV__) {
-                if (__DEV__) console.log('Push token registered');
-              }
-            } catch (error) {
-              // Log error but don't block app initialization
-              if (__DEV__) {
-                console.error('❌ Failed to register push token with backend:', error);
-              }
-              // Token is still stored locally, will retry on next app start
+            } catch {
+              // Token stored locally; backend registration can retry on next launch
             }
-          } else if (__DEV__) {
-            if (__DEV__) console.log('Push token already registered');
           }
         }
-      } catch (error) {
-        if (__DEV__) {
-          console.error('Error initializing push notifications:', error);
-        }
+      } catch {
+        // Push setup is best-effort
       }
     };
 
     initializeNotifications();
 
-    // Listen for notifications received while app is in foreground
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
       setNotification(notification);
-      if (__DEV__) {
-        if (__DEV__) console.log('Notification received');
-      }
     });
 
-    // Listen for user tapping on notification
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
-      if (__DEV__) {
-        if (__DEV__) console.log('Notification tapped');
-      }
-      // Navigation is handled in _layout.tsx via the notification state
       setNotification(response.notification);
     });
 
@@ -104,51 +77,35 @@ export function useNotifications() {
 async function registerForPushNotificationsAsync(): Promise<string | null> {
   let token: string | null = null;
 
-  // Check if running on a physical device
   if (!Device.isDevice) {
-    if (__DEV__) {
-      console.warn('Push notifications only work on physical devices');
-    }
     return null;
   }
 
-  // Check existing permissions
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
-  // Request permissions if not already granted
   if (existingStatus !== 'granted') {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
 
   if (finalStatus !== 'granted') {
-    if (__DEV__) {
-      console.warn('Failed to get push token for push notification!');
-    }
     return null;
   }
 
-  // Get the Expo push token
   try {
-    const projectId = '82fb8167-b26b-4fcf-84c2-fb858f717a03'; // From app.config.js
+    const projectId = '82fb8167-b26b-4fcf-84c2-fb858f717a03';
     token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-    if (__DEV__) {
-      if (__DEV__) console.log('Expo push token obtained');
-    }
-  } catch (error) {
-    if (__DEV__) {
-      console.error('Error getting Expo push token:', error);
-    }
+  } catch {
+    return null;
   }
 
-  // Configure Android channel for notifications
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'Default',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#6A9B00', // GHands green color
+      lightColor: '#6A9B00',
       sound: 'default',
       enableVibrate: true,
       showBadge: true,
@@ -159,20 +116,9 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 }
 
 async function registerPushToken(token: string): Promise<void> {
-  try {
-    await notificationService.registerDevice({
-      pushToken: token,
-      platform: Platform.OS,
-      deviceId: Device.modelName || 'unknown',
-    });
-    if (__DEV__) {
-      if (__DEV__) console.log('Push token registered');
-    }
-  } catch (error) {
-    if (__DEV__) {
-      console.error('Error registering push token:', error);
-    }
-    throw error;
-  }
+  await notificationService.registerDevice({
+    pushToken: token,
+    platform: Platform.OS,
+    deviceId: Device.modelName || 'unknown',
+  });
 }
-

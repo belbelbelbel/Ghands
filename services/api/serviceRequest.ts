@@ -106,15 +106,30 @@ export const serviceRequestService = {
       if (requestData) {
         const raw = requestData as any;
         const vr = raw.visitRequest ?? raw.visit_request;
+        const rawVisitStatus =
+          vr?.logisticsStatus ??
+          vr?.logistics_status ??
+          vr?.visitStatus ??
+          vr?.visit_status ??
+          raw.logisticsStatus ??
+          raw.logistics_status ??
+          raw.visitStatus ??
+          raw.visit_status;
+        const normalizedVisitStatus = typeof rawVisitStatus === 'string' ? rawVisitStatus.toLowerCase() : undefined;
+        const mappedVisitStatus =
+          normalizedVisitStatus === 'declined' || normalizedVisitStatus === 'rejected'
+            ? 'cancelled'
+            : normalizedVisitStatus;
         const hasNested = vr && (vr.scheduledDate ?? vr.scheduled_date ?? vr.logisticsCost ?? vr.logistics_cost);
         const hasFlat = raw.scheduledDate ?? raw.scheduled_date ?? raw.logisticsCost ?? raw.logistics_cost;
         const hasVisitRequestedAt = !!(raw.visitRequestedAt ?? raw.visit_requested_at ?? vr?.requestedAt ?? vr?.requested_at);
-        if (hasNested || hasFlat || hasVisitRequestedAt) {
+        const hasVisitStatus = !!mappedVisitStatus;
+        if (hasNested || hasFlat || hasVisitRequestedAt || hasVisitStatus) {
           (requestData as any).visitRequest = {
             scheduledDate: vr?.scheduledDate ?? vr?.scheduled_date ?? raw.scheduledDate ?? raw.scheduled_date,
             scheduledTime: vr?.scheduledTime ?? vr?.scheduled_time ?? raw.scheduledTime ?? raw.scheduled_time,
             logisticsCost: vr?.logisticsCost ?? vr?.logistics_cost ?? raw.logisticsCost ?? raw.logistics_cost ?? (hasVisitRequestedAt ? 0 : undefined),
-            logisticsStatus: vr?.logisticsStatus ?? vr?.logistics_status ?? raw.logisticsStatus ?? raw.logistics_status,
+            logisticsStatus: mappedVisitStatus,
             requestedAt: vr?.requestedAt ?? vr?.requested_at ?? raw.visitRequestedAt ?? raw.visit_requested_at,
           };
         }

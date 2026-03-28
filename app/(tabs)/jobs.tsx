@@ -132,10 +132,8 @@ export default function JobsScreen() {
             ]);
             acceptedProvidersCount = acceptedProviders?.length || 0;
             quotationsCount = (quotations || []).filter((q) => q.sentAt || (q.status && q.status !== null)).length;
-          } catch (error) {
-            if (__DEV__) {
-              console.log(`Could not load providers/quotations for request ${request.id}:`, error);
-            }
+          } catch {
+            // Non-fatal: job row still renders with zero counts
           }
           return mapRequestToJobItem(request, acceptedProvidersCount, quotationsCount);
         })

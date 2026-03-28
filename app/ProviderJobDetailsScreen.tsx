@@ -633,6 +633,8 @@ export default function ProviderJobDetailsScreen() {
                                 requestIndicatesQuotationAccepted;
     const quotationSent = quotation || (quotationWithProvider && (quotationWithProvider.sentAt || (quotationWithProvider.status && quotationWithProvider.status !== 'draft' && quotationWithProvider.status !== null)));
     const visitRequest = (request as any).visitRequest;
+    const visitStatus = (visitRequest?.logisticsStatus || '').toString().toLowerCase();
+    const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
     const hasVisitRequested = !!(visitRequest && (visitRequest.scheduledDate || visitRequest.logisticsCost != null));
     const visitPaid = visitRequest?.logisticsStatus === 'paid';
 
@@ -648,6 +650,20 @@ export default function ProviderJobDetailsScreen() {
           lineColor: '#6A9B00',
           isActive: false,
           isCompleted: true,
+          icon: MapPinned,
+          showRequestVisit: false,
+        });
+      } else if (visitDeclined) {
+        timeline.push({
+          id: 'step-2',
+          title: 'Inspection',
+          description: 'Client declined visit. Send quotation directly to proceed.',
+          status: 'In Progress',
+          accent: '#FEF9C3',
+          dotColor: '#F59E0B',
+          lineColor: '#F59E0B',
+          isActive: true,
+          isCompleted: false,
           icon: MapPinned,
           showRequestVisit: false,
         });
@@ -3126,35 +3142,38 @@ export default function ProviderJobDetailsScreen() {
                 <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
                   {(() => {
                     const vr = (request as any)?.visitRequest;
+                    const visitStatus = (vr?.logisticsStatus || '').toString().toLowerCase();
+                    const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
                     const visitAlreadyRequested = !!(vr && (vr.scheduledDate || vr.logisticsCost != null));
+                    const disableVisitButton = visitAlreadyRequested || visitDeclined;
                     return (
                   <TouchableOpacity
                     style={{
                       flex: 1,
-                      backgroundColor: visitAlreadyRequested ? '#E5E7EB' : Colors.backgroundGray,
+                      backgroundColor: disableVisitButton ? '#E5E7EB' : Colors.backgroundGray,
                       paddingVertical: 12,
                       borderRadius: BorderRadius.default,
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexDirection: 'row',
                       borderWidth: 1,
-                      borderColor: visitAlreadyRequested ? '#D1D5DB' : Colors.border,
-                      opacity: visitAlreadyRequested ? 0.7 : 1,
+                      borderColor: disableVisitButton ? '#D1D5DB' : Colors.border,
+                      opacity: disableVisitButton ? 0.7 : 1,
                     }}
-                    activeOpacity={visitAlreadyRequested ? 1 : 0.8}
+                    activeOpacity={disableVisitButton ? 1 : 0.8}
                     onPress={() => {
-                      if (visitAlreadyRequested) return;
+                      if (disableVisitButton) return;
                       haptics.light();
                       router.push({
                         pathname: '/RequestVisitScreen' as any,
                         params: { requestId: params.requestId, jobTitle: request?.jobTitle },
                       } as any);
                     }}
-                    disabled={visitAlreadyRequested}
+                    disabled={disableVisitButton}
                   >
-                    <MapPin size={16} color={visitAlreadyRequested ? '#9CA3AF' : Colors.accent} style={{ marginRight: 6 }} />
-                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: visitAlreadyRequested ? '#9CA3AF' : Colors.textPrimary }}>
-                      {visitAlreadyRequested ? 'Visit requested' : 'Request visit'}
+                    <MapPin size={16} color={disableVisitButton ? '#9CA3AF' : Colors.accent} style={{ marginRight: 6 }} />
+                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: disableVisitButton ? '#9CA3AF' : Colors.textPrimary }}>
+                      {visitDeclined ? 'Visit declined' : visitAlreadyRequested ? 'Visit requested' : 'Request visit'}
                     </Text>
                   </TouchableOpacity>
                     );

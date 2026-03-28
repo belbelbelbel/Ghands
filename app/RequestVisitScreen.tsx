@@ -8,7 +8,7 @@ import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const MONTHS = [
   'January',
@@ -327,6 +327,8 @@ export default function RequestVisitScreen() {
         <Animated.View style={[{ flex: 1 }, animatedStyles]}>
           <ScrollView
             showsVerticalScrollIndicator={false}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{
               paddingHorizontal: Spacing.lg,
               paddingBottom: 120,
@@ -652,7 +654,10 @@ export default function RequestVisitScreen() {
           }}
         >
           <TouchableOpacity
-            onPress={handleSubmit}
+            onPress={() => {
+              Keyboard.dismiss();
+              handleSubmit();
+            }}
             style={{
               backgroundColor: Colors.accent,
               paddingVertical: 16,

@@ -315,6 +315,8 @@ export default function OngoingJobDetails() {
       return false;
     }) || !!((request as any).providerId && (request as any).price != null);
     const visitRequest = (request as any).visitRequest;
+    const visitStatus = (visitRequest?.logisticsStatus || '').toString().toLowerCase();
+    const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
     const hasVisitRequested = !!(visitRequest && (visitRequest.scheduledDate || visitRequest.logisticsCost != null));
     const visitPaid = visitRequest?.logisticsStatus === 'paid';
 
@@ -329,6 +331,18 @@ export default function OngoingJobDetails() {
           dotColor: '#6A9B00',
           isActive: false,
           isCompleted: true,
+          icon: MapPinned,
+        });
+      } else if (visitDeclined) {
+        timeline.push({
+          id: 'step-3',
+          title: 'Inspection',
+          description: 'Visit declined. Provider will send quotation directly.',
+          status: 'In Progress',
+          accent: '#FEF9C3',
+          dotColor: '#F59E0B',
+          isActive: true,
+          isCompleted: false,
           icon: MapPinned,
         });
       } else if (hasVisitRequested) {
@@ -396,7 +410,9 @@ export default function OngoingJobDetails() {
         timeline.push({
           id: 'step-3b',
           title: 'Quotation',
-          description: hasVisitRequested && !visitPaid
+          description: visitDeclined
+            ? 'Visit was declined. Waiting for provider to send quotation directly.'
+            : hasVisitRequested && !visitPaid
             ? 'After you pay the logistics fee, provider will visit and send a quotation.'
             : 'Provider is preparing a quotation. You will receive it shortly.',
           status: 'In Progress',
@@ -614,19 +630,23 @@ export default function OngoingJobDetails() {
       const firstAccept = acceptedProviders?.[0];
       const acceptedAt = firstAccept?.acceptance?.acceptedAt ?? request.updatedAt ?? request.selectedAt;
       const vr = (request as any)?.visitRequest;
+      const visitStatus = (vr?.logisticsStatus || '').toString().toLowerCase();
+      const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
       const hasVR = !!(vr && (vr.scheduledDate || vr.logisticsCost != null));
       const vPaid = vr?.logisticsStatus === 'paid';
       const logisticsCost = vr?.logisticsCost ?? 0;
 
       return {
         title: 'Inspection in progress',
-        subtitle: 'Provider has accepted your request. Waiting for inspection and quotation.',
+        subtitle: visitDeclined
+          ? 'Visit was declined. Provider should send quotation directly.'
+          : 'Provider has accepted your request. Waiting for inspection and quotation.',
         statusPill: 'Provider accepted',
         pillBg: '#FEF9C3',
         pillText: '#92400E',
         timestamp: acceptedAt ? formatTimeAgo(acceptedAt) : null,
         provider: headerProvider,
-        showVisitPayButton: hasVR && !vPaid,
+        showVisitPayButton: hasVR && !vPaid && !visitDeclined,
         visitLogisticsCost: logisticsCost,
         onVisitPay: () => {
           if (params.requestId == null) return;

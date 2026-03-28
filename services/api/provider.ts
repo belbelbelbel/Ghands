@@ -66,11 +66,6 @@ const providerService = {
     const providerId = providerData?.id || providerData?.companyId || (response as any)?.id || response?.data?.id;
     if (!token) throw new Error('Login failed: No token received from server.');
     await authServiceInstance.setAuthToken(token);
-    if (__DEV__) {
-      // Temporary debug logs for integration testing
-      // eslint-disable-next-line no-console
-      console.log('🔐 [provider login] token stored');
-    }
     let finalProviderId: number | undefined = undefined;
     if (providerId) {
       finalProviderId = typeof providerId === 'number' ? providerId : parseInt(providerId.toString(), 10);
@@ -307,14 +302,6 @@ const providerService = {
   markWorkComplete: async (requestId: number): Promise<{ requestId: number; status: string; message?: string }> => {
     const response = await apiClient.post<any>(`/api/provider/requests/${requestId}/complete`, {});
     const data = (response as any)?.data?.data ?? (response as any)?.data ?? (response as any)?.data;
-    if (__DEV__) {
-      // eslint-disable-next-line no-console
-      console.log('✅ [provider.markWorkComplete] response', {
-        requestId,
-        rawStatus: data?.status,
-        mappedStatus: data?.status ?? 'reviewing',
-      });
-    }
     return {
       requestId,
       status: data?.status ?? 'reviewing',

@@ -24,6 +24,8 @@ export default {
       infoPlist: {
         NSCameraUsageDescription: 'This app needs access to camera to take profile photos.',
         NSPhotoLibraryUsageDescription: 'This app needs access to photo library to select profile photos.',
+        NSMicrophoneUsageDescription:
+          'GHands uses the microphone for in-app voice calls with your service provider or client.',
         NSAllowsArbitraryLoads: true,
       },
       usesAppleSignIn: false,
@@ -43,6 +45,8 @@ export default {
         'android.permission.WRITE_EXTERNAL_STORAGE',
         'android.permission.POST_NOTIFICATIONS',
         'android.permission.VIBRATE',
+        'android.permission.RECORD_AUDIO',
+        'android.permission.MODIFY_AUDIO_SETTINGS',
       ],
       config: {
         googleMaps: {

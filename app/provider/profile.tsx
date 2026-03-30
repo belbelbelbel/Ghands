@@ -1,5 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Spacing, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { BorderRadius, Colors, Spacing, useIsTablet, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { useAuthRole } from '@/hooks/useAuth';
 import { haptics } from '@/hooks/useHaptics';
 import { AuthError } from '@/utils/errors';
@@ -24,8 +24,16 @@ import {
   FileText,
 } from 'lucide-react-native';
 import React, { useState, useCallback, useEffect } from 'react';
-import { Dimensions, ActivityIndicator } from 'react-native';
-import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { providerService, Provider, serviceRequestService, ServiceCategory, ProviderQuotationListItem, authService, walletService } from '@/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shareReferral } from '@/utils/referral';
@@ -64,6 +72,18 @@ export default function ProviderProfileScreen() {
   const [monthlyEarnings, setMonthlyEarnings] = useState<number>(0);
   const [lastMonthEarnings, setLastMonthEarnings] = useState<number>(0);
   const [isLoadingMonthlyEarnings, setIsLoadingMonthlyEarnings] = useState(false);
+
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const isTabletLayout = useIsTablet();
+  const insightsPaddingV = isTabletLayout
+    ? Math.max(17, Math.round(windowHeight * 0.02))
+    : 17;
+  const insightsPaddingH = isTabletLayout
+    ? Math.max(18, Math.round(windowWidth * 0.04))
+    : 18;
+  const insightsAmountFontSize = isTabletLayout
+    ? Math.min(40, Math.max(30, Math.round(windowHeight * 0.038)))
+    : Math.min(32, windowWidth * 0.08);
 
   const formatNaira = (value: number) => {
     return value.toLocaleString('en-NG', {
@@ -1205,7 +1225,8 @@ export default function ProviderProfileScreen() {
               style={{
                 backgroundColor: Colors.accent,
                 borderRadius: BorderRadius.xl,
-                padding: 20,
+                paddingVertical: insightsPaddingV,
+                paddingHorizontal: insightsPaddingH,
                 position: 'relative',
                 overflow: 'hidden',
               }}
@@ -1225,20 +1246,21 @@ export default function ProviderProfileScreen() {
                   fontSize: 13,
                   fontFamily: 'Poppins-Regular',
                   color: Colors.white,
-                  marginBottom: 8,
+                  marginBottom: 10,
                 }}
               >
                 Total Earnings This Month
               </Text>
               {isLoadingMonthlyEarnings ? (
-                <ActivityIndicator size="small" color={Colors.white} style={{ marginBottom: 4 }} />
+                <ActivityIndicator size="small" color={Colors.white} style={{ marginBottom: 6 }} />
               ) : (
                 <Text
                   style={{
-                    fontSize: Math.min(32, Dimensions.get('window').width * 0.08),
+                    fontSize: insightsAmountFontSize,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.white,
-                    marginBottom: 4,
+                    marginBottom: 8,
+                    lineHeight: insightsAmountFontSize * 1.08,
                   }}
                 >
                   ₦{formatNaira(monthlyEarnings)}

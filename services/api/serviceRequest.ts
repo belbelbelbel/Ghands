@@ -1,3 +1,7 @@
+import { logRatingDebug, logRatingError } from '@/utils/ratingDebugLog';
+import { serializeCallApiError } from '@/utils/callDebugLog';
+import { isAlreadyReviewedApiError } from '@/utils/reviewSync';
+
 import { AuthError } from '../../utils/errors';
 import { apiClient, extractResponseData } from './client';
 import type {
@@ -235,12 +239,39 @@ export const serviceRequestService = {
     requestId: number,
     payload: { rating: number; comment?: string }
   ): Promise<any> => {
-    const response = await apiClient.post<any>(
-      `/api/request-service/requests/${requestId}/review`,
-      payload
-    );
-    // Most endpoints return `{ data: ... }` but keep it flexible.
-    const data = extractResponseData<any>(response);
-    return data ?? (response as any)?.data ?? response;
+    const path = `/api/request-service/requests/${requestId}/review`;
+    logRatingDebug('reviewProvider: POST', {
+      path,
+      requestId,
+      rating: payload.rating,
+      hasComment: !!payload.comment,
+      commentLength: payload.comment?.length ?? 0,
+    });
+    try {
+      const response = await apiClient.post<any>(path, payload);
+      if (__DEV__) {
+        const topKeys =
+          response && typeof response === 'object' ? Object.keys(response as object) : typeof response;
+        logRatingDebug('reviewProvider: response ok', { requestId, topLevelKeys: topKeys });
+      }
+      const data = extractResponseData<any>(response);
+      const out = data ?? (response as any)?.data ?? response;
+      logRatingDebug('reviewProvider: parsed body', {
+        requestId,
+        hasData: out != null,
+      });
+      return out;
+    } catch (err) {
+      if (isAlreadyReviewedApiError(err)) {
+        logRatingDebug('reviewProvider: already reviewed (duplicate)', { requestId, path });
+      } else {
+        logRatingError('reviewProvider: failed', {
+          requestId,
+          path,
+          ...serializeCallApiError(err),
+        });
+      }
+      throw err;
+    }
   },
 };

@@ -3,7 +3,6 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import TabletRootFrame from '@/components/TabletRootFrame';
@@ -18,7 +17,20 @@ import { AuthError } from '@/utils/errors';
 import { handleTokenExpiration } from '@/utils/tokenExpirationHandler';
 import { authService } from '@/services/authService';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { UserLocationProvider } from '@/hooks/useUserLocation';
 import * as Notifications from 'expo-notifications';
+import { Platform, StatusBar } from 'react-native';
+
+if (Platform.OS === 'ios' || Platform.OS === 'android') {
+  try {
+    // WebRTC native module — must not load on web (module throws if NativeModules.WebRTC is null)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('react-native-webrtc').registerGlobals();
+  } catch {
+    /* optional: old Expo Go without native webrtc */
+  }
+}
 
 // ErrorUtils is a global in React Native, not exported from react-native
 declare const ErrorUtils: {
@@ -30,6 +42,8 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const router = useRouter();
+  /** JWT `exp` reached → clear session and go to login (same as 401 handling) */
+  useSessionTimeout(router);
   const { notification } = useNotifications();
   
   const [fontsLoaded] = useFonts({
@@ -48,7 +62,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded) {
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {
+        /* iOS: avoid unhandled rejection if native splash wasn't registered */
+      });
     }
   }, [fontsLoaded]);
 
@@ -56,7 +72,9 @@ export default function RootLayout() {
     const configureAndroidNav = async () => {
       try {
         await NavigationBar.setBackgroundColorAsync('#000000');
-        await NavigationBar.setButtonStyleAsync('light');
+        if (Platform.OS === 'android') {
+          await NavigationBar.setButtonStyleAsync('light');
+        }
       } catch (error) {
         console.warn('Navigation bar config failed', error);
         crashReporting.captureException(error as Error, { context: 'android_nav_config' });
@@ -191,6 +209,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ErrorBoundary>
           <QueryProvider>
+            <UserLocationProvider>
             <AuthErrorBoundary router={router}>
               <StatusBar barStyle="dark-content" backgroundColor="white" translucent={false} />
               <TabletRootFrame>
@@ -279,6 +298,7 @@ export default function RootLayout() {
                 </Stack>
               </TabletRootFrame>
             </AuthErrorBoundary>
+            </UserLocationProvider>
           </QueryProvider>
         </ErrorBoundary>
       </SafeAreaProvider>

@@ -7,7 +7,7 @@ import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { BorderRadius, Colors, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { BorderRadius, Colors, useIsTablet, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { AvailableRequest, ServiceRequest, authService, providerService, serviceRequestService, walletService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
@@ -17,9 +17,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { shareReferral } from '@/utils/referral';
-import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, TrendingUp, Users } from 'lucide-react-native';
+import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, TrendingDown, TrendingUp, Users } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { formatTimeAgo as formatTimeAgoUtil } from '@/utils/dateFormatting';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -33,6 +33,53 @@ const formatNaira = (amount: number | null | undefined): string => {
     maximumFractionDigits: 2,
   })}`;
 };
+
+function txDate(tx: { createdAt?: string; updatedAt?: string; timestamp?: string }): Date | null {
+  const ts = tx.createdAt || tx.updatedAt || tx.timestamp;
+  if (!ts) return null;
+  const d = new Date(ts);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function isCompletedCredit(tx: any): boolean {
+  if (!tx || tx.status !== 'completed') return false;
+  const rawAmount = Number(tx.amount ?? 0);
+  return isFinite(rawAmount) && rawAmount > 0;
+}
+
+function sumCompletedCreditsInRange(transactions: any[], rangeStart: Date, rangeEndExclusive: Date): number {
+  return transactions
+    .filter((tx) => {
+      if (!isCompletedCredit(tx)) return false;
+      const d = txDate(tx);
+      if (!d) return false;
+      return d >= rangeStart && d < rangeEndExclusive;
+    })
+    .reduce((sum, tx) => sum + Number(tx.amount ?? 0), 0);
+}
+
+/** Month-over-month label + trend for the earnings card (from real wallet credits). */
+function earningsVsLastMonthFromTotals(
+  thisMonth: number,
+  lastMonth: number
+): { label: string; trend: 'up' | 'down' | 'flat' } {
+  if (lastMonth <= 0 && thisMonth <= 0) {
+    return { label: '0% vs last month', trend: 'flat' };
+  }
+  if (lastMonth <= 0 && thisMonth > 0) {
+    return { label: 'New earnings vs ₦0.00 last month', trend: 'up' };
+  }
+  const pct = ((thisMonth - lastMonth) / lastMonth) * 100;
+  const rounded = Math.round(pct * 10) / 10;
+  if (rounded === 0) {
+    return { label: '0% vs last month', trend: 'flat' };
+  }
+  const sign = rounded > 0 ? '+' : '';
+  return {
+    label: `${sign}${rounded}% vs last month`,
+    trend: rounded > 0 ? 'up' : 'down',
+  };
+}
 
 interface JobCard {
   id: string;
@@ -107,6 +154,18 @@ export default function ProviderHomeScreen() {
   const { location, refreshLocation } = useUserLocation();
   const { toast, showError, showSuccess, hideToast } = useToast();
   const tabScrollTop = useTabScrollContentPaddingTop(17);
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const isTabletLayout = useIsTablet();
+  /** Compact card: padding scales slightly on tablet, no forced min-height */
+  const earningsPaddingV = isTabletLayout
+    ? Math.max(17, Math.round(windowHeight * 0.02))
+    : 17;
+  const earningsPaddingH = isTabletLayout
+    ? Math.max(18, Math.round(windowWidth * 0.04))
+    : 18;
+  const earningsAmountFontSize = isTabletLayout
+    ? Math.min(40, Math.max(32, Math.round(windowHeight * 0.038)))
+    : 34;
   const [isOnline, setIsOnline] = useState(true);
   const [hasActiveJobs, setHasActiveJobs] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -118,6 +177,10 @@ export default function ProviderHomeScreen() {
   const [providerName, setProviderName] = useState<string>('Guest');
   const [isScreenFocused, setIsScreenFocused] = useState(true);
   const [monthlyEarnings, setMonthlyEarnings] = useState<number | null>(null);
+  const [earningsVsLastMonth, setEarningsVsLastMonth] = useState<{
+    label: string;
+    trend: 'up' | 'down' | 'flat';
+  }>({ label: '…', trend: 'flat' });
   const activeJobsRef = useRef<JobCard[]>([]);
   const [acceptedJobModal, setAcceptedJobModal] = useState<{
     visible: boolean;
@@ -220,40 +283,28 @@ export default function ProviderHomeScreen() {
     }
   }, []);
 
-  // Load provider earnings for the current month (used in dashboard card)
+  // Load provider earnings for this month + automated % vs previous month (same rules as monthly total)
   const loadMonthlyEarnings = useCallback(async () => {
     try {
       const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-      // Fetch recent transactions – increase limit if needed as app scales
       const result = await walletService.getTransactions({ limit: 200, offset: 0 });
       const transactions = Array.isArray(result?.transactions) ? result.transactions : [];
 
-      const total = transactions
-        .filter((tx: any) => {
-          if (!tx) return false;
-          // Only completed credits count as earnings
-          if (tx.status !== 'completed') return false;
-          const rawAmount = Number(tx.amount ?? 0);
-          if (!isFinite(rawAmount) || rawAmount <= 0) return false;
+      const thisMonthTotal = sumCompletedCreditsInRange(transactions, thisMonthStart, nextMonthStart);
+      const lastMonthTotal = sumCompletedCreditsInRange(transactions, lastMonthStart, thisMonthStart);
 
-          const ts = tx.createdAt || tx.updatedAt || tx.timestamp;
-          if (!ts) return false;
-          const d = new Date(ts);
-          if (isNaN(d.getTime())) return false;
-
-          return d >= monthStart;
-        })
-        .reduce((sum: number, tx: any) => sum + Number(tx.amount ?? 0), 0);
-
-      setMonthlyEarnings(total);
+      setMonthlyEarnings(thisMonthTotal);
+      setEarningsVsLastMonth(earningsVsLastMonthFromTotals(thisMonthTotal, lastMonthTotal));
     } catch (error) {
       if (__DEV__) {
         console.error('Error loading monthly earnings:', error);
       }
-      // Fall back to 0 instead of stale value
       setMonthlyEarnings(0);
+      setEarningsVsLastMonth({ label: '— vs last month', trend: 'flat' });
     }
   }, []);
 
@@ -476,13 +527,12 @@ export default function ProviderHomeScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     haptics.light();
-    // Load accepted requests first to update the ref
+    await loadMonthlyEarnings();
     await loadAcceptedRequests();
-    // Then load available requests which will filter out accepted ones
     await loadAvailableRequests();
     setRefreshing(false);
     haptics.success();
-  }, [loadAvailableRequests, loadAcceptedRequests]); 
+  }, [loadAvailableRequests, loadAcceptedRequests, loadMonthlyEarnings]); 
 
   const renderJobCard = useCallback((job: JobCard, isActive: boolean) => (
     <View
@@ -784,89 +834,90 @@ export default function ProviderHomeScreen() {
           </View>
         </View>
 
-        {/* Insights Section - Full width, moved outside padded container */}
-        {hasActiveJobs ? (
-          <View style={{ marginBottom: 32 }}>
-            <View
+        {/* Earnings card — same green layout whether or not there are active jobs; amount is always real month-to-date */}
+        <View style={{ marginBottom: hasActiveJobs ? 32 : 24 }}>
+          <View
+            style={{
+              marginHorizontal: 16,
+              borderRadius: BorderRadius.md,
+              overflow: 'hidden',
+              shadowColor: Colors.accent,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 8,
+              elevation: 4,
+            }}
+          >
+            <LinearGradient
+              colors={['#8BC34A', Colors.accent]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={{
-                marginHorizontal: 16,
-                borderRadius: BorderRadius.md,
-                overflow: 'hidden',
-                shadowColor: Colors.accent,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.2,
-                shadowRadius: 8,
-                elevation: 4,
+                paddingVertical: earningsPaddingV,
+                paddingHorizontal: earningsPaddingH,
               }}
             >
-              <LinearGradient
-                colors={['#8BC34A', Colors.accent]} // Lighter green to darker green
-                start={{ x: 0, y: 0 }} // Start from left
-                end={{ x: 1, y: 0 }} // End at right (horizontal gradient)
+              <View
                 style={{
-                  padding: 20,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 10,
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <Text style={{ fontSize: 14, fontFamily: 'Poppins-Regular', color: Colors.black }}>
-                    Total Earnings This Month
-                  </Text>
-                  <TouchableOpacity 
-                    onPress={() => router.push('/AnalyticsScreen' as any)} 
-                    activeOpacity={0.7}
-                    style={{ flexDirection: 'row', alignItems: 'center' }}
-                  >
-                    <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: 2 }}>
-                      View full analytics
-                    </Text>
-                    <ArrowRight size={12} color={Colors.white} />
-                  </TouchableOpacity>
-                </View>
-                <Text style={{ fontSize: 36, fontFamily: 'Poppins-Bold', color: Colors.black, marginBottom: 8 }}>
-                  {formatNaira(monthlyEarnings)}
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.black,
+                    flex: 1,
+                    marginRight: 8,
+                  }}
+                >
+                  Total Earnings This Month
                 </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <TrendingUp size={14} color={Colors.black} style={{ marginRight: 4 }} />
-                  <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.black }}>
-                    +12.5% vs last month
+                <TouchableOpacity
+                  onPress={() => router.push('/AnalyticsScreen' as any)}
+                  activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}
+                >
+                  <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: 2 }}>
+                    View full analytics
                   </Text>
-                </View>
-              </LinearGradient>
-            </View>
-          </View>
-        ) : (
-          <View style={{ marginBottom: 24 }}>
-            <View
-              style={{
-                marginHorizontal: 16,
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                borderWidth: 2,
-                borderColor: Colors.border,
-                borderStyle: 'dashed',
-                padding: 32,
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 6 }}>
-                No insights yet
-              </Text>
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 16 }}>
-                Once you start getting jobs, you'll see insights here.
-              </Text>
-              <TouchableOpacity
+                  <ArrowRight size={12} color={Colors.white} />
+                </TouchableOpacity>
+              </View>
+              <Text
                 style={{
-                  backgroundColor: Colors.black,
-                  paddingVertical: 10,
-                  paddingHorizontal: 20,
-                  borderRadius: BorderRadius.default,
+                  fontSize: earningsAmountFontSize,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.black,
+                  marginBottom: 8,
+                  lineHeight: earningsAmountFontSize * 1.08,
                 }}
               >
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>Learn more</Text>
-              </TouchableOpacity>
-            </View>
+                {formatNaira(monthlyEarnings)}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                {earningsVsLastMonth.trend === 'down' ? (
+                  <TrendingDown size={14} color={Colors.black} style={{ marginRight: 4 }} />
+                ) : (
+                  <TrendingUp size={14} color={Colors.black} style={{ marginRight: 4 }} />
+                )}
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.black,
+                    flex: 1,
+                  }}
+                >
+                  {earningsVsLastMonth.label}
+                </Text>
+              </View>
+            </LinearGradient>
           </View>
-        )}
+        </View>
 
         <View style={{ paddingHorizontal: 16 }}>
 

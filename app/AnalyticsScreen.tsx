@@ -1,14 +1,12 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { walletService, providerService } from '@/services/api';
-import { Colors, BorderRadius, Spacing } from '@/lib/designSystem';
+import { Colors, BorderRadius, Spacing, useIsTablet, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { PHONE_LANE_MAX_WIDTH } from '@/lib/tabletLayout';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, ArrowUp, Bell, CheckCircle, Info, Star, ThumbsUp, Wallet } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Dimensions, ScrollView, Text, TouchableOpacity, View, Image, ActivityIndicator } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View, Image, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { Button } from '@/components/ui/Button';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const scale = SCREEN_WIDTH < 375 ? 0.85 : SCREEN_WIDTH < 414 ? 0.92 : 1.0;
 
 interface Review {
   id: string;
@@ -21,6 +19,16 @@ interface Review {
 
 export default function AnalyticsScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isTabletLayout = useIsTablet();
+  const headerTopPad = useTabScrollContentPaddingTop(16);
+  const scrollContentTopPad = useTabScrollContentPaddingTop(24);
+  /** Match typography to phone-lane width on tablets (full window is wider than the lane). */
+  const layoutWidth = isTabletLayout ? Math.min(windowWidth, PHONE_LANE_MAX_WIDTH) : windowWidth;
+  const scale = useMemo(
+    () => (layoutWidth < 375 ? 0.85 : layoutWidth < 414 ? 0.92 : 1.0),
+    [layoutWidth]
+  );
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -119,7 +127,7 @@ export default function AnalyticsScreen() {
   );
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.white}>
+    <SafeAreaWrapper backgroundColor={Colors.white} tabletShellTop>
       <View style={{ flex: 1 }}>
         {/* Header */}
         <View
@@ -127,7 +135,7 @@ export default function AnalyticsScreen() {
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 20,
-            paddingTop: 16,
+            paddingTop: headerTopPad,
             paddingBottom: 12,
             backgroundColor: Colors.white,
           }}
@@ -185,7 +193,7 @@ export default function AnalyticsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 24,
+            paddingTop: scrollContentTopPad,
             paddingBottom: 100,
           }}
         >

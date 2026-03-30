@@ -33,6 +33,8 @@ export default function TabletRootFrame({ children }: Props) {
         backgroundColor: Colors.tabletBackdrop,
         paddingTop: insets.top,
         paddingBottom: insets.bottom,
+        // Side breathing room on large tablets + respect landscape safe areas
+        paddingHorizontal: 16 + Math.max(insets.left, insets.right),
       }}
     >
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

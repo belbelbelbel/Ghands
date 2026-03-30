@@ -48,28 +48,58 @@ export function estimateTravelTime(distanceKm: number, mode: 'driving' | 'walkin
 }
 
 /**
- * Format distance for display
+ * Format distance for display (meters under 1 km, otherwise km with up to one decimal).
  */
 export function formatDistance(distanceKm: number): string {
-  if (distanceKm < 1) {
-    return `${Math.round(distanceKm * 1000)}m`;
+  if (!Number.isFinite(distanceKm) || distanceKm < 0) {
+    return '—';
   }
-  return `${distanceKm}km`;
+  if (distanceKm < 1) {
+    const m = Math.max(0, Math.round(distanceKm * 1000));
+    return `${m} m`;
+  }
+  const rounded = Math.round(distanceKm * 10) / 10;
+  const s = rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1);
+  return `${s} km`;
 }
 
 /**
- * Format travel time for display
+ * Format travel time for display (minutes rounded; hours when ≥ 60 min).
  */
-export function formatTravelTime(minutes: number): string {
-  if (minutes < 60) {
-    return `~${minutes} min`;
+export function formatTravelTime(minutes: number | null | undefined): string {
+  if (minutes == null || !Number.isFinite(minutes) || minutes < 0) {
+    return '—';
   }
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+  const total = Math.max(0, Math.round(minutes));
+  if (total < 60) {
+    return total <= 0 ? '< 1 min' : `~${total} min`;
+  }
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
   if (mins === 0) {
     return `~${hours} ${hours === 1 ? 'hour' : 'hours'}`;
   }
   return `~${hours}h ${mins}m`;
+}
+
+/**
+ * One line for job / provider cards: distance (with unit conversion) and ETA, e.g. "250 m away • ~5 min".
+ */
+export function formatProviderProximitySubtitle(
+  distanceKm?: number | null,
+  minutesAway?: number | null
+): string | null {
+  const parts: string[] = [];
+  if (distanceKm != null && Number.isFinite(distanceKm) && distanceKm >= 0) {
+    parts.push(`${formatDistance(distanceKm)} away`);
+  }
+  if (minutesAway != null && Number.isFinite(minutesAway) && minutesAway >= 0) {
+    const timeLabel = formatTravelTime(minutesAway);
+    if (timeLabel !== '—') {
+      parts.push(timeLabel);
+    }
+  }
+  return parts.length > 0 ? parts.join(' • ') : null;
 }
 
 /**

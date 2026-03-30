@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, Text, TouchableOpacity, View } from 'react-native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { Animated, Text, TouchableOpacity, View } from 'react-native';
+import { useNarrowOverlayMaxWidth } from '@/lib/tabletLayout';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -42,6 +41,7 @@ const TOAST_CONFIG = {
 };
 
 export default function Toast({ message, type = 'info', duration = 3000, onClose, visible }: ToastProps) {
+  const toastMaxWidth = useNarrowOverlayMaxWidth(32);
   // Ensure onClose is always a function
   const safeOnClose = onClose || (() => {});
   const slideAnim = useRef(new Animated.Value(-100)).current;
@@ -113,7 +113,9 @@ export default function Toast({ message, type = 'info', duration = 3000, onClose
           className="rounded-2xl px-4 py-4 flex-row items-center shadow-lg"
           style={{
             backgroundColor: config.bgColor,
-            maxWidth: SCREEN_WIDTH - 32,
+            maxWidth: toastMaxWidth,
+            alignSelf: 'center',
+            width: '100%',
           }}
         >
           <Ionicons name={config.icon} size={24} color={config.iconColor} />
@@ -123,6 +125,7 @@ export default function Toast({ message, type = 'info', duration = 3000, onClose
               fontFamily: 'Poppins-Medium',
               color: config.textColor,
             }}
+            maxFontSizeMultiplier={1.35}
           >
             {message}
           </Text>

@@ -8,7 +8,9 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   Text,
   TextInput,
   TouchableOpacity,
@@ -18,8 +20,73 @@ import {
 } from 'react-native';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
-import { providerService, communicationService, authService, Message as ApiMessage } from '@/services/api';
+import {
+  providerService,
+  communicationService,
+  authService,
+  serviceRequestService,
+  Message as ApiMessage,
+} from '@/services/api';
+import { logCallDebug } from '@/utils/callDebugLog';
+import { logChatDebug } from '@/utils/chatDebugLog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+type DirectionHint = 'outgoing' | 'incoming' | null;
+
+/**
+ * Pull sender id from common API shapes (flat + nested). List endpoint often omits top-level senderId.
+ */
+function extractSenderFieldsFromApiMessage(m: Record<string, unknown>): {
+  senderIdRaw: unknown;
+  senderIdNum: number;
+  directionFromApi: DirectionHint;
+} {
+  const raw = m as Record<string, unknown>;
+  const candidates: unknown[] = [
+    raw.senderId,
+    raw.sender_id,
+    raw.senderUserId,
+    raw.fromUserId,
+    raw.authorId,
+    typeof raw.sender === 'object' && raw.sender !== null
+      ? (raw.sender as Record<string, unknown>).id
+      : undefined,
+    typeof raw.sender === 'object' && raw.sender !== null
+      ? (raw.sender as Record<string, unknown>).userId
+      : undefined,
+    typeof raw.user === 'object' && raw.user !== null ? (raw.user as Record<string, unknown>).id : undefined,
+    typeof raw.from === 'object' && raw.from !== null ? (raw.from as Record<string, unknown>).id : undefined,
+    typeof raw.createdBy === 'object' && raw.createdBy !== null
+      ? (raw.createdBy as Record<string, unknown>).id
+      : undefined,
+    raw.createdById,
+  ];
+
+  let senderIdRaw: unknown = null;
+  let senderIdNum = NaN;
+  for (const c of candidates) {
+    if (c != null && c !== '') {
+      const n = Number(c);
+      if (!Number.isNaN(n)) {
+        senderIdRaw = c;
+        senderIdNum = n;
+        break;
+      }
+    }
+  }
+
+  let directionFromApi: DirectionHint = null;
+  const dir = raw.direction ?? raw.messageDirection;
+  if (typeof dir === 'string') {
+    const d = dir.toLowerCase();
+    if (d === 'outgoing' || d === 'outbound' || d === 'sent') directionFromApi = 'outgoing';
+    else if (d === 'incoming' || d === 'inbound' || d === 'received') directionFromApi = 'incoming';
+  }
+  if (raw.isOutgoing === true) directionFromApi = 'outgoing';
+  if (raw.isIncoming === true) directionFromApi = 'incoming';
+
+  return { senderIdRaw, senderIdNum, directionFromApi };
+}
 
 /**
  * UI Message interface - adapted from API message for display
@@ -57,7 +124,7 @@ interface UIMessage {
  */
 export default function ChatScreen() {
   const router = useRouter();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const params = useLocalSearchParams<{ 
     providerName?: string; 
     providerId?: string; 
@@ -84,6 +151,9 @@ export default function ChatScreen() {
   const [isSyncDegraded, setIsSyncDegraded] = useState(false);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [deletedMessageIds, setDeletedMessageIds] = useState<string[]>([]);
+  /** When route has no providerId (e.g. opened from notification), filled from request details */
+  const [resolvedProviderId, setResolvedProviderId] = useState<number | null>(null);
+  const [chatMenuOpen, setChatMenuOpen] = useState(false);
 
   // Refs
   const flatListRef = useRef<FlatList>(null);
@@ -97,6 +167,10 @@ export default function ChatScreen() {
   const chatCacheKey = isValidRequestId ? `@ghands:chat_messages:${requestId}` : null;
   const deletedIdsKey = isValidRequestId ? `@ghands:chat_deleted_ids:${requestId}` : null;
   const providerIdNum = params.providerId ? Number(params.providerId) : null;
+
+  useEffect(() => {
+    setResolvedProviderId(null);
+  }, [requestId, params.providerId]);
 
   const loadCachedMessages = useCallback(async (): Promise<UIMessage[] | null> => {
     if (!chatCacheKey) return null;
@@ -167,49 +241,104 @@ export default function ChatScreen() {
   /**
    * Convert API message to UI message format
    * Standard layout: my messages = right, received = left
+   *
+   * Ownership must use senderId vs known party ids — backend often omits/wrong senderType,
+   * which previously marked all bubbles as "provider" (left) after refresh.
    */
   const mapApiMessageToUI = useCallback(
-    (apiMessage: ApiMessage, currentUserId: number | null): UIMessage => {
-      // Normalize sender type coming from backend: could be 'user', 'client', 'customer', 'provider'
+    (
+      apiMessage: ApiMessage,
+      currentUserId: number | null,
+      peerProviderOverride?: number | null
+    ): UIMessage => {
       const rawSenderType = ((apiMessage as any).senderType || (apiMessage as any).sender_type || '')
         .toString()
         .toLowerCase();
-      const isFromClient =
-        rawSenderType === 'user' || rawSenderType === 'client' || rawSenderType === 'customer';
-      const sender: 'user' | 'provider' = isFromClient ? 'user' : 'provider';
 
-      const senderIdRaw = (apiMessage as any).senderId ?? (apiMessage as any).sender_id;
-      const senderIdNum = Number(senderIdRaw);
+      const ex = extractSenderFieldsFromApiMessage(apiMessage as unknown as Record<string, unknown>);
+      const senderIdRaw = ex.senderIdRaw;
+      const senderIdNum = ex.senderIdNum;
+      const directionFromApi = ex.directionFromApi;
       const currentUserIdNum = currentUserId != null ? Number(currentUserId) : null;
 
       const messageId = String((apiMessage as any).id ?? '');
 
-      // My messages go right:
-      // 1) strongest source: senderId matches current user/company id
-      // 2) if sender matches known providerId in client view, it is incoming
-      // 3) keep previous ownership for this message ID to avoid left/right flipping on refresh
-      // 4) fallback to senderType role mapping
+      const isFromClientType =
+        rawSenderType === 'user' || rawSenderType === 'client' || rawSenderType === 'customer';
+      const isFromProviderType =
+        rawSenderType === 'provider' || rawSenderType === 'company';
+
+      const peerProviderId =
+        peerProviderOverride !== undefined ? peerProviderOverride : providerIdNum ?? resolvedProviderId;
+
       let isFromCurrentUser = false;
+      let ownershipBranch:
+        | 'identity'
+        | 'peerProvider'
+        | 'direction'
+        | 'ownershipRef'
+        | 'senderTypeFallback' = 'senderTypeFallback';
+
+      // 1) Same id as logged-in party (user id or company id) — works when JWT/storage matches API
       if (
         currentUserIdNum !== null &&
-        Number.isFinite(currentUserIdNum) &&
         Number.isFinite(senderIdNum) &&
-        senderIdNum === currentUserIdNum
+        !Number.isNaN(senderIdNum)
       ) {
-        isFromCurrentUser = true;
-      } else if (
-        !isProviderView &&
-        providerIdNum !== null &&
-        Number.isFinite(providerIdNum) &&
-        Number.isFinite(senderIdNum) &&
-        senderIdNum === providerIdNum
-      ) {
-        isFromCurrentUser = false;
-      } else if (messageId && ownershipByMessageIdRef.current[messageId] !== undefined) {
-        isFromCurrentUser = ownershipByMessageIdRef.current[messageId];
-      } else {
-        isFromCurrentUser = isProviderView ? sender === 'provider' : sender === 'user';
+        isFromCurrentUser = senderIdNum === currentUserIdNum;
+        ownershipBranch = 'identity';
       }
+      // 2) Client app + we know provider id: only that id is the other party (handles missing/wrong senderType)
+      else if (
+        !isProviderView &&
+        peerProviderId !== null &&
+        Number.isFinite(peerProviderId) &&
+        Number.isFinite(senderIdNum) &&
+        !Number.isNaN(senderIdNum)
+      ) {
+        isFromCurrentUser = senderIdNum !== peerProviderId;
+        ownershipBranch = 'peerProvider';
+      }
+      // 3) API direction (outgoing = mine, incoming = theirs) when sender id is missing
+      else if (directionFromApi === 'outgoing') {
+        isFromCurrentUser = true;
+        ownershipBranch = 'direction';
+      } else if (directionFromApi === 'incoming') {
+        isFromCurrentUser = false;
+        ownershipBranch = 'direction';
+      }
+      // 4) Last known per message (optimistic send)
+      else if (messageId && ownershipByMessageIdRef.current[messageId] !== undefined) {
+        isFromCurrentUser = ownershipByMessageIdRef.current[messageId];
+        ownershipBranch = 'ownershipRef';
+      }
+      // 5) senderType only (often wrong/empty from API)
+      else {
+        isFromCurrentUser = isProviderView ? isFromProviderType : isFromClientType;
+        ownershipBranch = 'senderTypeFallback';
+      }
+
+      if (__DEV__) {
+        logChatDebug('message map', {
+          id: messageId,
+          senderIdRaw: senderIdRaw ?? null,
+          senderIdNum: Number.isNaN(senderIdNum) ? 'NaN' : senderIdNum,
+          senderType: rawSenderType || '(empty)',
+          directionFromApi: directionFromApi ?? '(none)',
+          currentUserId: currentUserIdNum,
+          peerProviderId: peerProviderId ?? null,
+          branch: ownershipBranch,
+          isFromCurrentUser,
+        });
+      }
+
+      const sender: 'user' | 'provider' = isProviderView
+        ? isFromCurrentUser
+          ? 'provider'
+          : 'user'
+        : isFromCurrentUser
+          ? 'user'
+          : 'provider';
 
       if (messageId) {
         ownershipByMessageIdRef.current[messageId] = isFromCurrentUser;
@@ -234,7 +363,7 @@ export default function ChatScreen() {
         isFromCurrentUser, // Store this for alignment logic
       };
     },
-    [formatTime, isProviderView, providerIdNum]
+    [formatTime, isProviderView, providerIdNum, resolvedProviderId]
   );
 
   /**
@@ -277,8 +406,59 @@ export default function ChatScreen() {
         }
       }
 
+      let peerProviderForThread: number | null = providerIdNum ?? resolvedProviderId;
+      if (!isProviderView && peerProviderForThread === null && requestId) {
+        try {
+          const details = await serviceRequestService.getRequestDetails(requestId);
+          const sp = details.selectedProvider?.id;
+          if (sp != null) {
+            peerProviderForThread = Number(sp);
+            setResolvedProviderId(peerProviderForThread);
+          }
+        } catch {
+          /* non-fatal — alignment falls back to senderType */
+        }
+      }
+
+      const uniqueSenderIds = Array.from(
+        new Set(
+          result.messages.map((m) => {
+            const ex = extractSenderFieldsFromApiMessage(m as unknown as Record<string, unknown>);
+            return ex.senderIdRaw != null && ex.senderIdRaw !== '' ? String(ex.senderIdRaw) : '—';
+          })
+        )
+      );
+      if (result.messages.length > 0) {
+        const s0 = result.messages[0] as unknown as Record<string, unknown>;
+        const ex0 = extractSenderFieldsFromApiMessage(s0);
+        logChatDebug('GET messages sample (first row)', {
+          endpoint: `GET /api/communication/requests/${requestId}/messages`,
+          topLevelKeys: Object.keys(s0),
+          extractedSenderId: ex0.senderIdRaw,
+          directionHint: ex0.directionFromApi,
+        });
+      }
+      logChatDebug('loadMessages context', {
+        requestId,
+        isProviderView,
+        routeProviderId: params.providerId ?? null,
+        currentUserOrCompanyId: userId,
+        peerProviderForThread: peerProviderForThread ?? null,
+        messageCount: result.messages.length,
+        uniqueSenderIdsInBatch: uniqueSenderIds,
+      });
+
       // Convert API messages to UI format
-      const uiMessages = result.messages.map((msg) => mapApiMessageToUI(msg, userId));
+      const uiMessages = result.messages.map((msg) =>
+        mapApiMessageToUI(msg, userId, peerProviderForThread)
+      );
+
+      const mineCount = uiMessages.filter((m) => m.isFromCurrentUser).length;
+      logChatDebug('loadMessages result', {
+        requestId,
+        mappedMine: mineCount,
+        mappedTheirs: uiMessages.length - mineCount,
+      });
 
       // Sort by timestamp (oldest first)
       uiMessages.sort((a, b) => 
@@ -330,6 +510,8 @@ export default function ChatScreen() {
     persistMessagesCache,
     isProviderView,
     deletedMessageIds,
+    resolvedProviderId,
+    providerIdNum,
   ]);
 
   useEffect(() => {
@@ -357,6 +539,37 @@ export default function ChatScreen() {
     },
     [deletedMessageIds, persistDeletedMessageIds]
   );
+
+  const openJobFromChatMenu = useCallback(() => {
+    setChatMenuOpen(false);
+    if (!requestId) return;
+    haptics.light();
+    if (isProviderView) {
+      router.push({
+        pathname: '/ProviderJobDetailsScreen',
+        params: { requestId: String(requestId) },
+      } as any);
+    } else {
+      router.push({
+        pathname: '/OngoingJobDetails',
+        params: { requestId: String(requestId) },
+      } as any);
+    }
+  }, [requestId, isProviderView, router]);
+
+  const clearChatCacheForThread = useCallback(async () => {
+    setChatMenuOpen(false);
+    if (!chatCacheKey) return;
+    haptics.light();
+    try {
+      await AsyncStorage.removeItem(chatCacheKey);
+      setMessages([]);
+      showSuccess('Local chat cache cleared');
+      await loadMessages(true);
+    } catch {
+      showError('Could not clear cache');
+    }
+  }, [chatCacheKey, loadMessages, showSuccess, showError]);
 
   /**
    * Mark messages as read
@@ -447,13 +660,45 @@ export default function ChatScreen() {
         type: 'text',
       });
 
-      // Replace optimistic message with real message
+      let actorId: number | null = stableCurrentUserIdRef.current;
+      if (actorId == null || Number.isNaN(actorId)) {
+        try {
+          const raw = isProviderView ? await authService.getCompanyId() : await authService.getUserId();
+          if (raw != null && !Number.isNaN(Number(raw))) {
+            actorId = Number(raw);
+            stableCurrentUserIdRef.current = actorId;
+            setCurrentUserId(actorId);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
+      let peerPid: number | null = providerIdNum ?? resolvedProviderId;
+      if (!isProviderView && peerPid === null && requestId) {
+        try {
+          const details = await serviceRequestService.getRequestDetails(requestId);
+          const sp = details.selectedProvider?.id;
+          if (sp != null) {
+            peerPid = Number(sp);
+            setResolvedProviderId(peerPid);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const mapped = mapApiMessageToUI(sentMessage as ApiMessage, actorId, peerPid);
+      const finalMsg: UIMessage = {
+        ...mapped,
+        isFromCurrentUser: true,
+        sender: isProviderView ? 'provider' : 'user',
+      };
+      ownershipByMessageIdRef.current[String(sentMessage.id)] = true;
+
+      // Replace optimistic message with server message — always show as "mine" (this device sent it)
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === optimisticMessage.id
-            ? mapApiMessageToUI(sentMessage as ApiMessage, currentUserId)
-            : msg
-        )
+        prev.map((msg) => (msg.id === optimisticMessage.id ? finalMsg : msg))
       );
 
       // Don't refresh here – backend may not include the new message yet, causing it to disappear.
@@ -474,7 +719,18 @@ export default function ChatScreen() {
     } finally {
       setIsSending(false);
     }
-  }, [message, isValidRequestId, isSending, isProviderView, formatTime, mapApiMessageToUI, currentUserId, requestId, showError]);
+  }, [
+    message,
+    isValidRequestId,
+    isSending,
+    isProviderView,
+    formatTime,
+    mapApiMessageToUI,
+    requestId,
+    showError,
+    providerIdNum,
+    resolvedProviderId,
+  ]);
 
   /**
    * Retry sending a failed message
@@ -490,11 +746,40 @@ export default function ChatScreen() {
           content: msg.text,
           type: 'text',
         });
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === msg.id ? mapApiMessageToUI(sentMessage as ApiMessage, currentUserId) : m
-          )
-        );
+        let actorId: number | null = stableCurrentUserIdRef.current;
+        if (actorId == null || Number.isNaN(actorId)) {
+          try {
+            const raw = isProviderView ? await authService.getCompanyId() : await authService.getUserId();
+            if (raw != null && !Number.isNaN(Number(raw))) {
+              actorId = Number(raw);
+              stableCurrentUserIdRef.current = actorId;
+              setCurrentUserId(actorId);
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+        let peerPid: number | null = providerIdNum ?? resolvedProviderId;
+        if (!isProviderView && peerPid === null && requestId) {
+          try {
+            const d = await serviceRequestService.getRequestDetails(requestId);
+            const sp = d.selectedProvider?.id;
+            if (sp != null) {
+              peerPid = Number(sp);
+              setResolvedProviderId(peerPid);
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+        const mapped = mapApiMessageToUI(sentMessage as ApiMessage, actorId, peerPid);
+        const finalMsg: UIMessage = {
+          ...mapped,
+          isFromCurrentUser: true,
+          sender: isProviderView ? 'provider' : 'user',
+        };
+        ownershipByMessageIdRef.current[String(sentMessage.id)] = true;
+        setMessages((prev) => prev.map((m) => (m.id === msg.id ? finalMsg : m)));
       } catch (error: any) {
         if (__DEV__) console.error('Error retrying message:', error);
         setMessages((prev) =>
@@ -505,7 +790,16 @@ export default function ChatScreen() {
         showError(isServerSide ? 'Message could not be sent. Please try again or contact support.' : 'Message failed to send. Tap to retry.');
       }
     },
-    [isValidRequestId, requestId, isSending, mapApiMessageToUI, currentUserId, showError]
+    [
+      isValidRequestId,
+      requestId,
+      isSending,
+      mapApiMessageToUI,
+      showError,
+      isProviderView,
+      providerIdNum,
+      resolvedProviderId,
+    ]
   );
 
   /**
@@ -825,6 +1119,12 @@ export default function ChatScreen() {
             <TouchableOpacity 
               onPress={() => {
                 haptics.light();
+                logCallDebug('ChatScreen: open CallScreen (outgoing)', {
+                  requestId: params.requestId,
+                  providerId: params.providerId,
+                  isProviderView,
+                  calleeLabel: isProviderView ? clientName : providerName,
+                });
                 router.push({
                   pathname: '/CallScreen',
                   params: {
@@ -858,7 +1158,7 @@ export default function ChatScreen() {
           <TouchableOpacity 
             onPress={() => {
               haptics.light();
-                // More options
+              setChatMenuOpen(true);
             }} 
             activeOpacity={0.7}
               style={{
@@ -1086,6 +1386,95 @@ export default function ChatScreen() {
             )}
           </View>
         </View>
+
+        <Modal
+          visible={chatMenuOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setChatMenuOpen(false)}
+        >
+          <Pressable
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.45)',
+              justifyContent: 'flex-end',
+            }}
+            onPress={() => setChatMenuOpen(false)}
+          >
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: Colors.white,
+                borderTopLeftRadius: BorderRadius.xl,
+                borderTopRightRadius: BorderRadius.xl,
+                paddingBottom: Spacing.xxl,
+                paddingTop: Spacing.md,
+                ...SHADOWS.md,
+              }}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: Colors.border,
+                  alignSelf: 'center',
+                  marginBottom: Spacing.lg,
+                }}
+              />
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.textPrimary,
+                  paddingHorizontal: Spacing.lg,
+                  marginBottom: Spacing.md,
+                }}
+              >
+                Chat options
+              </Text>
+              <TouchableOpacity
+                onPress={openJobFromChatMenu}
+                style={{
+                  paddingVertical: Spacing.md,
+                  paddingHorizontal: Spacing.lg,
+                }}
+              >
+                <Text style={{ fontSize: 16, fontFamily: 'Poppins-Medium', color: Colors.textPrimary }}>
+                  View job details
+                </Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 4 }}>
+                  Open the full request timeline for this chat
+                </Text>
+              </TouchableOpacity>
+              <View style={{ height: 1, backgroundColor: Colors.border, marginVertical: Spacing.sm }} />
+              <TouchableOpacity
+                onPress={clearChatCacheForThread}
+                style={{
+                  paddingVertical: Spacing.md,
+                  paddingHorizontal: Spacing.lg,
+                }}
+              >
+                <Text style={{ fontSize: 16, fontFamily: 'Poppins-Medium', color: Colors.textPrimary }}>
+                  Clear local chat cache
+                </Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 4 }}>
+                  Removes saved messages on this device only; they reload from the server
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setChatMenuOpen(false)}
+                style={{
+                  marginTop: Spacing.md,
+                  paddingVertical: Spacing.md,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>Close</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaWrapper>
   );

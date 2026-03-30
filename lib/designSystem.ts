@@ -13,6 +13,8 @@ export {
   PHONE_LANE_OUTER_TOP,
   TAB_SCROLL_TOP,
   useIsTablet,
+  useIsCompactPhone,
+  useNarrowOverlayMaxWidth,
   useTabScrollContentPaddingTop,
 } from './tabletLayout';
 export const Spacing = DESIGN_TOKENS.spacing;

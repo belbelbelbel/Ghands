@@ -11,7 +11,9 @@ import {
   Platform,
 } from 'react-native';
 import { haptics } from '@/hooks/useHaptics';
+import { useVoiceCallWebRtc } from '@/hooks/useVoiceCallWebRtc';
 import { communicationService } from '@/services/api';
+import { logCallDebug, logCallError, logCallWarn, serializeCallApiError } from '@/utils/callDebugLog';
 
 export type CallState = 'incoming' | 'outgoing' | 'active' | 'ended';
 
@@ -56,7 +58,9 @@ export default function CallScreen() {
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [isProvider] = useState(params.isProvider === 'true');
-  
+
+  const voice = useVoiceCallWebRtc();
+
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const requestIdNum = params.requestId ? parseInt(params.requestId, 10) : null;
   const hasRequestId = requestIdNum !== null && !isNaN(requestIdNum);
@@ -74,6 +78,18 @@ export default function CallScreen() {
 
   const callerName = params.callerName || (isProvider ? 'JohnDoe Akpan' : 'AquaFix Solutions');
   const callerImage = params.callerImage;
+
+  useEffect(() => {
+    logCallDebug('CallScreen mounted', {
+      callState: initialCallState,
+      requestIdParam: params.requestId,
+      requestIdParsed: requestIdNum,
+      hasRequestId,
+      isProvider: params.isProvider,
+      callerName: params.callerName,
+      callerId: params.callerId,
+    });
+  }, []);
 
   // Format call duration (HH:MM:SS)
   const formatDuration = (seconds: number): string => {
@@ -106,39 +122,79 @@ export default function CallScreen() {
   // Initiate call via API when outgoing and we have requestId
   useEffect(() => {
     if (callState === 'outgoing' && hasRequestId && !callId) {
+      logCallDebug('CallScreen: auto initiate branch', { callState, requestId: requestIdNum });
       setIsCreatingCall(true);
       setCallSetupError(null);
       communicationService
         .initiateCall(requestIdNum!)
-        .then(({ callId: id, callReference: ref }) => {
+        .then(async ({ callId: id, callReference: ref }) => {
           setCallId(id || null);
           setCallReference(ref || null);
-          // Mark call as ringing once call record exists
+          logCallDebug('CallScreen: initiateCall state updated', { localCallId: id || null, callReference: ref || null });
           if (id) {
-            communicationService.updateCallStatus(id, 'ringing').catch(() => {});
+            try {
+              await communicationService.updateCallStatus(id, 'ringing');
+              logCallDebug('CallScreen: initial ringing status sent', { callId: id });
+            } catch (ringErr) {
+              logCallWarn('CallScreen: updateCallStatus(ringing) failed after create', {
+                callId: id,
+                ...serializeCallApiError(ringErr),
+              });
+            }
+          } else {
+            logCallWarn('CallScreen: skipping ringing PATCH — no callId from API', { requestId: requestIdNum });
           }
         })
-        .catch(() => {
-          setCallSetupError('Could not start call. Please try again.');
-          if (__DEV__) console.warn('Could not initiate call via API');
+        .catch((err) => {
+          const serialized = serializeCallApiError(err);
+          logCallError('CallScreen: initiateCall failed', { requestId: requestIdNum, ...serialized });
+          const msg = typeof serialized.message === 'string' ? serialized.message : 'Could not start call. Please try again.';
+          setCallSetupError(msg.length > 160 ? `${msg.slice(0, 160)}…` : msg);
         })
         .finally(() => {
           setIsCreatingCall(false);
         });
     }
+    if (callState === 'outgoing' && !hasRequestId) {
+      logCallWarn('CallScreen: outgoing but missing/invalid requestId — API will not run', {
+        requestIdParam: params.requestId,
+        requestIdParsed: requestIdNum,
+      });
+    }
   }, [callState, hasRequestId, requestIdNum, callId]);
 
+  // In-app WebRTC voice when we have a call reference (native dev / release builds)
+  useEffect(() => {
+    if (!callReference || callState === 'ended') {
+      voice.stop();
+      return;
+    }
+    if (callState === 'outgoing' || callState === 'active') {
+      voice.start(callReference);
+    }
+    return () => {
+      voice.stop();
+    };
+  }, [callReference, callState, voice.start, voice.stop]);
+
+  useEffect(() => {
+    voice.setMuted(isMuted);
+  }, [isMuted, voice.setMuted]);
+
   const updateStatus = useCallback(async (status: string) => {
-    if (callId) {
-      try {
-        await communicationService.updateCallStatus(callId, status);
-      } catch {
-        if (__DEV__) console.warn('Could not update call status');
-      }
+    if (!callId) {
+      logCallWarn('updateCallStatus skipped: no callId on device yet', { status });
+      return;
+    }
+    try {
+      await communicationService.updateCallStatus(callId, status);
+    } catch (err) {
+      logCallError('CallScreen: updateCallStatus error', { callId, status, ...serializeCallApiError(err) });
     }
   }, [callId]);
 
   const handleAcceptCall = () => {
+    logCallDebug('CallScreen: user accepted (incoming → active)', { callId, priorState: callState });
     haptics.success();
     updateStatus('connected');
     setCallState('active');
@@ -146,7 +202,9 @@ export default function CallScreen() {
   };
 
   const handleDeclineCall = () => {
+    logCallDebug('CallScreen: user declined', { callId, priorState: callState });
     haptics.error();
+    voice.stop();
     updateStatus('ended');
     setCallState('ended');
     if (durationIntervalRef.current) {
@@ -155,7 +213,9 @@ export default function CallScreen() {
   };
 
   const handleEndCall = () => {
+    logCallDebug('CallScreen: user ended call', { callId, priorState: callState });
     haptics.error();
+    voice.stop();
     updateStatus('ended');
     setCallState('ended');
     if (durationIntervalRef.current) {
@@ -165,7 +225,7 @@ export default function CallScreen() {
 
   const handleToggleMute = () => {
     haptics.light();
-    setIsMuted(!isMuted);
+    setIsMuted((prev) => !prev);
   };
 
   const handleToggleSpeaker = () => {
@@ -174,7 +234,9 @@ export default function CallScreen() {
   };
 
   const handleCallAgain = () => {
+    logCallDebug('CallScreen: call again (reset outgoing)', { hadCallId: callId });
     haptics.light();
+    voice.stop();
     setCallId(null);
     setCallReference(null);
     setCallSetupError(null);
@@ -496,6 +558,27 @@ export default function CallScreen() {
                 : isCreatingCall
                 ? 'Preparing secure call session...'
                 : 'Waiting for recipient to answer'}
+            </Text>
+          )}
+
+          {(callState === 'outgoing' || callState === 'active') && (voice.error || voice.status !== 'idle') && (
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: 'Poppins-Regular',
+                color: voice.error ? '#DC2626' : '#6B7280',
+                marginTop: Spacing.sm,
+                paddingHorizontal: Spacing.lg,
+                textAlign: 'center',
+              }}
+            >
+              {voice.error
+                ? `Audio: ${voice.error}`
+                : voice.status === 'starting'
+                  ? 'Connecting in-app audio…'
+                  : voice.status === 'connected'
+                    ? 'In-app audio active'
+                    : 'In-app audio unavailable'}
             </Text>
           )}
 

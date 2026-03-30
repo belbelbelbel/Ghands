@@ -3,11 +3,9 @@ import { haptics } from '@/hooks/useHaptics';
 import useOnboarding from '../hooks/useOnboarding';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, ImageBackground, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, ImageBackground, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthRole } from '../hooks/useAuth';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function SelectAccountTypeScreen() {
   const router = useRouter();
@@ -75,8 +73,8 @@ export default function SelectAccountTypeScreen() {
         <View style={styles.overlay} />
 
         {/* Content */}
-        <View style={[styles.content, { paddingBottom: Math.max(insets.bottom, 24) + 24 }]}>
-          {/* Buttons Container */}
+        <View style={[styles.content, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
+          {/* Buttons Container — max width keeps text from clipping in tablet phone lane */}
           <Animated.View style={[styles.buttonsContainer, buttonStyle]}>
             {/* Sign Up as a Client Button - Green */}
             <TouchableOpacity
@@ -120,8 +118,8 @@ const styles = StyleSheet.create({
   },
   backgroundImage: {
     flex: 1,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    width: '100%',
+    height: '100%',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -131,9 +129,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     paddingHorizontal: 20,
+    width: '100%',
+    maxWidth: '100%',
   },
   buttonsContainer: {
     gap: 10,
+    width: '100%',
+    alignSelf: 'center',
   },
   clientButton: {
     width: '100%',
@@ -179,10 +181,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 10,
     alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 4,
   },
   loginLinkText: {
     fontSize: 14,
     fontFamily: 'Poppins-Medium',
     color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    flexShrink: 1,
   },
 });

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '@/services/api';
+import { isAccessTokenExpired } from '@/utils/jwtExpiry';
+import { handleTokenExpiration } from '@/utils/tokenExpirationHandler';
 
 const AUTH_TOKEN_KEY = '@ghands:auth_token';
 const AUTH_ROLE_KEY = '@ghands:user_role';
@@ -44,34 +46,13 @@ export function useTokenGuard() {
           return;
         }
         
-        // Additional check: If token exists but might be expired/invalid on server,
-        // we'll let API calls handle it and redirect via AuthError handling
-        // But we can also do a quick validation by checking if token looks expired
-        // For JWT tokens, we can decode and check expiration
-        if (validToken && validToken.includes('.')) {
-          try {
-            // Try to decode JWT to check expiration
-            const parts = validToken.split('.');
-            if (parts.length === 3) {
-              const payload = JSON.parse(atob(parts[1]));
-              const exp = payload.exp;
-              if (exp && exp * 1000 < Date.now()) {
-                // Token is expired - redirect
-                if (!isMounted) return;
-                const role = await AsyncStorage.getItem(AUTH_ROLE_KEY);
-                if (role === 'provider') {
-                  router.replace('/ProviderSignInScreen');
-                } else if (role === 'client') {
-                  router.replace('/LoginScreen');
-                } else {
-                  router.replace('/SelectAccountTypeScreen');
-                }
-                return;
-              }
-            }
-          } catch (e) {
-            // If we can't decode, assume it's valid and let API handle it
-          }
+        // JWT: session timeout — expired access token → same logout routes as API auth failures
+        if (validToken && isAccessTokenExpired(validToken)) {
+          if (!isMounted) return;
+          const route = await handleTokenExpiration();
+          if (route) router.replace(route as never);
+          else router.replace('/SelectAccountTypeScreen' as never);
+          return;
         }
         
         // Token is valid - allow rendering

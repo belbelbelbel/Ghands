@@ -435,7 +435,16 @@ export default function NotificationsScreen() {
         if (rawNotification.requestId) {
           router.push({
             pathname: '/ChatScreen' as any,
-            params: { requestId: String(rawNotification.requestId) },
+            params: {
+              requestId: String(rawNotification.requestId),
+              ...(rawNotification.providerId != null && {
+                providerId: String(rawNotification.providerId),
+              }),
+              ...(rawNotification.metadata &&
+                typeof rawNotification.metadata.providerName === 'string' && {
+                  providerName: rawNotification.metadata.providerName,
+                }),
+            },
           } as any);
           return;
         }
@@ -654,6 +663,7 @@ export default function NotificationsScreen() {
                 style={{
                   fontSize: 14,
                   fontFamily: 'Poppins-Regular',
+        
                   color: Colors.textSecondaryDark,
                   textAlign: 'center',
                 }}

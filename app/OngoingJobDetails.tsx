@@ -11,6 +11,7 @@ import { formatTimeAgo } from '@/utils/dateFormatting';
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { formatProviderProximitySubtitle } from '@/utils/navigationUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { CheckCircle, CheckCircle2, Circle, Clock, FileText, MapPinned, Wrench } from 'lucide-react-native';
@@ -1554,6 +1555,7 @@ export default function OngoingJobDetails() {
 
   const renderProviderCard = (provider: typeof mappedProviders[number], index: number, compactBottom?: boolean) => {
     const animation = providerAnimations[index];
+    const proximityLine = formatProviderProximitySubtitle(provider.distanceKm, provider.minutesAway);
     return (
       <Animated.View
         key={provider.id}
@@ -1599,9 +1601,9 @@ export default function OngoingJobDetails() {
               <Text className="text-base text-black mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
                 {provider.name}
               </Text>
-              {provider.distanceKm != null && (
+              {proximityLine != null && (
                 <Text className="text-xs text-gray-400 mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
-                  {provider.distanceKm.toFixed(1)} km away • ~{provider.minutesAway} min
+                  {proximityLine}
                 </Text>
               )}
             </View>

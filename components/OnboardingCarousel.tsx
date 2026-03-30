@@ -1,11 +1,10 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, LayoutChangeEvent, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { SlideData } from '../lib/assets';
 import OnboardingSlide from './OnboardingSlide';
 import { Colors } from '../lib/designSystem';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { PHONE_LANE_MAX_WIDTH, useIsTablet } from '@/lib/tabletLayout';
 
 interface OnboardingCarouselProps {
   slides: SlideData[];
@@ -24,18 +23,36 @@ export default function OnboardingCarousel({
   onSkip,
   isLastSlide,
 }: OnboardingCarouselProps) {
-  const translateX = useRef(new Animated.Value(-currentIndex * SCREEN_WIDTH)).current;
+  const { width: winW, height: winH } = useWindowDimensions();
+  const isTablet = useIsTablet();
+  /** Measured phone-lane (tablet) or full screen — must match slide width or carousel looks “crooked” */
+  const [lane, setLane] = useState<{ w: number; h: number } | null>(null);
+  const contentW = lane?.w ?? (isTablet ? Math.min(winW, PHONE_LANE_MAX_WIDTH) : winW);
+  const contentH = lane?.h ?? winH;
+  /** Slide layout height excludes bottom controls + carousel padding so text isn’t clipped */
+  const ONBOARDING_CONTROLS_RESERVE = 138;
+  const slideHeight = Math.max(420, contentH - ONBOARDING_CONTROLS_RESERVE);
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  const onContainerLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    if (width <= 0 || height <= 0) return;
+    setLane((prev) => {
+      if (prev && Math.abs(prev.w - width) < 0.5 && Math.abs(prev.h - height) < 0.5) return prev;
+      return { w: width, h: height };
+    });
+  };
 
   useEffect(() => {
     Animated.timing(translateX, {
-      toValue: -currentIndex * SCREEN_WIDTH,
+      toValue: -currentIndex * contentW,
       duration: 400,
       useNativeDriver: true,
     }).start();
-  }, [currentIndex, translateX]);
+  }, [currentIndex, contentW, translateX]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={onContainerLayout}>
       {/* Skip Button - Top Right */}
       <Pressable style={styles.skipButton} onPress={onSkip}>
         <Text style={styles.skipText}>Skip</Text>
@@ -46,13 +63,20 @@ export default function OnboardingCarousel({
           style={[
             styles.slidesContainer,
             {
-              width: slides.length * SCREEN_WIDTH,
+              width: slides.length * contentW,
+              height: slideHeight,
               transform: [{ translateX }],
             },
           ]}
         >
           {slides.map((slide, index) => (
-            <OnboardingSlide key={slide.id} slide={slide} isActive={index === currentIndex} />
+            <OnboardingSlide
+              key={slide.id}
+              slide={slide}
+              isActive={index === currentIndex}
+              contentWidth={contentW}
+              contentHeight={slideHeight}
+            />
           ))}
         </Animated.View>
       </View>

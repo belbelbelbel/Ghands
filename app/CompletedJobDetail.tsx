@@ -3,21 +3,32 @@ import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import Demcatorline from "@/components/Demacator";
 import HeaderComponent from "@/components/HeaderComponent";
 import { haptics } from '@/hooks/useHaptics';
-import { serviceRequestService, ServiceRequest } from '@/services/api';
+import { authService, serviceRequestService, ServiceRequest } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, TextInput, View } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { analytics } from '@/services/analytics';
 import { CheckCircle2, FileText, Wrench, CheckCircle } from 'lucide-react-native';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { formatTimeAgo } from '@/utils/dateFormatting';
+import { logRatingDebug, logRatingError } from '@/utils/ratingDebugLog';
+import {
+  extractMyRatingFromRequest,
+  isAlreadyReviewedApiError,
+  requestDetailsIndicatesClientReviewed,
+  reviewRatingStorageKey,
+} from '@/utils/reviewSync';
 
-const reviewSubmittedStorageKey = (requestId: number) =>
-  `@ghands:review_submitted_${requestId}`;
+/** Per logged-in user + job, so switching accounts does not hide/show the wrong modal state. */
+const reviewSubmittedStorageKey = (userId: number, requestId: number) =>
+  `@ghands:review_submitted_u${userId}_r${requestId}`;
+
+/** Legacy (request-only); migrated to account-scoped key when user id is known */
+const reviewSubmittedLegacyKey = (requestId: number) => `@ghands:review_submitted_${requestId}`;
 
 // Helper to format date
 const formatDate = (dateString?: string, timeString?: string): string => {
@@ -35,7 +46,7 @@ const formatDate = (dateString?: string, timeString?: string): string => {
 export default function CompletedJobDetail() {
   const router = useRouter();
   const params = useLocalSearchParams<{ requestId?: string }>();
-  const { showError, showSuccess } = useToast();
+  const { showError, showSuccess, showInfo } = useToast();
   
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<any | null>(null);
@@ -46,6 +57,9 @@ export default function CompletedJobDetail() {
   const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [postReviewThankYou, setPostReviewThankYou] = useState(false);
+  /** Your numeric rating (1–5) for this job — storage + API */
+  const [myReviewRating, setMyReviewRating] = useState<number | null>(null);
+  const completedContactToastShown = useRef(false);
 
   const providerAvatarUri = useMemo(() => {
     if (!selectedProvider) return null;
@@ -61,6 +75,7 @@ export default function CompletedJobDetail() {
 
   useEffect(() => {
     if (params.requestId) {
+      completedContactToastShown.current = false;
       loadRequestDetails();
     }
   }, [params.requestId]);
@@ -74,10 +89,60 @@ export default function CompletedJobDetail() {
       const requestDetails = await serviceRequestService.getRequestDetails(requestId);
       setRequest(requestDetails);
 
-      const alreadySubmitted =
-        (await AsyncStorage.getItem(reviewSubmittedStorageKey(requestId))) ===
-        '1';
+      const userId = await authService.getUserId();
+      let alreadySubmitted = false;
+      if (userId != null) {
+        const scopedKey = reviewSubmittedStorageKey(userId, requestId);
+        alreadySubmitted = (await AsyncStorage.getItem(scopedKey)) === '1';
+        if (!alreadySubmitted) {
+          const legacyKey = reviewSubmittedLegacyKey(requestId);
+          const legacy = (await AsyncStorage.getItem(legacyKey)) === '1';
+          if (legacy) {
+            alreadySubmitted = true;
+            await AsyncStorage.setItem(scopedKey, '1');
+            logRatingDebug('Migrated legacy review flag to account-scoped key', {
+              requestId,
+              userId,
+            });
+          }
+        }
+      } else {
+        alreadySubmitted =
+          (await AsyncStorage.getItem(reviewSubmittedLegacyKey(requestId))) === '1';
+        logRatingDebug('No userId for review flag — using legacy key only', { requestId });
+      }
+
+      // Same account, other device: local flag is empty but server already has the review
+      if (!alreadySubmitted && requestDetailsIndicatesClientReviewed(requestDetails)) {
+        alreadySubmitted = true;
+        if (userId != null) {
+          await AsyncStorage.setItem(reviewSubmittedStorageKey(userId, requestId), '1');
+        } else {
+          await AsyncStorage.setItem(reviewSubmittedLegacyKey(requestId), '1');
+        }
+        logRatingDebug('Review already on server (GET request details)', { requestId });
+      }
+
+      let ratingFromStorage: number | null = null;
+      if (userId != null) {
+        const rs = await AsyncStorage.getItem(reviewRatingStorageKey(userId, requestId));
+        if (rs) {
+          const n = parseInt(rs, 10);
+          if (!isNaN(n) && n >= 1 && n <= 5) ratingFromStorage = n;
+        }
+      }
+      const ratingFromApi = extractMyRatingFromRequest(requestDetails);
+      setMyReviewRating(ratingFromApi ?? ratingFromStorage);
+
       setHasSubmittedReview(alreadySubmitted);
+      logRatingDebug('Rating modal gate', {
+        requestId,
+        userId: userId ?? null,
+        status: requestDetails.status,
+        alreadySubmitted,
+        willShowModal: requestDetails.status === 'completed' && !alreadySubmitted,
+      });
+
       if (requestDetails.status === 'completed' && !alreadySubmitted) {
         setPostReviewThankYou(false);
         setShowRatingModal(true);
@@ -130,13 +195,53 @@ export default function CompletedJobDetail() {
         comment: comment.trim() ? comment.trim() : undefined,
       };
 
+      const userId = await authService.getUserId();
+      logRatingDebug('handleSubmitReview: submitting', {
+        requestId,
+        userId: userId ?? null,
+        rating: payload.rating,
+        hasComment: !!payload.comment,
+      });
+
       await serviceRequestService.reviewProvider(requestId, payload);
-      await AsyncStorage.setItem(reviewSubmittedStorageKey(requestId), '1');
+
+      if (userId != null) {
+        await AsyncStorage.setItem(reviewSubmittedStorageKey(userId, requestId), '1');
+        await AsyncStorage.setItem(reviewRatingStorageKey(userId, requestId), String(payload.rating));
+      } else {
+        await AsyncStorage.setItem(reviewSubmittedLegacyKey(requestId), '1');
+        logRatingDebug('Saved review flag with legacy key (no userId)', { requestId });
+      }
+
+      setMyReviewRating(payload.rating);
       setHasSubmittedReview(true);
       setPostReviewThankYou(true);
       showSuccess('Thank you for your review!');
+      logRatingDebug('handleSubmitReview: success', { requestId, userId: userId ?? null });
       analytics.track('submit_provider_review', { job_id: requestId, rating });
     } catch (e: any) {
+      if (isAlreadyReviewedApiError(e)) {
+        const uid = await authService.getUserId();
+        if (uid != null) {
+          await AsyncStorage.setItem(reviewSubmittedStorageKey(uid, requestId), '1');
+        } else {
+          await AsyncStorage.setItem(reviewSubmittedLegacyKey(requestId), '1');
+        }
+        setHasSubmittedReview(true);
+        setShowRatingModal(false);
+        setPostReviewThankYou(false);
+        logRatingDebug('handleSubmitReview: already reviewed on server (other device / sync)', {
+          requestId,
+        });
+        showSuccess('You already submitted a review for this job.');
+        return;
+      }
+      logRatingError('handleSubmitReview: error', {
+        requestId,
+        message: e?.message,
+        status: e?.status,
+        details: e?.details,
+      });
       const msg = getSpecificErrorMessage(e, 'review_provider') ?? e?.message ?? 'Failed to submit review.';
       showError(msg);
     } finally {
@@ -233,16 +338,14 @@ export default function CompletedJobDetail() {
     });
   }, [timelineSteps, timelineAnimations]);
 
-  const iconStack = [
-    {
-      id: 1,
-      icons: <Ionicons name="call" size={14} color={'white'} />
-    },
-    {
-      id: 2,
-      icons: <Ionicons name="chatbubble" size={14} color={'white'} />
-    }
-  ];
+  useEffect(() => {
+    if (!request || request.status !== 'completed') return;
+    if (completedContactToastShown.current) return;
+    completedContactToastShown.current = true;
+    showInfo(
+      'Messaging and calls are not available after a job is completed. For issues, use Help & Support to reach our team.'
+    );
+  }, [request?.id, request?.status, showInfo]);
 
   const renderTimeline = () => {
     if (timelineSteps.length === 0) return null;
@@ -449,35 +552,70 @@ export default function CompletedJobDetail() {
                           : 'No ratings yet'}
                       </Text>
                     </View>
+                    {myReviewRating != null && myReviewRating >= 1 && (
+                      <View className="flex-row items-center gap-2 mt-2">
+                        <Text
+                          className="text-xs text-gray-500"
+                          style={{ fontFamily: 'Poppins-Medium' }}
+                        >
+                          Your rating
+                        </Text>
+                        <View className="flex-row">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Ionicons
+                              key={`y-${i}`}
+                              name={i < myReviewRating ? 'star' : 'star-outline'}
+                              size={16}
+                              color={i < myReviewRating ? '#6A9B00' : '#E5E7EB'}
+                            />
+                          ))}
+                        </View>
+                        <Text
+                          className="text-xs text-[#166534]"
+                          style={{ fontFamily: 'Poppins-SemiBold' }}
+                        >
+                          {myReviewRating}/5
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
-                <View className="flex flex-row gap-2">
-                  {iconStack.map((icons) => (
-                    <TouchableOpacity
-                      className="p-3 rounded-xl bg-[#6A9B00]"
-                      key={icons.id}
-                      activeOpacity={0.85}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        if (icons.id === 2 && selectedProvider) {
-                          // Chat icon - navigate to chat
-                          router.push({
-                            pathname: '/ChatScreen',
-                            params: {
-                              providerName: selectedProvider.name || 'Provider',
-                              providerId: selectedProvider.id?.toString() || '',
-                              requestId: params.requestId,
-                            },
-                          } as any);
-                        }
-                        // Handle call action for id === 1
-                      }}
-                    >
-                      <View>{icons.icons}</View>
-                    </TouchableOpacity>
-                  ))}
-                </View>
               </TouchableOpacity>
+              <View
+                className="mt-3 px-1"
+                style={{
+                  backgroundColor: '#F9FAFB',
+                  borderRadius: BorderRadius.default,
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                }}
+              >
+                <Text
+                  className="text-xs text-gray-600"
+                  style={{ fontFamily: 'Poppins-Regular', lineHeight: 18 }}
+                >
+                  Chat and voice calls are closed once a job is completed. If you need help with this job, go to{' '}
+                  <Text style={{ fontFamily: 'Poppins-SemiBold', color: '#166534' }}>Help & Support</Text> in the app
+                  to reach our team.
+                </Text>
+                <TouchableOpacity
+                  className="mt-2 self-start"
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    haptics.selection();
+                    router.push('/HelpSupportScreen' as any);
+                  }}
+                >
+                  <Text
+                    className="text-sm"
+                    style={{ fontFamily: 'Poppins-SemiBold', color: '#6A9B00' }}
+                  >
+                    Open Help & Support
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <Demcatorline />
             <View className="mt-8 mb-8 px-1">

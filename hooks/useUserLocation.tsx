@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { locationService, SavedLocation, authService } from '@/services/api';
+import { locationService, authService } from '@/services/api';
 import { AuthError } from '@/utils/errors';
 import { useRouter } from 'expo-router';
 
@@ -16,56 +23,59 @@ interface UseUserLocationReturn {
   loadSavedLocation: () => Promise<void>;
 }
 
-export function useUserLocation(): UseUserLocationReturn {
+const UserLocationContext = createContext<UseUserLocationReturn | null>(null);
+
+/**
+ * Single source of truth for saved service address (dropdown on home, modals, etc.).
+ * Must wrap the app once so updates in LocationSearchModal reflect immediately on Home.
+ */
+export function UserLocationProvider({ children }: { children: React.ReactNode }) {
   const [location, setLocationState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    loadSavedLocation();
-  }, []);
-
   const loadSavedLocation = useCallback(async () => {
     try {
       setIsLoading(true);
-      
-      // Check if user is a provider (providers have company ID, not user ID for location)
-      // Providers should NOT call user location endpoint - they use provider location endpoint
+
       const companyId = await authService.getCompanyId();
       const userId = await authService.getUserId();
-      
-      // For providers: Skip API call to user location endpoint (providers use provider location endpoint)
+
       if (companyId) {
-        // Provider: Only load from local storage, don't call user location API
         const storedLocation = await AsyncStorage.getItem(USER_LOCATION_STORAGE_KEY);
         setLocationState(storedLocation);
         setIsLoading(false);
         return;
       }
-      
-      // Try to load from API first (only for regular users, not providers)
+
+      const localStored = await AsyncStorage.getItem(USER_LOCATION_STORAGE_KEY);
+
       if (userId) {
         try {
           const savedLocation = await locationService.getUserLocation(userId);
-          if (savedLocation) {
-            await AsyncStorage.setItem(USER_LOCATION_STORAGE_KEY, savedLocation.fullAddress);
-            await AsyncStorage.setItem(USER_LOCATION_PLACE_ID_KEY, savedLocation.placeId);
-            setLocationState(savedLocation.fullAddress);
+          if (savedLocation?.fullAddress) {
+            const apiAddr = savedLocation.fullAddress.trim();
+            const localAddr = (localStored || '').trim();
+            // If user just saved a new address locally, API can lag — don't overwrite UI with stale server row
+            const useAddr =
+              localAddr && localAddr !== apiAddr ? localAddr : savedLocation.fullAddress;
+            await AsyncStorage.setItem(USER_LOCATION_STORAGE_KEY, useAddr);
+            if (savedLocation.placeId) {
+              await AsyncStorage.setItem(USER_LOCATION_PLACE_ID_KEY, savedLocation.placeId);
+            }
+            setLocationState(useAddr);
             setIsLoading(false);
             return;
           }
         } catch (error) {
-          // If AuthError, redirect immediately
           if (error instanceof AuthError) {
             const { handleAuthErrorRedirect } = await import('@/utils/authRedirect');
             await handleAuthErrorRedirect(router);
             return;
           }
-          // Location not set in API, fallback to local storage
         }
       }
 
-      // Fallback to local storage
       const storedLocation = await AsyncStorage.getItem(USER_LOCATION_STORAGE_KEY);
       setLocationState(storedLocation);
     } catch (error) {
@@ -73,7 +83,11 @@ export function useUserLocation(): UseUserLocationReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [router]);
+
+  useEffect(() => {
+    loadSavedLocation();
+  }, [loadSavedLocation]);
 
   const setLocation = useCallback(async (value: string) => {
     try {
@@ -97,12 +111,29 @@ export function useUserLocation(): UseUserLocationReturn {
     await loadSavedLocation();
   }, [loadSavedLocation]);
 
-  return {
-    location,
-    isLoading,
-    setLocation,
-    clearLocation,
-    refreshLocation,
-    loadSavedLocation,
-  };
+  const value = useMemo(
+    () => ({
+      location,
+      isLoading,
+      setLocation,
+      clearLocation,
+      refreshLocation,
+      loadSavedLocation,
+    }),
+    [location, isLoading, setLocation, clearLocation, refreshLocation, loadSavedLocation]
+  );
+
+  return (
+    <UserLocationContext.Provider value={value}>{children}</UserLocationContext.Provider>
+  );
 }
+
+export function useUserLocation(): UseUserLocationReturn {
+  const ctx = useContext(UserLocationContext);
+  if (!ctx) {
+    throw new Error('useUserLocation must be used within UserLocationProvider');
+  }
+  return ctx;
+}
+
+export { USER_LOCATION_STORAGE_KEY, USER_LOCATION_PLACE_ID_KEY };

@@ -20,6 +20,7 @@ import { providerService, locationService, authService, serviceRequestService } 
 import { getCategoryIcon } from '@/utils/categoryIcons';
 import { normalizeCategoryName, isValidCategoryName } from '@/utils/categoryMapping';
 import { formatSkillLabel } from '@/utils/formatSkillLabel';
+import { formatDistance } from '@/utils/navigationUtils';
 import { useToast } from '@/hooks/useToast';
 import Toast from '@/components/Toast';
 import { Colors, Spacing, BorderRadius, SHADOWS } from '@/lib/designSystem';
@@ -316,9 +317,10 @@ const ServiceMapScreen = () => {
             category: categoryDisplayName as ProviderCategory,
             rating: 4.5, // Default rating (API doesn't provide this yet)
             reviews: 0, // Default reviews (API doesn't provide this yet)
-            distance: provider.distanceKm < 1 
-              ? `${(provider.distanceKm * 1000).toFixed(0)} m away`
-              : `${provider.distanceKm.toFixed(1)} km away`,
+            distance:
+              provider.distanceKm != null && Number.isFinite(provider.distanceKm) && provider.distanceKm >= 0
+                ? `${formatDistance(provider.distanceKm)} away`
+                : 'Distance unavailable',
             availability: provider.verified ? 'Available' : 'Busy',
             image: require('../assets/images/plumbericon2.png'), // Default icon - could use getCategoryIcon result
             coords: {

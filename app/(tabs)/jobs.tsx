@@ -1,7 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import { haptics } from '@/hooks/useHaptics';
-import { serviceRequestService, ServiceRequest } from '@/services/api';
+import { authService, serviceRequestService, ServiceRequest } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { AuthError } from '@/utils/errors';
@@ -12,6 +12,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View, Modal, Pressable, StyleSheet } from 'react-native';
 import { JobHistoryCardSkeleton } from '@/components/LoadingSkeleton';
 import { Colors, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { extractMyRatingFromRequest, reviewRatingStorageKey } from '@/utils/reviewSync';
 
 type JobStatus = 'Ongoing' | 'Completed' | 'Cancelled';
 
@@ -26,6 +28,8 @@ type JobItem = {
   requestId?: number;
   acceptedProvidersCount?: number;
   quotationsCount?: number;
+  /** Client’s rating (1–5) for this job when completed */
+  myRating?: number;
 };
 
 // Helper to format date
@@ -47,7 +51,10 @@ const mapRequestToJobItem = (
   acceptedProvidersCount: number = 0,
   quotationsCount: number = 0
 ): JobItem => {
-  const providerName = request.provider?.name || request.nearbyProviders?.[0]?.name || 'Provider TBD';
+  const providerName =
+    (request as ServiceRequest & { provider?: { name?: string } }).provider?.name ||
+    request.nearbyProviders?.[0]?.name ||
+    'Provider TBD';
   const categoryDisplayName = request.categoryName
     ? request.categoryName.charAt(0).toUpperCase() + request.categoryName.slice(1).replace(/([A-Z])/g, ' $1')
     : 'Service';
@@ -69,6 +76,8 @@ const mapRequestToJobItem = (
     status = 'Pending';
   }
   
+  const apiMyRating = extractMyRatingFromRequest(request);
+
   return {
     id: request.id,
     requestId: request.id,
@@ -80,6 +89,7 @@ const mapRequestToJobItem = (
     location: request.location?.formattedAddress || request.location?.address || 'Location not specified',
     acceptedProvidersCount,
     quotationsCount,
+    myRating: apiMyRating ?? undefined,
   };
 };
 
@@ -138,7 +148,28 @@ export default function JobsScreen() {
           return mapRequestToJobItem(request, acceptedProvidersCount, quotationsCount);
         })
       );
-      setAllJobs(jobItems);
+
+      const userId = await authService.getUserId();
+      let finalJobs = jobItems;
+      if (userId != null) {
+        finalJobs = await Promise.all(
+          jobItems.map(async (job) => {
+            if (job.status !== 'Completed' || job.requestId == null) return job;
+            if (job.myRating != null && job.myRating >= 1) return job;
+            try {
+              const raw = await AsyncStorage.getItem(reviewRatingStorageKey(userId, job.requestId));
+              if (raw) {
+                const n = parseInt(raw, 10);
+                if (!isNaN(n) && n >= 1 && n <= 5) return { ...job, myRating: n };
+              }
+            } catch {
+              /* ignore */
+            }
+            return job;
+          })
+        );
+      }
+      setAllJobs(finalJobs);
     } catch (error: any) {
       // If AuthError, redirect immediately
       if (error instanceof AuthError) {
@@ -391,6 +422,27 @@ export default function JobsScreen() {
                   {job.location}
                 </Text>
               </View>
+
+              {activeTab === 'Completed' && job.myRating != null && job.myRating >= 1 && (
+                <View className="flex-row items-center gap-2 mt-3">
+                  <Text className="text-xs text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
+                    Your rating
+                  </Text>
+                  <View className="flex-row">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Ionicons
+                        key={`r-${job.id}-${i}`}
+                        name={i < job.myRating! ? 'star' : 'star-outline'}
+                        size={14}
+                        color={i < job.myRating! ? '#6A9B00' : '#E5E7EB'}
+                      />
+                    ))}
+                  </View>
+                  <Text className="text-xs text-[#166534]" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                    {job.myRating}/5
+                  </Text>
+                </View>
+              )}
 
               <View className="flex flex-row pt-4 justify-center">
                 <TouchableOpacity

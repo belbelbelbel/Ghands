@@ -1,5 +1,7 @@
 import { router } from 'expo-router';
+
 import { CallState } from '@/app/CallScreen';
+import { logCallDebug } from '@/utils/callDebugLog';
 
 interface CallParams {
   callState: CallState;
@@ -22,6 +24,12 @@ interface CallParams {
  * This utility function ensures consistent call navigation across the app
  */
 export function initiateCall(params: CallParams) {
+  logCallDebug('callUtils.initiateCall: navigate', {
+    callState: params.callState,
+    requestId: params.requestId,
+    callerName: params.callerName,
+    isProvider: params.isProvider,
+  });
   router.push({
     pathname: '/CallScreen',
     params: {

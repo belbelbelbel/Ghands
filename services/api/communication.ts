@@ -1,3 +1,5 @@
+import { logCallDebug, logCallError, logCallWarn, serializeCallApiError } from '@/utils/callDebugLog';
+
 import { apiClient, extractResponseData } from './client';
 import type { Message, SendMessagePayload, SendMessageResponse, GetMessagesResponse, UnreadCountResponse } from './types';
 
@@ -80,20 +82,50 @@ export const communicationService = {
   },
 
   initiateCall: async (requestId: number): Promise<{ callId: string; callReference: string }> => {
-    const response = await apiClient.post<any>(`/api/communication/requests/${requestId}/calls`, {});
-    const raw = extractResponseData<any>(response);
-    const data = raw?.data ?? raw;
-    return {
-      callId: data?.callId ?? data?.call_id ?? data?.id ?? '',
-      callReference: data?.callReference ?? data?.call_reference ?? data?.callId ?? data?.call_id ?? data?.id ?? '',
-    };
+    logCallDebug('initiateCall: POST starting', { requestId, path: `/api/communication/requests/${requestId}/calls` });
+    try {
+      const response = await apiClient.post<any>(`/api/communication/requests/${requestId}/calls`, {});
+      if (__DEV__) {
+        logCallDebug('initiateCall: HTTP response envelope (keys only)', {
+          requestId,
+          topLevelKeys: response && typeof response === 'object' ? Object.keys(response as object) : typeof response,
+        });
+      }
+      const raw = extractResponseData<any>(response);
+      const data = raw?.data ?? raw;
+      const callId = data?.callId ?? data?.call_id ?? data?.id ?? '';
+      const callReference = data?.callReference ?? data?.call_reference ?? data?.callId ?? data?.call_id ?? data?.id ?? '';
+
+      if (!callId) {
+        logCallWarn('initiateCall: success HTTP body but empty callId — check backend field names', {
+          requestId,
+          extractedRawSample: raw && typeof raw === 'object' ? JSON.stringify(raw).slice(0, 1200) : raw,
+          dataSample: data && typeof data === 'object' ? JSON.stringify(data).slice(0, 800) : data,
+        });
+      } else {
+        logCallDebug('initiateCall: parsed', { requestId, callId, callReference });
+      }
+
+      return { callId, callReference };
+    } catch (err) {
+      logCallError('initiateCall: request failed', { requestId, ...serializeCallApiError(err) });
+      throw err;
+    }
   },
 
   updateCallStatus: async (callId: string, status: string): Promise<{ status: string }> => {
-    const response = await apiClient.patch<any>(`/api/communication/calls/${callId}/status`, { status });
-    const raw = extractResponseData<any>(response);
-    const data = raw?.data ?? raw ?? {};
-    return { status: data?.status ?? status };
+    logCallDebug('updateCallStatus: PATCH starting', { callId, status });
+    try {
+      const response = await apiClient.patch<any>(`/api/communication/calls/${callId}/status`, { status });
+      const raw = extractResponseData<any>(response);
+      const data = raw?.data ?? raw ?? {};
+      const next = data?.status ?? status;
+      logCallDebug('updateCallStatus: ok', { callId, status: next });
+      return { status: next };
+    } catch (err) {
+      logCallError('updateCallStatus: failed', { callId, attemptedStatus: status, ...serializeCallApiError(err) });
+      throw err;
+    }
   },
 
   getCallHistory: async (
@@ -111,12 +143,14 @@ export const communicationService = {
   },
 
   getCallSession: async (callReference: string): Promise<any> => {
-    const response = await apiClient.get<any>(`/api/communication/calls/${callReference}/session`);
+    const enc = encodeURIComponent(callReference);
+    const response = await apiClient.get<any>(`/api/communication/calls/${enc}/session`);
     return extractResponseData<any>(response);
   },
 
   getIceCandidates: async (callReference: string): Promise<any> => {
-    const response = await apiClient.get<any>(`/api/communication/calls/${callReference}/ice-candidates`);
+    const enc = encodeURIComponent(callReference);
+    const response = await apiClient.get<any>(`/api/communication/calls/${enc}/ice-candidates`);
     return extractResponseData<any>(response);
   },
 };

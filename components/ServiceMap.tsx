@@ -297,6 +297,8 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
                         params: {
                           providerName: provider.name,
                           providerId: String(numericId),
+                          initialRating: String(provider.rating ?? ''),
+                          initialReviewCount: String(provider.reviews ?? ''),
                         },
                       } as any);
                     }}
@@ -412,6 +414,8 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
                   params: {
                     providerName: activeProvider.name,
                     providerId: String(numericId),
+                    initialRating: String(activeProvider.rating ?? ''),
+                    initialReviewCount: String(activeProvider.reviews ?? ''),
                   },
                 } as any);
               }}

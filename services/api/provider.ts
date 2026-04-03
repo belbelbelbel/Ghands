@@ -100,6 +100,41 @@ const providerService = {
     return providerData;
   },
 
+  /**
+   * Collect image URLs from profile payloads (strings, objects, or nested analytics-style arrays).
+   */
+  normalizeRecentWorkUrls: (...sources: unknown[]): string[] => {
+    const out: string[] = [];
+    const pushUrl = (u: unknown) => {
+      if (typeof u === 'string') {
+        const t = u.trim();
+        if (/^https?:\/\//i.test(t)) out.push(t);
+      }
+    };
+    const walk = (node: unknown) => {
+      if (node == null) return;
+      if (typeof node === 'string') {
+        pushUrl(node);
+        return;
+      }
+      if (Array.isArray(node)) {
+        for (const item of node) walk(item);
+        return;
+      }
+      if (typeof node === 'object') {
+        const o = node as Record<string, unknown>;
+        pushUrl(o.url);
+        pushUrl(o.image);
+        pushUrl(o.photo);
+        pushUrl(o.src);
+        pushUrl(o.thumbnail);
+        if (Array.isArray(o.images)) walk(o.images);
+      }
+    };
+    for (const s of sources) walk(s);
+    return [...new Set(out)];
+  },
+
   getPublicProfile: async (
     providerId: number
   ): Promise<{
@@ -122,28 +157,131 @@ const providerService = {
   }> => {
     const response = await apiClient.get<any>(`/api/provider/${providerId}/profile`);
     const raw = extractResponseData<any>(response);
-    const nested = raw?.data?.data ?? raw?.data ?? raw;
-    const provider = nested?.provider ?? {};
-    const reviews = Array.isArray(nested?.reviews) ? nested.reviews : [];
+    const nested = raw?.data?.data ?? raw?.data ?? raw ?? {};
+    const provider = nested?.provider ?? nested ?? {};
+
+    const reviewLists: unknown[] = [
+      nested?.reviews,
+      nested?.latestReviews,
+      provider?.reviews,
+      provider?.latestReviews,
+      nested?.ratings?.latestReviews,
+    ];
+    let reviews: any[] = [];
+    for (const list of reviewLists) {
+      if (Array.isArray(list) && list.length > 0) {
+        reviews = list;
+        break;
+      }
+    }
+    if (reviews.length === 0) {
+      for (const list of reviewLists) {
+        if (Array.isArray(list)) {
+          reviews = list;
+          break;
+        }
+      }
+    }
+
+    const recentWorkRaw = providerService.normalizeRecentWorkUrls(
+      provider.recentWork,
+      provider.recent_work,
+      provider.portfolio,
+      provider.gallery,
+      provider.workImages,
+      nested.recentWork,
+      nested.recent_work,
+      nested.portfolio,
+      nested.gallery
+    );
+
+    const skillSource =
+      Array.isArray(provider.skills) && provider.skills.length > 0
+        ? provider.skills
+        : Array.isArray(provider.categories) && provider.categories.length > 0
+          ? provider.categories
+          : Array.isArray(nested.categories)
+            ? nested.categories
+            : [];
+
+    const ratingsBlock = nested.ratings ?? provider.ratings ?? {};
+    const avgFromNested = Number(
+      ratingsBlock.averageRating ?? ratingsBlock.average_rating ?? NaN
+    );
+    const totalFromNested = Number(
+      ratingsBlock.totalReviews ?? ratingsBlock.total_reviews ?? NaN
+    );
+
+    let rating = Number(provider.rating ?? provider.averageRating ?? 0) || 0;
+    let totalReviews = Number(provider.totalReviews ?? provider.total_reviews ?? 0) || 0;
+    if (!rating && !Number.isNaN(avgFromNested) && avgFromNested > 0) rating = avgFromNested;
+    if (!totalReviews && !Number.isNaN(totalFromNested) && totalFromNested > 0) {
+      totalReviews = totalFromNested;
+    }
+
     return {
       provider: {
         id: Number(provider.id ?? providerId),
         name: provider.name ?? null,
         professionTitle: provider.professionTitle ?? provider.profession_title ?? null,
         isOnline: provider.isOnline ?? provider.is_online ?? false,
-        rating: Number(provider.rating ?? 0) || 0,
-        totalReviews: Number(provider.totalReviews ?? provider.total_reviews ?? 0) || 0,
+        rating,
+        totalReviews,
         milesAway: provider.milesAway ?? provider.miles_away ?? null,
         jobsDone: Number(provider.jobsDone ?? provider.jobs_done ?? 0) || 0,
         responseTimeMinutes:
           provider.responseTimeMinutes ?? provider.response_time_minutes ?? null,
         onTimeRate: provider.onTimeRate ?? provider.on_time_rate ?? null,
-        skills: Array.isArray(provider.skills) ? provider.skills : [],
-        recentWork: Array.isArray(provider.recentWork) ? provider.recentWork : [],
+        skills: skillSource,
+        recentWork: recentWorkRaw,
         about: provider.about ?? null,
       },
       reviews,
     };
+  },
+
+  /**
+   * Same shape as getProviderAnalytics but scoped to a provider (for clients viewing a profile).
+   * Returns null if the route is missing or the call fails.
+   */
+  tryGetPublicProviderAnalytics: async (
+    providerId: number
+  ): Promise<{
+    latestReviews: any[];
+    ratings?: { averageRating?: number; totalReviews?: number };
+  } | null> => {
+    try {
+      const response = await apiClient.get<any>(`/api/provider/${providerId}/analytics`);
+      const raw = extractResponseData<any>(response);
+      const nested = raw?.data?.data ?? raw?.data ?? raw ?? {};
+      return {
+        latestReviews: Array.isArray(nested.latestReviews) ? nested.latestReviews : [],
+        ratings: nested.ratings,
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Public list of reviews for a provider (if supported by the API).
+   */
+  tryGetPublicProviderReviews: async (
+    providerId: number,
+    options: { limit?: number; offset?: number } = {}
+  ): Promise<any[] | null> => {
+    const { limit = 20, offset = 0 } = options;
+    try {
+      const response = await apiClient.get<any>(
+        `/api/provider/${providerId}/reviews?limit=${encodeURIComponent(String(limit))}&offset=${encodeURIComponent(String(offset))}`
+      );
+      const raw = extractResponseData<any>(response);
+      const nested = raw?.data?.data ?? raw?.data ?? raw ?? {};
+      const list = nested.reviews ?? nested.data ?? nested;
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return null;
+    }
   },
 
   /**
@@ -251,6 +389,19 @@ const providerService = {
       const match = (all || []).find((r: any) => Number(r?.id) === id);
       return match ?? null;
     } catch {
+      return null;
+    }
+  },
+
+  /** Single provider request details from provider-scoped endpoint. */
+  getRequestById: async (requestId: number): Promise<ServiceRequest | null> => {
+    try {
+      const response = await apiClient.get<any>(`/api/provider/requests/${requestId}`);
+      const data = extractResponseData<any>(response);
+      const normalized = (data as any)?.data ?? data;
+      return (normalized as ServiceRequest) ?? null;
+    } catch (error: any) {
+      if (error instanceof AuthError) throw error;
       return null;
     }
   },

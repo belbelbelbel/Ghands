@@ -1,11 +1,20 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import { haptics } from '@/hooks/useHaptics';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { ArrowRight, CheckCircle, CheckCircle2, FileText, Wrench, Circle } from 'lucide-react-native';
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Animated, ScrollView, Text, TouchableOpacity, View, RefreshControl, ActivityIndicator } from 'react-native';
-import { serviceRequestService, profileService } from '@/services/api';
+import {
+  Animated,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  RefreshControl,
+  ActivityIndicator,
+  BackHandler,
+} from 'react-native';
+import { serviceRequestService, profileService, authService } from '@/services/api';
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { formatTimeAgo } from '@/utils/dateFormatting';
@@ -42,6 +51,19 @@ export default function BookingConfirmationScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
+  // Dev-only: short client token snippet for backend debugging (never log full token)
+  useEffect(() => {
+    if (!__DEV__) return;
+    (async () => {
+      try {
+        const token = await authService.getAuthToken();
+        console.log('[ClientTokenSnippet]', token ? `${String(token).slice(0, 16)}...` : null);
+      } catch {
+        console.log('[ClientTokenSnippet]', null);
+      }
+    })();
+  }, []);
+
   const loadData = useCallback(async () => {
     const requestId = params.requestId ? parseInt(params.requestId, 10) : null;
     if (!requestId || isNaN(requestId)) {
@@ -74,6 +96,18 @@ export default function BookingConfirmationScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // After booking, do not pop back through map / photos / date — go to Jobs tab
+  useFocusEffect(
+    useCallback(() => {
+      const onHardwareBack = () => {
+        router.replace('/(tabs)/jobs' as any);
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+      return () => sub.remove();
+    }, [router])
+  );
 
   useEffect(() => {
     (async () => {

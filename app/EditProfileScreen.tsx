@@ -7,17 +7,15 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { InputField } from '../components/InputField';
-import { useProfile, useUpdateProfile } from '../hooks/useProfile';
+import { useCurrentUserProfile, useUpdateProfile } from '../hooks/useProfile';
 import { ProfileFormData, profileFormSchema } from '../lib/validation';
-
-const MOCK_USER_ID = 'user-123';
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const [profileImageUri, setProfileImageUri] = useState<string | undefined>();
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  const { data: profile, isLoading: isLoadingProfile } = useProfile(MOCK_USER_ID);
+  const { data: profile, isLoading: isLoadingProfile } = useCurrentUserProfile();
   
   const updateProfileMutation = useUpdateProfile();
 
@@ -55,7 +53,7 @@ export default function EditProfileScreen() {
   const onSubmit = async (data: ProfileFormData) => {
     try {
       await updateProfileMutation.mutateAsync({
-        userId: MOCK_USER_ID,
+        userId: 'current',
         payload: {
           ...data,
           profileImageUri,
@@ -178,20 +176,8 @@ export default function EditProfileScreen() {
     }
   };
 
-  if (isLoadingProfile) {
-    return (
-      <SafeAreaWrapper backgroundColor="#F9FAFB">
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#6A9B00" />
-          <Text className="text-gray-500 mt-4" style={{ fontFamily: 'Poppins-Medium' }}>
-            Loading profile...
-          </Text>
-        </View>
-      </SafeAreaWrapper>
-    );
-  }
-
   const isSaveDisabled = isSubmitting || !isValid || updateProfileMutation.isPending;
+  const showHeaderLoader = isLoadingProfile;
 
   return (
     <SafeAreaWrapper backgroundColor="#F9FAFB">
@@ -207,6 +193,11 @@ export default function EditProfileScreen() {
         >
           Edit your profile
         </Text>
+        {showHeaderLoader ? (
+          <ActivityIndicator size="small" color="#6A9B00" style={{ marginRight: 4 }} />
+        ) : (
+          <View style={{ width: 28 }} />
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">

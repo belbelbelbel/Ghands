@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MapPin, Star } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Image,
@@ -132,24 +133,71 @@ function mapApiReviewToUi(r: any, index: number): Review {
 
   const rating = Math.min(5, Math.max(0, Number(r.rating ?? r.stars ?? 0) || 0));
 
+  let reviewText = String(r.reviewText ?? r.comment ?? r.feedback ?? r.text ?? '').trim();
+  if (!reviewText && rating > 0) {
+    reviewText = 'Rated the service without a written comment.';
+  }
+
   return {
     id: String(r.id ?? `review-${index}`),
     reviewerName: buildReviewerDisplayName(r),
     reviewerImage: reviewAvatarUrl(r) || '',
     timeAgo: cleanNamePart(r.timeAgo) || timeAgo,
     rating,
-    reviewText: String(r.reviewText ?? r.comment ?? r.feedback ?? '').trim(),
+    reviewText,
   };
+}
+
+/** Merge review arrays from profile + analytics + public list without obvious duplicates. */
+function mergeRawReviews(...lists: (any[] | null | undefined)[]): any[] {
+  const merged: any[] = [];
+  const seen = new Set<string>();
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const r of list) {
+      if (!r || typeof r !== 'object') continue;
+      const id = String((r as any).id ?? '').trim();
+      const created = String((r as any).createdAt ?? (r as any).created_at ?? '');
+      const key = id ? `id:${id}` : `h:${buildReviewerDisplayName(r as any)}-${created}-${(r as any).rating}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(r);
+    }
+  }
+  return merged;
 }
 
 export default function ProviderDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ providerId?: string; providerName?: string }>();
-  const [provider, setProvider] = useState<ProviderDetail>({
+  const params = useLocalSearchParams<{
+    providerId?: string;
+    providerName?: string;
+    initialRating?: string;
+    initialReviewCount?: string;
+  }>();
+
+  const parseInitialRating = () => {
+    const v = parseFloat(String(params.initialRating ?? ''));
+    return !Number.isNaN(v) && v > 0 ? v : 0;
+  };
+  const parseInitialReviewCount = () => {
+    const v = parseInt(String(params.initialReviewCount ?? ''), 10);
+    return !Number.isNaN(v) && v >= 0 ? v : 0;
+  };
+
+  const [provider, setProvider] = useState<ProviderDetail>(() => ({
     ...EMPTY_PROVIDER,
     name: params.providerName || EMPTY_PROVIDER.name,
+    rating: parseInitialRating(),
+    reviewCount: parseInitialReviewCount(),
+  }));
+
+  const [isLoading, setIsLoading] = useState(() => {
+    const raw = String(params.providerId || '').trim();
+    const stripped = raw.replace(/^provider-/i, '');
+    const id = Number(stripped);
+    return !!(id && !Number.isNaN(id));
   });
-  const [isLoading, setIsLoading] = useState(false);
   const [showAllSkillsModal, setShowAllSkillsModal] = useState(false);
 
   useEffect(() => {
@@ -157,34 +205,65 @@ export default function ProviderDetailScreen() {
       const raw = String(params.providerId || '').trim();
       const stripped = raw.replace(/^provider-/i, '');
       const providerId = Number(stripped);
+      const fallbackRating = parseInitialRating();
+      const fallbackReviewCount = parseInitialReviewCount();
+
       if (!providerId || isNaN(providerId)) {
         setIsLoading(false);
         return;
       }
       setIsLoading(true);
       try {
-        const [data, imageUrls] = await Promise.all([
+        const [data, imageUrls, analyticsSnap, publicReviewsList] = await Promise.all([
           providerService.getPublicProfile(providerId),
           providerService.getProviderPublicImages(providerId),
+          providerService.tryGetPublicProviderAnalytics(providerId),
+          providerService.tryGetPublicProviderReviews(providerId, { limit: 25, offset: 0 }),
         ]);
         const p = data.provider;
-        const profileWorkUrls = Array.isArray(p.recentWork)
-          ? p.recentWork
-              .map((w: any) => (typeof w === 'string' ? w : w?.image || w?.url || ''))
-              .filter((u: string) => typeof u === 'string' && /^https?:\/\//i.test(u))
-          : [];
-        const primaryAvatar = imageUrls[0] || '';
+
+        const profileWorkUrls = providerService.normalizeRecentWorkUrls(p.recentWork);
+        const fromAnalyticsReviews = providerService.normalizeRecentWorkUrls(
+          analyticsSnap?.latestReviews?.map((rev: any) => ({
+            image: rev.jobImageUrl ?? rev.jobPhoto ?? rev.photoUrl ?? rev.imageUrl,
+          }))
+        );
+        // Local demo profile image from provider setup (used only when API has no image yet)
+        const localDemoImage = await AsyncStorage.getItem('@ghands:provider_profile_image_demo');
+
+        const primaryAvatar = imageUrls[0] || localDemoImage || '';
         const galleryFromImageEndpoint = imageUrls.slice(1);
-        const uniqueRecent = [...new Set([...profileWorkUrls, ...galleryFromImageEndpoint])];
+        const uniqueRecent = [
+          ...new Set([...profileWorkUrls, ...fromAnalyticsReviews, ...galleryFromImageEndpoint]),
+        ];
+
+        const rawReviews = mergeRawReviews(
+          data.reviews,
+          analyticsSnap?.latestReviews,
+          publicReviewsList
+        );
+
+        const ratingsFromAnalytics = analyticsSnap?.ratings;
+        let rating = Number(p.rating || 0);
+        let reviewCount = Number(p.totalReviews || 0);
+        const ar = Number(ratingsFromAnalytics?.averageRating ?? NaN);
+        const tr = Number(ratingsFromAnalytics?.totalReviews ?? NaN);
+        if (!rating && !Number.isNaN(ar) && ar > 0) rating = ar;
+        if (!reviewCount && !Number.isNaN(tr) && tr > 0) reviewCount = tr;
+        if (!rating && fallbackRating > 0) rating = fallbackRating;
+        if (!reviewCount && fallbackReviewCount > 0) reviewCount = fallbackReviewCount;
 
         const onTimeRaw = p.onTimeRate ?? (p as any).on_time_rate;
         const onTimePercentage =
           onTimeRaw != null && !Number.isNaN(Number(onTimeRaw)) ? Number(onTimeRaw) : null;
 
+        const localAbout = (await AsyncStorage.getItem('@ghands:provider_about_demo')) || '';
         const aboutText =
           typeof p.about === 'string' && p.about.trim().length > 0
             ? p.about.trim()
-            : 'No bio yet.';
+            : localAbout.trim().length > 0
+              ? localAbout.trim()
+              : 'No bio yet.';
 
         const mapped: ProviderDetail = {
           ...EMPTY_PROVIDER,
@@ -192,8 +271,8 @@ export default function ProviderDetailScreen() {
           name: p.name || params.providerName || 'Service Provider',
           role: p.professionTitle || 'Professional Service Provider',
           image: primaryAvatar,
-          rating: Number(p.rating || 0),
-          reviewCount: Number(p.totalReviews || 0),
+          rating,
+          reviewCount,
           distance: p.milesAway != null ? `${p.milesAway} mi away` : 'Distance unavailable',
           jobsDone: Number(p.jobsDone || 0),
           responseTime:
@@ -203,20 +282,24 @@ export default function ProviderDetailScreen() {
           recentWork: uniqueRecent,
           about: aboutText,
           isOnline: !!p.isOnline,
-          reviews: Array.isArray(data.reviews)
-            ? data.reviews.map((r: any, index: number) => mapApiReviewToUi(r, index))
-            : [],
+          reviews: rawReviews.map((r: any, index: number) => mapApiReviewToUi(r, index)),
         };
         setProvider(mapped);
       } catch {
-        // Keep honest fallback values when API fails
+        setProvider((prev) => ({
+          ...EMPTY_PROVIDER,
+          ...prev,
+          name: params.providerName || prev.name || EMPTY_PROVIDER.name,
+          rating: fallbackRating || prev.rating,
+          reviewCount: fallbackReviewCount || prev.reviewCount,
+        }));
       } finally {
         setIsLoading(false);
       }
     };
     loadProviderProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.providerId, params.providerName]);
+  }, [params.providerId, params.providerName, params.initialRating, params.initialReviewCount]);
 
   if (isLoading) {
     return (
@@ -612,11 +695,10 @@ export default function ProviderDetailScreen() {
           >
             Recent Work
           </Text>
-          <View
-            style={{
-              flexDirection: 'row',
-              gap: 12,
-            }}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 12, paddingRight: 8 }}
           >
             {provider.recentWork.map((workImage, index) => (
               <Image
@@ -630,18 +712,51 @@ export default function ProviderDetailScreen() {
                 }}
               />
             ))}
-            {provider.recentWork.length === 0 && (
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
-                }}
-              >
-                No recent work photos yet.
-              </Text>
-            )}
-          </View>
+            {provider.recentWork.length === 0 &&
+              [0, 1, 2].map((slot) => (
+                <View
+                  key={`work-placeholder-${slot}`}
+                  style={{
+                    width: 112,
+                    height: 112,
+                    borderRadius: BorderRadius.lg,
+                    backgroundColor: Colors.backgroundGray,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingHorizontal: 8,
+                  }}
+                >
+                  <Ionicons name="images-outline" size={28} color={Colors.textTertiary} />
+                  <Text
+                    style={{
+                      marginTop: 6,
+                      fontSize: 11,
+                      fontFamily: 'Poppins-Medium',
+                      color: Colors.textSecondaryDark,
+                      textAlign: 'center',
+                    }}
+                  >
+                    Photos coming soon
+                  </Text>
+                </View>
+              ))}
+          </ScrollView>
+          {provider.recentWork.length === 0 && (
+            <Text
+              style={{
+                marginTop: 10,
+                fontSize: 13,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.textSecondaryDark,
+                lineHeight: 18,
+              }}
+            >
+              This provider has not uploaded a gallery yet. Profile and job photos will appear here when
+              available.
+            </Text>
+          )}
         </View>
 
         {/* About Section */}
@@ -691,15 +806,40 @@ export default function ProviderDetailScreen() {
             Reviews
           </Text>
           {provider.reviews.length === 0 && (
-            <Text
+            <View
               style={{
-                fontSize: 14,
-                fontFamily: 'Poppins-Regular',
-                color: Colors.textSecondaryDark,
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.xl,
+                padding: 20,
+                borderWidth: 1,
+                borderColor: Colors.border,
               }}
             >
-              No reviews yet.
-            </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                <Ionicons name="chatbubble-ellipses-outline" size={22} color={Colors.accent} />
+                <Text
+                  style={{
+                    marginLeft: 10,
+                    fontSize: 16,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  No reviews yet
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  lineHeight: 21,
+                }}
+              >
+                Reviews from completed jobs will show here. Book this provider and share feedback after your
+                service — it helps everyone choose with confidence.
+              </Text>
+            </View>
           )}
           {provider.reviews.map((review, index) => (
             <View

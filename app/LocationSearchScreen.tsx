@@ -9,6 +9,7 @@ import { LocationSearchResult, LocationDetails, locationService, authService, Up
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { appendAddressBookExtra } from '@/utils/addressBookExtras';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, MapPin, Search, Send } from 'lucide-react-native';
@@ -413,6 +414,19 @@ export default function LocationSearchScreen() {
           
           // Refresh location in hook
           await refreshLocation();
+
+          if (next === 'AddressBookScreen') {
+            try {
+              await appendAddressBookExtra({
+                fullAddress: (payload.formattedAddress || selectedLocation.fullAddress || '').trim(),
+                placeId: payload.placeId,
+                latitude: payload.latitude,
+                longitude: payload.longitude,
+              });
+            } catch {
+              /* non-fatal */
+            }
+          }
           
           
           showSuccess('Location saved successfully!');
@@ -424,6 +438,16 @@ export default function LocationSearchScreen() {
         } catch (error: any) {
           // Fallback to local storage
           await setLocation(selectedLocation.fullAddress);
+          if (next === 'AddressBookScreen') {
+            try {
+              await appendAddressBookExtra({
+                fullAddress: selectedLocation.fullAddress.trim(),
+                placeId: selectedLocation.placeId,
+              });
+            } catch {
+              /* ignore */
+            }
+          }
           showSuccess('Location saved locally!');
           setTimeout(() => {
             handleNavigation();
@@ -433,6 +457,13 @@ export default function LocationSearchScreen() {
         // If no placeId, try to get location details from search query
         // For now, just save locally
         await setLocation(searchQuery.trim());
+        if (next === 'AddressBookScreen' && typeof searchQuery === 'string' && searchQuery.trim()) {
+          try {
+            await appendAddressBookExtra({ fullAddress: searchQuery.trim() });
+          } catch {
+            /* ignore */
+          }
+        }
         showSuccess('Location saved successfully!');
         setTimeout(() => {
           handleNavigation();
@@ -525,6 +556,8 @@ export default function LocationSearchScreen() {
           longitude: exactLongitude?.toString(),
         },
       } as any);
+    } else if (next === 'AddressBookScreen') {
+      router.back();
     } else if (next === 'ServiceMapScreen') {
       // Get coordinates if available
       let latitude: string | undefined;

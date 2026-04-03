@@ -1,6 +1,6 @@
 import { useFonts } from 'expo-font';
 import * as NavigationBar from 'expo-navigation-bar';
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, usePathname } from "expo-router";
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -42,6 +42,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const router = useRouter();
+  const pathname = usePathname();
   /** JWT `exp` reached → clear session and go to login (same as 401 handling) */
   useSessionTimeout(router);
   const { notification } = useNotifications();
@@ -104,6 +105,17 @@ export default function RootLayout() {
           // Clear auth tokens immediately
           await authService.clearAuthTokens();
           
+          // If we're already on an auth / login route, don't spam extra redirects
+          const currentPath = pathname || '';
+          const isOnAuthScreen =
+            currentPath.startsWith('/LoginScreen') ||
+            currentPath.startsWith('/ProviderSignInScreen') ||
+            currentPath.startsWith('/SelectAccountTypeScreen');
+
+          if (isOnAuthScreen) {
+            return;
+          }
+
           // Navigate to login immediately (no error message, no delay)
           const route = await handleTokenExpiration();
           if (route) {
@@ -136,12 +148,15 @@ export default function RootLayout() {
         // Handle auth error immediately
         (async () => {
           await authService.clearAuthTokens();
+          const currentPath = pathname || '';
+          const isOnAuthScreen =
+            currentPath.startsWith('/LoginScreen') ||
+            currentPath.startsWith('/ProviderSignInScreen') ||
+            currentPath.startsWith('/SelectAccountTypeScreen');
+          if (isOnAuthScreen) return;
           const route = await handleTokenExpiration();
-          if (route) {
-            router.replace(route as any);
-          } else {
-            router.replace('/SelectAccountTypeScreen' as any);
-          }
+          if (route) router.replace(route as any);
+          else router.replace('/SelectAccountTypeScreen' as any);
         })();
       }
     };
@@ -166,33 +181,69 @@ export default function RootLayout() {
         delete (global as any).onunhandledrejection;
       }
     };
-  }, [router]);
+  }, [router, pathname]);
 
-  // Handle notification navigation
+ 
   useEffect(() => {
     if (!notification) return;
 
-    const data = notification.request.content.data;
+    const data = notification.request.content.data as Record<string, unknown> | undefined;
     if (!data) return;
 
-    // Navigate based on notification type and data
-    if (data.requestId) {
-      // Job-related notifications
-      if (data.type === 'quotation_accepted' || 
-          data.type === 'quotation_sent' || 
-          data.type === 'request_accepted' ||
-          data.type === 'work_order_issued' ||
-          data.type === 'work_order_created') {
-        // Check if user is provider or client based on notification type
-        const isProviderNotification = data.type === 'quotation_sent' || data.type === 'work_order_issued';
+    const typeRaw = data.type;
+    const typeNorm =
+      typeof typeRaw === 'string' ? typeRaw.toLowerCase() : String(typeRaw ?? '').toLowerCase();
+    const requestId = data.requestId;
+
+    // Chat / message pushes → messages screen (not job timeline)
+    if (
+      requestId != null &&
+      requestId !== '' &&
+      (typeNorm === 'message' ||
+        typeNorm === 'chat_new' ||
+        typeNorm === 'new_message' ||
+        typeNorm === 'chat_message')
+    ) {
+      const meta =
+        data.metadata && typeof data.metadata === 'object'
+          ? (data.metadata as Record<string, unknown>)
+          : null;
+      const providerNameFromMeta =
+        meta && typeof meta.providerName === 'string' ? meta.providerName : undefined;
+      router.push({
+        pathname: '/ChatScreen' as any,
+        params: {
+          requestId: String(requestId),
+          ...(data.providerId != null && data.providerId !== '' && { providerId: String(data.providerId) }),
+          ...(data.clientId != null && data.clientId !== '' && { clientId: String(data.clientId) }),
+          ...(typeof data.providerName === 'string'
+            ? { providerName: data.providerName }
+            : providerNameFromMeta != null
+              ? { providerName: providerNameFromMeta }
+              : {}),
+        },
+      } as any);
+      return;
+    }
+
+    if (data.requestId != null && data.requestId !== '') {
+      if (
+        typeNorm === 'quotation_accepted' ||
+        typeNorm === 'quotation_sent' ||
+        typeNorm === 'request_accepted' ||
+        typeNorm === 'work_order_issued' ||
+        typeNorm === 'work_order_created'
+      ) {
+        const isProviderNotification =
+          typeNorm === 'quotation_sent' || typeNorm === 'work_order_issued';
         const screen = isProviderNotification ? '/ProviderJobDetailsScreen' : '/OngoingJobDetails';
-        
+
         router.push({
           pathname: screen as any,
           params: { requestId: String(data.requestId) },
         } as any);
       }
-    } else if (data.type === 'deposit_success') {
+    } else if (typeNorm === 'deposit_success') {
       router.push('/WalletScreen' as any);
     }
   }, [notification, router]);
@@ -244,7 +295,10 @@ export default function RootLayout() {
         <Stack.Screen name="DateTimeScreen" options={{ headerShown: false }} />
         <Stack.Screen name="AddPhotosScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ServiceMapScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="BookingConfirmationScreen" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="BookingConfirmationScreen"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
         <Stack.Screen name="CancelRequestScreen" options={{ headerShown: false }} />
         <Stack.Screen name="CompletedJobDetail" options={{ headerShown: false }} />
         <Stack.Screen name="OngoingJobDetails" options={{ headerShown: false }} />

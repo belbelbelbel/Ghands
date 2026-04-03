@@ -1,6 +1,7 @@
 import JobAcceptedModal from '@/components/JobAcceptedModal';
 import Skeleton, { JobCardSkeleton } from '@/components/LoadingSkeleton';
 import LocationSearchModal from '@/components/LocationSearchModal';
+import NoInternetScreen from '@/components/NoInternetScreen';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
@@ -12,6 +13,7 @@ import { AvailableRequest, ServiceRequest, authService, providerService, service
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { AuthError } from '@/utils/errors';
+import { isConnectivityError } from '@/utils/networkErrors';
 import { calculateDistance, estimateTravelTime } from '@/utils/navigationUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -156,10 +158,10 @@ export default function ProviderHomeScreen() {
   const tabScrollTop = useTabScrollContentPaddingTop(17);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const isTabletLayout = useIsTablet();
-  /** Compact card: padding scales slightly on tablet, no forced min-height */
+  /** Earnings card vertical padding — slightly generous for clearer hierarchy */
   const earningsPaddingV = isTabletLayout
-    ? Math.max(17, Math.round(windowHeight * 0.02))
-    : 17;
+    ? Math.max(24, Math.round(windowHeight * 0.026))
+    : 24;
   const earningsPaddingH = isTabletLayout
     ? Math.max(18, Math.round(windowWidth * 0.04))
     : 18;
@@ -181,6 +183,7 @@ export default function ProviderHomeScreen() {
     label: string;
     trend: 'up' | 'down' | 'flat';
   }>({ label: '…', trend: 'flat' });
+  const [showNoInternet, setShowNoInternet] = useState(false);
   const activeJobsRef = useRef<JobCard[]>([]);
   const [acceptedJobModal, setAcceptedJobModal] = useState<{
     visible: boolean;
@@ -300,8 +303,10 @@ export default function ProviderHomeScreen() {
       setMonthlyEarnings(thisMonthTotal);
       setEarningsVsLastMonth(earningsVsLastMonthFromTotals(thisMonthTotal, lastMonthTotal));
     } catch (error) {
-      if (__DEV__) {
-        console.error('Error loading monthly earnings:', error);
+      if (isConnectivityError(error)) {
+        setShowNoInternet(true);
+      } else if (__DEV__) {
+        console.warn('Error loading monthly earnings:', error);
       }
       setMonthlyEarnings(0);
       setEarningsVsLastMonth({ label: '— vs last month', trend: 'flat' });
@@ -326,18 +331,18 @@ export default function ProviderHomeScreen() {
     setIsLoadingPending(true);
     try {
       const requests = await providerService.getAvailableRequests(50);
-      
       const requestsArray = Array.isArray(requests) ? requests : [];
-      
+
       // Map to job cards only if we have valid requests
       // Backend should already filter out accepted requests
       // We'll do a safety check but use a ref to avoid dependency issues
-      const jobCards = requestsArray.length > 0 
+      const jobCards = requestsArray.length > 0
         ? requestsArray.map((req) => mapRequestToJobCard(req, false))
         : [];
-      
+
       const rejectedIds = await getRejectedRequestIds();
       const currentActiveJobIds = new Set(activeJobsRef.current.map(job => job.requestId?.toString()));
+
       const filteredJobCards = jobCards.filter((job) => {
         const requestId = job.requestId != null ? String(job.requestId) : null;
         if (!requestId) return true;
@@ -354,7 +359,13 @@ export default function ProviderHomeScreen() {
         await handleAuthErrorRedirect(router);
         return;
       }
-      
+
+      if (isConnectivityError(error)) {
+        setShowNoInternet(true);
+        setPendingJobs([]);
+        return;
+      }
+
       // Check if it's a 500 error that might be auth-related
       // For provider endpoints, 500 errors are often auth-related (expired/invalid token)
       const status = error?.status || 500;
@@ -377,19 +388,6 @@ export default function ProviderHomeScreen() {
           }
           return;
         }
-      }
-      
-      // Don't log errors - silent handling for auth errors
-      // Check if it's a network error first
-      const isNetworkError = error?.isNetworkError || 
-                            error?.message?.includes('Network') || 
-                            error?.message?.includes('Failed to fetch') ||
-                            error?.message?.includes('Network request failed');
-      
-      if (isNetworkError) {
-        showError('No internet connection. Please check your connection and reconnect to continue.');
-        setPendingJobs([]);
-        return;
       }
       
       // Check for specific errors and provide helpful messages
@@ -441,7 +439,6 @@ export default function ProviderHomeScreen() {
     setIsLoadingActive(true);
     try {
       const requests = await providerService.getAcceptedRequests();
-      
       // Ensure requests is always an array
       const requestsArray = Array.isArray(requests) ? requests : [];
       
@@ -478,6 +475,13 @@ export default function ProviderHomeScreen() {
       // If AuthError, redirect immediately
       if (error instanceof AuthError) {
         await handleAuthErrorRedirect(router);
+        return;
+      }
+      if (isConnectivityError(error)) {
+        setShowNoInternet(true);
+        setActiveJobs([]);
+        setHasActiveJobs(false);
+        activeJobsRef.current = [];
         return;
       }
       if (__DEV__) {
@@ -532,7 +536,28 @@ export default function ProviderHomeScreen() {
     await loadAvailableRequests();
     setRefreshing(false);
     haptics.success();
-  }, [loadAvailableRequests, loadAcceptedRequests, loadMonthlyEarnings]); 
+  }, [loadAvailableRequests, loadAcceptedRequests, loadMonthlyEarnings]);
+
+  const retryConnection = useCallback(async () => {
+    setShowNoInternet(false);
+    setRefreshing(true);
+    haptics.light();
+    try {
+      await loadMonthlyEarnings();
+      await loadAcceptedRequests();
+      await loadAvailableRequests();
+      await loadProviderName();
+      await loadProviderLocation();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [
+    loadMonthlyEarnings,
+    loadAcceptedRequests,
+    loadAvailableRequests,
+    loadProviderName,
+    loadProviderLocation,
+  ]);
 
   const renderJobCard = useCallback((job: JobCard, isActive: boolean) => (
     <View
@@ -748,6 +773,14 @@ export default function ProviderHomeScreen() {
     return null;
   }
 
+  if (showNoInternet) {
+    return (
+      <SafeAreaWrapper backgroundColor="#F9F9F7" tabletShellTop>
+        <NoInternetScreen onRetry={retryConnection} />
+      </SafeAreaWrapper>
+    );
+  }
+
   return (
     <SafeAreaWrapper backgroundColor={Colors.white} tabletShellTop>
       <ScrollView
@@ -862,7 +895,7 @@ export default function ProviderHomeScreen() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  marginBottom: 10,
+                  marginBottom: 14,
                 }}
               >
                 <Text
@@ -892,8 +925,8 @@ export default function ProviderHomeScreen() {
                   fontSize: earningsAmountFontSize,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.black,
-                  marginBottom: 8,
-                  lineHeight: earningsAmountFontSize * 1.08,
+                  marginBottom: 14,
+                  lineHeight: earningsAmountFontSize * 1.1,
                 }}
               >
                 {formatNaira(monthlyEarnings)}

@@ -1,4 +1,5 @@
 import { useToast } from '@/hooks/useToast';
+import { haptics } from '@/hooks/useHaptics';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { apiClient } from '@/services/api';
 import { authService } from '@/services/authService';
@@ -10,10 +11,16 @@ import AnimatedModal from './AnimatedModal';
 import { InputField } from './InputField';
 import { Button } from './ui/Button';
 
+export interface ProfileCompletionData {
+  fullName: string;
+  phoneNumber: string;
+  gender: string;
+}
+
 interface ProfileCompletionModalProps {
   visible: boolean;
   onClose: () => void;
-  onComplete: (data: { firstName: string; lastName: string; phoneNumber: string; gender: string }) => void;
+  onComplete: (data: ProfileCompletionData) => void;
 }
 
 export default function ProfileCompletionModal({
@@ -22,31 +29,40 @@ export default function ProfileCompletionModal({
   onComplete,
 }: ProfileCompletionModalProps) {
   const { showError } = useToast();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [gender, setGender] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  /** Shown inside the modal — toasts are often hidden behind nested modals */
+  const [inlineError, setInlineError] = useState('');
 
   const handleComplete = async () => {
-    if (!firstName.trim() || !lastName.trim() || !phoneNumber.trim() || !gender) {
-      showError('Please fill in all fields');
+    setInlineError('');
+    const name = fullName.trim();
+    const trimmedPhone = phoneNumber.replace(/\D/g, '');
+
+    if (!name || !trimmedPhone || !gender) {
+      const msg = 'Please fill in full name, phone (digits only), and gender.';
+      setInlineError(msg);
+      haptics.error();
+      showError(msg);
       return;
     }
 
-    if (firstName.trim().length < 2) {
-      showError('First name must be at least 2 characters');
+    if (name.length < 3) {
+      const msg = 'Please enter your full name (at least 3 characters).';
+      setInlineError(msg);
+      haptics.error();
+      showError(msg);
       return;
     }
 
-    if (lastName.trim().length < 2) {
-      showError('Last name must be at least 2 characters');
-      return;
-    }
-
-    const trimmedPhone = phoneNumber.trim().replace(/\s/g, '');
-    if (trimmedPhone.length < 10) {
-      showError('Please enter a valid phone number');
+    if (trimmedPhone.length < 10 || trimmedPhone.length > 15) {
+      const msg =
+        'Enter a valid phone number: at least 10 digits (e.g. 08012345678 or 2348012345678).';
+      setInlineError(msg);
+      haptics.error();
+      showError(msg);
       return;
     }
 
@@ -57,11 +73,10 @@ export default function ProfileCompletionModal({
         throw new Error('User not authenticated');
       }
 
-      // First-time signup completion - strictly for users who haven't completed profile
+      // Client (booking) user — POST /api/user/complete-signup (not /api/provider/complete-signup)
       try {
         await apiClient.post(`/api/user/complete-signup`, {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
+          fullName: name,
           phoneNumber: trimmedPhone,
           gender: gender.toLowerCase(),
         });
@@ -72,8 +87,7 @@ export default function ProfileCompletionModal({
 
       await AsyncStorage.setItem('@ghands:profile_complete', 'true');
 
-      setFirstName('');
-      setLastName('');
+      setFullName('');
       setPhoneNumber('');
       setGender('');
       setIsSubmitting(false);
@@ -81,15 +95,17 @@ export default function ProfileCompletionModal({
 
       setTimeout(() => {
         onComplete({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
+          fullName: name,
           phoneNumber: trimmedPhone,
           gender: gender.toLowerCase(),
         });
       }, 300);
     } catch (error: any) {
       setIsSubmitting(false);
-      showError(error.message || 'Failed to complete profile. Please try again.');
+      const msg = error.message || 'Failed to complete profile. Please try again.';
+      setInlineError(msg);
+      haptics.error();
+      showError(msg);
     }
   };
 
@@ -124,45 +140,44 @@ export default function ProfileCompletionModal({
           {/* Title - Shown only for first-time users who haven't completed profile */}
           <Text style={styles.title}>Complete Your Profile</Text>
           <Text style={styles.subtitle}>
-            Just one more step! Add your name, phone, and gender to continue.
+            Just one more step! Add your full name, phone, and gender to continue.
           </Text>
+
+          {inlineError ? (
+            <View style={styles.inlineErrorBanner}>
+              <Text style={styles.inlineErrorText}>{inlineError}</Text>
+            </View>
+          ) : null}
 
           {/* Form */}
           <View style={styles.form}>
-            {/* First Name - Column Layout */}
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>First Name</Text>
+              <Text style={styles.label}>Full name</Text>
               <InputField
-                placeholder="Enter your first name"
+                placeholder="Enter your full name"
                 icon={<User size={20} color={'white'} />}
-                value={firstName}
-                onChangeText={setFirstName}
+                value={fullName}
+                onChangeText={(t) => {
+                  setFullName(t);
+                  if (inlineError) setInlineError('');
+                }}
                 iconPosition="left"
-                autoCapitalize="words"
-              />
-            </View>
-
-            {/* Last Name - Column Layout */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Last Name</Text>
-              <InputField
-                placeholder="Enter your last name"
-                icon={<User size={20} color={'white'} />}
-                value={lastName}
-                onChangeText={setLastName}
-                iconPosition="right"
                 autoCapitalize="words"
               />
             </View>
 
             {/* Phone Number */}
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Phone Number</Text>
+              <Text style={styles.label}>Phone number</Text>
+              <Text style={styles.fieldHint}>Use digits only (at least 10), e.g. 08012345678</Text>
               <InputField
-                placeholder="Enter your phone number"
+                placeholder="08012345678"
                 icon={<Phone size={20} color={'white'} />}
                 value={phoneNumber}
-                onChangeText={setPhoneNumber}
+                onChangeText={(t) => {
+                  setPhoneNumber(t.replace(/\D/g, ''));
+                  if (inlineError) setInlineError('');
+                }}
                 iconPosition="left"
                 keyboardType="phone-pad"
               />
@@ -179,7 +194,10 @@ export default function ProfileCompletionModal({
                       styles.genderOption,
                       gender.toLowerCase() === option.toLowerCase() && styles.genderOptionActive,
                     ]}
-                    onPress={() => setGender(option)}
+                    onPress={() => {
+                      setGender(option);
+                      if (inlineError) setInlineError('');
+                    }}
                     activeOpacity={0.7}
                   >
                     <Text
@@ -257,8 +275,28 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     color: Colors.textSecondaryDark,
     textAlign: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     lineHeight: 22,
+  },
+  inlineErrorBanner: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  inlineErrorText: {
+    fontSize: 13,
+    fontFamily: 'Poppins-Medium',
+    color: '#B91C1C',
+    lineHeight: 18,
+  },
+  fieldHint: {
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    color: Colors.textSecondaryDark,
+    marginBottom: 6,
   },
   form: {
     gap: Spacing.sm,

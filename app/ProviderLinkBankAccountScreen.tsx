@@ -17,6 +17,26 @@ import {
   View,
 } from 'react-native';
 
+// Fallback list used when backend returns an empty bank list.
+// Strictly cosmetic: codes match common Nigerian banks used by paystack/monnify-style APIs.
+const NIGERIA_FALLBACK_BANKS: Bank[] = [
+  { code: '044', name: 'Access Bank' },
+  { code: '014', name: 'Afrigo' },
+  { code: '023', name: 'CitiBank Nigeria' },
+  { code: '050', name: 'Ecobank Nigeria' },
+  { code: '011', name: 'First Bank of Nigeria' },
+  { code: '214', name: 'First City Monument Bank (FCMB)' },
+  { code: '058', name: 'GTBank' },
+  { code: '070', name: 'Fidelity Bank' },
+  { code: '076', name: 'Polaris Bank' },
+  { code: '032', name: 'Union Bank' },
+  { code: '033', name: 'UBA' },
+  { code: '035', name: 'Wema Bank' },
+  { code: '057', name: 'Zenith Bank' },
+  { code: '221', name: 'Stanbic IBTC Bank' },
+  { code: '232', name: 'Sterling Bank' },
+];
+
 export default function ProviderLinkBankAccountScreen() {
   const router = useRouter();
   const { showError, showSuccess } = useToast();
@@ -33,10 +53,16 @@ export default function ProviderLinkBankAccountScreen() {
     try {
       setIsLoadingBanks(true);
       const list = await walletService.getBanks('NG');
-      setBanks(list);
+      if (Array.isArray(list) && list.length > 0) {
+        setBanks(list);
+      } else {
+        // Backend returned an empty array – fall back to a safe local list
+        setBanks(NIGERIA_FALLBACK_BANKS);
+      }
     } catch (err) {
-      showError('Failed to load banks. Please try again.');
-      setBanks([]);
+      // If API fails entirely, still show local fallback so providers can continue onboarding
+      setBanks(NIGERIA_FALLBACK_BANKS);
+      showError('Unable to load bank list from server. Showing common Nigerian banks instead.');
     } finally {
       setIsLoadingBanks(false);
     }

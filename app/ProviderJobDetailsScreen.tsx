@@ -1,23 +1,21 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, MessageCircle, Phone, CheckCircle2, Edit, MessageSquare, Activity, FileText, CreditCard, Wrench, CheckCircle, Circle, Wallet, Receipt, Navigation, ExternalLink, MapPinned } from 'lucide-react-native';
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View, ActivityIndicator, Animated, Modal, RefreshControl } from 'react-native';
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
-import { providerService, serviceRequestService, ServiceRequest, Quotation, apiClient } from '@/services/api';
-import { useToast } from '@/hooks/useToast';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
+import { useToast } from '@/hooks/useToast';
+import { BorderRadius, Colors } from '@/lib/designSystem';
+import { Quotation, ServiceRequest, authService, providerService, serviceRequestService } from '@/services/api';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import { makeCall } from '@/utils/callUtils';
+import { formatDateLong, formatDateShort, formatTimeAgo } from '@/utils/dateFormatting';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { AuthError } from '@/utils/errors';
-import { handleAuthErrorRedirect } from '@/utils/authRedirect';
-import MaterialsAccordion from '@/components/MaterialsAccordion';
-import { calculateDistance, estimateTravelTime, formatDistance, formatTravelTime, openNavigation, openMaps } from '@/utils/navigationUtils';
-import { authService } from '@/services/api';
-import { formatDateLong, formatDateShort, formatTimeAgo } from '@/utils/dateFormatting';
-import { makeCall } from '@/utils/callUtils';
+import { calculateDistance, estimateTravelTime, formatDistance, formatTravelTime, openMaps, openNavigation } from '@/utils/navigationUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Activity, ArrowLeft, ArrowRight, Calendar, CheckCircle, CheckCircle2, Circle, Clock, Edit, ExternalLink, FileText, MapPin, MapPinned, MessageCircle, MessageSquare, Navigation, Phone, Receipt, Wallet, Wrench } from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Image, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 
 const formatDate = (dateString: string): string => formatDateLong(dateString) || dateString;
 
@@ -293,10 +291,40 @@ export default function ProviderJobDetailsScreen() {
         setIsFromAcceptedRequests(true);
       }
 
-      // 3) Final fallback: fetch full request details directly.
+      // 3) Primary single-job fetch from provider-scoped endpoint.
       // This covers cases where the backend has moved the job out of
       // "accepted" and "available" lists (e.g. after visit requested / scheduled),
       // but the provider should still be able to open the job.
+      if (!requestDetails) {
+        try {
+          const fullDetails = await providerService.getRequestById(requestId);
+          if (fullDetails) {
+            requestDetails = fullDetails as ServiceRequest;
+            const status = (fullDetails as any).status?.toString().toLowerCase();
+            if (status === 'accepted' || status === 'scheduled' || status === 'in_progress') {
+              setIsFromAcceptedRequests(true);
+            } else {
+              setIsFromAcceptedRequests(false);
+            }
+          }
+        } catch (err: any) {
+          if (__DEV__) {
+            const token = await authService.getAuthToken();
+            const companyId = await authService.getCompanyId();
+            console.log('❌ [ProviderJobDetails] getRequestById failed', {
+              requestId,
+              message: err?.message,
+              status: err?.status,
+              details: err?.details,
+              tokenSnippet: token ,
+              companyId,
+            });
+          }
+          // Ignore here – we'll handle missing details below with a user-friendly message.
+        }
+      }
+
+      // 4) Final fallback to shared request-service details endpoint.
       if (!requestDetails) {
         try {
           const fullDetails = await serviceRequestService.getRequestDetails(requestId);
@@ -309,13 +337,23 @@ export default function ProviderJobDetailsScreen() {
               setIsFromAcceptedRequests(false);
             }
           }
-        } catch {
+        } catch (err: any) {
+          if (__DEV__) {
+            const companyId = await authService.getCompanyId();
+            console.log('❌ [ProviderJobDetails] getRequestDetails fallback failed', {
+              requestId,
+              message: err?.message,
+              status: err?.status,
+              details: err?.details,
+              companyId,
+            });
+          }
           // Ignore here – we'll handle missing details below with a user-friendly message.
         }
       }
 
       if (!requestDetails) {
-        showError('Job details not found');
+        showError('Job details not found. Please refresh or try again.');
         setIsLoading(false);
         isLoadingRef.current = false;
         return;

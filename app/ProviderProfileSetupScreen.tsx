@@ -357,10 +357,13 @@ export default function ProviderProfileSetupScreen() {
         return;
       }
 
-      // Save business name to AsyncStorage for welcome message
-      // Save to both keys: business_name (for this screen) and company_name (for provider home)
+      // Save business name + about/description + demo profile image for downstream profile screens
       await AsyncStorage.setItem('@ghands:business_name', businessName.trim());
       await AsyncStorage.setItem('@ghands:company_name', businessName.trim());
+      await AsyncStorage.setItem('@ghands:provider_about_demo', description.trim());
+      if (licenseDocument) {
+        await AsyncStorage.setItem('@ghands:provider_profile_image_demo', licenseDocument);
+      }
       
       haptics.success();
       showSuccess('Profile setup completed successfully!');

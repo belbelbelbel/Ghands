@@ -20,7 +20,23 @@ interface CategoryData extends ServiceCategory {
 
 export default function CategoryPage() {
   const routes = useRouter();
-  const params = useLocalSearchParams<{ selectedCategoryId?: string, searchQuery?: string; fromAddButton?: string }>();
+  const params = useLocalSearchParams<{
+    selectedCategoryId?: string;
+    searchQuery?: string;
+    fromAddButton?: string;
+    /** When set with requestId, Continue returns to ServiceMapScreen instead of creating a new request */
+    returnToServiceMap?: string;
+    requestId?: string;
+    preserveData?: string;
+    selectedDateTime?: string;
+    selectedDate?: string;
+    selectedTime?: string;
+    photoCount?: string;
+    location?: string;
+    latitude?: string;
+    longitude?: string;
+    serviceType?: string;
+  }>();
   const { toast, showError, hideToast } = useToast();
   const [isToggle, setIsToggle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -313,6 +329,31 @@ export default function CategoryPage() {
   const handleNextJobsScreen = async () => {
     if (isToggle !== "") {
       haptics.light();
+
+      if (params.returnToServiceMap === 'true' && params.requestId) {
+        setIsCreatingRequest(true);
+        try {
+          routes.replace({
+            pathname: '/ServiceMapScreen' as any,
+            params: {
+              requestId: String(params.requestId),
+              categoryName: isToggle,
+              serviceType: isToggle,
+              selectedDateTime: params.selectedDateTime || '',
+              selectedDate: params.selectedDate || '',
+              selectedTime: params.selectedTime || '',
+              photoCount: params.photoCount || '',
+              location: params.location || '',
+              ...(params.latitude ? { latitude: params.latitude } : {}),
+              ...(params.longitude ? { longitude: params.longitude } : {}),
+            },
+          } as any);
+        } finally {
+          setIsCreatingRequest(false);
+        }
+        return;
+      }
+
       setIsCreatingRequest(true);
       
       try {
@@ -384,7 +425,9 @@ export default function CategoryPage() {
   };
 
   const isFromStackScreen = !!params.fromAddButton;
-  const isFromNavigation = !!params.selectedCategoryId || hasNavigatedFromHome || isFromStackScreen;
+  const isFromServiceMapEdit = params.returnToServiceMap === 'true';
+  const isFromNavigation =
+    !!params.selectedCategoryId || hasNavigatedFromHome || isFromStackScreen || isFromServiceMapEdit;
 
   return (
     <SafeAreaWrapper tabletShellTop>
@@ -394,7 +437,7 @@ export default function CategoryPage() {
               <TouchableOpacity
                 onPress={() => {
                   haptics.light();
-                  if (isFromStackScreen) {
+                  if (isFromStackScreen || isFromServiceMapEdit) {
                     routes.back();
                   } else {
                     routes.replace('/(tabs)/home');
@@ -696,7 +739,7 @@ export default function CategoryPage() {
                 <>
               <Text className='text-[#D7FF6B]' style={{
                 fontFamily: 'Poppins-Bold'
-              }}>Add Details</Text>
+              }}>{isFromServiceMapEdit ? 'Continue' : 'Add Details'}</Text>
               <Text>
                 <Ionicons name='arrow-forward' size={18} color={'#D7FF6B'} />
               </Text>

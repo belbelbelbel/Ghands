@@ -1,17 +1,15 @@
 import { CoachMarkTarget } from '@/components/CoachMarkTarget';
-import useCoachMarks from '@/hooks/useCoachMarks';
 import LiveSupportScreen from '@/components/LiveSupportScreen';
 import { JobCardSkeleton } from '@/components/LoadingSkeleton';
 import LocationSearchModal from '@/components/LocationSearchModal';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import type { JobActivity } from '@/components/home/JobActivityCard';
 import JobActivityCard from '@/components/home/JobActivityCard';
 import PromoCodeCard from '@/components/home/PromoCodeCard';
-import RecommendedCard from '@/components/home/RecommendedCard';
 import TodoCard from '@/components/home/TodoCard';
 import { promoCodes, quickActions, todoItems, type QuickAction } from '@/components/home/data';
-import type { JobActivity } from '@/components/home/JobActivityCard';
+import useCoachMarks from '@/hooks/useCoachMarks';
 import { haptics } from '@/hooks/useHaptics';
-import { shareReferral } from '@/utils/referral';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { Colors, REFRESH_CONTROL, useTabScrollContentPaddingTop } from '@/lib/designSystem';
@@ -19,6 +17,7 @@ import { ServiceRequest, authService, serviceRequestService } from '@/services/a
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getCategoryIcon } from '@/utils/categoryIcons';
 import { AuthError } from '@/utils/errors';
+import { shareReferral } from '@/utils/referral';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
@@ -79,6 +78,20 @@ const HomeScreen = React.memo(() => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const categoriesFadeAnim = useRef(new Animated.Value(1)).current; // Start visible for dummy data
+
+  // Dev-only: short client token snippet to help backend debug auth issues
+  useEffect(() => {
+    if (!__DEV__) return;
+    (async () => {
+      try {
+        const token = await authService.getAuthToken();
+        console.log('[ClientTokenSnippet:Home]', token )
+
+      } catch {
+        console.log('[ClientTokenSnippet:Home]', null);
+      }
+    })();
+  }, []);
 
   // Refresh location when modal closes
   useEffect(() => {

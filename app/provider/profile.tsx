@@ -4,6 +4,7 @@ import { useAuthRole } from '@/hooks/useAuth';
 import { haptics } from '@/hooks/useHaptics';
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import { isConnectivityOrNetworkError } from '@/utils/isNetworkFailure';
 import { useRouter, useFocusEffect } from 'expo-router';
 import {
   ArrowRight,
@@ -235,12 +236,17 @@ export default function ProviderProfileScreen() {
       }
 
     } catch (error: any) {
-      // If AuthError, redirect immediately
+      if (isConnectivityOrNetworkError(error)) {
+        if (__DEV__) {
+          console.warn('Provider profile: offline or network error — staying signed in.');
+        }
+        return;
+      }
       if (error instanceof AuthError) {
         await handleAuthErrorRedirect(router);
         return;
       }
-      
+
       if (__DEV__) {
         console.error('Error loading provider profile:', error);
       }
@@ -340,6 +346,7 @@ export default function ProviderProfileScreen() {
   const QuotationsPreview = () => {
     const [quotations, setQuotations] = useState<ProviderQuotationListItem[]>([]);
     const [isLoadingQuotations, setIsLoadingQuotations] = useState(false);
+    const [quotationsLoadOffline, setQuotationsLoadOffline] = useState(false);
 
     const loadQuotations = useCallback(async () => {
       // Avoid re-triggering while already loading
@@ -347,18 +354,27 @@ export default function ProviderProfileScreen() {
       setIsLoadingQuotations(true);
       try {
         const data = await providerService.getProviderQuotations();
+        setQuotationsLoadOffline(false);
         // Show only first 2 quotations in profile preview
         setQuotations(data.slice(0, 2));
       } catch (error: any) {
-        // If AuthError, redirect immediately
+        if (isConnectivityOrNetworkError(error)) {
+          setQuotationsLoadOffline(true);
+          setQuotations([]);
+          if (__DEV__) {
+            console.warn('Quotations preview: offline — not logging out.');
+          }
+          return;
+        }
         if (error instanceof AuthError) {
           await handleAuthErrorRedirect(router);
           return;
         }
-        
+
         if (__DEV__) {
           console.error('Error loading quotations:', error);
         }
+        setQuotationsLoadOffline(false);
         setQuotations([]);
       } finally {
         setIsLoadingQuotations(false);
@@ -428,9 +444,10 @@ export default function ProviderProfileScreen() {
               fontFamily: 'Poppins-Medium',
               color: Colors.textSecondaryDark,
               marginBottom: 4,
+              textAlign: 'center',
             }}
           >
-            No quotations yet
+            {quotationsLoadOffline ? 'No connection' : 'No quotations yet'}
           </Text>
           <Text
             style={{
@@ -440,7 +457,9 @@ export default function ProviderProfileScreen() {
               textAlign: 'center',
             }}
           >
-            Start accepting requests to send quotations
+            {quotationsLoadOffline
+              ? 'Check your internet and try again. You are still signed in.'
+              : 'Start accepting requests to send quotations'}
           </Text>
         </View>
       );

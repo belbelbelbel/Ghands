@@ -20,9 +20,9 @@ const ProfileScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [userData, setUserData] = useState({
     name: 'Loading...',
-    location: location || 'New York, NY',
-    rating: 4.8,
-    reviews: 24,
+    location: location || '',
+    rating: 0,
+    reviews: 0,
     balance: 0,
     referralCode: 'SARAH2024',
   });
@@ -100,7 +100,7 @@ const ProfileScreen = () => {
     if (id === 'account') {
       router.push('../AccountInformationScreen' as any);
     } else if (id === 'billing') {
-      router.push('../PaymentHistoryScreen' as any);
+      router.push('../PaymentMethodsScreen' as any);
     } else if (id === 'support') {
       router.push('../HelpSupportScreen' as any);
     }
@@ -545,7 +545,7 @@ const ProfileScreen = () => {
               marginBottom: 12,
             }}
           >
-            Get $10 for each referral
+          Get rewards for each referral
           </Text>
           <View
             style={{

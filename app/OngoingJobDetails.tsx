@@ -10,6 +10,7 @@ import { QuotationWithProvider, ServiceRequest, serviceRequestService, walletSer
 import { formatTimeAgo } from '@/utils/dateFormatting';
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import { isConnectivityOrNetworkError } from '@/utils/isNetworkFailure';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { formatProviderProximitySubtitle } from '@/utils/navigationUtils';
 import { Ionicons } from '@expo/vector-icons';
@@ -701,6 +702,13 @@ export default function OngoingJobDetails() {
       const quotationsData = await serviceRequestService.getQuotations(requestId);
       setQuotations(quotationsData);
     } catch (error: any) {
+      if (isConnectivityOrNetworkError(error)) {
+        if (__DEV__) {
+          console.warn('Quotations: offline — staying on screen.');
+        }
+        setQuotations([]);
+        return;
+      }
       if (error instanceof AuthError) {
         await handleAuthErrorRedirect(router);
         return;

@@ -33,8 +33,8 @@ const SAMPLE_PROVIDERS: ServiceProvider[] = __DEV__ ? [
     id: 'provider-1',
     name: "Mike's Plumbing",
     category: 'Plumber',
-    rating: 4.9,
-    reviews: 127,
+    rating: 0,
+    reviews: 0,
     distance: '0.8 miles away',
     availability: 'Available',
     image: require('../assets/images/plumbericon2.png'),
@@ -44,8 +44,8 @@ const SAMPLE_PROVIDERS: ServiceProvider[] = __DEV__ ? [
     id: 'provider-2',
     name: 'Spark Electric Co.',
     category: 'Electrician',
-    rating: 4.7,
-    reviews: 96,
+    rating: 0,
+    reviews: 0,
     distance: '1.1 miles away',
     availability: 'Available',
     image: require('../assets/images/electricianicon2.png'),
@@ -55,8 +55,8 @@ const SAMPLE_PROVIDERS: ServiceProvider[] = __DEV__ ? [
     id: 'provider-3',
     name: 'Shine Auto Spa',
     category: 'Car Wash',
-    rating: 4.8,
-    reviews: 88,
+    rating: 0,
+    reviews: 0,
     distance: '1.4 miles away',
     availability: 'Available',
     image: require('../assets/images/cleanericon.png'),
@@ -66,8 +66,8 @@ const SAMPLE_PROVIDERS: ServiceProvider[] = __DEV__ ? [
     id: 'provider-4',
     name: 'Rapid Fix Plumbing',
     category: 'Plumber',
-    rating: 4.6,
-    reviews: 142,
+    rating: 0,
+    reviews: 0,
     distance: '1.6 miles away',
     availability: 'Available',
     image: require('../assets/images/plumbericon.png'),
@@ -77,8 +77,8 @@ const SAMPLE_PROVIDERS: ServiceProvider[] = __DEV__ ? [
     id: 'provider-5',
     name: 'Bright Sparks',
     category: 'Electrician',
-    rating: 4.9,
-    reviews: 203,
+    rating: 0,
+    reviews: 0,
     distance: '2.1 miles away',
     availability: 'Available',
     image: require('../assets/images/electricianicon.png'),
@@ -395,6 +395,31 @@ const ServiceMapScreen = () => {
     []
   );
 
+  const handleMapBack = useCallback(() => {
+    haptics.light();
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    if (params.requestId) {
+      router.replace({
+        pathname: '/AddPhotosScreen' as any,
+        params: {
+          requestId: params.requestId,
+          categoryName: params.categoryName,
+          serviceType: params.serviceType,
+          selectedDateTime: params.selectedDateTime,
+          selectedDate: params.selectedDate,
+          selectedTime: params.selectedTime,
+          photoCount: params.photoCount,
+          location: params.location,
+        },
+      } as any);
+    } else {
+      router.replace('/(tabs)/categories' as any);
+    }
+  }, [router, params]);
+
   return (
     <SafeAreaWrapper>
       <View className="flex-1">
@@ -657,18 +682,45 @@ const ServiceMapScreen = () => {
             </View>
           </View>
         ) : (
-          <ServiceMap
-            providers={providers}
-            selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
-            selectedProviders={selectedProviders}
-            onProviderSelect={handleProviderSelect}
-            showList={showList}
-            onToggleList={() => setShowList((prev) => !prev)}
-            userLocation={userLocation}
-            serviceLocation={serviceLocation}
-            onServiceLocationChange={setServiceLocation}
-          />
+          <View style={{ flex: 1 }}>
+            <TouchableOpacity
+              onPress={handleMapBack}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              style={{
+                position: 'absolute',
+                top: 12,
+                left: 16,
+                zIndex: 40,
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: Colors.white,
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.12,
+                shadowRadius: 6,
+                elevation: 6,
+              }}
+              activeOpacity={0.85}
+            >
+              <ArrowLeft size={22} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <ServiceMap
+              providers={providers}
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+              selectedProviders={selectedProviders}
+              onProviderSelect={handleProviderSelect}
+              showList={showList}
+              onToggleList={() => setShowList((prev) => !prev)}
+              userLocation={userLocation}
+              serviceLocation={serviceLocation}
+              onServiceLocationChange={setServiceLocation}
+            />
+          </View>
         )}
       </View>
       <Toast
@@ -750,17 +802,26 @@ const ServiceMapScreen = () => {
           } as any);
         }}
         onEditService={(bookingData) => {
+          const categoryHint =
+            params.categoryName ||
+            bookingData.serviceType ||
+            params.serviceType ||
+            '';
           router.push({
-            pathname: '/ServicesGridScreen' as any,
+            pathname: '/(tabs)/categories' as any,
             params: {
+              selectedCategoryId: categoryHint,
+              returnToServiceMap: 'true',
               requestId: params.requestId,
               preserveData: 'true',
-              serviceType: bookingData.serviceType || params.serviceType,
-              selectedDateTime: bookingData.dateTime || params.selectedDateTime,
-              selectedDate: bookingData.date || params.selectedDate,
-              selectedTime: bookingData.time || params.selectedTime,
-              photoCount: bookingData.photoCount?.toString() || params.photoCount,
-              location: bookingData.location || serviceLocation,
+              serviceType: bookingData.serviceType || params.serviceType || '',
+              selectedDateTime: bookingData.dateTime || params.selectedDateTime || '',
+              selectedDate: bookingData.date || params.selectedDate || '',
+              selectedTime: bookingData.time || params.selectedTime || '',
+              photoCount: bookingData.photoCount?.toString() || params.photoCount || '',
+              location: bookingData.location || serviceLocation || '',
+              latitude: params.latitude || '',
+              longitude: params.longitude || '',
             },
           } as any);
         }}

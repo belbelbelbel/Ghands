@@ -95,7 +95,10 @@ export default function JobDetailsScreen() {
 
   const handleBack = useCallback(() => {
     haptics.light();
-    // Navigate back to categories screen explicitly to avoid navigation stack issues
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
     router.replace('/(tabs)/categories' as any);
   }, [router]);
 

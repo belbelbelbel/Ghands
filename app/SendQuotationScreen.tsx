@@ -44,7 +44,6 @@ export default function SendQuotationScreen() {
   const [laborCost, setLaborCost] = useState('10');
   const [logisticsCost, setLogisticsCost] = useState('10');
   const [findings, setFindings] = useState('');
-  const [total, setTotal] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [materials, setMaterials] = useState<MaterialItem[]>([
     { id: '1', name: 'Pipe Connector', quantity: 1, price: '100000' },
@@ -69,19 +68,6 @@ export default function SendQuotationScreen() {
   };
 
   const totals = useMemo(() => calculateTotals(), [laborCost, logisticsCost, materials]);
-  
-  // Auto-update total when other fields change (if total is empty or matches calculated value)
-  useEffect(() => {
-    const calculatedTotalStr = totals.total.toString();
-    const formattedCalculated = formatInput(calculatedTotalStr);
-    const currentTotalFormatted = formatInput(total);
-    
-    // Only auto-update if total is empty or matches the calculated value
-    if (!total || currentTotalFormatted === formattedCalculated) {
-      setTotal(calculatedTotalStr);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totals.total]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -153,12 +139,6 @@ export default function SendQuotationScreen() {
       return;
     }
 
-    const totalValue = parseFloat(total.replace(/,/g, '')) || totals.total;
-    if (totalValue <= 0) {
-      showError('Total must be greater than 0');
-      return;
-    }
-
     setIsSubmitting(true);
     haptics.light();
 
@@ -189,6 +169,7 @@ export default function SendQuotationScreen() {
         findingsAndWorkRequired: findings.trim(),
         serviceCharge: serviceCharge,
         tax: 10, // Fixed tax of ₦10
+        total: totals.total,
       };
 
       // Always accept first — choosing "Send quotation" means provider accepts the request
@@ -246,7 +227,13 @@ export default function SendQuotationScreen() {
     }
   };
 
-  const canSubmit = laborCost && logisticsCost && findings && findings.trim().length >= 10 && total && !isSubmitting;
+  const canSubmit =
+    laborCost &&
+    logisticsCost &&
+    findings &&
+    findings.trim().length >= 10 &&
+    totals.total > 0 &&
+    !isSubmitting;
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
@@ -602,57 +589,6 @@ export default function SendQuotationScreen() {
                       fontFamily: 'Poppins-Regular',
                       color: Colors.textPrimary,
                       minHeight: 100,
-                    }}
-                    placeholderTextColor={Colors.textSecondaryDark}
-                  />
-                </View>
-              </View>
-
-              {/* Total Field */}
-              <View style={{ marginBottom: SPACING.xxl }}>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontFamily: 'Poppins-Medium',
-                    color: Colors.textSecondaryDark,
-                    marginBottom: SPACING.sm,
-                  }}
-                >
-                  Total <Text style={{ color: Colors.error }}>*</Text>
-                </Text>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: Colors.white,
-                    borderRadius: BorderRadius.default,
-                    borderWidth: 1,
-                    borderColor: Colors.border,
-                    paddingHorizontal: SPACING.md,
-                    height: 48,
-                    ...SHADOWS.sm,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'Poppins-Regular',
-                      color: Colors.textPrimary,
-                      marginRight: 4,
-                    }}
-                  >
-                    ₦
-                  </Text>
-                  <TextInput
-                    placeholder="10"
-                    value={formatInput(total)}
-                    onChangeText={(text) => setTotal(text.replace(/,/g, ''))}
-                    keyboardType="numeric"
-                    style={{
-                      flex: 1,
-                      fontSize: 14,
-                      fontFamily: 'Poppins-Regular',
-                      color: Colors.textPrimary,
                     }}
                     placeholderTextColor={Colors.textSecondaryDark}
                   />

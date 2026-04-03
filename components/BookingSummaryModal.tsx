@@ -84,7 +84,11 @@ export default function BookingSummaryModal({
     onConfirm();
   };
 
-  const handleProfileComplete = async (profileData: { firstName: string; lastName: string; phoneNumber?: string; gender: string }) => {
+  const handleProfileComplete = async (_profileData: {
+    fullName: string;
+    phoneNumber: string;
+    gender: string;
+  }) => {
     // Mark profile as complete immediately to prevent showing modal again
     await markProfileComplete();
     

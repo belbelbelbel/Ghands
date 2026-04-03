@@ -31,6 +31,27 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const AM_HOURS = ['09:00', '10:00', '11:00', '12:00'];
 const PM_HOURS = ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00'];
 
+/** Minutes from midnight for scheduling slots (12:00 = noon; PM 01:00 = 13:00). */
+function slotToMinutes(time: string): number {
+  const [hs, ms] = time.split(':');
+  const h = parseInt(hs, 10);
+  const min = parseInt(ms || '0', 10);
+  if (Number.isNaN(h)) return 0;
+  if (AM_HOURS.includes(time)) {
+    return h * 60 + min;
+  }
+  if (PM_HOURS.includes(time)) {
+    return (h + 12) * 60 + min;
+  }
+  return h * 60 + min;
+}
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
 export default function DateTimeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -45,9 +66,11 @@ export default function DateTimeScreen() {
   const { toast, showError, showSuccess, hideToast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => {
-    // Restore selected date from params if editing
     if (params.selectedDate) {
-      return new Date(params.selectedDate);
+      const d = new Date(params.selectedDate as string);
+      if (!isNaN(d.getTime()) && startOfDay(d) >= startOfDay(new Date())) {
+        return d;
+      }
     }
     return null;
   });
@@ -116,7 +139,10 @@ export default function DateTimeScreen() {
 
   const handleBack = useCallback(() => {
     haptics.light();
-    // Navigate back to JobDetailsScreen explicitly
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
     if (params.requestId) {
       router.replace({
         pathname: '/JobDetailsScreen' as any,
@@ -126,7 +152,6 @@ export default function DateTimeScreen() {
         },
       } as any);
     } else {
-      // If no requestId, go to categories
       router.replace('/(tabs)/categories' as any);
     }
   }, [router, params]);
@@ -172,6 +197,14 @@ export default function DateTimeScreen() {
     return `${displayHour}:${minutes} ${period}`;
   }, []);
 
+  const isSlotInPast = useCallback((date: Date, time: string) => {
+    const totalM = slotToMinutes(time);
+    const h = Math.floor(totalM / 60);
+    const m = totalM % 60;
+    const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0, 0);
+    return slotStart.getTime() <= Date.now();
+  }, []);
+
   const handleNext = useCallback(async () => {
     if (!selectedDate || !selectedTime) {
       showError('Please select both date and time');
@@ -179,14 +212,8 @@ export default function DateTimeScreen() {
       return;
     }
 
-    // Validate date is not in the past
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDateOnly = new Date(selectedDate);
-    selectedDateOnly.setHours(0, 0, 0, 0);
-    
-    if (selectedDateOnly < today) {
-      showError('Please select a date in the future');
+    if (isSlotInPast(selectedDate, selectedTime)) {
+      showError('Choose a future date and time');
       haptics.error();
       return;
     }
@@ -260,7 +287,18 @@ export default function DateTimeScreen() {
     } finally {
       setIsUpdating(false);
     }
-  }, [selectedDate, selectedTime, formattedDateTime, params, router, showError, showSuccess, formatDateForAPI, formatTimeForAPI]);
+  }, [
+    selectedDate,
+    selectedTime,
+    formattedDateTime,
+    params,
+    router,
+    showError,
+    showSuccess,
+    formatDateForAPI,
+    formatTimeForAPI,
+    isSlotInPast,
+  ]);
 
   const handleCancel = useCallback(() => {
     // Navigate back to JobDetailsScreen explicitly
@@ -278,13 +316,20 @@ export default function DateTimeScreen() {
     }
   }, [router, params]);
 
+  const canGoPreviousMonth = useMemo(() => {
+    const viewFirst = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const thisMonthFirst = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    return viewFirst.getTime() > thisMonthFirst.getTime();
+  }, [currentDate]);
+
   const handlePreviousMonth = useCallback(() => {
+    if (!canGoPreviousMonth) return;
     setCurrentDate((prev) => {
       const newDate = new Date(prev);
       newDate.setMonth(prev.getMonth() - 1);
       return newDate;
     });
-  }, []);
+  }, [canGoPreviousMonth]);
 
   const handleNextMonth = useCallback(() => {
     setCurrentDate((prev) => {
@@ -294,14 +339,50 @@ export default function DateTimeScreen() {
     });
   }, []);
 
-  const handleDateSelect = useCallback((day: number) => {
-    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-    setSelectedDate(newDate);
-  }, [currentDate]);
+  const isCalendarDayPast = useCallback(
+    (day: number, isCurrentMonth: boolean) => {
+      if (!isCurrentMonth) return false;
+      const cell = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+      return startOfDay(cell) < startOfDay(new Date());
+    },
+    [currentDate]
+  );
 
-  const handleTimeSelect = useCallback((time: string) => {
-    setSelectedTime(time);
-  }, []);
+  const handleDateSelect = useCallback(
+    (day: number, isCurrentMonth: boolean) => {
+      if (!isCurrentMonth) return;
+      const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+      if (startOfDay(newDate) < startOfDay(new Date())) {
+        haptics.error();
+        showError('Past dates cannot be scheduled');
+        return;
+      }
+      setSelectedDate(newDate);
+      haptics.light();
+    },
+    [currentDate, showError]
+  );
+
+  const handleTimeSelect = useCallback(
+    (time: string) => {
+      if (!selectedDate) return;
+      if (isSlotInPast(selectedDate, time)) {
+        haptics.error();
+        showError('That time has already passed. Pick a later slot.');
+        return;
+      }
+      setSelectedTime(time);
+      haptics.selection();
+    },
+    [selectedDate, isSlotInPast, showError]
+  );
+
+  useEffect(() => {
+    if (!selectedDate || !selectedTime) return;
+    if (isSlotInPast(selectedDate, selectedTime)) {
+      setSelectedTime(null);
+    }
+  }, [selectedDate, selectedTime, isSlotInPast]);
 
   const calendarDays = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -409,10 +490,12 @@ export default function DateTimeScreen() {
                 <View className="flex-row items-center gap-2">
                   <TouchableOpacity
                     onPress={handlePreviousMonth}
+                    disabled={!canGoPreviousMonth}
                     className="h-8 w-8 items-center justify-center rounded-full bg-gray-100"
-                    activeOpacity={0.7}
+                    activeOpacity={canGoPreviousMonth ? 0.7 : 1}
+                    style={{ opacity: canGoPreviousMonth ? 1 : 0.35 }}
                   >
-                    <ChevronLeft size={16} color="#111827" />
+                    <ChevronLeft size={16} color={canGoPreviousMonth ? '#111827' : '#9CA3AF'} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={handleNextMonth}
@@ -437,26 +520,25 @@ export default function DateTimeScreen() {
               <View className="flex-row flex-wrap">
                 {calendarDays.map((item, index) => {
                   const { day, isCurrentMonth } = item;
+                  const isPastDay = isCalendarDayPast(day, isCurrentMonth);
+                  const selectable = isCurrentMonth && !isPastDay;
                   const selected = isCurrentMonth && isDateSelected(day);
                   const today = isCurrentMonth && isToday(day);
 
                   return (
                     <TouchableOpacity
                       key={`day-${day}-${index}`}
-                      onPress={() => {
-                        if (isCurrentMonth) {
-                          handleDateSelect(day);
-                        }
-                      }}
-                      activeOpacity={isCurrentMonth ? 0.7 : 1}
-                      disabled={!isCurrentMonth}
+                      onPress={() => handleDateSelect(day, isCurrentMonth)}
+                      activeOpacity={selectable ? 0.7 : 1}
+                      disabled={!selectable}
                       className="w-[14.28%] aspect-square p-1"
+                      style={{ opacity: !isCurrentMonth ? 0.35 : isPastDay ? 0.4 : 1 }}
                     >
                       <View
                         className={`flex-1 items-center justify-center rounded-full ${
                           selected
                             ? 'bg-[#6A9B00]'
-                            : today
+                            : today && !isPastDay
                               ? 'bg-gray-100 border border-gray-300'
                               : 'bg-transparent'
                         }`}
@@ -466,9 +548,11 @@ export default function DateTimeScreen() {
                             selected
                               ? 'text-white'
                               : isCurrentMonth
-                                ? today
-                                  ? 'text-black'
-                                  : 'text-gray-700'
+                                ? isPastDay
+                                  ? 'text-gray-400'
+                                  : today
+                                    ? 'text-black'
+                                    : 'text-gray-700'
                                 : 'text-gray-300'
                           }`}
                           style={{
@@ -497,19 +581,28 @@ export default function DateTimeScreen() {
               <View className="flex-row flex-wrap gap-2">
                 {AM_HOURS.map((hour) => {
                   const isSelected = selectedTime === hour;
+                  const slotPast =
+                    !!selectedDate && isSlotInPast(selectedDate, hour);
+                  const disabled = !selectedDate || slotPast;
                   return (
                     <TouchableOpacity
                       key={`am-${hour}`}
                       onPress={() => handleTimeSelect(hour)}
-                      activeOpacity={0.7}
+                      disabled={disabled}
+                      activeOpacity={disabled ? 1 : 0.7}
                       className={`rounded-xl px-4 py-3 border ${
                         isSelected
                           ? 'bg-[#6A9B00] border-[#6A9B00]'
-                          : 'bg-white border-gray-200'
+                          : disabled
+                            ? 'bg-gray-50 border-gray-100'
+                            : 'bg-white border-gray-200'
                       }`}
+                      style={{ opacity: disabled && !isSelected ? 0.45 : 1 }}
                     >
                       <Text
-                        className={`text-sm ${isSelected ? 'text-white' : 'text-[#6A9B00]'}`}
+                        className={`text-sm ${
+                          isSelected ? 'text-white' : disabled ? 'text-gray-400' : 'text-[#6A9B00]'
+                        }`}
                         style={{ fontFamily: 'Poppins-SemiBold' }}
                       >
                         {hour}
@@ -527,19 +620,28 @@ export default function DateTimeScreen() {
               <View className="flex-row flex-wrap gap-2">
                 {PM_HOURS.map((hour) => {
                   const isSelected = selectedTime === hour;
+                  const slotPast =
+                    !!selectedDate && isSlotInPast(selectedDate, hour);
+                  const disabled = !selectedDate || slotPast;
                   return (
                     <TouchableOpacity
                       key={`pm-${hour}`}
                       onPress={() => handleTimeSelect(hour)}
-                      activeOpacity={0.7}
+                      disabled={disabled}
+                      activeOpacity={disabled ? 1 : 0.7}
                       className={`rounded-xl px-4 py-3 border ${
                         isSelected
                           ? 'bg-[#6A9B00] border-[#6A9B00]'
-                          : 'bg-white border-gray-200'
+                          : disabled
+                            ? 'bg-gray-50 border-gray-100'
+                            : 'bg-white border-gray-200'
                       }`}
+                      style={{ opacity: disabled && !isSelected ? 0.45 : 1 }}
                     >
                       <Text
-                        className={`text-sm ${isSelected ? 'text-white' : 'text-[#6A9B00]'}`}
+                        className={`text-sm ${
+                          isSelected ? 'text-white' : disabled ? 'text-gray-400' : 'text-[#6A9B00]'
+                        }`}
                         style={{ fontFamily: 'Poppins-SemiBold' }}
                       >
                         {hour}

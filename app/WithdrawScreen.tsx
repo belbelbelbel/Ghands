@@ -64,6 +64,14 @@ export default function WithdrawScreen() {
   const hasEnoughBalance = balance >= amount && amount >= 100;
 
   const handleWithdraw = () => {
+    if (__DEV__) {
+      console.log('🔍 [Withdraw] handleWithdraw tapped', {
+        balance,
+        amount,
+        hasEnoughBalance,
+        hasBankAccount: !!selectedAccount,
+      });
+    }
     if (!selectedAccount) {
       showError('Please select a bank account');
       return;
@@ -87,22 +95,63 @@ export default function WithdrawScreen() {
   };
 
   const submitWithdraw = async (pinValue: string) => {
-    if (!pinValue || pinValue.length !== 4 || !selectedAccount) return;
+    if (!pinValue || pinValue.length !== 4 || !selectedAccount) {
+      if (__DEV__) {
+        console.log('❌ [Withdraw] submitWithdraw blocked', {
+          hasPin: !!pinValue,
+          pinLength: pinValue?.length,
+          hasBankAccount: !!selectedAccount,
+        });
+      }
+      return;
+    }
     try {
       setIsWithdrawing(true);
       setShowPinModal(false);
+      if (__DEV__) {
+        console.log('🔍 [Withdraw] submitting', {
+          bankAccountId: selectedAccount.id,
+          amount,
+        });
+      }
       await walletService.withdraw({
         bankAccountId: selectedAccount.id,
         amount,
         pin: pinValue,
         narration: 'Withdrawal',
       });
+      if (__DEV__) {
+        console.log('✅ [Withdraw] success');
+      }
       haptics.success();
       showSuccess(`₦${amount.toLocaleString()} withdrawal initiated`);
       loadData();
       router.back();
     } catch (err: any) {
-      showError(getSpecificErrorMessage(err, 'withdraw') || 'Withdrawal failed. Please try again.');
+      if (__DEV__) {
+        console.log('❌ [Withdraw] error', err);
+      }
+      const rawMsg: string =
+        err?.details?.data?.error ||
+        err?.details?.error ||
+        err?.details?.message ||
+        err?.message ||
+        '';
+      const lower = rawMsg.toLowerCase();
+
+      if (lower.includes('wallet pin not set')) {
+        showError('Wallet PIN not set. Please create a PIN first to withdraw.');
+        // Small delay so the toast is visible before navigation
+        setTimeout(() => {
+          router.push('/CreatePINScreen' as any);
+        }, 800);
+      } else {
+        showError(
+          getSpecificErrorMessage(err, 'withdraw') ||
+            rawMsg ||
+            'Withdrawal failed. Please try again.'
+        );
+      }
     } finally {
       setIsWithdrawing(false);
     }

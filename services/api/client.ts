@@ -207,8 +207,13 @@ class ApiClient {
             ? 'Whoops! No internet connection found. Check your internet connection or try again.'
             : (error instanceof Error ? error.message : 'Request failed');
           const statusCode = (error as any)?.status || (error as any)?.response?.status;
-          // Only 401/403 → redirect to login. Never redirect for 500, 404, 400, etc. (user has a valid token).
-          if (!config.skipAuth && (statusCode === 401 || statusCode === 403)) {
+          // Only 401/403 → session expired. Skip if this failure is really offline / flaky network
+          // (avoids mis-classifying connection issues as logout when proxies or DNS act up).
+          if (
+            !isNetworkErr &&
+            !config.skipAuth &&
+            (statusCode === 401 || statusCode === 403)
+          ) {
             throw new AuthError('Your session has expired. Please sign in again.');
           }
           const isExpected500 = statusCode === 500;

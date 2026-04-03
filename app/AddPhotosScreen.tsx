@@ -216,8 +216,8 @@ export default function AddPhotosScreen() {
       } catch {
         // Non-fatal; preview just won't show
       }
-      // Pass ALL booking params to ServiceMapScreen
-      router.replace({
+      // Push so back from map returns to Add photos; booking stack stays intact
+      router.push({
         pathname: '/ServiceMapScreen' as any,
         params: {
           requestId: params.requestId, // Pass requestId for provider selection
@@ -234,7 +234,10 @@ export default function AddPhotosScreen() {
   }, [isFindingProviders, selectedPhotos, photos, router, params]);
 
   const handleCancel = useCallback(() => {
-    // Navigate back to DateTimeScreen explicitly
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
     if (params.requestId) {
       router.replace({
         pathname: '/DateTimeScreen' as any,
@@ -248,13 +251,15 @@ export default function AddPhotosScreen() {
         },
       } as any);
     } else {
-      // If no requestId, go to categories
       router.replace('/(tabs)/categories' as any);
     }
   }, [router, params]);
 
   const handleBack = useCallback(() => {
-    // Navigate back to DateTimeScreen explicitly
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
     if (params.requestId) {
       router.replace({
         pathname: '/DateTimeScreen' as any,
@@ -268,7 +273,6 @@ export default function AddPhotosScreen() {
         },
       } as any);
     } else {
-      // If no requestId, go to categories
       router.replace('/(tabs)/categories' as any);
     }
   }, [router, params]);

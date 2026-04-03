@@ -2,7 +2,7 @@ export default {
   expo: {
     name: 'GHands',
     slug: 'GHands',
-    version: '1.0.2',
+    version: '1.0.3',
     orientation: 'portrait',
     icon: './assets/images/icon.png',
     scheme: 'ghands',

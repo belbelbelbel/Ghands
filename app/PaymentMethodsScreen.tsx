@@ -3,37 +3,31 @@ import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { BorderRadius, Colors } from '@/lib/designSystem';
-import { walletService } from '@/services/api';
+import { walletService, type BankAccount } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CheckCircle, ChevronRight, Lock, Plus, RefreshCw, X } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Building2, CheckCircle, ChevronRight, Lock, Plus, Receipt, RefreshCw, Wallet, X } from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-const PAYMENT_METHODS = [
-  {
-    id: '1',
-    type: 'VISA',
-    lastFour: '4532',
-    expires: '12/26',
-    lastUsed: '2 days ago',
-  },
-  {
-    id: '2',
-    type: 'VISA',
-    lastFour: '4532',
-    expires: '12/26',
-    lastUsed: '2 days ago',
-  },
-  {
-    id: '3',
-    type: 'VISA',
-    lastFour: '4532',
-    expires: '12/26',
-    lastUsed: '2 days ago',
-  },
-];
+const WALLET_METHOD = {
+  id: 'wallet',
+  type: 'WALLET' as const,
+  lastFour: 'wallet',
+  expires: '',
+  lastUsed: '',
+};
 
 type PaymentStep = 'processing' | 'verifying' | 'completing' | 'success';
 
@@ -48,11 +42,21 @@ export default function PaymentMethodsScreen() {
     transactionId?: string;
   }>();
   const { toast, showError, showSuccess, hideToast } = useToast();
-  
+
+  const isCheckout = useMemo(() => {
+    const ridRaw = params.requestId;
+    const amtRaw = params.amount;
+    const ridStr = Array.isArray(ridRaw) ? ridRaw[0] : ridRaw;
+    const amtStr = Array.isArray(amtRaw) ? amtRaw[0] : amtRaw;
+    const rid = ridStr != null && ridStr !== '' ? Number(ridStr) : NaN;
+    const amt = amtStr != null && amtStr !== '' ? parseFloat(String(amtStr)) : NaN;
+    return Number.isFinite(rid) && rid > 0 && Number.isFinite(amt) && amt > 0;
+  }, [params.requestId, params.amount]);
+
   const [showProcessingModal, setShowProcessingModal] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [paymentStep, setPaymentStep] = useState<PaymentStep>('processing');
-  const [selectedMethod, setSelectedMethod] = useState<typeof PAYMENT_METHODS[0] | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<typeof WALLET_METHOD | null>(null);
   const [pin, setPin] = useState(['', '', '', '']);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   // Persistent payment error state - stays visible until user dismisses or retries
@@ -64,22 +68,83 @@ export default function PaymentMethodsScreen() {
   const spinAnim = useRef(new Animated.Value(0)).current;
   const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const handleRemove = (id: string) => {
-    // Handle remove payment method
-    haptics.light();
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [isLoadingBilling, setIsLoadingBilling] = useState(true);
+
+  const loadBillingData = useCallback(async () => {
+    try {
+      setIsLoadingBilling(true);
+      const [w, banks] = await Promise.all([walletService.getWallet(), walletService.getBankAccounts()]);
+      const b = typeof w.balance === 'number' ? w.balance : parseFloat(String(w.balance)) || 0;
+      setWalletBalance(b);
+      setBankAccounts(Array.isArray(banks) ? banks : []);
+    } catch {
+      setWalletBalance(0);
+      setBankAccounts([]);
+    } finally {
+      setIsLoadingBilling(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isCheckout) {
+        walletService
+          .getWallet()
+          .then((w) => {
+            const b = typeof w.balance === 'number' ? w.balance : parseFloat(String(w.balance)) || 0;
+            setWalletBalance(b);
+          })
+          .catch(() => {});
+      } else {
+        loadBillingData();
+      }
+    }, [isCheckout, loadBillingData])
+  );
+
+  const handleSetDefaultBank = async (accountId: number) => {
+    try {
+      haptics.light();
+      await walletService.setDefaultBankAccount(accountId);
+      showSuccess('Default account updated');
+      await loadBillingData();
+    } catch (e: any) {
+      showError(e?.message || 'Could not update default account');
+    }
   };
 
-  const handlePaymentMethodSelect = (method: typeof PAYMENT_METHODS[0]) => {
+  const handleRemoveBank = (account: BankAccount) => {
+    Alert.alert(
+      'Remove bank account?',
+      `${account.bankName} ••••${account.accountNumber.slice(-4)} will be removed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await walletService.deleteBankAccount(account.id);
+              haptics.success();
+              showSuccess('Bank account removed');
+              await loadBillingData();
+            } catch (e: any) {
+              showError(e?.message || 'Could not remove account');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const startWalletCheckoutPayment = () => {
     haptics.selection();
-    setSelectedMethod(method);
-    // Clear any previous payment errors when user selects a new payment method
+    setSelectedMethod(WALLET_METHOD);
     setPaymentError(null);
-    // Show PIN modal first
     setShowPinModal(true);
     setPin(['', '', '', '']);
-    if (pinInputRefs.current[0]) {
-      setTimeout(() => pinInputRefs.current[0]?.focus(), 100);
-    }
+    setTimeout(() => pinInputRefs.current[0]?.focus(), 100);
   };
 
   const handlePinChange = (value: string, index: number) => {
@@ -115,14 +180,18 @@ export default function PaymentMethodsScreen() {
       return;
     }
 
-    // Validate payment parameters
-    if (!params.requestId || !params.amount) {
+    const ridRaw = params.requestId;
+    const amtRaw = params.amount;
+    const ridStr = Array.isArray(ridRaw) ? ridRaw[0] : ridRaw;
+    const amtStr = Array.isArray(amtRaw) ? amtRaw[0] : amtRaw;
+
+    if (!ridStr || !amtStr) {
       showError('Missing payment information. Please try again.');
       return;
     }
 
-    const requestId = parseInt(params.requestId, 10);
-    const amount = parseFloat(params.amount);
+    const requestId = parseInt(String(ridStr), 10);
+    const amount = parseFloat(String(amtStr));
 
     // Validate requestId and amount are valid numbers
     if (isNaN(requestId) || isNaN(amount) || amount <= 0) {
@@ -290,6 +359,170 @@ export default function PaymentMethodsScreen() {
 
   const stepMessage = getStepMessage();
 
+  if (!isCheckout) {
+    return (
+      <SafeAreaWrapper>
+        <View className="flex-row items-center px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
+          <TouchableOpacity
+            onPress={() => {
+              haptics.light();
+              router.back();
+            }}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="arrow-back" size={24} color="#000000" />
+          </TouchableOpacity>
+          <Text
+            className="text-lg font-bold text-black flex-1 text-center"
+            style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
+          >
+            Billing & payment
+          </Text>
+          <View style={{ width: 24 }} />
+        </View>
+
+        {isLoadingBilling ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+            <ActivityIndicator size="large" color={Colors.accent} />
+            <Text style={{ marginTop: 12, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
+              Loading…
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            className="flex-1 px-4"
+            contentContainerStyle={{ paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View
+              style={{
+                backgroundColor: '#0a0a0a',
+                borderRadius: BorderRadius.xl,
+                padding: 20,
+                marginTop: 16,
+                marginBottom: 20,
+              }}
+            >
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>
+                Wallet balance
+              </Text>
+              <Text style={{ fontSize: 28, fontFamily: 'Poppins-Bold', color: Colors.white }}>
+                ₦{walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push('/TopUpScreen' as any)}
+                style={{
+                  marginTop: 16,
+                  backgroundColor: Colors.accent,
+                  paddingVertical: 12,
+                  borderRadius: BorderRadius.md,
+                  alignItems: 'center',
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={{ fontFamily: 'Poppins-SemiBold', color: Colors.black }}>Top up wallet</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ fontFamily: 'Poppins-SemiBold', fontSize: 16, color: Colors.textPrimary, marginBottom: 12 }}>
+              Bank accounts
+            </Text>
+            <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 13, color: Colors.textSecondaryDark, marginBottom: 12 }}>
+              Used for withdrawals. Service payments use your wallet balance and PIN.
+            </Text>
+
+            {bankAccounts.length === 0 ? (
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: Colors.border,
+                  borderRadius: BorderRadius.lg,
+                  padding: 20,
+                  alignItems: 'center',
+                  marginBottom: 16,
+                }}
+              >
+                <Building2 size={40} color={Colors.textTertiary} style={{ marginBottom: 8 }} />
+                <Text style={{ fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 12 }}>
+                  No bank account linked yet
+                </Text>
+                <TouchableOpacity
+                  onPress={() => router.push('/ProviderLinkBankAccountScreen' as any)}
+                  style={{ backgroundColor: Colors.accent, paddingVertical: 12, paddingHorizontal: 20, borderRadius: BorderRadius.md }}
+                >
+                  <Text style={{ fontFamily: 'Poppins-SemiBold', color: Colors.black }}>Link bank account</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              bankAccounts.map((acc) => (
+                <View
+                  key={acc.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: Colors.backgroundGray,
+                    borderRadius: BorderRadius.lg,
+                    padding: 16,
+                    marginBottom: 10,
+                    borderWidth: 1,
+                    borderColor: acc.isDefault ? Colors.accent : Colors.border,
+                  }}
+                >
+                  <Building2 size={22} color={Colors.textSecondaryDark} style={{ marginRight: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
+                      {acc.bankName} ••••{acc.accountNumber.slice(-4)}
+                    </Text>
+                    <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 12, color: Colors.textSecondaryDark, marginTop: 2 }}>
+                      {acc.accountName}
+                      {acc.isDefault ? ' · Default' : ''}
+                    </Text>
+                  </View>
+                  {!acc.isDefault && (
+                    <TouchableOpacity onPress={() => handleSetDefaultBank(acc.id)} style={{ marginRight: 8 }}>
+                      <Text style={{ fontFamily: 'Poppins-Medium', fontSize: 12, color: Colors.accent }}>Default</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity onPress={() => handleRemoveBank(acc)}>
+                    <Text style={{ fontFamily: 'Poppins-Medium', fontSize: 12, color: Colors.error }}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+
+            <TouchableOpacity
+              onPress={() => router.push('/WalletScreen' as any)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.lg,
+                padding: 16,
+                marginTop: 8,
+                borderWidth: 1,
+                borderColor: Colors.border,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Receipt size={22} color={Colors.accent} style={{ marginRight: 12 }} />
+                <View>
+                  <Text style={{ fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Transaction history</Text>
+                  <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 12, color: Colors.textSecondaryDark }}>
+                    View receipts and activity
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight size={20} color={Colors.textTertiary} />
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+
+        <Toast message={toast.message} type={toast.type} visible={toast.visible} onClose={hideToast} />
+      </SafeAreaWrapper>
+    );
+  }
+
   return (
     <SafeAreaWrapper>
       {/* Header */}
@@ -304,7 +537,7 @@ export default function PaymentMethodsScreen() {
           <Ionicons name="arrow-back" size={24} color="#000000" />
         </TouchableOpacity>
         <Text className="text-lg font-bold text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}>
-          Payment methods
+          Pay with wallet
         </Text>
         <View style={{ width: 24 }} />
       </View>
@@ -434,79 +667,65 @@ export default function PaymentMethodsScreen() {
           </View>
         )}
 
-        {PAYMENT_METHODS.map((method) => (
-          <TouchableOpacity
-            key={method.id}
-            onPress={() => handlePaymentMethodSelect(method)}
-            activeOpacity={0.8}
-            className="bg-gray-50 rounded-2xl px-4 py-5 mb-4 border border-gray-100"
-          >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center flex-1">
-                <View className="bg-blue-600 rounded-xl w-12 h-12 items-center justify-center mr-4">
-                  <Text 
-                    className="text-white font-bold text-xs" 
-                    style={{ fontFamily: 'Poppins-Bold' }}
-                  >
-                    VISA
-                  </Text>
-                </View>
-                <View className="flex-1">
-                  <Text 
-                    className="text-base font-bold text-black mb-1" 
-                    style={{ fontFamily: 'Poppins-Bold' }}
-                  >
-                    Visa •••• {method.lastFour}
-                  </Text>
-                  <Text 
-                    className="text-sm text-gray-500 mb-1" 
-                    style={{ fontFamily: 'Poppins-Regular' }}
-                  >
-                    Expires {method.expires}
-                  </Text>
-                  <Text 
-                    className="text-sm text-gray-500" 
-                    style={{ fontFamily: 'Poppins-Regular' }}
-                  >
-                    Last used: {method.lastUsed}
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleRemove(method.id);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text 
-                  className="text-[#6A9B00] text-sm" 
-                  style={{ fontFamily: 'Poppins-Medium' }}
-                >
-                  Remove
-                </Text>
-              </TouchableOpacity>
+        <View style={{ marginTop: 16, marginBottom: 8 }}>
+          <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 13, color: Colors.textSecondaryDark, lineHeight: 20 }}>
+            Pay with your GHands wallet balance. You will confirm with your 4-digit wallet PIN.
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={startWalletCheckoutPayment}
+          activeOpacity={0.85}
+          style={{
+            backgroundColor: Colors.backgroundGray,
+            borderRadius: BorderRadius.xl,
+            padding: 20,
+            marginBottom: 16,
+            borderWidth: 2,
+            borderColor: Colors.accent,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                backgroundColor: '#0a0a0a',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 14,
+              }}
+            >
+              <Wallet size={24} color={Colors.accent} />
             </View>
-          </TouchableOpacity>
-        ))}
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 17, color: Colors.textPrimary, marginBottom: 4 }}>
+                Wallet
+              </Text>
+              <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 13, color: Colors.textSecondaryDark }}>
+                Available: ₦
+                {walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <ChevronRight size={22} color={Colors.textTertiary} />
+          </View>
+        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => {
             haptics.light();
-            router.push('/AddCardDetailsScreen' as any);
+            router.push('/TopUpScreen' as any);
           }}
           activeOpacity={0.7}
           className="border-2 border-dashed border-gray-300 rounded-2xl px-4 py-5 flex-row items-center justify-between mb-4"
         >
           <View className="flex-row items-center flex-1">
             <View className="w-12 h-12 items-center justify-center mr-4">
-              <Plus size={24} color="#9CA3AF" />
+              <Plus size={24} color={Colors.accent} />
             </View>
-            <Text 
-              className="text-gray-500 text-base" 
-              style={{ fontFamily: 'Poppins-Medium' }}
-            >
-              Add Payment Method
+            <Text className="text-base" style={{ fontFamily: 'Poppins-Medium', color: Colors.textPrimary }}>
+              Top up wallet
             </Text>
           </View>
           <ChevronRight size={20} color="#9CA3AF" />
@@ -736,7 +955,7 @@ export default function PaymentMethodsScreen() {
                     marginBottom: 4,
                   }}
                 >
-                  Payment Method
+                  Payment method
                 </Text>
                 <Text
                   style={{
@@ -745,7 +964,7 @@ export default function PaymentMethodsScreen() {
                     color: Colors.textPrimary,
                   }}
                 >
-                  Visa •••• {selectedMethod.lastFour}
+                  {selectedMethod.type === 'WALLET' ? 'Wallet balance' : `Card •••• ${selectedMethod.lastFour}`}
                 </Text>
               </View>
             )}

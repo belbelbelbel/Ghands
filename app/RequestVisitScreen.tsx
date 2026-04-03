@@ -30,6 +30,22 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const AM_HOURS = ['09:00', '10:00', '11:00', '12:00'];
 const PM_HOURS = ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00'];
 
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function slotToMinutes(time: string): number {
+  const [hs, ms] = time.split(':');
+  const h = parseInt(hs, 10);
+  const min = parseInt(ms || '0', 10);
+  if (Number.isNaN(h)) return 0;
+  if (AM_HOURS.includes(time)) return h * 60 + min;
+  if (PM_HOURS.includes(time)) return (h + 12) * 60 + min;
+  return h * 60 + min;
+}
+
 export default function RequestVisitScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -85,7 +101,23 @@ export default function RequestVisitScreen() {
 
   const days = useMemo(() => getDaysInMonth(currentDate), [currentDate]);
 
+  const canGoPrevMonth = useMemo(() => {
+    const viewFirst = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const todayFirst = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    return viewFirst.getTime() > todayFirst.getTime();
+  }, [currentDate]);
+
+  const isCalendarDayPast = useCallback(
+    (day: number | null) => {
+      if (day === null) return false;
+      const cell = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+      return startOfDay(cell) < startOfDay(new Date());
+    },
+    [currentDate]
+  );
+
   const handlePrevMonth = () => {
+    if (!canGoPrevMonth) return;
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   };
 
@@ -96,7 +128,16 @@ export default function RequestVisitScreen() {
   const handleDateSelect = (day: number | null) => {
     if (day === null) return;
     const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    if (startOfDay(newDate) < startOfDay(new Date())) {
+      haptics.error();
+      showError('Past dates cannot be selected for visits.');
+      return;
+    }
     setSelectedDate(newDate);
+    // If previously chosen time is now in the past for this date, clear it
+    if (selectedTime && isSlotInPast(newDate, selectedTime)) {
+      setSelectedTime(null);
+    }
   };
 
   const formattedDateTime = useMemo(() => {
@@ -172,6 +213,14 @@ export default function RequestVisitScreen() {
     return `${displayHour}:${minutes} ${period}`;
   }, [selectedTime]);
 
+  const isSlotInPast = useCallback((date: Date, time: string) => {
+    const totalM = slotToMinutes(time);
+    const h = Math.floor(totalM / 60);
+    const m = totalM % 60;
+    const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0, 0);
+    return slotStart.getTime() <= Date.now();
+  }, []);
+
   const handleSubmit = () => {
     if (!selectedDate || !selectedTime) {
       showError('Please select both date and time');
@@ -187,11 +236,8 @@ export default function RequestVisitScreen() {
   const handleConfirmAppointment = async () => {
     if (!requestId || !selectedDate || !selectedTime) return;
 
-    // Validate date is not in the past
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-    if (selectedDay < today) {
+    // Validate full date+time is not in the past
+    if (isSlotInPast(selectedDate, selectedTime)) {
       showError('Please select a future date and time for your visit.');
       return;
     }
@@ -213,6 +259,15 @@ export default function RequestVisitScreen() {
           logisticsCost: parseFloat(logisticsCost) || 0,
         });
       } catch (visitErr: any) {
+        if (__DEV__) {
+          console.log('[RequestVisit] requestVisit failed', {
+            requestId: rid,
+            payload: { scheduledDate: formattedDate, scheduledTime: timeFormatted, logisticsCost },
+            message: visitErr?.message,
+            status: visitErr?.status,
+            details: visitErr?.details,
+          });
+        }
         const msg = (visitErr?.message || visitErr?.details?.data?.message || '').toLowerCase();
         if (msg.includes('visit has already been requested') || msg.includes('already been requested')) {
           haptics.success();
@@ -486,7 +541,8 @@ export default function RequestVisitScreen() {
                       selectedDate.getMonth() === currentDate.getMonth() &&
                       selectedDate.getFullYear() === currentDate.getFullYear();
 
-                    const isCurrentMonth = true; // All days shown are in current month
+                    const isPast = isCalendarDayPast(day);
+                    const disabled = isPast;
 
                     return (
                       <TouchableOpacity
@@ -500,8 +556,10 @@ export default function RequestVisitScreen() {
                           alignItems: 'center',
                           justifyContent: 'center',
                           margin: 2,
+                          opacity: disabled && !isSelected ? 0.4 : 1,
                         }}
-                        activeOpacity={0.7}
+                        disabled={disabled}
+                        activeOpacity={disabled ? 1 : 0.7}
                       >
                         <Text
                           style={{
@@ -509,9 +567,9 @@ export default function RequestVisitScreen() {
                             fontFamily: isSelected ? 'Poppins-SemiBold' : 'Poppins-Regular',
                             color: isSelected
                               ? Colors.white
-                              : isCurrentMonth
-                              ? Colors.textPrimary
-                              : Colors.textTertiary,
+                              : disabled
+                              ? Colors.textSecondaryDark
+                              : Colors.textPrimary,
                           }}
                         >
                           {day}
@@ -557,6 +615,8 @@ export default function RequestVisitScreen() {
                 >
                   {AM_HOURS.map((time) => {
                     const isSelected = selectedTime === time;
+                    const disabled =
+                      !selectedDate || isSlotInPast(selectedDate, time);
                     return (
                       <TouchableOpacity
                         key={time}
@@ -565,17 +625,31 @@ export default function RequestVisitScreen() {
                           paddingVertical: Spacing.sm,
                           paddingHorizontal: Spacing.md,
                           borderRadius: BorderRadius.default,
-                          backgroundColor: isSelected ? Colors.accent : Colors.backgroundGray,
+                          backgroundColor: isSelected
+                            ? Colors.accent
+                            : disabled
+                            ? Colors.backgroundGray
+                            : Colors.backgroundGray,
                           borderWidth: 1,
-                          borderColor: isSelected ? Colors.accent : Colors.border,
+                          borderColor: isSelected
+                            ? Colors.accent
+                            : disabled
+                            ? Colors.border
+                            : Colors.border,
+                          opacity: disabled && !isSelected ? 0.45 : 1,
                         }}
-                        activeOpacity={0.7}
+                        disabled={disabled}
+                        activeOpacity={disabled ? 1 : 0.7}
                       >
                         <Text
                           style={{
                             fontSize: 14,
                             fontFamily: 'Poppins-SemiBold',
-                            color: isSelected ? Colors.white : Colors.accent,
+                            color: isSelected
+                              ? Colors.white
+                              : disabled
+                              ? Colors.textSecondaryDark
+                              : Colors.accent,
                           }}
                         >
                           {time}
@@ -607,6 +681,8 @@ export default function RequestVisitScreen() {
                 >
                   {PM_HOURS.map((time) => {
                     const isSelected = selectedTime === time;
+                    const disabled =
+                      !selectedDate || isSlotInPast(selectedDate, time);
                     return (
                       <TouchableOpacity
                         key={time}
@@ -615,17 +691,31 @@ export default function RequestVisitScreen() {
                           paddingVertical: Spacing.sm,
                           paddingHorizontal: Spacing.md,
                           borderRadius: BorderRadius.default,
-                          backgroundColor: isSelected ? Colors.accent : Colors.backgroundGray,
+                          backgroundColor: isSelected
+                            ? Colors.accent
+                            : disabled
+                            ? Colors.backgroundGray
+                            : Colors.backgroundGray,
                           borderWidth: 1,
-                          borderColor: isSelected ? Colors.accent : Colors.border,
+                          borderColor: isSelected
+                            ? Colors.accent
+                            : disabled
+                            ? Colors.border
+                            : Colors.border,
+                          opacity: disabled && !isSelected ? 0.45 : 1,
                         }}
-                        activeOpacity={0.7}
+                        disabled={disabled}
+                        activeOpacity={disabled ? 1 : 0.7}
                       >
                         <Text
                           style={{
                             fontSize: 14,
                             fontFamily: 'Poppins-SemiBold',
-                            color: isSelected ? Colors.white : Colors.accent,
+                            color: isSelected
+                              ? Colors.white
+                              : disabled
+                              ? Colors.textSecondaryDark
+                              : Colors.accent,
                           }}
                         >
                           {time}

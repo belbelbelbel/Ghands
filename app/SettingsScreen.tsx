@@ -37,7 +37,7 @@ export default function SettingsScreen() {
       iconBgColor: '#F5F5F5',
       onPress: () => {
         // Navigate to billing/payment
-        router.push('/PaymentHistoryScreen' as any);
+        router.push('/PaymentMethodsScreen' as any);
       },
     },
     {

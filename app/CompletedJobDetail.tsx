@@ -310,7 +310,12 @@ export default function CompletedJobDetail() {
       },
       {
         name: 'Total Cost',
-        subtitle: request.totalCost || '$0.00', // Might need backend support
+        subtitle: request.totalCost
+          ? `₦${Number(request.totalCost).toLocaleString('en-NG', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`
+          : '₦0.00',
         icon: <Ionicons name="cash" color={'#9CA3AF'} size={18}/>
       }
     ];
@@ -667,7 +672,7 @@ export default function CompletedJobDetail() {
                 onPress={() => {
                   haptics.selection();
                   analytics.track('view_receipt', { job_id: 'completed_job' });
-                  router.push('/PaymentHistoryScreen' as any);
+                  router.push('/WalletScreen' as any);
                 }}
               >
                 <Text

@@ -43,8 +43,8 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const router = useRouter();
   const pathname = usePathname();
-  /** JWT `exp` reached → clear session and go to login (same as 401 handling) */
-  useSessionTimeout(router);
+  /** No token on protected routes, or JWT expired → login (same as 401 handling) */
+  useSessionTimeout(router, pathname);
   const { notification } = useNotifications();
   
   const [fontsLoaded] = useFonts({
@@ -71,11 +71,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     const configureAndroidNav = async () => {
+      if (Platform.OS !== 'android') return;
       try {
         await NavigationBar.setBackgroundColorAsync('#000000');
-        if (Platform.OS === 'android') {
-          await NavigationBar.setButtonStyleAsync('light');
-        }
+        await NavigationBar.setButtonStyleAsync('light');
       } catch (error) {
         console.warn('Navigation bar config failed', error);
         crashReporting.captureException(error as Error, { context: 'android_nav_config' });

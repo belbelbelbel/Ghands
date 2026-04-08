@@ -19,6 +19,17 @@ import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 
 const formatDate = (dateString: string): string => formatDateLong(dateString) || dateString;
 
+/** True when a quotation record exists on the server beyond a draft (sent / awaiting client / decided). */
+function recordShowsSentQuotation(
+  q: { sentAt?: string | null; status?: string | null; id?: number | null } | null | undefined
+): boolean {
+  if (!q) return false;
+  if (q.sentAt) return true;
+  const s = (q.status || '').toString().toLowerCase();
+  if (!s || s === 'draft') return false;
+  return ['pending', 'accepted', 'rejected', 'expired'].includes(s);
+}
+
 export default function ProviderJobDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ requestId?: string }>();
@@ -279,6 +290,7 @@ export default function ProviderJobDetailsScreen() {
       // 1) Try provider accepted list (primary source)
       const acceptedRequests = await providerService.getAcceptedRequests();
       requestDetails = acceptedRequests.find((req) => req.id === requestId) || null;
+      let loadedFromAcceptedList = !!requestDetails;
 
       // 2) If not there, fall back to available requests (pending invites)
       if (!requestDetails) {
@@ -301,7 +313,13 @@ export default function ProviderJobDetailsScreen() {
           if (fullDetails) {
             requestDetails = fullDetails as ServiceRequest;
             const status = (fullDetails as any).status?.toString().toLowerCase();
-            if (status === 'accepted' || status === 'scheduled' || status === 'in_progress') {
+            if (
+              status === 'accepted' ||
+              status === 'scheduled' ||
+              status === 'in_progress' ||
+              status === 'reviewing' ||
+              status === 'completed'
+            ) {
               setIsFromAcceptedRequests(true);
             } else {
               setIsFromAcceptedRequests(false);
@@ -331,7 +349,13 @@ export default function ProviderJobDetailsScreen() {
           if (fullDetails) {
             requestDetails = fullDetails as ServiceRequest;
             const status = (fullDetails as any).status?.toString().toLowerCase();
-            if (status === 'accepted' || status === 'scheduled' || status === 'in_progress') {
+            if (
+              status === 'accepted' ||
+              status === 'scheduled' ||
+              status === 'in_progress' ||
+              status === 'reviewing' ||
+              status === 'completed'
+            ) {
               setIsFromAcceptedRequests(true);
             } else {
               setIsFromAcceptedRequests(false);
@@ -366,13 +390,13 @@ export default function ProviderJobDetailsScreen() {
       
       // If request is accepted / in progress, start loading quotation info in the background
       // We DON'T await this so the main job details render quickly and quotation shows its own loader.
-      // Only load quotation if provider has accepted (to avoid unnecessary API calls)
-      if (
-        isFromAcceptedRequests ||
-        requestDetails.status === 'accepted' ||
-        requestDetails.status === 'scheduled' ||
-        requestDetails.status === 'in_progress'
-      ) {
+      // Use local flags + status (not React state) — `isFromAcceptedRequests` here would be stale
+      // on the same tick as `setIsFromAcceptedRequests(true)`.
+      const statusLower = (requestDetails.status || '').toString().toLowerCase();
+      const shouldLoadQuotation =
+        loadedFromAcceptedList ||
+        ['accepted', 'scheduled', 'in_progress', 'reviewing', 'completed'].includes(statusLower);
+      if (shouldLoadQuotation) {
         loadQuotationWithProvider(requestId);
       }
     } catch (error: any) {
@@ -666,10 +690,14 @@ export default function ProviderJobDetailsScreen() {
                                                request.status === 'in_progress' ||
                                                request.status === 'reviewing' ||
                                                request.status === 'completed';
-    const providerHasAccepted = isFromAcceptedRequests || 
-                                request.status === 'accepted' || 
-                                requestIndicatesQuotationAccepted;
-    const quotationSent = quotation || (quotationWithProvider && (quotationWithProvider.sentAt || (quotationWithProvider.status && quotationWithProvider.status !== 'draft' && quotationWithProvider.status !== null)));
+    const quotationSent =
+      recordShowsSentQuotation(quotation) || recordShowsSentQuotation(quotationWithProvider);
+    // A sent quotation / post-quote status means the provider already engaged — keep steps linear.
+    const providerHasAccepted =
+      isFromAcceptedRequests ||
+      request.status === 'accepted' ||
+      requestIndicatesQuotationAccepted ||
+      quotationSent;
     const visitRequest = (request as any).visitRequest;
     const visitStatus = (visitRequest?.logisticsStatus || '').toString().toLowerCase();
     const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
@@ -822,8 +850,8 @@ export default function ProviderJobDetailsScreen() {
       // Quotation sent but not accepted yet - YELLOW (waiting for client to accept)
       timeline.push({
         id: 'step-3',
-        title: 'Quotation Accepted',
-        description: 'Quotation sent. Waiting for client to accept.',
+        title: 'Client approval',
+        description: 'Quotation sent. Waiting for the client to accept.',
         status: 'In Progress',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
@@ -836,8 +864,8 @@ export default function ProviderJobDetailsScreen() {
       // Quotation not sent yet - grey (pending)
       timeline.push({
         id: 'step-3',
-        title: 'Quotation Accepted',
-        description: 'Send quotation to client.',
+        title: 'Quotation accepted',
+        description: 'Send your quotation first; the client accepts in the next step.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -1026,7 +1054,25 @@ export default function ProviderJobDetailsScreen() {
     }
 
     return timeline;
-  }, [request, quotationWithProvider, selectionCountdown, providerId]);
+  }, [request, quotation, quotationWithProvider, selectionCountdown, providerId, isFromAcceptedRequests]);
+
+  /** Matches timeline: provider is past “invite” — show post-accept actions, not generic Send Quotation. */
+  const providerBottomBarEngaged = useMemo(() => {
+    if (!request) return false;
+    const st = (request.status || '').toString().toLowerCase();
+    const sent =
+      recordShowsSentQuotation(quotation) || recordShowsSentQuotation(quotationWithProvider);
+    return (
+      isFromAcceptedRequests ||
+      st === 'accepted' ||
+      st === 'scheduled' ||
+      st === 'in_progress' ||
+      st === 'reviewing' ||
+      st === 'completed' ||
+      !!(request as any)?.visitRequest ||
+      sent
+    );
+  }, [request, isFromAcceptedRequests, quotation, quotationWithProvider]);
 
   // Create animation values for timeline
   const stepCount = timelineSteps.length;
@@ -1661,7 +1707,11 @@ export default function ProviderJobDetailsScreen() {
                           style={{
                             width: 2,
                             flex: 1,
-                            backgroundColor: step.isCompleted ? step.lineColor : step.isActive ? step.lineColor : '#E5E7EB',
+                            backgroundColor: step.isCompleted
+                              ? step.lineColor
+                              : step.isActive
+                                ? step.lineColor
+                                : '#E5E7EB',
                             marginTop: 6,
                             borderRadius: 1,
                             minHeight: 36,
@@ -3173,10 +3223,10 @@ export default function ProviderJobDetailsScreen() {
                 </Text>
               </TouchableOpacity>
             </>
-          ) : request && (isFromAcceptedRequests || request.status === 'accepted' || request.status === 'in_progress' || (request as any)?.visitRequest) ? (
+          ) : request && providerBottomBarEngaged ? (
             <>
               {/* Request visit & Send quote - persistent actions when no quotation sent */}
-              {!quotation && !quotationWithProvider && (
+              {!recordShowsSentQuotation(quotation) && !recordShowsSentQuotation(quotationWithProvider) && (
                 <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
                   {(() => {
                     const vr = (request as any)?.visitRequest;
@@ -3276,7 +3326,12 @@ export default function ProviderJobDetailsScreen() {
                 </Text>
               </TouchableOpacity>
             </>
-          ) : request && request.status === 'pending' && !isFromAcceptedRequests && !(request as any)?.visitRequest && !quotation && !quotationWithProvider ? (
+          ) : request &&
+            request.status === 'pending' &&
+            !isFromAcceptedRequests &&
+            !(request as any)?.visitRequest &&
+            !recordShowsSentQuotation(quotation) &&
+            !recordShowsSentQuotation(quotationWithProvider) ? (
             <>
               <TouchableOpacity
                 style={{

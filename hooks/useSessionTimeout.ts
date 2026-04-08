@@ -3,26 +3,36 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { authService } from '@/services/authService';
 import { handleTokenExpiration } from '@/utils/tokenExpirationHandler';
 import { isAccessTokenExpired } from '@/utils/jwtExpiry';
+import { getLoginRouteForStoredRole, isPublicUnauthenticatedRoute } from '@/utils/authPublicRoutes';
 
 /** How often to re-check JWT expiry while the app is open */
 const POLL_MS = 60_000;
 
-type RouterLike = { replace: (href: string) => void };
-
 /**
- * Session timeout: when the access token’s JWT `exp` is in the past, clear auth and
- * navigate to the same login/logout screens as other auth failures.
- * Runs on an interval and when the app returns to the foreground.
+ * - Missing token on a protected screen → redirect to login (by stored role).
+ * - Expired JWT → clear session and redirect like other auth failures.
+ * Runs on an interval, when the route changes, and when the app returns to foreground.
  */
-export function useSessionTimeout(router: RouterLike) {
+export function useSessionTimeout(router: any, pathname?: string | null) {
   const routing = useRef(false);
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
   useEffect(() => {
-    const logoutIfExpired = async () => {
+    const enforceAuth = async () => {
       if (routing.current) return;
       try {
         const token = await authService.getAuthToken();
-        if (!token) return;
+        const path = pathnameRef.current;
+
+        if (!token) {
+          if (isPublicUnauthenticatedRoute(path)) return;
+          routing.current = true;
+          const route = await getLoginRouteForStoredRole();
+          router.replace(route as never);
+          return;
+        }
+
         if (!isAccessTokenExpired(token)) return;
         routing.current = true;
         const route = await handleTokenExpiration();
@@ -35,16 +45,16 @@ export function useSessionTimeout(router: RouterLike) {
       }
     };
 
-    const id = setInterval(logoutIfExpired, POLL_MS);
-    logoutIfExpired();
+    const id = setInterval(enforceAuth, POLL_MS);
+    enforceAuth();
 
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
-      if (next === 'active') logoutIfExpired();
+      if (next === 'active') enforceAuth();
     });
 
     return () => {
       clearInterval(id);
       sub.remove();
     };
-  }, [router]);
+  }, [router, pathname]);
 }

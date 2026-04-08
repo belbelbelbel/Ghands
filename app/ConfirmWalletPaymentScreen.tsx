@@ -164,28 +164,26 @@ export default function ConfirmWalletPaymentScreen() {
         return;
       }
 
-      const isPinError = /pin|wrong pin|invalid pin|pin not set/i.test(errorMessage);
+      const isPinError = /pin|wrong pin|invalid pin|incorrect pin|unauthorized pin|pin not set|no pin|not set up|create.*pin/i.test(
+        errorMessage
+      );
       if (isPinError) {
         haptics.error();
-        showError('PIN is incorrect or not set. Please create or update your PIN.');
-        setTimeout(() => {
-          router.push({
-            pathname: '/CreatePINScreen' as any,
-            params: {
-              returnTo: '/ConfirmWalletPaymentScreen',
-              returnParams: JSON.stringify({
-                requestId: params.requestId,
-                amount: params.amount,
-                quotationId: params.quotationId,
-                providerName: params.providerName,
-                serviceName: params.serviceName,
-              }),
-            },
-          } as any);
-        }, 1500);
+        setIsProcessingPayment(false);
+        setShowProcessingModal(false);
+        setPin(['', '', '', '']);
+        setShowPinModal(true);
+        const notSet = /pin not set|no pin|not been set|set up|create.*pin|must set/i.test(errorMessage);
+        showError(
+          notSet
+            ? 'Wallet PIN required. Create one below, then come back to pay—or try again if you already have a PIN.'
+            : 'That PIN is incorrect. Try again, or create a new PIN below.'
+        );
+        setTimeout(() => pinInputRefs.current[0]?.focus(), 350);
         return;
       }
 
+      setIsProcessingPayment(false);
       const errorContext = params.paymentType === 'logistics_fee' ? 'pay_logistics_fee' : 'pay_for_service';
       const errorMsg = getSpecificErrorMessage(error, errorContext) || errorMessage || 'Payment failed. Please try again.';
       const isInsufficientBalance = /insufficient|balance/i.test(errorMessage) || /insufficient|balance/i.test(errorMsg);
@@ -218,6 +216,27 @@ export default function ConfirmWalletPaymentScreen() {
           quotationId: params.quotationId,
           providerName: params.providerName,
           serviceName: params.serviceName,
+          paymentType: params.paymentType || 'service',
+        }),
+      },
+    } as any);
+  };
+
+  const goToCreateOrChangePin = () => {
+    haptics.light();
+    setShowPinModal(false);
+    setPin(['', '', '', '']);
+    router.push({
+      pathname: '/CreatePINScreen' as any,
+      params: {
+        returnTo: '/ConfirmWalletPaymentScreen',
+        returnParams: JSON.stringify({
+          requestId: params.requestId,
+          amount: params.amount,
+          quotationId: params.quotationId,
+          providerName: params.providerName,
+          serviceName: params.serviceName,
+          paymentType: params.paymentType || 'service',
         }),
       },
     } as any);
@@ -434,7 +453,7 @@ export default function ConfirmWalletPaymentScreen() {
                 ₦{amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, gap: 12 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
               {[0, 1, 2, 3].map((index) => (
                 <TextInput
                   key={index}
@@ -461,6 +480,11 @@ export default function ConfirmWalletPaymentScreen() {
                 />
               ))}
             </View>
+            <TouchableOpacity onPress={goToCreateOrChangePin} activeOpacity={0.7} style={{ marginBottom: 20, alignSelf: 'center', paddingVertical: 6 }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.accent, textDecorationLine: 'underline' }}>
+                Forgot PIN? Create or change wallet PIN
+              </Text>
+            </TouchableOpacity>
             {isProcessingPayment && (
               <View style={{ alignItems: 'center', marginTop: 16 }}>
                 <ActivityIndicator size="small" color={Colors.accent} />

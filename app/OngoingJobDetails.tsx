@@ -149,7 +149,7 @@ interface ExtendedQuotation extends Quotation {
 export default function OngoingJobDetails() {
   const router = useRouter();
   const params = useLocalSearchParams<{ requestId?: string; paymentStatus?: string; fromBooking?: string }>();
-  const { toast, showError, showSuccess, hideToast } = useToast();
+  const { toast, showError, showSuccess, showWarning, hideToast } = useToast();
 
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [acceptedProviders, setAcceptedProviders] = useState<any[]>([]);
@@ -769,9 +769,15 @@ export default function OngoingJobDetails() {
     try {
       const requestId = parseInt(params.requestId, 10);
 
-      // 1) Load core request details
-      const requestDetails = await serviceRequestService.getRequestDetails(requestId);
+      // 1) Load core request details (list fallback when GET /requests/:id returns 5xx)
+      const { request: requestDetails, usedListFallback } =
+        await serviceRequestService.getRequestDetailsWithListFallback(requestId);
       setRequest(requestDetails);
+      if (usedListFallback && !silent) {
+        showWarning(
+          'The server returned an error for full job details. Showing a summary from your jobs list until that is fixed.'
+        );
+      }
 
       // 2) Check wallet transactions for payment (fallback when backend status is stale)
       await checkPaymentTransaction(requestId).catch(() => {});
@@ -807,14 +813,16 @@ export default function OngoingJobDetails() {
         return;
       }
       if (__DEV__) {
-        console.error('Error loading request data:', error);
+        const quiet500 = error?.status === 500 || (error as any)?.isExpected500;
+        if (quiet500) console.warn('Error loading request data:', error?.message || error);
+        else console.error('Error loading request data:', error);
       }
       const errorMessage = getSpecificErrorMessage(error, 'get_request_details');
       showError(errorMessage);
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, [params.requestId, loadQuotations, showError, checkPaymentTransaction]);
+  }, [params.requestId, loadQuotations, showError, showWarning, checkPaymentTransaction]);
 
   // Handle provider selection
   const handleSelectProvider = useCallback(async (providerId: number) => {

@@ -169,7 +169,6 @@ export default function SendQuotationScreen() {
         findingsAndWorkRequired: findings.trim(),
         serviceCharge: serviceCharge,
         tax: 10, // Fixed tax of ₦10
-        total: totals.total,
       };
 
       // Always accept first — choosing "Send quotation" means provider accepts the request

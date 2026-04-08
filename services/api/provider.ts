@@ -20,6 +20,39 @@ import type {
 } from './types';
 import type { SavedLocation } from './types';
 
+/**
+ * Many backends wrap job arrays as data.data, data.requests, etc.
+ * Without this, the provider app treats the payload as non-array and shows zero jobs.
+ */
+function normalizeProviderRequestList(raw: unknown): ServiceRequest[] {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw as ServiceRequest[];
+
+  const r = raw as Record<string, unknown>;
+  const tryArray = (v: unknown): ServiceRequest[] | null =>
+    Array.isArray(v) ? (v as ServiceRequest[]) : null;
+
+  let list = tryArray(r.data);
+  if (list) return list;
+
+  list = tryArray((r.data as any)?.data);
+  if (list) return list;
+
+  const inner = r.data as Record<string, unknown> | undefined;
+  if (inner && typeof inner === 'object') {
+    list =
+      tryArray(inner.requests) ||
+      tryArray(inner.items) ||
+      tryArray(inner.results) ||
+      tryArray(inner.jobs) ||
+      tryArray(inner.content);
+    if (list) return list;
+  }
+
+  list = tryArray(r.requests) || tryArray(r.items) || tryArray(r.results);
+  return list || [];
+}
+
 export type {
   Provider,
   ProviderSignupPayload,
@@ -353,11 +386,16 @@ const providerService = {
   },
 
   getAvailableRequests: async (maxDistanceKm = 50): Promise<AvailableRequest[]> => {
-    const response = await apiClient.get<any>(`/api/provider/requests/available?maxDistanceKm=${maxDistanceKm}`);
-    if (Array.isArray(response)) return response;
-    if (Array.isArray((response as any)?.data?.data)) return (response as any).data.data;
-    if (Array.isArray((response as any)?.data)) return (response as any).data;
-    return [];
+    try {
+      const response = await apiClient.get<any>(`/api/provider/requests/available?maxDistanceKm=${maxDistanceKm}`);
+      return normalizeProviderRequestList(response) as AvailableRequest[];
+    } catch (error: any) {
+      if (error instanceof AuthError) throw error;
+      if (__DEV__) {
+        console.warn('[provider] getAvailableRequests:', error?.message || error);
+      }
+      return [];
+    }
   },
 
   acceptRequest: async (requestId: number): Promise<{
@@ -374,9 +412,12 @@ const providerService = {
   getAcceptedRequests: async (): Promise<ServiceRequest[]> => {
     try {
       const response = await apiClient.get<any>('/api/provider/requests/accepted');
-      return extractResponseData<ServiceRequest[]>(response) || [];
+      return normalizeProviderRequestList(response);
     } catch (error: any) {
       if (error instanceof AuthError) throw error;
+      if (__DEV__) {
+        console.warn('[provider] getAcceptedRequests:', error?.message || error);
+      }
       return [];
     }
   },

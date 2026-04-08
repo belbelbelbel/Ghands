@@ -5,7 +5,7 @@ import { ArrowRight, Calendar, MapPin } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View, RefreshControl } from 'react-native';
 import { JobHistoryCardSkeleton } from '@/components/LoadingSkeleton';
-import { providerService, ServiceRequest, apiClient, authService } from '@/services/api';
+import { providerService, ServiceRequest } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
@@ -77,6 +77,7 @@ const mapApiStatusToJobStatus = (apiStatus: string, isFromAcceptedList: boolean 
     case 'inspecting':
     case 'scheduled':
     case 'quoting':
+    case 'reviewing':
       return 'Ongoing';
     case 'pending':
     default:
@@ -225,56 +226,33 @@ export default function ProviderJobsScreen() {
 
       setAllJobs([...acceptedJobs, ...filteredPending]);
     } catch (error: any) {
-      // If AuthError, redirect immediately (silent - no logs, no errors shown)
       if (error instanceof AuthError) {
         await handleAuthErrorRedirect(router);
         return;
       }
-      
-      // Check if it's a 500 error that might be auth-related
-      // For provider endpoints, 500 errors are often auth-related (expired/invalid token)
-      const status = error?.status || (error as any)?.response?.status || 500;
-      if (status === 500) {
-        try {
-          const token = await authService.getAuthToken();
-          if (!token) {
-            // No token = auth error, redirect silently
-            await handleAuthErrorRedirect(router);
-            return;
-          }
-          // Even if token exists, 500 on provider protected route usually means expired/invalid token
-          // Be aggressive - redirect on any 500 error for provider endpoints
-          await handleAuthErrorRedirect(router);
-          return;
-        } catch (redirectError) {
-          // If redirect fails, try again with fallback
-          try {
-            router.replace('/ProviderSignInScreen' as any);
-          } catch {
-            // Silent fail
-          }
-          return;
-        }
-      }
-      
-      // Check if it's a network error first
-      const isNetworkError = error?.isNetworkError || 
-                            error?.message?.includes('Network') || 
-                            error?.message?.includes('Failed to fetch') ||
-                            error?.message?.includes('Network request failed');
-      
+
+      const status = error?.status ?? (error as any)?.response?.status;
+      const isNetworkError =
+        error?.isNetworkError ||
+        error?.message?.includes('Network') ||
+        error?.message?.includes('Failed to fetch') ||
+        error?.message?.includes('Network request failed');
+
       if (isNetworkError) {
         showError('No internet connection. Please check your connection and reconnect to continue.');
         setAllJobs([]);
         return;
       }
-      
-      // Don't show errors for auth-related issues (already redirected)
-      // Only show error if it's not a 500 (which might be auth-related)
-      if (status !== 500) {
-        const errorMessage = getSpecificErrorMessage(error, 'get_accepted_requests');
-        showError(errorMessage);
+
+      if (status === 401 || status === 403) {
+        await handleAuthErrorRedirect(router);
+        return;
       }
+
+      const errorMessage =
+        getSpecificErrorMessage(error, 'get_accepted_requests') ||
+        'Could not load your jobs. Pull down to refresh.';
+      showError(errorMessage);
       setAllJobs([]);
     } finally {
       setIsLoading(false);

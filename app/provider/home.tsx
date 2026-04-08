@@ -366,30 +366,12 @@ export default function ProviderHomeScreen() {
         return;
       }
 
-      // Check if it's a 500 error that might be auth-related
-      // For provider endpoints, 500 errors are often auth-related (expired/invalid token)
-      const status = error?.status || 500;
-      if (status === 500) {
-        try {
-          const { authService } = await import('@/services/authService');
-          const token = await authService.getAuthToken();
-          if (!token) {
-            await handleAuthErrorRedirect(router);
-            return;
-          }
-          await handleAuthErrorRedirect(router);
-          return;
-        } catch (redirectError) {
-          // If redirect fails, try again with fallback
-          try {
-            router.replace('/ProviderSignInScreen' as any);
-          } catch {
-            // Silent fail
-          }
-          return;
-        }
+      const status = error?.status;
+      if (status === 401 || status === 403) {
+        await handleAuthErrorRedirect(router);
+        return;
       }
-      
+
       // Check for specific errors and provide helpful messages
       let errorMessage = getSpecificErrorMessage(error, 'get_available_requests');
       
@@ -420,11 +402,10 @@ export default function ProviderHomeScreen() {
         errorMessage = 'No available requests found in your area. Check back later or adjust your location.';
       }
       
-      // Don't show errors for auth-related issues (already redirected)
-      // Only show error if it's not a "no requests" case and not a 500 error
-      if (!errorText.toLowerCase().includes('no requests') && 
-          !errorText.toLowerCase().includes('no available') &&
-          status !== 500) {
+      if (
+        !errorText.toLowerCase().includes('no requests') &&
+        !errorText.toLowerCase().includes('no available')
+      ) {
         showError(errorMessage);
       }
       

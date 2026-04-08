@@ -28,6 +28,43 @@ export type {
   QuotationWithProvider,
 };
 
+function normalizeServiceRequestRecord(requestData: ServiceRequest | null | undefined): ServiceRequest {
+  if (!requestData) return requestData as ServiceRequest;
+  if (requestData.nearbyProviders && !Array.isArray(requestData.nearbyProviders)) requestData.nearbyProviders = [];
+  if (requestData.status && typeof requestData.status === 'string') {
+    (requestData as any).status = requestData.status.toLowerCase();
+  }
+  const raw = requestData as any;
+  const vr = raw.visitRequest ?? raw.visit_request;
+  const rawVisitStatus =
+    vr?.logisticsStatus ??
+    vr?.logistics_status ??
+    vr?.visitStatus ??
+    vr?.visit_status ??
+    raw.logisticsStatus ??
+    raw.logistics_status ??
+    raw.visitStatus ??
+    raw.visit_status;
+  const normalizedVisitStatus = typeof rawVisitStatus === 'string' ? rawVisitStatus.toLowerCase() : undefined;
+  const mappedVisitStatus =
+    normalizedVisitStatus === 'declined' || normalizedVisitStatus === 'rejected' ? 'cancelled' : normalizedVisitStatus;
+  const hasNested = vr && (vr.scheduledDate ?? vr.scheduled_date ?? vr.logisticsCost ?? vr.logistics_cost);
+  const hasFlat = raw.scheduledDate ?? raw.scheduled_date ?? raw.logisticsCost ?? raw.logistics_cost;
+  const hasVisitRequestedAt = !!(raw.visitRequestedAt ?? raw.visit_requested_at ?? vr?.requestedAt ?? vr?.requested_at);
+  const hasVisitStatus = !!mappedVisitStatus;
+  if (hasNested || hasFlat || hasVisitRequestedAt || hasVisitStatus) {
+    (requestData as any).visitRequest = {
+      scheduledDate: vr?.scheduledDate ?? vr?.scheduled_date ?? raw.scheduledDate ?? raw.scheduled_date,
+      scheduledTime: vr?.scheduledTime ?? vr?.scheduled_time ?? raw.scheduledTime ?? raw.scheduled_time,
+      logisticsCost:
+        vr?.logisticsCost ?? vr?.logistics_cost ?? raw.logisticsCost ?? raw.logistics_cost ?? (hasVisitRequestedAt ? 0 : undefined),
+      logisticsStatus: mappedVisitStatus,
+      requestedAt: vr?.requestedAt ?? vr?.requested_at ?? raw.visitRequestedAt ?? raw.visit_requested_at,
+    };
+  }
+  return requestData;
+}
+
 export const serviceRequestService = {
   getCategories: async (): Promise<ServiceCategory[]> => {
     try {
@@ -103,45 +140,41 @@ export const serviceRequestService = {
     try {
       const response = await apiClient.get<any>(`/api/request-service/requests/${requestId}`);
       const requestData = extractResponseData<ServiceRequest>(response);
-      if (requestData?.nearbyProviders && !Array.isArray(requestData.nearbyProviders)) requestData.nearbyProviders = [];
-      if (requestData?.status && typeof requestData.status === 'string') {
-        (requestData as any).status = requestData.status.toLowerCase();
-      }
-      if (requestData) {
-        const raw = requestData as any;
-        const vr = raw.visitRequest ?? raw.visit_request;
-        const rawVisitStatus =
-          vr?.logisticsStatus ??
-          vr?.logistics_status ??
-          vr?.visitStatus ??
-          vr?.visit_status ??
-          raw.logisticsStatus ??
-          raw.logistics_status ??
-          raw.visitStatus ??
-          raw.visit_status;
-        const normalizedVisitStatus = typeof rawVisitStatus === 'string' ? rawVisitStatus.toLowerCase() : undefined;
-        const mappedVisitStatus =
-          normalizedVisitStatus === 'declined' || normalizedVisitStatus === 'rejected'
-            ? 'cancelled'
-            : normalizedVisitStatus;
-        const hasNested = vr && (vr.scheduledDate ?? vr.scheduled_date ?? vr.logisticsCost ?? vr.logistics_cost);
-        const hasFlat = raw.scheduledDate ?? raw.scheduled_date ?? raw.logisticsCost ?? raw.logistics_cost;
-        const hasVisitRequestedAt = !!(raw.visitRequestedAt ?? raw.visit_requested_at ?? vr?.requestedAt ?? vr?.requested_at);
-        const hasVisitStatus = !!mappedVisitStatus;
-        if (hasNested || hasFlat || hasVisitRequestedAt || hasVisitStatus) {
-          (requestData as any).visitRequest = {
-            scheduledDate: vr?.scheduledDate ?? vr?.scheduled_date ?? raw.scheduledDate ?? raw.scheduled_date,
-            scheduledTime: vr?.scheduledTime ?? vr?.scheduled_time ?? raw.scheduledTime ?? raw.scheduled_time,
-            logisticsCost: vr?.logisticsCost ?? vr?.logistics_cost ?? raw.logisticsCost ?? raw.logistics_cost ?? (hasVisitRequestedAt ? 0 : undefined),
-            logisticsStatus: mappedVisitStatus,
-            requestedAt: vr?.requestedAt ?? vr?.requested_at ?? raw.visitRequestedAt ?? raw.visit_requested_at,
-          };
-        }
-
-      }
-      return requestData;
+      return normalizeServiceRequestRecord(requestData);
     } catch (error) {
       throw error;
+    }
+  },
+
+  /**
+   * Client job detail: same as getRequestDetails, but if GET /requests/:id returns 5xx (backend crash),
+   * try GET /requests (list) and use the matching row — often still works when single-resource handler breaks.
+   * `usedListFallback` is true when the single GET failed and list data was used (caller should warn user).
+   */
+  getRequestDetailsWithListFallback: async (
+    requestId: number
+  ): Promise<{ request: ServiceRequest; usedListFallback: boolean }> => {
+    const id = Number(requestId);
+    try {
+      const request = await serviceRequestService.getRequestDetails(id);
+      return { request, usedListFallback: false };
+    } catch (err: any) {
+      const st = err?.status;
+      const isServerError = typeof st === 'number' && st >= 500 && st < 600;
+      if (!isServerError) throw err;
+      try {
+        const list = await serviceRequestService.getUserRequests();
+        const found = (list || []).find((r: any) => Number(r?.id) === id);
+        if (found) {
+          return {
+            request: normalizeServiceRequestRecord({ ...found }),
+            usedListFallback: true,
+          };
+        }
+      } catch {
+        /* keep original error */
+      }
+      throw err;
     }
   },
 

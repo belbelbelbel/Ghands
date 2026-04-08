@@ -6,6 +6,8 @@ import { haptics } from '@/hooks/useHaptics';
 import { authService, serviceRequestService, ServiceRequest } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { AuthError } from '@/utils/errors';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -46,7 +48,7 @@ const formatDate = (dateString?: string, timeString?: string): string => {
 export default function CompletedJobDetail() {
   const router = useRouter();
   const params = useLocalSearchParams<{ requestId?: string }>();
-  const { showError, showSuccess, showInfo } = useToast();
+  const { showError, showSuccess, showInfo, showWarning } = useToast();
   
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<any | null>(null);
@@ -86,8 +88,14 @@ export default function CompletedJobDetail() {
     setIsLoading(true);
     try {
       const requestId = parseInt(params.requestId, 10);
-      const requestDetails = await serviceRequestService.getRequestDetails(requestId);
+      const { request: requestDetails, usedListFallback } =
+        await serviceRequestService.getRequestDetailsWithListFallback(requestId);
       setRequest(requestDetails);
+      if (usedListFallback) {
+        showWarning(
+          'The server returned an error for full job details. Showing a summary from your jobs list until that is fixed.'
+        );
+      }
 
       const userId = await authService.getUserId();
       let alreadySubmitted = false;
@@ -170,6 +178,53 @@ export default function CompletedJobDetail() {
       // Trigger success haptic for completed job
       haptics.success();
     } catch (error: any) {
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
+
+      const requestIdNum = parseInt(params.requestId ?? '', 10);
+      const apiBase =
+        (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) ||
+        'https://bamibuildit-backend-v1.onrender.com';
+      let detailsSafe: string | Record<string, unknown> | null = null;
+      try {
+        const d = error?.details;
+        detailsSafe =
+          d && typeof d === 'object'
+            ? (JSON.parse(JSON.stringify(d)) as Record<string, unknown>)
+            : d != null
+              ? String(d)
+              : null;
+      } catch {
+        detailsSafe = String(error?.details ?? '');
+      }
+      const token = await authService.getAuthToken().catch(() => null);
+      const tokenSnippet =
+        token && typeof token === 'string' && token.length > 8 ? `${token.slice(0, 8)}…` : token ? '(short)' : null;
+
+      // Always log (grep Metro / Xcode / adb logcat for [BackendDebug][CompletedJobDetail])
+      console.log(
+        '[BackendDebug][CompletedJobDetail]',
+        JSON.stringify(
+          {
+            screen: 'CompletedJobDetail (client completed job)',
+            primaryEndpoint: `${apiBase}/api/request-service/requests/${requestIdNum}`,
+            listFallbackEndpoint: `${apiBase}/api/request-service/requests`,
+            note: 'App tries list when single GET returns 5xx; this log means both failed or job missing from list.',
+            requestId: requestIdNum,
+            httpStatus: error?.status ?? null,
+            message: error?.message ?? String(error),
+            details: detailsSafe,
+            isNetworkError: !!(error as any)?.isNetworkError,
+            tokenPresent: !!token,
+            tokenSnippet,
+          },
+          null,
+          2
+        )
+      );
+
       const errorMessage = getSpecificErrorMessage(error, 'get_request_details');
       showError(errorMessage);
     } finally {
@@ -531,6 +586,7 @@ export default function CompletedJobDetail() {
                     >
                       {selectedProvider?.name || 'Provider TBD'}
                     </Text>
+                    {!(myReviewRating != null && myReviewRating >= 1) ? (
                     <View className="flex flex-row gap-2 items-center">
                       <View className="flex-row">
                         {Array.from({ length: 5 }).map((_, i) => {
@@ -557,6 +613,7 @@ export default function CompletedJobDetail() {
                           : 'No ratings yet'}
                       </Text>
                     </View>
+                    ) : null}
                     {myReviewRating != null && myReviewRating >= 1 && (
                       <View className="flex-row items-center gap-2 mt-2">
                         <Text

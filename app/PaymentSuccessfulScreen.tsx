@@ -96,59 +96,80 @@ export default function PaymentSuccessfulScreen() {
         throw new Error('Invalid request ID');
       }
 
-      // Fetch request details and quotation in parallel
+      // Request details often fail right after wallet pay (404/500) — route params still hold a valid receipt.
       const [request, quotations] = await Promise.all([
         serviceRequestService.getRequestDetails(requestId).catch(() => null),
         serviceRequestService.getQuotations(requestId).catch(() => []),
       ]);
 
-      // Find the accepted quotation or use the first one
       const quotation = quotations.find((q: any) => q.status === 'accepted') || quotations[0] || null;
 
-      if (!request) {
-        throw new Error('Unable to load transaction data');
-      }
-
-      // Format dates
-      const serviceDate = request.scheduledDate 
-        ? formatDate(new Date(request.scheduledDate), 'MMMM dd, yyyy')
-        : request.createdAt 
-        ? formatDate(new Date(request.createdAt), 'MMMM dd, yyyy')
-        : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-      
-      const serviceTime = request.scheduledTime || 'N/A';
-      
-      const paymentDate = quotation?.acceptedAt
-        ? formatDate(new Date(quotation.acceptedAt), 'MMM dd, yyyy \'at\' h:mm a')
-        : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-
-      // Calculate amounts from quotation or use params
       const laborCost = quotation?.laborCost || 0;
       const logisticsCost = quotation?.logisticsCost || 0;
-      const materialsCost = quotation?.materials?.reduce((sum: number, mat: any) => sum + ((mat.unitPrice || 0) * (mat.quantity || 0)), 0) || 0;
-      const serviceFee = laborCost + logisticsCost + materialsCost;
+      const materialsCost =
+        quotation?.materials?.reduce(
+          (sum: number, mat: any) => sum + (mat.unitPrice || 0) * (mat.quantity || 0),
+          0
+        ) || 0;
+      const lineServiceFee = laborCost + logisticsCost + materialsCost;
+      const serviceFeeNum =
+        lineServiceFee > 0 ? lineServiceFee : parseFloat(params.amount || '0') || 0;
       const platformFee = quotation?.serviceCharge || 0;
-      const tax = quotation?.tax || 10;
-      const totalAmount = quotation?.total || parseFloat(params.amount || '0');
+      const tax = quotation?.tax ?? 10;
+      const qTotal = quotation?.total;
+      const totalAmountNum =
+        qTotal != null && !Number.isNaN(Number(qTotal)) ? Number(qTotal) : parseFloat(params.amount || '0') || 0;
+
+      let serviceDate: string;
+      let serviceTime: string;
+      if (request) {
+        serviceDate = request.scheduledDate
+          ? formatDate(new Date(request.scheduledDate), 'MMMM dd, yyyy')
+          : request.createdAt
+            ? formatDate(new Date(request.createdAt), 'MMMM dd, yyyy')
+            : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        serviceTime = request.scheduledTime || 'N/A';
+      } else {
+        if (__DEV__) {
+          console.warn(
+            '[PaymentSuccessful] getRequestDetails unavailable; receipt from params' +
+              (quotation ? ' + quotation' : '')
+          );
+        }
+        serviceDate = new Date().toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        });
+        serviceTime = 'N/A';
+      }
+
+      const paymentDate = quotation?.acceptedAt
+        ? formatDate(new Date(quotation.acceptedAt), 'MMM dd, yyyy \'at\' h:mm a')
+        : formatDate(new Date(), 'MMM dd, yyyy \'at\' h:mm a');
 
       const data: TransactionData = {
         transactionId: params.transactionId || `TXN-${requestId}-${Date.now().toString().slice(-6)}`,
-        jobTitle: request.jobTitle || request.description || params.serviceName || 'Service Request',
+        jobTitle:
+          (request && (request.jobTitle || request.description)) ||
+          params.serviceName ||
+          'Service Request',
         providerName: quotation?.provider?.name || params.providerName || 'Provider',
         serviceDate,
         serviceTime,
-        serviceFee: serviceFee.toFixed(2),
+        serviceFee: serviceFeeNum.toFixed(2),
         platformFee: platformFee.toFixed(2),
-        tax: tax.toFixed(2),
-        totalAmount: totalAmount.toFixed(2),
+        tax: (typeof tax === 'number' ? tax : parseFloat(String(tax)) || 0).toFixed(2),
+        totalAmount: totalAmountNum.toFixed(2),
         paymentMethod: 'Wallet',
         paymentDate,
       };
 
       setTransactionData(data);
     } catch (error: any) {
-      console.error('Error loading transaction data:', error);
-      // Use params as fallback
+      if (__DEV__) {
+        console.warn('[PaymentSuccessful] Unexpected error, using route params only', error);
+      }
       const data: TransactionData = {
         transactionId: params.transactionId || `TXN-${Date.now()}`,
         jobTitle: params.serviceName || 'Service',

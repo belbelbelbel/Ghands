@@ -4,7 +4,9 @@ import { BorderRadius, Colors, Fonts, Spacing } from '@/lib/designSystem';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { ArrowLeft, ChevronRight, Lock, Wallet } from 'lucide-react-native';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, Linking, AppState } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, Linking, AppState, Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as ExpoLinking from 'expo-linking';
 import { Button } from '@/components/ui/Button';
 import { walletService, profileService, authService } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
@@ -17,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PRESET_AMOUNTS = [5000, 10000, 20000, 50000]; // More realistic amounts in Naira
 const DEPOSIT_REFERENCE_KEY = '@ghands:pending_deposit_reference';
+const TOPUP_RETURN_CTX_KEY = '@ghands:topup_return_context';
 // TODO: Replace with API-fetched bank details when backend provides them. Currently placeholder.
 const BANK_TRANSFER_ACCOUNT = { number: '2219300511', name: 'BAMCHURCH LTD' };
 
@@ -198,22 +201,34 @@ export default function TopUpScreen() {
         }
         
         showSuccess(`Successfully topped up ₦${verification.amount.toLocaleString()}. Your new balance is ₦${(verification.balance || 0).toLocaleString()}`);
-        
-        // Return to previous screen if specified
-        if (params.returnTo) {
+
+        let returnTo = params.returnTo;
+        let returnParamsRaw: string | undefined = typeof params.returnParams === 'string' ? params.returnParams : undefined;
+        if (!returnTo) {
+          try {
+            const stored = await AsyncStorage.getItem(TOPUP_RETURN_CTX_KEY);
+            if (stored) {
+              const j = JSON.parse(stored) as { returnTo?: string; returnParams?: string };
+              returnTo = j.returnTo;
+              returnParamsRaw = j.returnParams ?? '';
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+        if (returnTo) {
+          await AsyncStorage.removeItem(TOPUP_RETURN_CTX_KEY);
           setTimeout(() => {
             try {
-              const returnParams = params.returnParams 
-                ? JSON.parse(params.returnParams) 
-                : {};
+              const returnParams = returnParamsRaw ? JSON.parse(returnParamsRaw) : {};
               router.replace({
-                pathname: params.returnTo as any,
+                pathname: returnTo as any,
                 params: returnParams,
               } as any);
             } catch {
-              router.replace(params.returnTo as any);
+              router.replace(returnTo as any);
             }
-          }, 2000);
+          }, 600);
         }
       } else if (verification.status === 'pending') {
         // Still pending - keep reference and allow retry
@@ -366,59 +381,69 @@ export default function TopUpScreen() {
     haptics.light();
 
     try {
-      // Initialize deposit - creates payment link
+      const depositCallbackUrl = ExpoLinking.createURL('wallet-deposit-return');
+
+      // Initialize deposit - creates payment link (backend should pass callback into Korapay when supported
+      // so the in-app browser can dismiss automatically after paySuccess).
       const depositResponse = await walletService.initializeDeposit({
         amount,
         email: email.trim(),
         name: userName || undefined,
+        callbackUrl: depositCallbackUrl,
       });
 
       haptics.success();
-      
+
       // Store deposit reference for verification when user returns
       await AsyncStorage.setItem(DEPOSIT_REFERENCE_KEY, depositResponse.reference);
       setPendingDepositReference(depositResponse.reference);
-      hasVerifiedRef.current = false; // Reset verification flag
-      
-      // Open payment gateway in browser
-      const canOpen = await Linking.canOpenURL(depositResponse.authorizationUrl);
-      if (canOpen) {
-        await Linking.openURL(depositResponse.authorizationUrl);
-        
-        // Show instructions - user will be auto-verified when they return
-        Alert.alert(
-          'Payment Gateway Opened',
-          'Complete your payment in the browser. When you return to the app, your payment will be automatically verified.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setIsProcessingCard(false);
-                // Verification will happen automatically when screen comes into focus
-              },
-            },
-          ]
+      hasVerifiedRef.current = false;
+
+      if (params.returnTo) {
+        await AsyncStorage.setItem(
+          TOPUP_RETURN_CTX_KEY,
+          JSON.stringify({ returnTo: params.returnTo, returnParams: params.returnParams ?? '' })
         );
-        
-        // Also set up AppState listener to verify when app comes to foreground
-        const depositRef = depositResponse.reference; // Capture reference in closure
-        const subscription = AppState.addEventListener('change', async (nextAppState) => {
-          if (nextAppState === 'active' && depositRef) {
-            // App came to foreground - verify deposit
-            await verifyPendingDeposit(depositRef);
-            subscription.remove();
-          }
-        });
-        
-        // Cleanup subscription after 5 minutes
-        setTimeout(() => {
-          subscription.remove();
-        }, 5 * 60 * 1000);
       } else {
-        showError('Unable to open payment gateway. Please try again.');
-        await AsyncStorage.removeItem(DEPOSIT_REFERENCE_KEY);
-        setPendingDepositReference(null);
+        await AsyncStorage.removeItem(TOPUP_RETURN_CTX_KEY);
       }
+
+      try {
+        WebBrowser.maybeCompleteAuthSession();
+        const authResult = await WebBrowser.openAuthSessionAsync(
+          depositResponse.authorizationUrl,
+          depositCallbackUrl
+        );
+        if (authResult.type === 'success') {
+          WebBrowser.maybeCompleteAuthSession();
+        }
+      } catch (browserErr) {
+        if (__DEV__) {
+          console.warn('[TopUp] In-app checkout failed, opening system browser', browserErr);
+        }
+        const canOpen = await Linking.canOpenURL(depositResponse.authorizationUrl);
+        if (canOpen) {
+          await Linking.openURL(depositResponse.authorizationUrl);
+          Alert.alert(
+            'Finish in browser',
+            Platform.OS === 'ios'
+              ? 'After you see Success, return to GHands (swipe from bottom or use the app switcher). Your balance will update automatically or you can tap Verify Payment.'
+              : 'After you see Success, use Back to return to GHands. Your balance will update automatically or you can tap Verify Payment.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          showError('Unable to open payment gateway. Please try again.');
+          await AsyncStorage.removeItem(DEPOSIT_REFERENCE_KEY);
+          setPendingDepositReference(null);
+          setIsProcessingCard(false);
+          return;
+        }
+      } finally {
+        setIsProcessingCard(false);
+      }
+
+      // Browser sheet closed — verify immediately (webhook may need a moment; user can tap Verify again)
+      await verifyPendingDeposit(depositResponse.reference, true);
     } catch (error: any) {
       haptics.error();
       setIsProcessingCard(false);

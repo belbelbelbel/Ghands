@@ -53,7 +53,14 @@ export const walletService = {
     return { isValid: data?.isValid ?? false };
   },
 
-  initializeDeposit: async (payload: { amount: number; email: string; name?: string; phone?: string }): Promise<{ authorizationUrl: string; reference: string }> => {
+  initializeDeposit: async (payload: {
+    amount: number;
+    email: string;
+    name?: string;
+    phone?: string;
+    /** Deep link / web URL Korapay redirects to so the in-app browser can close and return to GHands */
+    callbackUrl?: string;
+  }): Promise<{ authorizationUrl: string; reference: string }> => {
     const response = await apiClient.post<any>('/api/wallet/deposit', payload);
     const responseData = extractResponseData<any>(response);
     const depositData = responseData?.data || responseData;

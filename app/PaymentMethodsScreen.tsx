@@ -252,31 +252,29 @@ export default function PaymentMethodsScreen() {
       setPin(['', '', '', '']);
       
       const errorMessage = error?.message || error?.details?.data?.error || '';
-      const isPinError = errorMessage.toLowerCase().includes('pin') || 
-                        errorMessage.toLowerCase().includes('wrong pin') ||
-                        errorMessage.toLowerCase().includes('invalid pin') ||
-                        errorMessage.toLowerCase().includes('pin not set');
-      
-      // If PIN error, redirect to Create PIN screen with return path
+      const errLower = errorMessage.toLowerCase();
+      const isPinError =
+        errLower.includes('pin') ||
+        errLower.includes('wrong pin') ||
+        errLower.includes('invalid pin') ||
+        errLower.includes('incorrect pin') ||
+        errLower.includes('pin not set') ||
+        errLower.includes('no pin');
+
       if (isPinError) {
         haptics.error();
-        showError('PIN is incorrect or not set. Please create or update your PIN.');
-        setTimeout(() => {
-          router.push({
-            pathname: '/CreatePINScreen' as any,
-            params: {
-              // Pass return path so user can come back to payment after creating PIN
-              returnTo: '/PaymentMethodsScreen',
-              returnParams: JSON.stringify({
-                requestId: params.requestId,
-                amount: params.amount,
-                quotationId: params.quotationId,
-                providerName: params.providerName,
-                serviceName: params.serviceName,
-              }),
-            },
-          } as any);
-        }, 1500);
+        setIsProcessingPayment(false);
+        setShowProcessingModal(false);
+        setPin(['', '', '', '']);
+        setShowPinModal(true);
+        const notSet =
+          /pin not set|no pin|not been set|set up|create.*pin|must set/i.test(errorMessage);
+        showError(
+          notSet
+            ? 'Wallet PIN required. Create one using the link below, then return here—or try your PIN again.'
+            : 'That PIN is incorrect. Try again, or create a new PIN below.'
+        );
+        setTimeout(() => pinInputRefs.current[0]?.focus(), 350);
         return;
       }
       
@@ -314,6 +312,25 @@ export default function PaymentMethodsScreen() {
     setPaymentError(null);
   };
 
+  const goToCreateOrChangePin = () => {
+    haptics.light();
+    setShowPinModal(false);
+    setPin(['', '', '', '']);
+    setSelectedMethod(null);
+    router.push({
+      pathname: '/CreatePINScreen' as any,
+      params: {
+        returnTo: '/PaymentMethodsScreen',
+        returnParams: JSON.stringify({
+          requestId: params.requestId,
+          amount: params.amount,
+          quotationId: params.quotationId,
+          providerName: params.providerName,
+          serviceName: params.serviceName,
+        }),
+      },
+    } as any);
+  };
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -1120,6 +1137,12 @@ export default function PaymentMethodsScreen() {
                   />
                 ))}
               </View>
+
+              <TouchableOpacity onPress={goToCreateOrChangePin} activeOpacity={0.7} style={{ marginBottom: 20, alignSelf: 'center', paddingVertical: 6 }}>
+                <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.accent, textDecorationLine: 'underline' }}>
+                  Forgot PIN? Create or change wallet PIN
+                </Text>
+              </TouchableOpacity>
 
               {/* Processing Indicator */}
               {isProcessingPayment && (

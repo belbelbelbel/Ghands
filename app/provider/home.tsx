@@ -303,6 +303,10 @@ export default function ProviderHomeScreen() {
       setMonthlyEarnings(thisMonthTotal);
       setEarningsVsLastMonth(earningsVsLastMonthFromTotals(thisMonthTotal, lastMonthTotal));
     } catch (error) {
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
       if (isConnectivityError(error)) {
         setShowNoInternet(true);
       } else if (__DEV__) {
@@ -311,7 +315,7 @@ export default function ProviderHomeScreen() {
       setMonthlyEarnings(0);
       setEarningsVsLastMonth({ label: '— vs last month', trend: 'flat' });
     }
-  }, []);
+  }, [router]);
 
   // Load provider name on mount and when screen comes into focus
   useEffect(() => {

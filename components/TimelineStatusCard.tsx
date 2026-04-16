@@ -31,6 +31,12 @@ type MappedProviderSummary = {
   minutesAway?: number;
 };
 
+type ClientIdentity = {
+  /** Shown next to avatar when no provider is assigned yet (e.g. waiting for providers). */
+  displayName?: string;
+  imageUri?: string | null;
+};
+
 type TimelineStatusCardProps = {
   header: TimelineHeaderData;
   quotations: QuotationWithProvider[] | any[];
@@ -38,6 +44,8 @@ type TimelineStatusCardProps = {
   mappedProviders: MappedProviderSummary[];
   request: ServiceRequest | null;
   requestId?: string | string[];
+  /** Logged-in client — used for avatar row when `header.provider` is missing. */
+  clientIdentity?: ClientIdentity | null;
 };
 
 const TimelineStatusCardComponent = ({
@@ -47,6 +55,7 @@ const TimelineStatusCardComponent = ({
   mappedProviders,
   request,
   requestId,
+  clientIdentity,
 }: TimelineStatusCardProps) => {
   const router = useRouter();
 
@@ -207,7 +216,41 @@ const TimelineStatusCardComponent = ({
             </View>
           </View>
         ) : (
-          <View className="flex-row items-center justify-end">
+          <View className="flex-row items-center">
+            <View
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                marginRight: 12,
+                overflow: 'hidden',
+                backgroundColor: '#E5E7EB',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {clientIdentity?.imageUri ? (
+                <Image
+                  source={{ uri: clientIdentity.imageUri }}
+                  style={{ width: 48, height: 48 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name="person" size={26} color="#9CA3AF" />
+              )}
+            </View>
+            <View className="flex-1 mr-2" style={{ minHeight: 48, justifyContent: 'center' }}>
+              <Text
+                className="text-base text-black"
+                style={{ fontFamily: 'Poppins-Bold' }}
+                numberOfLines={1}
+              >
+                {clientIdentity?.displayName?.trim() || 'You'}
+              </Text>
+              <Text className="text-xs text-gray-500 mt-0.5" style={{ fontFamily: 'Poppins-Regular' }}>
+                Your request
+              </Text>
+            </View>
             <View
               style={{
                 backgroundColor: pillBg,

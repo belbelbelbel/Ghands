@@ -3,6 +3,7 @@ import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import TimelineStatusCard from '@/components/TimelineStatusCard';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
+import { useCurrentUserProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/useToast';
 import { Colors } from '@/lib/designSystem';
 import { analytics } from '@/services/analytics';
@@ -150,6 +151,14 @@ export default function OngoingJobDetails() {
   const router = useRouter();
   const params = useLocalSearchParams<{ requestId?: string; paymentStatus?: string; fromBooking?: string }>();
   const { toast, showError, showSuccess, showWarning, hideToast } = useToast();
+  const { data: currentUserProfile } = useCurrentUserProfile();
+  const clientIdentity = useMemo(
+    () => ({
+      displayName: currentUserProfile?.name?.trim() || undefined,
+      imageUri: currentUserProfile?.profileImageUri ?? null,
+    }),
+    [currentUserProfile?.name, currentUserProfile?.profileImageUri],
+  );
 
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [acceptedProviders, setAcceptedProviders] = useState<any[]>([]);
@@ -1845,6 +1854,7 @@ export default function OngoingJobDetails() {
                       mappedProviders={mappedProviders as any}
                       request={request}
                       requestId={params.requestId}
+                      clientIdentity={clientIdentity}
                     />
                   </View>
                 )}

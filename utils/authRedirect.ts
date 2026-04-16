@@ -13,17 +13,17 @@ export async function handleAuthErrorRedirect(router: any): Promise<void> {
     // Clear auth tokens
     await authService.clearAuthTokens();
     
-    // Determine redirect route based on role
+    // Determine redirect route based on role (same rule as manual logout in useAuth)
     let redirectRoute = '/SelectAccountTypeScreen';
     if (role === 'provider') {
       redirectRoute = '/ProviderSignInScreen';
     } else if (role === 'client') {
       redirectRoute = '/LoginScreen';
     }
-    
-    // Clear role after determining route
-    await AsyncStorage.removeItem('@ghands:user_role');
-    
+
+    // Keep @ghands:user_role — do not clear it here. Clearing it lets app/index.tsx treat the
+    // user as brand-new and replace() to SelectAccountTypeScreen, racing past login navigation.
+
     // Navigate immediately
     router.replace(redirectRoute as any);
   } catch (redirectError) {

@@ -252,9 +252,11 @@ export default function JobsScreen() {
           requestId: job.id.toString(),
         },
       } as any);
-    } else if (status === 'Cancelled') {
-      // Cancelled: help user find something new
-      router.push('/(tabs)/discover' as any);
+    } else if (status === 'Cancelled' && job) {
+      router.push({
+        pathname: '/OngoingJobDetails',
+        params: { requestId: job.id.toString() },
+      } as any);
     } else {
       router.push('/JobDetailsScreen');
     }
@@ -466,7 +468,7 @@ export default function JobsScreen() {
                       ? 'Check Updates'
                       : activeTab === 'Completed'
                         ? 'View Details'
-                        : 'Find Similar'}
+                        : 'View Details'}
                   </Text>
                 </TouchableOpacity>
               </View>

@@ -65,6 +65,17 @@ export default function EntryPoint() {
           return;
         }
 
+        // Session cleared (or missing) but we still know client vs provider — go to login, not role selection
+        if (!token && (role === 'client' || role === 'provider')) {
+          if (!isOnAllowedRoute) {
+            hasRedirectedRef.current = true;
+            const loginRoute = role === 'provider' ? '/ProviderSignInScreen' : '/LoginScreen';
+            router.replace(loginRoute as never);
+          }
+          setIsCheckingAuth(false);
+          return;
+        }
+
         // User is not authenticated - check onboarding status
         // Only redirect if not already on a login/signup screen
         if (!onboardingLoading && !isOnAllowedRoute) {

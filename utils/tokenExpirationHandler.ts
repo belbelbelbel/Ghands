@@ -14,9 +14,9 @@ export async function handleTokenExpiration(): Promise<string | null> {
     const role = await AsyncStorage.getItem(AUTH_ROLE_KEY);
     
     await authService.clearAuthTokens();
-    // Clear role after use – aligns with handleAuthErrorRedirect (auth failed = full logout)
-    await AsyncStorage.removeItem(AUTH_ROLE_KEY);
-    
+    // Keep AUTH_ROLE_KEY so entry routing and the next login screen match the user's account type
+    // (same as manual logout in useAuth — never send returning users to role selection by mistake).
+
     // Return appropriate login route based on role
     // Users with expired tokens should login again, not signup
     if (role === 'provider') {

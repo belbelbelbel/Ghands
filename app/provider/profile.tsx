@@ -151,13 +151,17 @@ export default function ProviderProfileScreen() {
 
       setMonthlyEarnings(currentTotal);
       setLastMonthEarnings(prevTotal);
-    } catch {
+    } catch (error) {
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
       setMonthlyEarnings(0);
       setLastMonthEarnings(0);
     } finally {
       setIsLoadingMonthlyEarnings(false);
     }
-  }, []);
+  }, [router]);
 
   // Load provider data
   const loadProviderData = useCallback(async () => {

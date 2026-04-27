@@ -33,10 +33,10 @@ function normalizeProviderRequestList(raw: unknown): ServiceRequest[] {
     Array.isArray(v) ? (v as ServiceRequest[]) : null;
 
   let list = tryArray(r.data);
-  if (list) return list;
+  if (list) return list.map(normalizeProviderRequestRecord);
 
   list = tryArray((r.data as any)?.data);
-  if (list) return list;
+  if (list) return list.map(normalizeProviderRequestRecord);
 
   const inner = r.data as Record<string, unknown> | undefined;
   if (inner && typeof inner === 'object') {
@@ -46,11 +46,76 @@ function normalizeProviderRequestList(raw: unknown): ServiceRequest[] {
       tryArray(inner.results) ||
       tryArray(inner.jobs) ||
       tryArray(inner.content);
-    if (list) return list;
+    if (list) return list.map(normalizeProviderRequestRecord);
   }
 
   list = tryArray(r.requests) || tryArray(r.items) || tryArray(r.results);
-  return list || [];
+  return (list || []).map(normalizeProviderRequestRecord);
+}
+
+function firstPresent(...values: unknown[]) {
+  return values.find((value) => value !== undefined && value !== null && value !== '');
+}
+
+function parseMoneyValue(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/[₦,\s]/g, ''));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function normalizeProviderRequestRecord(requestData: ServiceRequest): ServiceRequest {
+  if (!requestData) return requestData;
+  const raw = requestData as any;
+  const vr = raw.visitRequest ?? raw.visit_request;
+  const rawVisitStatus = firstPresent(
+    vr?.logisticsStatus,
+    vr?.logistics_status,
+    vr?.visitStatus,
+    vr?.visit_status,
+    raw.logisticsStatus,
+    raw.logistics_status,
+    raw.visitStatus,
+    raw.visit_status
+  );
+  const mappedVisitStatus =
+    typeof rawVisitStatus === 'string'
+      ? rawVisitStatus.toLowerCase().replace('rejected', 'cancelled').replace('declined', 'cancelled')
+      : undefined;
+  const rawVisitCost = firstPresent(
+    vr?.logisticsCost,
+    vr?.logistics_cost,
+    vr?.logisticsFee,
+    vr?.logistics_fee,
+    vr?.visitLogisticsCost,
+    vr?.visit_logistics_cost,
+    vr?.visitFee,
+    vr?.visit_fee,
+    raw.logisticsCost,
+    raw.logistics_cost,
+    raw.logisticsFee,
+    raw.logistics_fee,
+    raw.visitLogisticsCost,
+    raw.visit_logistics_cost,
+    raw.visitFee,
+    raw.visit_fee
+  );
+  const scheduledDate = firstPresent(vr?.scheduledDate, vr?.scheduled_date, raw.scheduledDate, raw.scheduled_date) as string | undefined;
+  const scheduledTime = firstPresent(vr?.scheduledTime, vr?.scheduled_time, raw.scheduledTime, raw.scheduled_time) as string | undefined;
+  const requestedAt = firstPresent(vr?.requestedAt, vr?.requested_at, raw.visitRequestedAt, raw.visit_requested_at) as string | undefined;
+  if (vr || scheduledDate || scheduledTime || requestedAt || mappedVisitStatus || rawVisitCost) {
+    raw.visitRequest = {
+      scheduledDate,
+      scheduledTime,
+      logisticsCost: parseMoneyValue(rawVisitCost),
+      logisticsStatus: mappedVisitStatus,
+      requestedAt,
+    };
+  }
+  return requestData;
 }
 
 export type {
@@ -440,7 +505,7 @@ const providerService = {
       const response = await apiClient.get<any>(`/api/provider/requests/${requestId}`);
       const data = extractResponseData<any>(response);
       const normalized = (data as any)?.data ?? data;
-      return (normalized as ServiceRequest) ?? null;
+      return normalized ? normalizeProviderRequestRecord(normalized as ServiceRequest) : null;
     } catch (error: any) {
       if (error instanceof AuthError) throw error;
       return null;

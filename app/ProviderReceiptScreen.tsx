@@ -64,7 +64,16 @@ interface ReceiptData {
 
 export default function ProviderReceiptScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ requestId?: string }>();
+  const params = useLocalSearchParams<{
+    requestId?: string;
+    transactionId?: string;
+    amount?: string;
+    providerName?: string;
+    serviceName?: string;
+    serviceDate?: string;
+    serviceTime?: string;
+    reference?: string;
+  }>();
   const { showError, showSuccess } = useToast();
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,6 +81,25 @@ export default function ProviderReceiptScreen() {
   // Load receipt data from API (tolerant: singular quotation endpoint often 404s; use list + request fallback)
   const loadReceiptData = useCallback(async () => {
     if (!params.requestId) {
+      const fallbackAmount = Number(String(params.amount || '').replace(/[₦,\s]/g, ''));
+      if (params.transactionId || params.amount || params.serviceName || params.providerName) {
+        setReceiptData({
+          receiptNumber: params.reference || params.transactionId || `TXN-${Date.now().toString().slice(-6)}`,
+          jobTitle: params.serviceName || 'Wallet transaction',
+          clientName: params.providerName || 'GHands',
+          serviceDate: params.serviceDate || 'N/A',
+          serviceTime: params.serviceTime || 'N/A',
+          laborCost: Number.isFinite(fallbackAmount) ? fallbackAmount : 0,
+          materials: [],
+          platformFee: 0,
+          tax: 0,
+          totalAmount: Number.isFinite(fallbackAmount) ? fallbackAmount : 0,
+          paymentStatus: 'Completed',
+          paymentDate: params.serviceDate && params.serviceTime
+            ? `${params.serviceDate} at ${params.serviceTime}`
+            : params.serviceDate || 'N/A',
+        });
+      }
       setIsLoading(false);
       return;
     }

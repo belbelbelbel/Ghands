@@ -80,7 +80,7 @@ export default function TermsOfServiceScreen() {
               
               <Text style={{ fontFamily: 'Poppins-Bold' }}>Service Delivery:</Text> Once a provider accepts a job or submits a quotation approved by the customer, they are responsible for delivering the service as agreed and on time.{'\n\n'}
               
-              <Text style={{ fontFamily: 'Poppins-Bold' }}>Payments:</Text> Payments for completed services are processed securely. Funds may be held temporarily for verification, dispute resolution, or security checks before becoming available in the provider's wallet.{'\n\n'}
+              <Text style={{ fontFamily: 'Poppins-Bold' }}>Payments:</Text> Payments for completed services are processed securely. Funds may be held temporarily for verification, dispute resolution, or security checks before becoming available in the provider&apos;s wallet.{'\n\n'}
               
               <Text style={{ fontFamily: 'Poppins-Bold' }}>Cancellations:</Text> Cancellations initiated by providers may affect their ratings and lead to temporary restrictions based on severity or frequency.{'\n\n'}
               

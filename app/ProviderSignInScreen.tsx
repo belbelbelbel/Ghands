@@ -184,7 +184,7 @@ export default function ProviderSignInScreen() {
         <View className="items-center mb-8">
           <TouchableOpacity onPress={handleSignup} activeOpacity={0.7}>
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Text className="text-[#6A9B00] font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Sign Up</Text>
             </Text>
           </TouchableOpacity>

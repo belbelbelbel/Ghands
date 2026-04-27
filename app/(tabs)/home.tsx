@@ -5,9 +5,9 @@ import LocationSearchModal from '@/components/LocationSearchModal';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import type { JobActivity } from '@/components/home/JobActivityCard';
 import JobActivityCard from '@/components/home/JobActivityCard';
-import PromoCodeCard from '@/components/home/PromoCodeCard';
+// import PromoCodeCard from '@/components/home/PromoCodeCard';
 import TodoCard from '@/components/home/TodoCard';
-import { promoCodes, quickActions, todoItems, type QuickAction } from '@/components/home/data';
+import { quickActions, todoItems, type QuickAction } from '@/components/home/data';
 import useCoachMarks from '@/hooks/useCoachMarks';
 import { haptics } from '@/hooks/useHaptics';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
@@ -17,7 +17,7 @@ import { ServiceRequest, authService, serviceRequestService } from '@/services/a
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getCategoryIcon } from '@/utils/categoryIcons';
 import { AuthError } from '@/utils/errors';
-import { shareReferral } from '@/utils/referral';
+// import { shareReferral } from '@/utils/referral';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
@@ -700,6 +700,7 @@ const HomeScreen = React.memo(() => {
             </View>
           </CoachMarkTarget>
 
+          {/* Referral promo card hidden for now while the home design is being simplified.
           <View style={{ paddingHorizontal: 16, marginBottom: 28 }}>
             <View
               style={{
@@ -779,6 +780,7 @@ const HomeScreen = React.memo(() => {
               </View>
             </View>
           </View>
+          */}
           <View className='px-4 mb-6 hidden'>
             <Text className='text-lg font-bold mb-2' style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}>Todo</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className='flex mt-0  flex-row '>
@@ -875,6 +877,7 @@ const HomeScreen = React.memo(() => {
 
           {/* Recommended for you section temporarily removed until we have real recommendations */}
 
+          {/* Promo codes hidden for now while the client home design is being simplified.
           <View className="px-4 mb-10">
             <View className="flex-row items-center justify-between mb-5">
               <Text
@@ -893,6 +896,7 @@ const HomeScreen = React.memo(() => {
               </View>
             ))}
           </View>
+          */}
 
           <LiveSupportScreen />
           <View style={bottomSpacerStyle} />

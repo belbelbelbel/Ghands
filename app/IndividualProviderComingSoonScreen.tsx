@@ -151,7 +151,7 @@ export default function IndividualProviderComingSoonScreen() {
                 paddingHorizontal: 20,
               }}
             >
-              We're excited to bring you Individual Provider registration!
+              We&apos;re excited to bring you Individual Provider registration!
             </Text>
             <Text
               style={{
@@ -163,7 +163,7 @@ export default function IndividualProviderComingSoonScreen() {
                 paddingHorizontal: 20,
               }}
             >
-              We're currently working on integrating enhanced security features including third-party identity verification to ensure the best experience for all providers.
+              We&apos;re currently working on integrating enhanced security features including third-party identity verification to ensure the best experience for all providers.
             </Text>
           </Animated.View>
         </ScrollView>

@@ -153,7 +153,7 @@ export default function OtpScreen() {
             lineHeight: 24,
           }}
         >
-          We've sent a 6-digit verification code to your email address.
+          We&apos;ve sent a 6-digit verification code to your email address.
         </Text>
 
         {/* OTP Input */}
@@ -213,7 +213,7 @@ export default function OtpScreen() {
                 color: Colors.textPrimary,
               }}
             >
-              Didn't receive a code?{' '}
+              Didn&apos;t receive a code?{' '}
               {canResend ? (
                 <Text
                   style={{

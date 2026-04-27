@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface ActivityItem {
   id: string;
+  requestId?: number | null;
   serviceName: string;
   serviceType: string;
   date: string;
@@ -73,6 +74,7 @@ export default function ProviderWalletScreen() {
       
       return {
         id: String(apiTransaction.id || apiTransaction.reference || Math.random()),
+        requestId: apiTransaction.requestId ?? apiTransaction.request_id ?? null,
         serviceName,
         serviceType,
         date,
@@ -642,7 +644,18 @@ export default function ProviderWalletScreen() {
                   flexDirection: 'row',
                 }}
                 activeOpacity={0.7}
-                onPress={() => router.push('/ProviderReceiptScreen' as any)}
+                onPress={() => router.push({
+                  pathname: '/ProviderReceiptScreen' as any,
+                  params: {
+                    transactionId: item.id,
+                    ...(item.requestId ? { requestId: String(item.requestId) } : {}),
+                    amount: item.amount.replace(/[₦,\s]/g, ''),
+                    providerName: item.serviceName,
+                    serviceName: item.serviceType,
+                    serviceDate: item.date,
+                    serviceTime: item.time,
+                  },
+                } as any)}
               >
                 <Receipt size={16} color={Colors.accent} style={{ marginRight: 6 }} />
                 <Text

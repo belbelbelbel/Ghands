@@ -1,3 +1,5 @@
+const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+
 export default {
   expo: {
     name: 'GHands',
@@ -19,14 +21,13 @@ export default {
       supportsTablet: true,
       bundleIdentifier: 'com.bendee.GHands',
       config: {
-        googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAJNN3NAbytlRW498oZHDcsc-lA1fPKDp0',
+        googleMapsApiKey,
       },
       infoPlist: {
         NSCameraUsageDescription: 'This app needs access to camera to take profile photos.',
         NSPhotoLibraryUsageDescription: 'This app needs access to photo library to select profile photos.',
         NSMicrophoneUsageDescription:
           'GHands uses the microphone for in-app voice calls with your service provider or client.',
-        NSAllowsArbitraryLoads: true,
       },
       usesAppleSignIn: false,
     },
@@ -50,7 +51,7 @@ export default {
       ],
       config: {
         googleMaps: {
-          apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAJNN3NAbytlRW498oZHDcsc-lA1fPKDp0',
+          apiKey: googleMapsApiKey,
         },
       },
     },

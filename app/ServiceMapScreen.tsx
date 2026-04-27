@@ -654,7 +654,7 @@ const ServiceMapScreen = () => {
                   maxWidth: 300,
                 }}
               >
-                We couldn't find any providers nearby for this service. Try adjusting your location or selecting a different category.
+                We couldn&apos;t find any providers nearby for this service. Try adjusting your location or selecting a different category.
               </Text>
               
               {/* Action Buttons */}

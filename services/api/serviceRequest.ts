@@ -28,6 +28,20 @@ export type {
   QuotationWithProvider,
 };
 
+function firstPresent(...values: unknown[]) {
+  return values.find((value) => value !== undefined && value !== null && value !== '');
+}
+
+function parseMoneyValue(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/[₦,\s]/g, ''));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
 function normalizeServiceRequestRecord(requestData: ServiceRequest | null | undefined): ServiceRequest {
   if (!requestData) return requestData as ServiceRequest;
   if (requestData.nearbyProviders && !Array.isArray(requestData.nearbyProviders)) requestData.nearbyProviders = [];
@@ -48,19 +62,54 @@ function normalizeServiceRequestRecord(requestData: ServiceRequest | null | unde
   const normalizedVisitStatus = typeof rawVisitStatus === 'string' ? rawVisitStatus.toLowerCase() : undefined;
   const mappedVisitStatus =
     normalizedVisitStatus === 'declined' || normalizedVisitStatus === 'rejected' ? 'cancelled' : normalizedVisitStatus;
-  const hasNested = vr && (vr.scheduledDate ?? vr.scheduled_date ?? vr.logisticsCost ?? vr.logistics_cost);
-  const hasFlat = raw.scheduledDate ?? raw.scheduled_date ?? raw.logisticsCost ?? raw.logistics_cost;
+  const rawVisitCost = firstPresent(
+    vr?.logisticsCost,
+    vr?.logistics_cost,
+    vr?.logisticsFee,
+    vr?.logistics_fee,
+    vr?.visitLogisticsCost,
+    vr?.visit_logistics_cost,
+    vr?.visitFee,
+    vr?.visit_fee,
+    vr?.inspectionFee,
+    vr?.inspection_fee,
+    vr?.amount,
+    raw.logisticsCost,
+    raw.logistics_cost,
+    raw.logisticsFee,
+    raw.logistics_fee,
+    raw.visitLogisticsCost,
+    raw.visit_logistics_cost,
+    raw.visitFee,
+    raw.visit_fee,
+    raw.inspectionFee,
+    raw.inspection_fee,
+    raw.amount
+  );
+  const visitCost = parseMoneyValue(rawVisitCost);
+  const scheduledDate = vr?.scheduledDate ?? vr?.scheduled_date ?? raw.scheduledDate ?? raw.scheduled_date;
+  const scheduledTime = vr?.scheduledTime ?? vr?.scheduled_time ?? raw.scheduledTime ?? raw.scheduled_time;
+  const hasNested = vr && (scheduledDate ?? scheduledTime ?? rawVisitCost);
+  const hasFlat = scheduledDate ?? scheduledTime ?? rawVisitCost;
   const hasVisitRequestedAt = !!(raw.visitRequestedAt ?? raw.visit_requested_at ?? vr?.requestedAt ?? vr?.requested_at);
   const hasVisitStatus = !!mappedVisitStatus;
   if (hasNested || hasFlat || hasVisitRequestedAt || hasVisitStatus) {
     (requestData as any).visitRequest = {
-      scheduledDate: vr?.scheduledDate ?? vr?.scheduled_date ?? raw.scheduledDate ?? raw.scheduled_date,
-      scheduledTime: vr?.scheduledTime ?? vr?.scheduled_time ?? raw.scheduledTime ?? raw.scheduled_time,
-      logisticsCost:
-        vr?.logisticsCost ?? vr?.logistics_cost ?? raw.logisticsCost ?? raw.logistics_cost ?? (hasVisitRequestedAt ? 0 : undefined),
+      scheduledDate,
+      scheduledTime,
+      logisticsCost: visitCost,
       logisticsStatus: mappedVisitStatus,
       requestedAt: vr?.requestedAt ?? vr?.requested_at ?? raw.visitRequestedAt ?? raw.visit_requested_at,
     };
+    if (__DEV__) {
+      console.log('[VisitRequestNormalize]', {
+        requestId: raw.id ?? raw.requestId ?? raw.request_id,
+        rawVisitCost,
+        normalizedVisitCost: visitCost,
+        visitRequest: (requestData as any).visitRequest,
+        rawVisitKeys: vr ? Object.keys(vr) : [],
+      });
+    }
   }
   return requestData;
 }
@@ -263,8 +312,26 @@ export const serviceRequestService = {
   },
 
   declineVisit: async (requestId: number): Promise<{ requestId: number; visitStatus: string; message: string }> => {
+    if (__DEV__) {
+      console.log('[DeclineVisit] POST', {
+        requestId,
+        endpoint: `/api/request-service/requests/${requestId}/decline-visit`,
+      });
+    }
     const response = await apiClient.post<any>(`/api/request-service/requests/${requestId}/decline-visit`, {});
+    if (__DEV__) {
+      console.log('[DeclineVisit] raw response', {
+        requestId,
+        response,
+      });
+    }
     const data = extractResponseData<any>(response);
+    if (__DEV__) {
+      console.log('[DeclineVisit] extracted response', {
+        requestId,
+        data,
+      });
+    }
     return data ?? { requestId, visitStatus: 'declined', message: 'Visit declined.' };
   },
 

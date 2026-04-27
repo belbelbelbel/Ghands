@@ -289,7 +289,7 @@ export default function LocationPermissionScreen() {
                   textDecorationLine: 'underline',
                 }}
               >
-                I'll do this later
+                I&apos;ll do this later
               </Text>
             </TouchableOpacity>
           </Animated.View>

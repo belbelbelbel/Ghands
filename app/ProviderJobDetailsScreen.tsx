@@ -1,4 +1,6 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { ProviderJobLoadingState, ProviderJobNotFoundState } from '@/components/ProviderJobFallbackStates';
+import ProviderNoQuotationState from '@/components/ProviderNoQuotationState';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
@@ -12,12 +14,19 @@ import { AuthError } from '@/utils/errors';
 import { calculateDistance, estimateTravelTime, formatDistance, formatTravelTime, openMaps, openNavigation } from '@/utils/navigationUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Activity, ArrowLeft, ArrowRight, Calendar, CheckCircle, CheckCircle2, Circle, Clock, Edit, ExternalLink, FileText, MapPin, MapPinned, MessageCircle, MessageSquare, Navigation, Phone, Receipt, Wallet, Wrench } from 'lucide-react-native';
+import { Activity, ArrowLeft, ArrowRight, Calendar, CheckCircle, CheckCircle2, Circle, Clock, Edit, ExternalLink, FileText, MapPin, MapPinned, MessageCircle, MessageSquare, Navigation, Phone, Receipt, Send, Wallet, Wrench } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Image, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 
 const formatDate = (dateString: string): string => formatDateLong(dateString) || dateString;
+
+const formatVisitSchedule = (scheduledDate?: string | null, scheduledTime?: string | null) => {
+  const dateText = formatDateShort(scheduledDate) || scheduledDate || '';
+  const timeText = scheduledTime || '';
+  if (dateText && timeText) return `${dateText} at ${timeText}`;
+  return dateText || timeText || 'the scheduled time';
+};
 
 /** True when a quotation record exists on the server beyond a draft (sent / awaiting client / decided). */
 function recordShowsSentQuotation(
@@ -701,8 +710,15 @@ export default function ProviderJobDetailsScreen() {
     const visitRequest = (request as any).visitRequest;
     const visitStatus = (visitRequest?.logisticsStatus || '').toString().toLowerCase();
     const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
-    const hasVisitRequested = !!(visitRequest && (visitRequest.scheduledDate || visitRequest.logisticsCost != null));
+    const hasVisitRequested = !!(visitRequest && (
+      visitRequest.scheduledDate ||
+      visitRequest.scheduledTime ||
+      visitRequest.requestedAt ||
+      visitRequest.logisticsStatus ||
+      visitRequest.logisticsCost != null
+    ));
     const visitPaid = visitRequest?.logisticsStatus === 'paid';
+    const visitScheduleText = formatVisitSchedule(visitRequest?.scheduledDate, visitRequest?.scheduledTime);
 
     if (providerHasAccepted) {
       if (quotationSent) {
@@ -738,8 +754,8 @@ export default function ProviderJobDetailsScreen() {
           id: 'step-2',
           title: 'Inspection',
           description: visitPaid
-            ? `Visit confirmed for ${visitRequest.scheduledDate || ''} ${visitRequest.scheduledTime || ''}. Send quotation when ready.`
-            : `Visit scheduled. Waiting for client to pay ₦${visitRequest.logisticsCost ?? 0} logistics fee.`,
+            ? `Visit confirmed for ${visitScheduleText}. Send quotation when ready.`
+            : `Visit requested for ${visitScheduleText}. Waiting for client payment.`,
           status: visitPaid ? 'Completed' : 'In Progress',
           accent: visitPaid ? '#DCFCE7' : '#FEF9C3',
           dotColor: visitPaid ? '#6A9B00' : '#F59E0B',
@@ -1074,6 +1090,32 @@ export default function ProviderJobDetailsScreen() {
     );
   }, [request, isFromAcceptedRequests, quotation, quotationWithProvider]);
 
+  const hasSentQuotation =
+    recordShowsSentQuotation(quotation) || recordShowsSentQuotation(quotationWithProvider);
+  const showTopProviderActions = !!request && providerBottomBarEngaged && !hasSentQuotation;
+
+  const handleSendQuote = useCallback(() => {
+    haptics.light();
+    router.push({
+      pathname: '/SendQuotationScreen' as any,
+      params: { requestId: params.requestId, jobTitle: request?.jobTitle, returnToTab: 'Quotations' },
+    } as any);
+  }, [params.requestId, request?.jobTitle, router]);
+
+  const handleMessageClient = useCallback(() => {
+    haptics.light();
+    const recipientName = request?.user
+      ? `${request.user.firstName || ''} ${request.user.lastName || ''}`.trim() || 'Client'
+      : 'Client';
+    router.push({
+      pathname: '/ChatScreen',
+      params: {
+        clientName: recipientName,
+        requestId: params.requestId,
+      },
+    } as any);
+  }, [params.requestId, request?.user, router]);
+
   // Create animation values for timeline
   const stepCount = timelineSteps.length;
   const timelineAnimations = useMemo(
@@ -1204,43 +1246,12 @@ export default function ProviderJobDetailsScreen() {
   // While the first load is still in progress (or hasn't been triggered yet),
   // show only the loading state – don't flash the fallback "Job not found" UI.
   if (isLoading || !hasAttemptedLoad) {
-    return (
-      <SafeAreaWrapper backgroundColor={Colors.white}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={Colors.accent} />
-          <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginTop: 16 }}>
-            Loading job details...
-          </Text>
-        </View>
-      </SafeAreaWrapper>
-    );
+    return <ProviderJobLoadingState />;
   }
 
   if (!request) {
     return (
-      <SafeAreaWrapper backgroundColor={Colors.white}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
-          <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 8 }}>
-            Job not found
-          </Text>
-          <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 20 }}>
-            The job details could not be loaded. Please try again.
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.replace('/provider/home' as any)}
-            style={{
-              backgroundColor: Colors.accent,
-              paddingVertical: 12,
-              paddingHorizontal: 24,
-              borderRadius: BorderRadius.default,
-            }}
-          >
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
-              Go Back
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaWrapper>
+      <ProviderJobNotFoundState onGoBack={() => router.replace('/provider/home' as any)} />
     );
   }
 
@@ -1377,7 +1388,11 @@ export default function ProviderJobDetailsScreen() {
           contentContainerStyle={{
             paddingHorizontal: 20,
             // Increase padding when in Quotations tab with buttons at bottom
-            paddingBottom: activeTab === 'Quotations' && quotation && quotation.status === 'accepted' ? 200 : 120,
+            paddingBottom: showTopProviderActions
+              ? 28
+              : activeTab === 'Quotations' && quotation && quotation.status === 'accepted'
+                ? 200
+                : 120,
           }}
           refreshControl={
             <RefreshControl
@@ -1544,6 +1559,64 @@ export default function ProviderJobDetailsScreen() {
             </View>
           </View>
 
+          {showTopProviderActions && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                marginBottom: 16,
+              }}
+            >
+              <TouchableOpacity
+                onPress={handleSendQuote}
+                activeOpacity={0.85}
+                style={{
+                  flex: 1,
+                  backgroundColor: Colors.accent,
+                  borderRadius: 16,
+                  paddingVertical: 13,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                  shadowColor: Colors.accent,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.18,
+                  shadowRadius: 10,
+                  elevation: 4,
+                }}
+              >
+                <Send size={17} color={Colors.white} style={{ marginRight: 8 }} />
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.white,
+                  }}
+                >
+                  Send quotation
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleMessageClient}
+                activeOpacity={0.85}
+                accessibilityLabel="Message client"
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 16,
+                  backgroundColor: '#F3F7EA',
+                  borderWidth: 1,
+                  borderColor: 'rgba(106, 155, 0, 0.22)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <MessageCircle size={21} color={Colors.accent} />
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Status Message Card - Above Timeline (same design as client: neutral/action/success) */}
           {statusMessage && statusMessage.message !== 'Review and accept to proceed' && (
           <View
@@ -1626,24 +1699,30 @@ export default function ProviderJobDetailsScreen() {
             </View>
           )}
 
-          {/* Timeline Section - Card style with nested step cards */}
+          {/* Timeline Section */}
           {request && timelineSteps.length > 0 && (
             <View
               style={{
                 backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                padding: 20,
+                borderRadius: 22,
+                padding: 16,
                 marginBottom: 16,
                 borderWidth: 1,
-                borderColor: Colors.border,
+                borderColor: 'rgba(17, 24, 39, 0.08)',
+                shadowColor: '#101828',
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.035,
+                shadowRadius: 12,
+                elevation: 2,
               }}
             >
               <Text
                 style={{
-                  fontSize: 16,
+                  fontSize: 17,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.textPrimary,
-                  marginBottom: 16,
+                  marginBottom: 14,
+                  letterSpacing: -0.2,
                 }}
               >
                 Job Timeline
@@ -1660,7 +1739,7 @@ export default function ProviderJobDetailsScreen() {
                     key={step.id}
                     style={{
                       flexDirection: 'row',
-                      marginBottom: isLast ? 0 : 20,
+                      marginBottom: isLast ? 0 : 14,
                       opacity: animation.interpolate({
                         inputRange: [0, 1],
                         outputRange: [0, 1],
@@ -1676,9 +1755,9 @@ export default function ProviderJobDetailsScreen() {
                     <View style={{ alignItems: 'center', marginRight: 12 }}>
                       <Animated.View
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
+                          width: 30,
+                          height: 30,
+                          borderRadius: 15,
                           backgroundColor: step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#F3F4F6',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -1686,9 +1765,9 @@ export default function ProviderJobDetailsScreen() {
                           borderColor: '#E5E7EB',
                           shadowColor: step.isCompleted || step.isActive ? step.dotColor : '#000',
                           shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: step.isCompleted || step.isActive ? 0.2 : 0.05,
-                          shadowRadius: 4,
-                          elevation: step.isCompleted || step.isActive ? 4 : 1,
+                          shadowOpacity: step.isCompleted || step.isActive ? 0.16 : 0.04,
+                          shadowRadius: 5,
+                          elevation: step.isCompleted || step.isActive ? 3 : 1,
                           transform: [{
                             scale: animation.interpolate({
                               inputRange: [0, 1],
@@ -1714,7 +1793,7 @@ export default function ProviderJobDetailsScreen() {
                                 : '#E5E7EB',
                             marginTop: 6,
                             borderRadius: 1,
-                            minHeight: 36,
+                            minHeight: 30,
                             opacity: lineAnim ? lineAnim.interpolate({
                               inputRange: [0, 1],
                               outputRange: [0, 1],
@@ -1737,25 +1816,33 @@ export default function ProviderJobDetailsScreen() {
                           inputRange: [0, 1],
                           outputRange: [0, 1],
                         }),
-                        backgroundColor: '#FFFFFF',
-                        borderRadius: 16,
+                        backgroundColor: step.isCompleted
+                          ? '#FFFFFF'
+                          : step.isActive
+                            ? '#FFFCF2'
+                            : '#FFFFFF',
+                        borderRadius: 18,
                         borderWidth: 1,
-                        borderColor: '#E5E7EB',
-                        padding: 14,
-                        marginBottom: 4,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.04,
-                        shadowRadius: 8,
+                        borderColor: step.isActive
+                          ? 'rgba(245, 158, 11, 0.22)'
+                          : step.isCompleted
+                            ? 'rgba(106, 155, 0, 0.14)'
+                            : '#EAECF0',
+                        padding: 13,
+                        shadowColor: '#101828',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.035,
+                        shadowRadius: 10,
                         elevation: 2,
                       }}
                     >
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                         <Text
                           style={{
-                            fontSize: 14,
+                            fontSize: 15,
                             fontFamily: 'Poppins-Bold',
                             color: Colors.textPrimary,
+                            lineHeight: 20,
                           }}
                         >
                           {step.title}
@@ -1764,14 +1851,14 @@ export default function ProviderJobDetailsScreen() {
                           <View
                             style={{
                               backgroundColor: step.isCompleted ? '#DCFCE7' : '#FEF9C3',
-                              paddingHorizontal: 10,
+                              paddingHorizontal: 9,
                               paddingVertical: 4,
                               borderRadius: 12,
                             }}
                           >
                             <Text
                               style={{
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontFamily: 'Poppins-SemiBold',
                                 color: step.isCompleted ? '#166534' : '#92400E',
                               }}
@@ -1783,18 +1870,22 @@ export default function ProviderJobDetailsScreen() {
                       </View>
                       <View
                         style={{
-                          backgroundColor: (step.isActive || step.isCompleted) ? '#E0F2FE' : '#F9FAFB',
-                          borderRadius: 12,
+                          backgroundColor: step.isCompleted
+                            ? '#F2F8EA'
+                            : step.isActive
+                              ? '#FFF7DF'
+                              : '#F7F8FA',
+                          borderRadius: 14,
                           padding: 12,
-                          marginBottom: 4,
                         }}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                           <View style={{ flex: 1, marginRight: 12 }}>
                             <Text
                               style={{
-                                fontSize: 13,
-                                fontFamily: 'Poppins-Regular',
+                                fontSize: 12,
+                                lineHeight: 18,
+                                fontFamily: 'Poppins-Medium',
                                 color: Colors.textSecondaryDark,
                               }}
                             >
@@ -1933,6 +2024,7 @@ export default function ProviderJobDetailsScreen() {
                             fontFamily: 'Poppins-Regular',
                             color: step.isCompleted ? Colors.accent : step.isActive ? '#F59E0B' : Colors.textTertiary,
                             marginTop: 8,
+                            lineHeight: 17,
                           }}
                         >
                           {step.status}
@@ -2955,55 +3047,8 @@ export default function ProviderJobDetailsScreen() {
               })()}
                 </>
               ) : (
-                /* No Quotation - Empty State */
-                <View
-                  style={{
-                    flex: 1,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingVertical: 60,
-                    paddingHorizontal: 20,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: 40,
-                      backgroundColor: Colors.backgroundGray,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: 24,
-                    }}
-                  >
-                    <FileText size={40} color={Colors.textSecondaryDark} />
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontFamily: 'Poppins-Bold',
-                      color: Colors.textPrimary,
-                      marginBottom: 8,
-                      textAlign: 'center',
-                    }}
-                  >
-                    No Quotation Yet
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'Poppins-Regular',
-                      color: Colors.textSecondaryDark,
-                      textAlign: 'center',
-                      marginBottom: 32,
-                      lineHeight: 20,
-                    }}
-                  >
-                    A quotation hasn't been sent for this job yet.{'\n'}
-                    Once a quotation is sent and accepted, you'll see the details here.
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => {
+                <ProviderNoQuotationState
+                  onSendQuotation={() => {
                       haptics.light();
                       router.push({
                         pathname: '/SendQuotationScreen' as any,
@@ -3014,34 +3059,14 @@ export default function ProviderJobDetailsScreen() {
                         },
                       } as any);
                     }}
-                    style={{
-                      backgroundColor: Colors.accent,
-                      paddingVertical: 14,
-                      paddingHorizontal: 32,
-                      borderRadius: BorderRadius.default,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontFamily: 'Poppins-SemiBold',
-                        color: Colors.white,
-                      }}
-                    >
-                      Send Quotation
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                />
               )}
             </>
           )}
         </ScrollView>
 
         {/* Bottom Action Buttons - Fixed */}
-        {request?.status !== 'completed' && (
+        {request?.status !== 'completed' && !showTopProviderActions && (
         <View
           style={{
             position: 'absolute',
@@ -3232,36 +3257,39 @@ export default function ProviderJobDetailsScreen() {
                     const vr = (request as any)?.visitRequest;
                     const visitStatus = (vr?.logisticsStatus || '').toString().toLowerCase();
                     const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
-                    const visitAlreadyRequested = !!(vr && (vr.scheduledDate || vr.logisticsCost != null));
-                    const disableVisitButton = visitAlreadyRequested || visitDeclined;
+                    const visitAlreadyRequested = !!(vr && (
+                      vr.scheduledDate ||
+                      vr.scheduledTime ||
+                      vr.requestedAt ||
+                      vr.logisticsStatus ||
+                      vr.logisticsCost != null
+                    ));
+                    if (visitAlreadyRequested || visitDeclined) return null;
                     return (
                   <TouchableOpacity
                     style={{
                       flex: 1,
-                      backgroundColor: disableVisitButton ? '#E5E7EB' : Colors.backgroundGray,
+                      backgroundColor: Colors.backgroundGray,
                       paddingVertical: 12,
                       borderRadius: BorderRadius.default,
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexDirection: 'row',
                       borderWidth: 1,
-                      borderColor: disableVisitButton ? '#D1D5DB' : Colors.border,
-                      opacity: disableVisitButton ? 0.7 : 1,
+                      borderColor: Colors.border,
                     }}
-                    activeOpacity={disableVisitButton ? 1 : 0.8}
+                    activeOpacity={0.8}
                     onPress={() => {
-                      if (disableVisitButton) return;
                       haptics.light();
                       router.push({
                         pathname: '/RequestVisitScreen' as any,
                         params: { requestId: params.requestId, jobTitle: request?.jobTitle },
                       } as any);
                     }}
-                    disabled={disableVisitButton}
                   >
-                    <MapPin size={16} color={disableVisitButton ? '#9CA3AF' : Colors.accent} style={{ marginRight: 6 }} />
-                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: disableVisitButton ? '#9CA3AF' : Colors.textPrimary }}>
-                      {visitDeclined ? 'Visit declined' : visitAlreadyRequested ? 'Visit requested' : 'Request visit'}
+                    <MapPin size={16} color={Colors.accent} style={{ marginRight: 6 }} />
+                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
+                      Request visit
                     </Text>
                   </TouchableOpacity>
                     );
@@ -3554,7 +3582,7 @@ export default function ProviderJobDetailsScreen() {
                   flex: 1,
                 }}
               >
-                I'm ready to give a price
+                I&apos;m ready to give a price
               </Text>
               <TouchableOpacity
                 onPress={() => handleAcceptRequest('quote')}

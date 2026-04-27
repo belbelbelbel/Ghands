@@ -2,7 +2,8 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import { haptics } from '@/hooks/useHaptics';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { ArrowRight, CheckCircle, CheckCircle2, FileText, Wrench, Circle } from 'lucide-react-native';
+import { ArrowRight, CalendarDays, CheckCircle, CheckCircle2, Circle, Clock3, FileText, Sparkles, Wrench } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   Animated,
@@ -206,16 +207,20 @@ export default function BookingConfirmationScreen() {
       Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 7 }),
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 50, friction: 7 }),
     ]).start();
-    progressSteps.forEach((_, index) => {
-      setTimeout(() => {
-        setAnimatedSteps(prev => prev.includes(index) ? prev : [...prev, index]);
-        if (index > 0) haptics.light();
-      }, 300 + index * 150);
-    });
   }, [fadeAnim, slideAnim]);
 
   useEffect(() => {
     setAnimatedSteps([]);
+    const timers = Array.from({ length: progressSteps.length }, (_, index) =>
+      setTimeout(() => {
+        setAnimatedSteps(prev => prev.includes(index) ? prev : [...prev, index]);
+        if (index > 0) haptics.light();
+      }, 300 + index * 150)
+    );
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
   }, [progressSteps.length]);
 
   const handleContinue = () => {
@@ -247,6 +252,12 @@ export default function BookingConfirmationScreen() {
   };
 
   const displayService = params.serviceType || request?.categoryName || request?.jobTitle || 'plumbing service';
+  const displayProviderCount = params.providerCount
+    ? parseInt(params.providerCount, 10)
+    : (request?.nearbyProviders?.length ?? acceptedProviders.length ?? 0);
+  const providerSummary = displayProviderCount > 0
+    ? `${displayProviderCount} ${displayProviderCount === 1 ? 'provider' : 'providers'} notified`
+    : 'Providers being matched';
   const displayDate = params.selectedDate
     ? (() => {
         try {
@@ -279,39 +290,206 @@ export default function BookingConfirmationScreen() {
   }
 
   return (
-    <SafeAreaWrapper className="flex-1 bg-white">
+    <SafeAreaWrapper className="flex-1 bg-[#F7F9F2]">
       <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
         <ScrollView
-          className="flex-1 px-4"
+          className="flex-1"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 24, paddingTop: 20 }}
+          contentContainerStyle={{ paddingBottom: 118, paddingTop: 18 }}
           refreshControl={
             params.requestId ? (
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#6A9B00']} />
             ) : undefined
           }
         >
-          <View className="items-center mb-6">
-            <Text className="text-4xl text-[#6A9B00] mb-4" style={{ fontFamily: 'Poppins-Bold' }}>
-              Booking Successful!
-            </Text>
+          <View style={{ paddingHorizontal: 18 }}>
+            <LinearGradient
+              colors={['#111807', '#345F00', '#6A9B00']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                borderRadius: 32,
+                paddingTop: 28,
+                paddingHorizontal: 22,
+                paddingBottom: 22,
+                overflow: 'hidden',
+                shadowColor: '#345F00',
+                shadowOffset: { width: 0, height: 14 },
+                shadowOpacity: 0.22,
+                shadowRadius: 24,
+                elevation: 8,
+              }}
+            >
+              <View
+                style={{
+                  position: 'absolute',
+                  width: 150,
+                  height: 150,
+                  borderRadius: 75,
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  top: -45,
+                  right: -30,
+                }}
+              />
+              <View
+                style={{
+                  width: 78,
+                  height: 78,
+                  borderRadius: 39,
+                  backgroundColor: 'rgba(255,255,255,0.16)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  alignSelf: 'center',
+                  marginBottom: 18,
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.26)',
+                }}
+              >
+                <View
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: 29,
+                    backgroundColor: '#FFFFFF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <CheckCircle2 size={34} color="#6A9B00" />
+                </View>
+              </View>
+
+              <View style={{ alignItems: 'center' }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(255,255,255,0.14)',
+                    borderRadius: 999,
+                    paddingHorizontal: 12,
+                    paddingVertical: 7,
+                    marginBottom: 12,
+                  }}
+                >
+                  <Sparkles size={14} color="#E9FFB5" />
+                  <Text
+                    style={{
+                      marginLeft: 6,
+                      color: '#E9FFB5',
+                      fontFamily: 'Poppins-SemiBold',
+                      fontSize: 12,
+                    }}
+                  >
+                    Request sent successfully
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontSize: 34,
+                    lineHeight: 40,
+                    textAlign: 'center',
+                    color: '#FFFFFF',
+                    fontFamily: 'Poppins-Bold',
+                    letterSpacing: -1,
+                  }}
+                >
+                  Booking Confirmed
+                </Text>
+                <Text
+                  style={{
+                    marginTop: 10,
+                    color: 'rgba(255,255,255,0.82)',
+                    textAlign: 'center',
+                    fontSize: 14,
+                    lineHeight: 21,
+                    fontFamily: 'Poppins-Medium',
+                  }}
+                >
+                  Hi {userName}, we&apos;ll keep this timeline updated as providers respond.
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  marginTop: 22,
+                  backgroundColor: 'rgba(255,255,255,0.96)',
+                  borderRadius: 22,
+                  padding: 16,
+                  gap: 12,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: '#EEF7DF',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 12,
+                    }}
+                  >
+                    <Wrench size={19} color="#6A9B00" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: 'Poppins-Medium', color: '#6B7280', fontSize: 12 }}>
+                      Service
+                    </Text>
+                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#111827', fontSize: 15 }} numberOfLines={1}>
+                      {displayService}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#F7F9F2',
+                      borderRadius: 16,
+                      paddingHorizontal: 12,
+                      paddingVertical: 12,
+                      borderWidth: 1,
+                      borderColor: '#E6EBD8',
+                    }}
+                  >
+                    <CalendarDays size={17} color="#6A9B00" />
+                    <Text style={{ marginTop: 7, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 13 }}>
+                      {displayDate}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      flex: 1.25,
+                      backgroundColor: '#F7F9F2',
+                      borderRadius: 16,
+                      paddingHorizontal: 12,
+                      paddingVertical: 12,
+                      borderWidth: 1,
+                      borderColor: '#E6EBD8',
+                    }}
+                  >
+                    <Clock3 size={17} color="#6A9B00" />
+                    <Text style={{ marginTop: 7, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 13 }}>
+                      {providerSummary}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </LinearGradient>
           </View>
 
-          <View className="bg-gray-100 rounded-2xl px-4 py-4 mb-8 border border-gray-200">
-            <Text className="text-base text-black leading-6" style={{ fontFamily: 'Poppins-Regular' }}>
-              Hi <Text style={{ fontFamily: 'Poppins-Bold' }}>{userName}</Text>, your{' '}
-              <Text style={{ fontFamily: 'Poppins-Bold', textDecorationLine: 'underline' }}>
-                {displayService}
-              </Text>{' '}
-              has been booked for{' '}
-              <Text style={{ fontFamily: 'Poppins-Bold', textDecorationLine: 'underline' }}>
-                {displayDate}
+          <View style={{ paddingHorizontal: 18, marginTop: 24 }}>
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontFamily: 'Poppins-Bold', color: '#111827', fontSize: 22, letterSpacing: -0.4 }}>
+                What happens next
               </Text>
-              . Our service provider will contact you soon.{params.requestId ? ' Pull down to refresh for the latest status.' : ''}
-            </Text>
-          </View>
+              <Text style={{ fontFamily: 'Poppins-Medium', color: '#6B7280', fontSize: 13, marginTop: 4 }}>
+                Pull down to refresh whenever you want the latest status.
+              </Text>
+            </View>
 
-          <View className="mb-8">
             {progressSteps.map((step, index) => {
               const isAnimated = animatedSteps.includes(index);
               const stepColor = getStepColor(step.status);
@@ -321,13 +499,29 @@ export default function BookingConfirmationScreen() {
               const iconSize = step.status === 'completed' ? 20 : step.status === 'in-progress' ? 18 : 16;
 
               return (
-                <View key={step.id} className="flex-row mb-4">
-                  <View className="items-center mr-5">
+                <View
+                  key={step.id}
+                  style={{
+                    flexDirection: 'row',
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 24,
+                    padding: 16,
+                    marginBottom: 12,
+                    borderWidth: 1,
+                    borderColor: step.status === 'pending' ? '#EEF0EA' : 'rgba(106,155,0,0.18)',
+                    shadowColor: '#111827',
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 16,
+                    elevation: 2,
+                  }}
+                >
+                  <View style={{ alignItems: 'center', marginRight: 14 }}>
                     <Animated.View
                       style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
                         backgroundColor: isAnimated ? stepColor : '#F3F4F6',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -349,21 +543,20 @@ export default function BookingConfirmationScreen() {
                     {!isLast && (
                       <View
                         style={{
-                          width: 3,
-                          flex: 1,
+                          width: 2,
+                          height: 38,
                           backgroundColor: isAnimated && step.status !== 'pending' ? stepColor : '#E5E7EB',
-                          minHeight: 45,
                           marginTop: 8,
                           borderRadius: 2,
                         }}
                       />
                     )}
                   </View>
-                  <View className="flex-1 pb-6">
-                    <Text className="text-base mb-1" style={{ fontFamily: 'Poppins-Bold', color: '#111827' }}>
+                  <View style={{ flex: 1, paddingTop: 2 }}>
+                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#111827', fontSize: 16, marginBottom: 5 }}>
                       {step.title}
                     </Text>
-                    <Text className="text-sm mb-2" style={{ fontFamily: 'Poppins-Medium', color: '#6B7280' }}>
+                    <Text style={{ fontFamily: 'Poppins-Medium', color: '#667085', fontSize: 13, lineHeight: 19, marginBottom: 10 }}>
                       {step.description}
                     </Text>
                     <AnimatedStatusChip
@@ -380,13 +573,38 @@ export default function BookingConfirmationScreen() {
           </View>
         </ScrollView>
 
-        <View className="px-4 pb-6">
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            paddingHorizontal: 18,
+            paddingTop: 14,
+            paddingBottom: 24,
+            backgroundColor: 'rgba(247,249,242,0.96)',
+            borderTopWidth: 1,
+            borderTopColor: 'rgba(17,24,39,0.06)',
+          }}
+        >
           <TouchableOpacity
             onPress={handleContinue}
             activeOpacity={0.85}
-            className="bg-black rounded-xl py-4 items-center justify-center flex-row"
+            style={{
+              backgroundColor: '#050505',
+              borderRadius: 18,
+              paddingVertical: 17,
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'row',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.22,
+              shadowRadius: 14,
+              elevation: 6,
+            }}
           >
-            <Text className="text-white text-base mr-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 15, marginRight: 8, fontFamily: 'Poppins-SemiBold' }}>
               {params.requestId ? 'View Job Details' : 'Continue'}
             </Text>
             <ArrowRight size={18} color="#FFFFFF" />

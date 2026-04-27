@@ -7,6 +7,7 @@ import { handleTokenExpiration } from '@/utils/tokenExpirationHandler';
 
 const AUTH_TOKEN_KEY = '@ghands:auth_token';
 const AUTH_ROLE_KEY = '@ghands:user_role';
+const ROLE_SWITCHING_KEY = '@ghands:role_switching';
 
 /**
  * Hook that checks for token on mount and redirects if missing
@@ -30,6 +31,8 @@ export function useTokenGuard() {
         // If no token found or token is invalid, redirect immediately
         if (!token || !validToken) {
           if (!isMounted) return;
+          const isSwitchingRole = await AsyncStorage.getItem(ROLE_SWITCHING_KEY);
+          if (isSwitchingRole === 'true') return;
           
           // Get role to determine redirect destination
           const role = await AsyncStorage.getItem(AUTH_ROLE_KEY);

@@ -320,7 +320,7 @@ export default function AddPhotosScreen() {
               Add Photos of the Issue (Optional)
             </Text>
             <Text className="text-sm text-gray-500 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
-              Help providers understand the problem better. You can skip this step if you don't have photos.
+              Help providers understand the problem better. You can skip this step if you don&apos;t have photos.
             </Text>
           </View>
 

@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/useToast';
 import { Colors } from '@/lib/designSystem';
 import { analytics } from '@/services/analytics';
 import { QuotationWithProvider, ServiceRequest, serviceRequestService, walletService } from '@/services/api';
-import { formatTimeAgo } from '@/utils/dateFormatting';
+import { formatDateShort, formatTimeAgo } from '@/utils/dateFormatting';
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { isConnectivityOrNetworkError } from '@/utils/isNetworkFailure';
@@ -101,7 +101,7 @@ const generateDummyQuotations = (acceptedProviders: any[], categoryName?: string
     return {
       id: `quote-${item.provider.id}`,
       providerName: item.provider.name,
-      providerType: 'Professional Service Provider',
+      providerType: 'Provider',
       providerImage: require('../assets/images/plumbericon2.png'),
       quoteAmount: `$${finalAmount}`,
       serviceBreakdown: breakdown.map(item => ({
@@ -119,6 +119,18 @@ const generateDummyQuotations = (acceptedProviders: any[], categoryName?: string
 };
 
 const TAB_ITEMS: Array<'Updates' | 'Quotations'> = ['Updates', 'Quotations'];
+
+const formatVisitFee = (value: number | undefined | null) =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+    : null;
+
+const formatVisitSchedule = (scheduledDate?: string | null, scheduledTime?: string | null) => {
+  const dateText = formatDateShort(scheduledDate) || scheduledDate || '';
+  const timeText = scheduledTime || '';
+  if (dateText && timeText) return `${dateText} at ${timeText}`;
+  return dateText || timeText || 'the scheduled time';
+};
 
 interface ServiceBreakdownItem {
   service: string;
@@ -328,7 +340,15 @@ export default function OngoingJobDetails() {
     const visitRequest = (request as any).visitRequest;
     const visitStatus = (visitRequest?.logisticsStatus || '').toString().toLowerCase();
     const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
-    const hasVisitRequested = !!(visitRequest && (visitRequest.scheduledDate || visitRequest.logisticsCost != null));
+    const visitFeeText = formatVisitFee(visitRequest?.logisticsCost);
+    const visitScheduleText = formatVisitSchedule(visitRequest?.scheduledDate, visitRequest?.scheduledTime);
+    const hasVisitRequested = !!(visitRequest && (
+      visitRequest.scheduledDate ||
+      visitRequest.scheduledTime ||
+      visitRequest.requestedAt ||
+      visitRequest.logisticsStatus ||
+      visitRequest.logisticsCost != null
+    ));
     const visitPaid = visitRequest?.logisticsStatus === 'paid';
 
     if (hasAcceptedProviders) {
@@ -361,8 +381,10 @@ export default function OngoingJobDetails() {
           id: 'step-3',
           title: 'Inspection',
           description: visitPaid
-            ? `Visit confirmed for ${visitRequest.scheduledDate || ''} ${visitRequest.scheduledTime || ''}. Awaiting quotation.`
-            : `Provider requested a visit on ${visitRequest.scheduledDate || ''} ${visitRequest.scheduledTime || ''}. Confirm by paying ₦${visitRequest.logisticsCost ?? 0} or decline.`,
+            ? `Visit confirmed for ${visitScheduleText}. Awaiting quotation.`
+            : visitFeeText
+              ? `Provider requested a visit for ${visitScheduleText}. Confirm by paying ${visitFeeText} or decline.`
+              : `Provider requested a visit for ${visitScheduleText}. Visit fee is still being loaded.`,
           status: visitPaid ? 'Completed' : 'In Progress',
           accent: visitPaid ? '#DCFCE7' : '#FEF9C3',
           dotColor: visitPaid ? '#6A9B00' : '#F59E0B',
@@ -373,7 +395,7 @@ export default function OngoingJobDetails() {
           // to keep the timeline list clean.
           showPayLogistics: false,
           showRejectVisit: false,
-          logisticsCost: visitRequest.logisticsCost ?? 0,
+          logisticsCost: visitRequest.logisticsCost,
         });
       } else {
         timeline.push({
@@ -643,9 +665,24 @@ export default function OngoingJobDetails() {
       const vr = (request as any)?.visitRequest;
       const visitStatus = (vr?.logisticsStatus || '').toString().toLowerCase();
       const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
-      const hasVR = !!(vr && (vr.scheduledDate || vr.logisticsCost != null));
+      const hasVR = !!(vr && (vr.scheduledDate || vr.scheduledTime || vr.requestedAt || vr.logisticsStatus || vr.logisticsCost != null));
       const vPaid = vr?.logisticsStatus === 'paid';
-      const logisticsCost = vr?.logisticsCost ?? 0;
+      const logisticsCost = typeof vr?.logisticsCost === 'number' && Number.isFinite(vr.logisticsCost)
+        ? vr.logisticsCost
+        : undefined;
+      const hasPayableVisitFee = typeof logisticsCost === 'number' && logisticsCost > 0;
+
+      if (__DEV__ && hasVR) {
+        console.log('[OngoingJobDetails] visit header data', {
+          requestId: params.requestId,
+          rawVisitRequest: vr,
+          logisticsCost,
+          hasPayableVisitFee,
+          visitStatus,
+          vPaid,
+          visitDeclined,
+        });
+      }
 
       return {
         title: 'Inspection in progress',
@@ -657,10 +694,14 @@ export default function OngoingJobDetails() {
         pillText: '#92400E',
         timestamp: acceptedAt ? formatTimeAgo(acceptedAt) : null,
         provider: headerProvider,
-        showVisitPayButton: hasVR && !vPaid && !visitDeclined,
+        showVisitPayButton: hasVR && !vPaid && !visitDeclined && hasPayableVisitFee,
         visitLogisticsCost: logisticsCost,
         onVisitPay: () => {
           if (params.requestId == null) return;
+          if (!hasPayableVisitFee) {
+            showError('Visit fee is missing. Pull down to refresh or ask the provider to resend the visit request.');
+            return;
+          }
           haptics.light();
           router.push({
             pathname: '/ConfirmWalletPaymentScreen',
@@ -682,7 +723,13 @@ export default function OngoingJobDetails() {
               style: 'destructive',
               onPress: async () => {
                 try {
-                  await serviceRequestService.declineVisit(rid);
+                  const declineResponse = await serviceRequestService.declineVisit(rid);
+                  if (__DEV__) {
+                    console.log('[OngoingJobDetails] decline visit completed', {
+                      requestId: rid,
+                      declineResponse,
+                    });
+                  }
                   showSuccess('Visit declined.');
                   await loadRequestData();
                 } catch (e: any) {
@@ -781,6 +828,27 @@ export default function OngoingJobDetails() {
       // 1) Load core request details (list fallback when GET /requests/:id returns 5xx)
       const { request: requestDetails, usedListFallback } =
         await serviceRequestService.getRequestDetailsWithListFallback(requestId);
+      if (__DEV__) {
+        console.log('[OngoingJobDetails] request details loaded', {
+          requestId,
+          status: requestDetails?.status,
+          visitRequest: (requestDetails as any)?.visitRequest,
+          rawVisitKeys: (requestDetails as any)?.visitRequest
+            ? Object.keys((requestDetails as any).visitRequest)
+            : [],
+          usedListFallback,
+        });
+        const visitStatus = ((requestDetails as any)?.visitRequest?.logisticsStatus || '').toString().toLowerCase();
+        const requestStatus = (requestDetails?.status || '').toString().toLowerCase();
+        if (requestStatus === 'cancelled' && ['cancelled', 'declined', 'rejected'].includes(visitStatus)) {
+          console.warn('[OngoingJobDetails] decline visit may have cancelled the whole request', {
+            requestId,
+            requestStatus,
+            visitStatus,
+            visitRequest: (requestDetails as any)?.visitRequest,
+          });
+        }
+      }
       setRequest(requestDetails);
       if (usedListFallback && !silent) {
         showWarning(
@@ -1003,7 +1071,7 @@ export default function OngoingJobDetails() {
       return {
         id: `provider-${item.provider.id}`,
         name: item.provider.name,
-        role: 'Professional Service Provider',
+        role: 'Provider',
         image: require('../assets/images/plumbericon2.png'),
         status,
         statusColor,
@@ -1316,7 +1384,7 @@ export default function OngoingJobDetails() {
     if (timelineSteps.length === 0) return null;
 
     return (
-      <View className="mb-10 mt-2">
+      <View style={{ marginTop: 4, marginBottom: 28 }}>
         {timelineSteps.map((step, index) => {
           const isLast = index === timelineSteps.length - 1;
           const animation = timelineAnimations[index];
@@ -1326,13 +1394,13 @@ export default function OngoingJobDetails() {
           const iconSize = step.isCompleted || step.isActive ? 14 : 12;
 
           return (
-            <View key={step.id} className="flex-row" style={{ marginBottom: 20 }}>
-              <View className="items-center mr-4">
+            <View key={step.id} className="flex-row" style={{ marginBottom: isLast ? 0 : 14 }}>
+              <View className="items-center" style={{ marginRight: 12 }}>
                 <Animated.View
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
+                    width: 30,
+                    height: 30,
+                    borderRadius: 15,
                     backgroundColor: step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#F3F4F6',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1351,13 +1419,10 @@ export default function OngoingJobDetails() {
                       outputRange: [0.5, 0.6],
                     }),
                     shadowColor: step.isCompleted || step.isActive ? step.dotColor : '#000',
-                    shadowOffset: {
-                      width: 0,
-                      height: 2,
-                    },
-                    shadowOpacity: step.isCompleted || step.isActive ? 0.2 : 0.05,
-                    shadowRadius: 4,
-                    elevation: step.isCompleted || step.isActive ? 4 : 1,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: step.isCompleted || step.isActive ? 0.16 : 0.04,
+                    shadowRadius: 5,
+                    elevation: step.isCompleted || step.isActive ? 3 : 1,
                   }}
                 >
                   <IconComponent 
@@ -1378,13 +1443,13 @@ export default function OngoingJobDetails() {
                         : '#E5E7EB',
                       marginTop: 6,
                       borderRadius: 1,
-                      minHeight: 36,
+                      minHeight: 30,
                       height: lineAnim
                         ? lineAnim.interpolate({
                           inputRange: [0, 1],
-                            outputRange: [0, 36],
+                            outputRange: [0, 30],
                         })
-                        : 36,
+                        : 30,
                     }}
                   />
                 )}
@@ -1401,40 +1466,47 @@ export default function OngoingJobDetails() {
                       }),
                     },
                   ],
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 16,
+                  backgroundColor: step.isCompleted
+                    ? '#FFFFFF'
+                    : step.isActive
+                      ? '#FFFCF2'
+                      : '#FFFFFF',
+                  borderRadius: 18,
                   borderWidth: 1,
-                  borderColor: '#E5E7EB',
-                  paddingTop: 16,
-                  paddingBottom: 16,
-                  paddingLeft: 14,
-                  paddingRight: 14,
-                  marginBottom: 6,
-                  marginRight: 10,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.04,
-                  shadowRadius: 8,
+                  borderColor: step.isActive
+                    ? 'rgba(245, 158, 11, 0.22)'
+                    : step.isCompleted
+                      ? 'rgba(106, 155, 0, 0.14)'
+                      : '#EAECF0',
+                  padding: 14,
+                  marginRight: 4,
+                  shadowColor: '#101828',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.035,
+                  shadowRadius: 10,
                   elevation: 2,
                 }}
               >
                 <View
                   style={{
-                    backgroundColor: step.isCompleted || step.isActive ? '#E0F2FE' : '#F9FAFB',
-                    borderRadius: 12,
-                    paddingHorizontal: 14,
-                    paddingVertical: 14,
-                    marginTop: 4,
-                    marginBottom: 10,
+                    backgroundColor: step.isCompleted
+                      ? '#F2F8EA'
+                      : step.isActive
+                        ? '#FFF7DF'
+                        : '#F7F8FA',
+                    borderRadius: 14,
+                    paddingHorizontal: 12,
+                    paddingVertical: 12,
+                    marginBottom: 9,
                   }}
                 >
                   <Text
                     style={{
-                      fontSize: 14,
+                      fontSize: 15,
                       fontFamily: 'Poppins-Bold',
                       color: step.isCompleted || step.isActive ? Colors.textPrimary : Colors.textSecondaryDark,
-                      marginBottom: 6,
-                      lineHeight: 18,
+                      marginBottom: 5,
+                      lineHeight: 20,
                     }}
                   >
                     {step.title}
@@ -1442,7 +1514,7 @@ export default function OngoingJobDetails() {
                   <Text
                     style={{
                       fontSize: 12,
-                      fontFamily: 'Poppins-Regular',
+                      fontFamily: 'Poppins-Medium',
                       color: step.isCompleted || step.isActive ? Colors.textSecondaryDark : Colors.textTertiary,
                       lineHeight: 18,
                     }}
@@ -1450,7 +1522,7 @@ export default function OngoingJobDetails() {
                     {step.description}
                   </Text>
                 </View>
-                <View style={{ marginTop: 8 }}>
+                <View style={{ marginTop: 2 }}>
                   <AnimatedStatusChip
                     status={step.status}
                     statusColor={step.accent}
@@ -1536,7 +1608,13 @@ export default function OngoingJobDetails() {
                                   const rid = Number(params.requestId);
                                   if (isNaN(rid)) return;
                                   try {
-                                    await serviceRequestService.declineVisit(rid);
+                                    const declineResponse = await serviceRequestService.declineVisit(rid);
+                                    if (__DEV__) {
+                                      console.log('[OngoingJobDetails] inline decline visit completed', {
+                                        requestId: rid,
+                                        declineResponse,
+                                      });
+                                    }
                                     haptics.success();
                                     showSuccess('Visit declined. Provider can send quotation directly.');
                                     loadRequestData();

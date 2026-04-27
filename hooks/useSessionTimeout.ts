@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '@/services/authService';
 import { handleTokenExpiration } from '@/utils/tokenExpirationHandler';
 import { isAccessTokenExpired } from '@/utils/jwtExpiry';
@@ -7,6 +8,7 @@ import { getLoginRouteForStoredRole, isPublicUnauthenticatedRoute } from '@/util
 
 /** How often to re-check JWT expiry while the app is open */
 const POLL_MS = 60_000;
+const ROLE_SWITCHING_KEY = '@ghands:role_switching';
 
 /**
  * - Missing token on a protected screen → redirect to login (by stored role).
@@ -26,6 +28,8 @@ export function useSessionTimeout(router: any, pathname?: string | null) {
         const path = pathnameRef.current;
 
         if (!token) {
+          const isSwitchingRole = await AsyncStorage.getItem(ROLE_SWITCHING_KEY);
+          if (isSwitchingRole === 'true') return;
           if (isPublicUnauthenticatedRoute(path)) return;
           routing.current = true;
           const route = await getLoginRouteForStoredRole();

@@ -9,6 +9,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import {
   ArrowRight,
   Bell,
+  ChevronRight,
   Copy,
   Edit,
   Image as ImageIcon,
@@ -23,6 +24,7 @@ import {
   Clock,
   XCircle,
   FileText,
+  LogOut,
 } from 'lucide-react-native';
 import React, { useState, useCallback, useEffect } from 'react';
 import {
@@ -1411,54 +1413,91 @@ export default function ProviderProfileScreen() {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={handleSignOut}
+            <View
               style={{
-                backgroundColor: '#FEE2E2',
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 12,
-                flexDirection: 'row',
-                alignItems: 'center',
+                backgroundColor: '#F8F5EF',
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: 'rgba(17, 24, 39, 0.06)',
+                overflow: 'hidden',
               }}
-              activeOpacity={0.7}
             >
-              <ArrowRight size={18} color="#DC2626" />
-              <Text 
+              <TouchableOpacity
+                onPress={handleSignOut}
                 style={{
-                  fontSize: 15,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: '#DC2626',
-                  marginLeft: 12,
+                  minHeight: 82,
+                  paddingHorizontal: 18,
+                  flexDirection: 'row',
+                  alignItems: 'center',
                 }}
+                activeOpacity={0.72}
               >
-                Sign Out
-              </Text>
-            </TouchableOpacity>
+                <View
+                  style={{
+                    width: 54,
+                    height: 54,
+                    borderRadius: 18,
+                    backgroundColor: '#F6E7E2',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 16,
+                  }}
+                >
+                  <LogOut size={23} color="#C2413D" />
+                </View>
+                <Text
+                  style={{
+                    flex: 1,
+                    fontSize: 19,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                    letterSpacing: -0.2,
+                  }}
+                >
+                  Sign out
+                </Text>
+                <ChevronRight size={24} color="rgba(17, 24, 39, 0.32)" />
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={handleDeleteAccount}
-              style={{
-                backgroundColor: Colors.backgroundGray,
-                borderRadius: 12,
-                padding: 16,
-                flexDirection: 'row',
-                alignItems: 'center',
-              }}
-              activeOpacity={0.7}
-            >
-              <Trash2 size={18} color={Colors.textPrimary} />
-              <Text 
+              <View style={{ height: 1, backgroundColor: 'rgba(17, 24, 39, 0.06)', marginLeft: 88 }} />
+
+              <TouchableOpacity
+                onPress={handleDeleteAccount}
                 style={{
-                  fontSize: 15,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                  marginLeft: 12,
+                  minHeight: 82,
+                  paddingHorizontal: 18,
+                  flexDirection: 'row',
+                  alignItems: 'center',
                 }}
+                activeOpacity={0.72}
               >
-                Delete Account
-              </Text>
-            </TouchableOpacity>
+                <View
+                  style={{
+                    width: 54,
+                    height: 54,
+                    borderRadius: 18,
+                    backgroundColor: '#EFEDE7',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 16,
+                  }}
+                >
+                  <Trash2 size={23} color="#52635A" />
+                </View>
+                <Text
+                  style={{
+                    flex: 1,
+                    fontSize: 19,
+                    fontFamily: 'Poppins-Medium',
+                    color: 'rgba(17, 24, 39, 0.42)',
+                    letterSpacing: -0.2,
+                  }}
+                >
+                  Delete account
+                </Text>
+                <ChevronRight size={24} color="rgba(17, 24, 39, 0.28)" />
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </View>

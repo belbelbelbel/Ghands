@@ -125,7 +125,7 @@ export default function ProviderOtpScreen() {
         </View>
 
         <Text className="text-base text-black text-center mb-2" style={{ fontFamily: 'Poppins-Medium' }}>
-          Didn't get the code?
+          Didn&apos;t get the code?
         </Text>
         <TouchableOpacity onPress={handleResendCode} disabled={!canResend} activeOpacity={0.7}>
           <Text className="text-[#6A9B00] text-base font-bold text-center mb-8" style={{ fontFamily: 'Poppins-Bold' }}>

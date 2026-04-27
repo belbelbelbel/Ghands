@@ -21,6 +21,9 @@ import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { UserLocationProvider } from '@/hooks/useUserLocation';
 import * as Notifications from 'expo-notifications';
 import { Platform, StatusBar } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const ROLE_SWITCHING_KEY = '@ghands:role_switching';
 
 if (Platform.OS === 'ios' || Platform.OS === 'android') {
   try {
@@ -101,6 +104,9 @@ export default function RootLayout() {
       const globalErrorHandler = async (error: Error, isFatal?: boolean) => {
         // Check if it's an AuthError
         if (error instanceof AuthError || error.name === 'AuthError') {
+          const isSwitchingRole = await AsyncStorage.getItem(ROLE_SWITCHING_KEY);
+          if (isSwitchingRole === 'true') return;
+
           // Clear auth tokens immediately
           await authService.clearAuthTokens();
           
@@ -146,6 +152,9 @@ export default function RootLayout() {
         
         // Handle auth error immediately
         (async () => {
+          const isSwitchingRole = await AsyncStorage.getItem(ROLE_SWITCHING_KEY);
+          if (isSwitchingRole === 'true') return;
+
           await authService.clearAuthTokens();
           const currentPath = pathname || '';
           const isOnAuthScreen =

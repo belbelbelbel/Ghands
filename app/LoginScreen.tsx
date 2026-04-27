@@ -215,7 +215,7 @@ export default function LoginScreen() {
                 color: '#000000',
               }}
             >
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Text
                 style={{
                   fontFamily: 'Poppins-Bold',

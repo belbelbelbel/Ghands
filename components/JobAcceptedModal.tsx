@@ -70,7 +70,7 @@ export default function JobAcceptedModal({
               <Text style={styles.checkmark}>✓</Text>
             </View>
             <Text style={styles.title}>Request Accepted!</Text>
-            <Text style={styles.subtitle}>You've successfully accepted this job request</Text>
+            <Text style={styles.subtitle}>You&apos;ve successfully accepted this job request</Text>
           </View>
 
           {/* Location Info */}

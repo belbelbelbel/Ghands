@@ -253,11 +253,25 @@ export default function RequestVisitScreen() {
 
       // Only send visit request here – acceptance is handled on the previous screen
       try {
-        await providerService.requestVisit(rid, {
+        const visitPayload = {
           scheduledDate: formattedDate,
           scheduledTime: timeFormatted,
           logisticsCost: parseFloat(logisticsCost) || 0,
-        });
+        };
+        if (__DEV__) {
+          console.log('[RequestVisit] submitting visit request', {
+            requestId: rid,
+            payload: visitPayload,
+          });
+        }
+        const visitResponse = await providerService.requestVisit(rid, visitPayload);
+        if (__DEV__) {
+          console.log('[RequestVisit] requestVisit success', {
+            requestId: rid,
+            payload: visitPayload,
+            response: visitResponse,
+          });
+        }
       } catch (visitErr: any) {
         if (__DEV__) {
           console.log('[RequestVisit] requestVisit failed', {
@@ -320,7 +334,7 @@ export default function RequestVisitScreen() {
             <ArrowLeft size={20} color={Colors.textPrimary} />
           </TouchableOpacity>
           <Text style={{ fontSize: 16, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 8 }}>
-            Job details are missing. Please go back and open "Request visit" from the job screen.
+            Job details are missing. Please go back and open &quot;Request visit&quot; from the job screen.
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}

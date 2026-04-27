@@ -89,6 +89,16 @@ const TimelineStatusCardComponent = ({
   const pillText = (header as any).pillText ?? (provider ? '#92400E' : '#6B7280');
   const statusPill =
     (header as any).statusPill ?? (provider ? 'Provider accepted' : 'Pending');
+  const rawProviderName = String(provider?.name || '').trim();
+  const providerName =
+    !rawProviderName || rawProviderName.toLowerCase() === 'professional service provider'
+      ? 'Provider'
+      : rawProviderName;
+  const visitLogisticsCost = (header as any).visitLogisticsCost;
+  const hasVisitFee =
+    typeof visitLogisticsCost === 'number' &&
+    Number.isFinite(visitLogisticsCost) &&
+    visitLogisticsCost > 0;
 
   const normalizedRequestId =
     typeof requestId === 'string' ? requestId : requestId?.[0];
@@ -144,20 +154,20 @@ const TimelineStatusCardComponent = ({
   return (
     <View
       style={{
-        marginBottom: isQuotationPending ? 8 : 24,
-        borderRadius: 20,
+        marginBottom: isQuotationPending ? 8 : 18,
+        borderRadius: 18,
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
         borderColor: '#E5E7EB',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.045,
+        shadowRadius: 10,
+        elevation: 2,
         overflow: 'hidden',
       }}
     >
-      <View className="px-5 pt-5 pb-2">
+      <View className="px-4 pt-4 pb-1">
         {provider ? (
           <View className="flex-row items-start">
             <TouchableOpacity
@@ -171,20 +181,21 @@ const TimelineStatusCardComponent = ({
             >
               <Image
                 source={require('../assets/images/plumbericon2.png')}
-                style={{ width: 48, height: 48, borderRadius: 24, marginRight: 16 }}
+                style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12 }}
                 resizeMode="cover"
               />
               <View className="flex-1">
                 <Text
-                  className="text-base text-black mb-1"
-                  style={{ fontFamily: 'Poppins-Bold' }}
+                  className="text-black mb-0.5"
+                  style={{ fontFamily: 'Poppins-Bold', fontSize: 15, lineHeight: 20 }}
+                  numberOfLines={2}
                 >
-                  {provider?.name || 'Professional Service Provider'}
+                  {providerName}
                 </Text>
                 {providerSummary?.distanceKm != null && (
                   <Text
-                    className="text-xs text-gray-400 mt-1"
-                    style={{ fontFamily: 'Poppins-Regular' }}
+                    className="text-gray-400"
+                    style={{ fontFamily: 'Poppins-Regular', fontSize: 11, lineHeight: 15 }}
                   >
                     {providerSummary.distanceKm.toFixed(1)} km away • ~
                     {providerSummary.minutesAway} min
@@ -193,20 +204,20 @@ const TimelineStatusCardComponent = ({
               </View>
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.85} onPress={handlePressChat}>
-              <Ionicons name="chatbubble-ellipses-outline" size={22} color="#6B7280" />
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color="#6B7280" />
             </TouchableOpacity>
             <View
               style={{
                 backgroundColor: pillBg,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
                 borderRadius: 20,
                 marginLeft: 8,
               }}
             >
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: 11,
                   fontFamily: 'Poppins-SemiBold',
                   color: pillText,
                 }}
@@ -272,13 +283,13 @@ const TimelineStatusCardComponent = ({
           </View>
         )}
       </View>
-      <View className="px-5 mt-2 mb-5">
+      <View className="px-4 mt-1 mb-4">
         <View
           style={{
-            backgroundColor: '#E5E7EB',
+            backgroundColor: '#EEF0F3',
             borderRadius: 16,
-            paddingHorizontal: 16,
-            paddingVertical: 14,
+            paddingHorizontal: 14,
+            paddingVertical: 12,
             overflow: 'hidden',
             position: 'relative',
           }}
@@ -304,7 +315,8 @@ const TimelineStatusCardComponent = ({
                 fontSize: 16,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
-                marginBottom: 6,
+                marginBottom: 5,
+                lineHeight: 21,
               }}
             >
               {header.title}
@@ -312,10 +324,10 @@ const TimelineStatusCardComponent = ({
             {header.subtitle ? (
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: 12,
                   fontFamily: 'Poppins-Regular',
                   color: '#374151',
-                  lineHeight: 20,
+                  lineHeight: 18,
                 }}
               >
                 {header.subtitle}
@@ -324,39 +336,40 @@ const TimelineStatusCardComponent = ({
             {(header as any).timestamp ? (
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: 11,
                   fontFamily: 'Poppins-Regular',
                   color: '#6B7280',
-                  marginTop: 8,
+                  marginTop: 7,
                 }}
               >
                 {(header as any).timestamp}
               </Text>
             ) : null}
 
-          {(header as any).showVisitPayButton && (
-            <View style={{ marginTop: 14 }}>
+          {(header as any).showVisitPayButton && hasVisitFee && (
+            <View style={{ marginTop: 12 }}>
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={() => (header as any).onVisitPay?.()}
                 style={{
                   backgroundColor: Colors.accent,
-                  paddingVertical: 14,
-                  paddingHorizontal: 18,
+                  paddingVertical: 11,
+                  paddingHorizontal: 14,
                   borderRadius: 12,
                   alignSelf: 'stretch',
                 }}
               >
                 <Text
                   style={{
-                    fontSize: 15,
+                    fontSize: 13,
+                    lineHeight: 18,
                     fontFamily: 'Poppins-SemiBold',
                     color: Colors.white,
                     textAlign: 'center',
                   }}
                 >
-                  Confirm & pay visit fee — ₦
-                  {(((header as any).visitLogisticsCost ?? 0) as number).toLocaleString('en-NG', {
+                  Pay visit fee • ₦
+                  {visitLogisticsCost.toLocaleString('en-NG', {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0,
                   })}
@@ -368,10 +381,10 @@ const TimelineStatusCardComponent = ({
                   activeOpacity={0.85}
                   onPress={() => (header as any).onVisitDecline?.()}
                   style={{
-                    marginTop: 12,
-                    paddingVertical: 10,
+                    marginTop: 10,
+                    paddingVertical: 8,
                     alignSelf: 'center',
-                    paddingHorizontal: 16,
+                    paddingHorizontal: 14,
                     borderRadius: 10,
                     borderWidth: 1,
                     borderColor: Colors.border,
@@ -380,7 +393,7 @@ const TimelineStatusCardComponent = ({
                 >
                   <Text
                     style={{
-                      fontSize: 14,
+                      fontSize: 13,
                       fontFamily: 'Poppins-SemiBold',
                       color: Colors.textSecondaryDark,
                       textAlign: 'center',

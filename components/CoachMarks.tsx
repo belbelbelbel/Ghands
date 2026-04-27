@@ -203,6 +203,31 @@ const CoachMarks: React.FC<CoachMarksProps> = ({
     }
   }, [visible, currentStep, currentStepData, measureTarget]);
 
+  const handleComplete = useCallback(() => {
+    haptics.success();
+    
+    // Animate out
+    Animated.parallel([
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(tooltipOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(tooltipScale, {
+        toValue: 0.8,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onComplete();
+    });
+  }, [onComplete, overlayOpacity, tooltipOpacity, tooltipScale]);
+
   const handleNext = useCallback(() => {
     haptics.light();
     
@@ -253,31 +278,6 @@ const CoachMarks: React.FC<CoachMarksProps> = ({
     haptics.light();
     onSkip?.();
   }, [onSkip]);
-
-  const handleComplete = useCallback(() => {
-    haptics.success();
-    
-    // Animate out
-    Animated.parallel([
-      Animated.timing(overlayOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(tooltipOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(tooltipScale, {
-        toValue: 0.8,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onComplete();
-    });
-  }, [onComplete, overlayOpacity, tooltipOpacity, tooltipScale]);
 
   if (!visible || !currentStepData || !currentMeasure || !tooltipPosition || isMeasuring) {
     return null;

@@ -1533,7 +1533,7 @@ export default function OngoingJobDetails() {
                   />
                 </View>
                 {((step as any).showPayLogistics || (step as any).showRejectVisit || (step as any).showPayService) && (
-                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                     {(step as any).showPayService && (
                       <TouchableOpacity
                         activeOpacity={0.8}
@@ -1555,12 +1555,12 @@ export default function OngoingJobDetails() {
                         style={{
                           backgroundColor: Colors.accent,
                           paddingVertical: 10,
-                          paddingHorizontal: 16,
-                          borderRadius: 8,
+                          paddingHorizontal: 14,
+                          borderRadius: 12,
                         }}
                       >
-                        <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
-                          Pay Now (₦{((step as any).payAmount ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                        <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+                          Pay service • ₦{((step as any).payAmount ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -1582,12 +1582,12 @@ export default function OngoingJobDetails() {
                         style={{
                           backgroundColor: Colors.accent,
                           paddingVertical: 10,
-                          paddingHorizontal: 16,
-                          borderRadius: 8,
+                          paddingHorizontal: 14,
+                          borderRadius: 12,
                         }}
                       >
-                        <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
-                          Confirm & pay (₦{(step as any).logisticsCost ?? 0})
+                        <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+                          Pay visit fee • ₦{Number((step as any).logisticsCost ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -1635,13 +1635,13 @@ export default function OngoingJobDetails() {
                         style={{
                           backgroundColor: Colors.backgroundGray,
                           paddingVertical: 10,
-                          paddingHorizontal: 16,
-                          borderRadius: 8,
+                          paddingHorizontal: 14,
+                          borderRadius: 12,
                           borderWidth: 1,
                           borderColor: Colors.border,
                         }}
                       >
-                        <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.textSecondaryDark }}>
+                        <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.textSecondaryDark }}>
                           Decline visit
                         </Text>
                       </TouchableOpacity>

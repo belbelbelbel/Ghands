@@ -378,8 +378,8 @@ export default function PaymentMethodsScreen() {
 
   if (!isCheckout) {
     return (
-      <SafeAreaWrapper>
-        <View className="flex-row items-center px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
+      <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+        <View className="flex-row items-center px-4 py-3" style={{ paddingTop: 20 }}>
           <TouchableOpacity
             onPress={() => {
               haptics.light();
@@ -400,9 +400,24 @@ export default function PaymentMethodsScreen() {
 
         {isLoadingBilling ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-            <ActivityIndicator size="large" color={Colors.accent} />
-            <Text style={{ marginTop: 12, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
-              Loading…
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                backgroundColor: '#F2F8EA',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 18,
+              }}
+            >
+              <ActivityIndicator size="large" color={Colors.accent} />
+            </View>
+            <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
+              Loading billing
+            </Text>
+            <Text style={{ marginTop: 6, textAlign: 'center', fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, lineHeight: 19 }}>
+              Checking your wallet and linked bank accounts.
             </Text>
           </View>
         ) : (
@@ -414,12 +429,25 @@ export default function PaymentMethodsScreen() {
             <View
               style={{
                 backgroundColor: '#0a0a0a',
-                borderRadius: BorderRadius.xl,
+                borderRadius: 24,
                 padding: 20,
                 marginTop: 16,
                 marginBottom: 20,
+                overflow: 'hidden',
               }}
             >
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -50,
+                  right: -50,
+                  width: 150,
+                  height: 150,
+                  borderRadius: 75,
+                  backgroundColor: Colors.accent,
+                  opacity: 0.14,
+                }}
+              />
               <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>
                 Wallet balance
               </Text>
@@ -432,7 +460,7 @@ export default function PaymentMethodsScreen() {
                   marginTop: 16,
                   backgroundColor: Colors.accent,
                   paddingVertical: 12,
-                  borderRadius: BorderRadius.md,
+                  borderRadius: 14,
                   alignItems: 'center',
                 }}
                 activeOpacity={0.85}
@@ -452,20 +480,31 @@ export default function PaymentMethodsScreen() {
               <View
                 style={{
                   borderWidth: 1,
-                  borderColor: Colors.border,
-                  borderRadius: BorderRadius.lg,
+                  borderColor: 'rgba(17,24,39,0.08)',
+                  borderRadius: 22,
                   padding: 20,
                   alignItems: 'center',
                   marginBottom: 16,
+                  backgroundColor: Colors.white,
+                  shadowColor: '#101828',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.035,
+                  shadowRadius: 10,
+                  elevation: 2,
                 }}
               >
-                <Building2 size={40} color={Colors.textTertiary} style={{ marginBottom: 8 }} />
-                <Text style={{ fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 12 }}>
+                <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#F2F8EA', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                  <Building2 size={30} color={Colors.accent} />
+                </View>
+                <Text style={{ fontFamily: 'Poppins-Bold', color: Colors.textPrimary, textAlign: 'center', marginBottom: 6, fontSize: 16 }}>
                   No bank account linked yet
+                </Text>
+                <Text style={{ fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 16, fontSize: 13, lineHeight: 19 }}>
+                  Add a bank account when you want to withdraw provider earnings.
                 </Text>
                 <TouchableOpacity
                   onPress={() => router.push('/ProviderLinkBankAccountScreen' as any)}
-                  style={{ backgroundColor: Colors.accent, paddingVertical: 12, paddingHorizontal: 20, borderRadius: BorderRadius.md }}
+                  style={{ backgroundColor: Colors.accent, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 14 }}
                 >
                   <Text style={{ fontFamily: 'Poppins-SemiBold', color: Colors.black }}>Link bank account</Text>
                 </TouchableOpacity>
@@ -477,12 +516,12 @@ export default function PaymentMethodsScreen() {
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    backgroundColor: Colors.backgroundGray,
-                    borderRadius: BorderRadius.lg,
+                    backgroundColor: Colors.white,
+                    borderRadius: 18,
                     padding: 16,
                     marginBottom: 10,
                     borderWidth: 1,
-                    borderColor: acc.isDefault ? Colors.accent : Colors.border,
+                    borderColor: acc.isDefault ? Colors.accent : 'rgba(17,24,39,0.08)',
                   }}
                 >
                   <Building2 size={22} color={Colors.textSecondaryDark} style={{ marginRight: 12 }} />
@@ -514,11 +553,11 @@ export default function PaymentMethodsScreen() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 backgroundColor: Colors.white,
-                borderRadius: BorderRadius.lg,
+                borderRadius: 18,
                 padding: 16,
                 marginTop: 8,
                 borderWidth: 1,
-                borderColor: Colors.border,
+                borderColor: 'rgba(17,24,39,0.08)',
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>

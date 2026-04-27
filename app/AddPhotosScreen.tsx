@@ -291,13 +291,13 @@ export default function AddPhotosScreen() {
   const canProceed = true;
 
   return (
-    <SafeAreaWrapper>
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
       <Animated.View style={[animatedStyles, { flex: 1 }]}>
         <View className="px-4 pt-4 pb-2">
           <View className="flex-row items-center mb-4">
             <TouchableOpacity
               onPress={handleBack}
-              className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-gray-100"
+              className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-white"
             >
               <ArrowLeft size={20} color="#111827" />
             </TouchableOpacity>
@@ -312,14 +312,34 @@ export default function AddPhotosScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 24 }}
         >
-          <View className="items-center mb-6">
-            <View className="w-24 h-24 rounded-full bg-gray-100 items-center justify-center mb-4">
-              <Camera size={40} color="#6B7280" />
+          <View
+            className="items-center mb-6"
+            style={{
+              backgroundColor: '#0a0a0a',
+              borderRadius: 24,
+              padding: 22,
+              overflow: 'hidden',
+            }}
+          >
+            <View
+              style={{
+                position: 'absolute',
+                top: -50,
+                right: -50,
+                width: 150,
+                height: 150,
+                borderRadius: 75,
+                backgroundColor: Colors.accent,
+                opacity: 0.14,
+              }}
+            />
+            <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: 'rgba(202,255,51,0.18)' }}>
+              <Camera size={34} color={Colors.accent} />
             </View>
-            <Text className="text-lg text-black mb-2" style={{ fontFamily: 'Poppins-Bold' }}>
-              Add Photos of the Issue (Optional)
+            <Text className="text-lg text-white mb-2 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
+              Add photos of the issue
             </Text>
-            <Text className="text-sm text-gray-500 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
+            <Text className="text-sm text-center" style={{ fontFamily: 'Poppins-Medium', color: 'rgba(255,255,255,0.68)', lineHeight: 20 }}>
               Help providers understand the problem better. You can skip this step if you don&apos;t have photos.
             </Text>
           </View>
@@ -327,7 +347,7 @@ export default function AddPhotosScreen() {
           <TouchableOpacity
             onPress={handleUploadPhotos}
             activeOpacity={0.85}
-            className="bg-[#6A9B00] rounded-xl py-4 px-6 items-center justify-center flex-row mb-6"
+            className="bg-[#6A9B00] rounded-2xl py-4 px-6 items-center justify-center flex-row mb-6"
           >
             <Plus size={20} color="#FFFFFF" />
             <Text className="text-white text-base ml-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
@@ -337,6 +357,9 @@ export default function AddPhotosScreen() {
 
           {photos.length > 0 && (
             <View className="mb-6">
+              <Text className="text-black mb-3" style={{ fontFamily: 'Poppins-Bold', fontSize: 15 }}>
+                Selected photos ({selectedPhotos.size})
+              </Text>
               <View className="flex-row flex-wrap gap-2">
                 {photos.map((photo) => {
                   const isSelected = selectedPhotos.has(photo.id);
@@ -381,7 +404,20 @@ export default function AddPhotosScreen() {
           )}
 
           {photos.length === 0 && (
-            <View className="flex-row gap-2 mb-6">
+            <View
+              className="mb-6"
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: 20,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: 'rgba(17, 24, 39, 0.08)',
+              }}
+            >
+              <Text className="text-black mb-3" style={{ fontFamily: 'Poppins-Bold', fontSize: 15 }}>
+                Photo preview
+              </Text>
+              <View className="flex-row gap-2">
               {[1, 2, 3].map((index) => (
                 <View
                   key={index}
@@ -391,10 +427,11 @@ export default function AddPhotosScreen() {
                   <Camera size={24} color="#9CA3AF" />
                 </View>
               ))}
+              </View>
             </View>
           )}
 
-          <View className="rounded-xl bg-[#FEF3C7] border border-[#F59E0B]/20 px-4 py-4 mb-6">
+          <View className="rounded-2xl bg-[#FFF7DF] border border-[#F59E0B]/20 px-4 py-4 mb-6">
             <View className="flex-row items-center mb-2">
               <Camera size={18} color="#D97706" />
               <Text className="text-sm text-[#D97706] ml-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
@@ -415,12 +452,19 @@ export default function AddPhotosScreen() {
           </View>
         </ScrollView>
 
-        <View className="px-4 pb-5 gap-3">
+        <View
+          className="px-4 pb-5 gap-3"
+          style={{
+            backgroundColor: Colors.backgroundLight,
+            borderTopWidth: 1,
+            borderTopColor: 'rgba(17,24,39,0.06)',
+          }}
+        >
           <TouchableOpacity
             onPress={handleDone}
             activeOpacity={0.85}
             disabled={!canProceed || isFindingProviders}
-            className={`rounded-xl py-4 items-center justify-center ${
+            className={`rounded-2xl py-4 items-center justify-center ${
               !canProceed || isFindingProviders ? 'bg-gray-300' : 'bg-black'
             }`}
           >
@@ -435,7 +479,7 @@ export default function AddPhotosScreen() {
           <TouchableOpacity
             onPress={handleCancel}
             activeOpacity={0.7}
-            className="bg-gray-100 rounded-xl py-4 items-center justify-center"
+            className="bg-white rounded-2xl py-4 items-center justify-center"
           >
             <Text className="text-black text-base" style={{ fontFamily: 'Poppins-SemiBold' }}>
               Cancel request

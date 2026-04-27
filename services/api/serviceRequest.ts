@@ -43,7 +43,7 @@ function parseMoneyValue(value: unknown): number | undefined {
 }
 
 function normalizeServiceRequestRecord(requestData: ServiceRequest | null | undefined): ServiceRequest {
-  if (!requestData) return requestData as ServiceRequest;
+  if (!requestData) return requestData as unknown as ServiceRequest;
   if (requestData.nearbyProviders && !Array.isArray(requestData.nearbyProviders)) requestData.nearbyProviders = [];
   if (requestData.status && typeof requestData.status === 'string') {
     (requestData as any).status = requestData.status.toLowerCase();

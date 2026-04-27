@@ -293,6 +293,6 @@ export const getSpecificErrorMessage = (error: ApiError | Error | any, context?:
     'withdraw': 'Withdrawal failed. Check your PIN and balance, then try again.',
   };
 
-  const defaultMessage = defaultMessages[context] || 'Something went wrong. Please try again.';
+  const defaultMessage = context ? defaultMessages[context] || 'Something went wrong. Please try again.' : 'Something went wrong. Please try again.';
   return getErrorMessage(error, defaultMessage);
 };

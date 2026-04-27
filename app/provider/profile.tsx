@@ -589,7 +589,7 @@ export default function ProviderProfileScreen() {
   };
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.white} tabletShellTop>
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight} tabletShellTop>
       <View style={{ flex: 1 }}>
         {/* Header */}
         <View
@@ -600,8 +600,7 @@ export default function ProviderProfileScreen() {
             paddingHorizontal: 20,
             paddingTop: headerTopPad,
             paddingBottom: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: Colors.border,
+          backgroundColor: Colors.backgroundLight,
           }}
         >
           <TouchableOpacity
@@ -611,6 +610,8 @@ export default function ProviderProfileScreen() {
               height: 40,
               alignItems: 'center',
               justifyContent: 'center',
+              borderRadius: 20,
+              backgroundColor: Colors.white,
             }}
             activeOpacity={0.7}
           >
@@ -667,8 +668,29 @@ export default function ProviderProfileScreen() {
               flexDirection: 'row',
               alignItems: 'center',
               marginBottom: 24,
+              backgroundColor: '#0a0a0a',
+              borderRadius: 26,
+              padding: 18,
+              overflow: 'hidden',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.12,
+              shadowRadius: 18,
+              elevation: 6,
             }}
           >
+            <View
+              style={{
+                position: 'absolute',
+                top: -54,
+                right: -54,
+                width: 160,
+                height: 160,
+                borderRadius: 80,
+                backgroundColor: Colors.accent,
+                opacity: 0.14,
+              }}
+            />
             <View style={{ position: 'relative', marginRight: 16 }}>
               <Image
                 source={require('../../assets/images/userimg.jpg')}
@@ -676,6 +698,8 @@ export default function ProviderProfileScreen() {
                   width: 80,
                   height: 80,
                   borderRadius: 40,
+                  borderWidth: 3,
+                  borderColor: 'rgba(255,255,255,0.18)',
                 }}
                 resizeMode="cover"
               />
@@ -689,7 +713,7 @@ export default function ProviderProfileScreen() {
                   borderRadius: 10,
                   backgroundColor: Colors.accent,
                   borderWidth: 3,
-                  borderColor: Colors.white,
+                  borderColor: '#0a0a0a',
                 }}
               />
             </View>
@@ -701,9 +725,11 @@ export default function ProviderProfileScreen() {
                   style={{
                     fontSize: 20,
                     fontFamily: 'Poppins-Bold',
-                    color: Colors.textPrimary,
+                    color: Colors.white,
                     marginBottom: 4,
+                    letterSpacing: -0.4,
                   }}
+                  numberOfLines={1}
                 >
                   {providerName || 'Provider'}
                 </Text>
@@ -713,7 +739,7 @@ export default function ProviderProfileScreen() {
                   style={{
                     fontSize: 14,
                     fontFamily: 'Poppins-Regular',
-                    color: Colors.textSecondaryDark,
+                    color: 'rgba(255,255,255,0.68)',
                     marginBottom: 6,
                   }}
                 >
@@ -721,12 +747,12 @@ export default function ProviderProfileScreen() {
                 </Text>
               ) : null}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Star size={16} color="#F59E0B" fill="#F59E0B" />
+                <Star size={16} color={Colors.accent} fill={Colors.accent} />
                 <Text
                   style={{
                     fontSize: 14,
                     fontFamily: 'Poppins-SemiBold',
-                    color: Colors.textPrimary,
+                    color: Colors.white,
                     marginLeft: 4,
                   }}
                 >
@@ -751,11 +777,11 @@ export default function ProviderProfileScreen() {
                   style={{
                     fontSize: 14,
                     fontFamily: 'Poppins-Medium',
-                    color: isOnline ? Colors.accent : Colors.textSecondaryDark,
+                  color: isOnline ? Colors.accent : 'rgba(255,255,255,0.62)',
                     marginLeft: 8,
                   }}
                 >
-                  Online
+                  {isOnline ? 'Online' : 'Offline'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -769,34 +795,40 @@ export default function ProviderProfileScreen() {
             }}
             activeOpacity={0.7}
             style={{
-              backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
+              backgroundColor: '#0a0a0a',
+              borderRadius: 24,
               padding: 16,
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: 'rgba(255,255,255,0.08)',
+              overflow: 'hidden',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.12,
+              shadowRadius: 18,
+              elevation: 5,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}
           >
             <View>
-              <Text style={{ fontSize: 13, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 4 }}>
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: 'rgba(255,255,255,0.65)', marginBottom: 4, letterSpacing: 0.7, textTransform: 'uppercase' }}>
                 Wallet balance
               </Text>
               {isLoadingWallet ? (
                 <ActivityIndicator size="small" color={Colors.accent} />
               ) : (
-                <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
+                <Text style={{ fontSize: 24, fontFamily: 'Poppins-Bold', color: Colors.white, letterSpacing: -0.5 }}>
                   ₦{walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               )}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.accent, marginRight: 4 }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: 4 }}>
                 View
               </Text>
-              <ArrowRight size={16} color={Colors.accent} />
+              <ArrowRight size={16} color={Colors.white} />
             </View>
           </TouchableOpacity>
 
@@ -804,11 +836,16 @@ export default function ProviderProfileScreen() {
           <View
             style={{
               backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
+              borderRadius: 22,
               padding: 16,
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.035,
+              shadowRadius: 10,
+              elevation: 2,
             }}
           >
             <View
@@ -865,11 +902,16 @@ export default function ProviderProfileScreen() {
           <View
             style={{
               backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
+              borderRadius: 22,
               padding: 16,
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.035,
+              shadowRadius: 10,
+              elevation: 2,
             }}
           >
             <View
@@ -917,8 +959,8 @@ export default function ProviderProfileScreen() {
                   <View
                     key={service.id}
                     style={{
-                      backgroundColor: Colors.backgroundGray,
-                      borderRadius: BorderRadius.default,
+                      backgroundColor: '#F2F8EA',
+                      borderRadius: 999,
                       paddingHorizontal: 16,
                       paddingVertical: 8,
                     }}
@@ -939,8 +981,8 @@ export default function ProviderProfileScreen() {
                   <View
                     key={index}
                     style={{
-                      backgroundColor: Colors.backgroundGray,
-                      borderRadius: BorderRadius.default,
+                      backgroundColor: '#F2F8EA',
+                      borderRadius: 999,
                       paddingHorizontal: 16,
                       paddingVertical: 8,
                     }}
@@ -972,8 +1014,8 @@ export default function ProviderProfileScreen() {
                 style={{
                   width: 40,
                   height: 40,
-                  backgroundColor: Colors.black,
-                  borderRadius: BorderRadius.default,
+                  backgroundColor: '#0a0a0a',
+                  borderRadius: 20,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -992,11 +1034,16 @@ export default function ProviderProfileScreen() {
           <View
             style={{
               backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
+              borderRadius: 22,
               padding: 16,
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.035,
+              shadowRadius: 10,
+              elevation: 2,
             }}
           >
             <View
@@ -1047,11 +1094,16 @@ export default function ProviderProfileScreen() {
           <View
             style={{
               backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
+              borderRadius: 22,
               padding: 16,
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.035,
+              shadowRadius: 10,
+              elevation: 2,
             }}
           >
             <View
@@ -1104,9 +1156,9 @@ export default function ProviderProfileScreen() {
                   style={{
                     flex: 1,
                     aspectRatio: 1,
-                    borderRadius: BorderRadius.default,
+                    borderRadius: 14,
                     borderWidth: 1,
-                    borderColor: Colors.border,
+                    borderColor: 'rgba(17, 24, 39, 0.08)',
                   }}
                   resizeMode="cover"
                 />
@@ -1118,11 +1170,16 @@ export default function ProviderProfileScreen() {
           <View
             style={{
               backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
+              borderRadius: 22,
               padding: 16,
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.035,
+              shadowRadius: 10,
+              elevation: 2,
             }}
           >
             <Text
@@ -1143,8 +1200,8 @@ export default function ProviderProfileScreen() {
                   alignItems: 'center',
                   marginBottom: 12,
                   padding: 12,
-                  backgroundColor: Colors.backgroundGray,
-                  borderRadius: BorderRadius.default,
+                  backgroundColor: '#F7F8FA',
+                  borderRadius: 16,
                 }}
               >
                 <View
@@ -1152,7 +1209,7 @@ export default function ProviderProfileScreen() {
                     width: 48,
                     height: 48,
                     borderRadius: BorderRadius.default,
-                    backgroundColor: Colors.border,
+                    backgroundColor: Colors.white,
                     marginRight: 12,
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1201,11 +1258,16 @@ export default function ProviderProfileScreen() {
           <View
             style={{
               backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
+              borderRadius: 22,
               padding: 16,
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.035,
+              shadowRadius: 10,
+              elevation: 2,
             }}
           >
             <View
@@ -1248,7 +1310,7 @@ export default function ProviderProfileScreen() {
             </View>
             <View
               style={{
-                backgroundColor: Colors.accent,
+                backgroundColor: '#0a0a0a',
                 borderRadius: BorderRadius.xl,
                 paddingVertical: insightsPaddingV,
                 paddingHorizontal: insightsPaddingH,
@@ -1270,7 +1332,7 @@ export default function ProviderProfileScreen() {
                 style={{
                   fontSize: 13,
                   fontFamily: 'Poppins-Regular',
-                  color: Colors.white,
+              color: Colors.white,
                   marginBottom: 10,
                 }}
               >
@@ -1338,24 +1400,33 @@ export default function ProviderProfileScreen() {
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                backgroundColor: Colors.white,
-                borderRadius: 12,
+              backgroundColor: Colors.white,
+              borderRadius: 20,
                 padding: 16,
                 borderWidth: 1,
-                borderColor: Colors.border,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.035,
+              shadowRadius: 10,
+              elevation: 2,
               }}
             >
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
-                }}
-              >
-                Your code:{' '}
+              <View style={{ flex: 1, marginRight: 12 }}>
                 <Text
                   style={{
-                    fontFamily: 'Poppins-SemiBold',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textSecondaryDark,
+                    marginBottom: 4,
+                  }}
+                >
+                  Your code
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontFamily: 'Poppins-Bold',
                     color: Colors.textPrimary,
                   }}
                 >
@@ -1363,12 +1434,12 @@ export default function ProviderProfileScreen() {
                     (provider as any)?.referral_code ||
                     '—'}
                 </Text>
-              </Text>
+              </View>
               <TouchableOpacity
                 onPress={handleShareReferral}
                 style={{
                   backgroundColor: Colors.accent,
-                  borderRadius: 8,
+                  borderRadius: 12,
                   paddingVertical: 8,
                   paddingHorizontal: 16,
                 }}
@@ -1393,7 +1464,7 @@ export default function ProviderProfileScreen() {
               onPress={handleBecomeClient}
               style={{
                 backgroundColor: Colors.accent,
-                borderRadius: 12,
+                borderRadius: 16,
                 padding: 16,
                 marginBottom: 12,
                 flexDirection: 'row',
@@ -1409,7 +1480,7 @@ export default function ProviderProfileScreen() {
                   color: Colors.white,
                 }}
               >
-                Become a Client
+                Switch to client mode
               </Text>
             </TouchableOpacity>
 

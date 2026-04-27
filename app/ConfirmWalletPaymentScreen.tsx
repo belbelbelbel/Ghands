@@ -254,10 +254,10 @@ export default function ConfirmWalletPaymentScreen() {
 
   const spin = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const stepMessages: Record<PaymentStep, { title: string; subtitle: string }> = {
-    processing: { title: 'Processing Payment', subtitle: 'Please wait while we process your payment...' },
-    verifying: { title: 'Verifying Payment', subtitle: 'Confirming transaction details...' },
-    completing: { title: 'Completing Transaction', subtitle: 'Finalizing your payment...' },
-    success: { title: 'Payment Successful!', subtitle: 'Your payment has been processed successfully' },
+    processing: { title: 'Processing payment', subtitle: 'Keep this screen open while we debit your wallet securely.' },
+    verifying: { title: 'Verifying payment', subtitle: 'Confirming the wallet debit and booking details.' },
+    completing: { title: 'Completing transaction', subtitle: 'Finalizing your receipt and job timeline.' },
+    success: { title: 'Payment successful', subtitle: 'Your payment has been processed successfully.' },
   };
   const stepMessage = stepMessages[paymentStep];
 
@@ -322,36 +322,95 @@ export default function ConfirmWalletPaymentScreen() {
         <View
           style={{
             backgroundColor: '#0a0a0a',
-            borderRadius: 20,
-            padding: 24,
+            borderRadius: 24,
+            padding: 20,
             marginTop: 16,
-            marginBottom: 24,
+            marginBottom: 18,
+            overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.08)',
+            shadowColor: '#101828',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.16,
+            shadowRadius: 18,
+            elevation: 7,
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-              <Wallet size={24} color={Colors.white} />
+          <View
+            style={{
+              position: 'absolute',
+              top: -52,
+              right: -52,
+              width: 160,
+              height: 160,
+              borderRadius: 80,
+              backgroundColor: Colors.accent,
+              opacity: 0.14,
+            }}
+          />
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
+            <View
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 23,
+                backgroundColor: 'rgba(202, 255, 51, 0.18)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: 'rgba(202, 255, 51, 0.28)',
+              }}
+            >
+              <Wallet size={23} color={Colors.accent} />
             </View>
             <View style={{ marginLeft: 16, flex: 1 }}>
-              <Text style={{ fontSize: 13, fontFamily: 'Poppins-Regular', color: 'rgba(255,255,255,0.7)' }}>
+              <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: 'rgba(255,255,255,0.68)', letterSpacing: 0.6, textTransform: 'uppercase' }}>
                 Wallet Balance
               </Text>
               {isLoadingBalance ? (
                 <ActivityIndicator size="small" color={Colors.white} style={{ marginTop: 4 }} />
               ) : (
-                <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.white }}>
+                <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.white, marginTop: 2 }}>
                   ₦{balance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               )}
             </View>
           </View>
           <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)', paddingTop: 16 }}>
-            <Text style={{ fontSize: 13, fontFamily: 'Poppins-Regular', color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>
+            <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: 'rgba(255,255,255,0.68)', marginBottom: 4, letterSpacing: 0.6, textTransform: 'uppercase' }}>
               Amount to pay
             </Text>
-            <Text style={{ fontSize: 24, fontFamily: 'Poppins-Bold', color: Colors.white }}>
+            <Text style={{ fontSize: 32, lineHeight: 40, fontFamily: 'Poppins-Bold', color: Colors.white, letterSpacing: -0.9 }}>
               ₦{amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </Text>
+            <View
+              style={{
+                marginTop: 14,
+                padding: 12,
+                borderRadius: 14,
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: 'rgba(255,255,255,0.62)' }}>
+                  Payment type
+                </Text>
+                <Text style={{ flex: 1, textAlign: 'right', fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+                  {params.paymentType === 'logistics_fee' ? 'Visit fee' : 'Service payment'}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: 'rgba(255,255,255,0.62)' }}>
+                  For
+                </Text>
+                <Text
+                  style={{ flex: 1, textAlign: 'right', fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white }}
+                  numberOfLines={1}
+                >
+                  {params.serviceName || params.providerName || 'Service request'}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -368,7 +427,7 @@ export default function ConfirmWalletPaymentScreen() {
             }}
           >
             <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.error, marginBottom: 8 }}>
-              Insufficient Balance
+              Insufficient balance
             </Text>
             <Text style={{ fontSize: 13, fontFamily: 'Poppins-Regular', color: Colors.textPrimary, marginBottom: 16 }}>
               You need ₦{(amount - balance).toLocaleString('en-NG', { minimumFractionDigits: 2 })} more to complete this payment. Top up your wallet to continue.
@@ -395,7 +454,7 @@ export default function ConfirmWalletPaymentScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <Lock size={16} color={Colors.textSecondaryDark} />
               <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginLeft: 8 }}>
-                Secure payment - amount will be deducted from your wallet
+                Secure payment. This amount will be deducted from your wallet.
               </Text>
             </View>
             <TouchableOpacity
@@ -445,7 +504,7 @@ export default function ConfirmWalletPaymentScreen() {
               </TouchableOpacity>
             </View>
             <Text style={{ fontSize: 13, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginBottom: 24, textAlign: 'center' }}>
-              Enter your 4-digit wallet PIN to confirm payment
+              Enter your 4-digit wallet PIN to authorize this payment.
             </Text>
             <View style={{ backgroundColor: Colors.backgroundGray, borderRadius: BorderRadius.default, padding: 16, marginBottom: 24, alignItems: 'center' }}>
               <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginBottom: 4 }}>Payment Amount</Text>

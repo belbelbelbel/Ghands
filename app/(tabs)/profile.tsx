@@ -174,7 +174,7 @@ const ProfileScreen = () => {
   };
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.white} tabletShellTop>
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight} tabletShellTop>
       {/* Header */}
       <View
         style={{
@@ -184,7 +184,7 @@ const ProfileScreen = () => {
           paddingHorizontal: 20,
           paddingTop: headerTopPad,
           paddingBottom: 16,
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.backgroundLight,
         }}
       >
         <View style={{ flex: 1, alignItems: 'flex-start' }}>
@@ -195,6 +195,8 @@ const ProfileScreen = () => {
               height: 40,
               alignItems: 'center',
               justifyContent: 'center',
+              borderRadius: 20,
+              backgroundColor: Colors.white,
             }}
             activeOpacity={0.7}
           >
@@ -215,7 +217,7 @@ const ProfileScreen = () => {
         <View style={{ flex: 1, alignItems: 'flex-end' }}>
           <TouchableOpacity
             onPress={() => router.push('../NotificationsScreen' as any)}
-            style={{ position: 'relative', padding: 4 }}
+            style={{ position: 'relative', padding: 4, borderRadius: 20, backgroundColor: Colors.white }}
             activeOpacity={0.7}
           >
             <Bell size={22} color={Colors.textPrimary} />
@@ -256,8 +258,29 @@ const ProfileScreen = () => {
             alignItems: 'center',
             marginTop: scrollBodyTopPad,
             marginBottom: 24,
+            backgroundColor: '#0a0a0a',
+            borderRadius: 26,
+            padding: 18,
+            overflow: 'hidden',
+            shadowColor: '#101828',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.12,
+            shadowRadius: 18,
+            elevation: 6,
           }}
         >
+          <View
+            style={{
+              position: 'absolute',
+              top: -54,
+              right: -54,
+              width: 160,
+              height: 160,
+              borderRadius: 80,
+              backgroundColor: Colors.accent,
+              opacity: 0.14,
+            }}
+          />
           {/* Profile Picture */}
           <View style={{ marginRight: 16 }}>
             <Image
@@ -266,6 +289,8 @@ const ProfileScreen = () => {
                 width: 80,
                 height: 80,
                 borderRadius: 40,
+                borderWidth: 3,
+                borderColor: 'rgba(255,255,255,0.18)',
               }}
               resizeMode="cover"
             />
@@ -289,9 +314,11 @@ const ProfileScreen = () => {
                   style={{
                     fontSize: 20,
                     fontFamily: 'Poppins-Bold',
-                    color: Colors.textPrimary,
+                    color: Colors.white,
                     marginRight: 8,
+                    letterSpacing: -0.4,
                   }}
+                  numberOfLines={1}
                 >
                   {userData.name}
                 </Text>
@@ -306,12 +333,12 @@ const ProfileScreen = () => {
                 marginBottom: 6,
               }}
             >
-              <MapPin size={14} color={Colors.textSecondaryDark} />
+              <MapPin size={14} color="rgba(255,255,255,0.62)" />
               <Text
                 style={{
                   fontSize: 13,
                   fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
+                  color: 'rgba(255,255,255,0.68)',
                   marginLeft: 4,
                 }}
               >
@@ -326,12 +353,12 @@ const ProfileScreen = () => {
                 alignItems: 'center',
               }}
             >
-              <Star size={14} color="#FACC15" fill="#FACC15" />
+              <Star size={14} color={Colors.accent} fill={Colors.accent} />
               <Text
                 style={{
                   fontSize: 13,
                   fontFamily: 'Poppins-Medium',
-                  color: Colors.textPrimary,
+                  color: Colors.white,
                   marginLeft: 4,
                 }}
               >
@@ -342,7 +369,7 @@ const ProfileScreen = () => {
                   width: 3,
                   height: 3,
                   borderRadius: 1.5,
-                  backgroundColor: Colors.textSecondaryDark,
+                  backgroundColor: 'rgba(255,255,255,0.35)',
                   marginHorizontal: 6,
                 }}
               />
@@ -350,7 +377,7 @@ const ProfileScreen = () => {
                 style={{
                   fontSize: 13,
                   fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
+                  color: 'rgba(255,255,255,0.68)',
                 }}
               >
                 {userData.reviews} reviews
@@ -369,39 +396,49 @@ const ProfileScreen = () => {
               marginBottom: 12,
             }}
           >
-            Account Settings
+            Account settings
           </Text>
-
-          {accountSettings.map((setting) => {
-            const IconComponent = setting.icon;
-            return (
-              <TouchableOpacity
-                key={setting.id}
-                onPress={() => handleOptionPress(setting.id)}
-                style={{
-                  backgroundColor: Colors.white,
-                  borderRadius: 12,
-                  padding: 16,
-                  marginBottom: 10,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                }}
-                activeOpacity={0.7}
-              >
+          <View
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: 22,
+              borderWidth: 1,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              overflow: 'hidden',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.035,
+              shadowRadius: 10,
+              elevation: 2,
+            }}
+          >
+            {accountSettings.map((setting, index) => {
+              const IconComponent = setting.icon;
+              return (
+                <TouchableOpacity
+                  key={setting.id}
+                  onPress={() => handleOptionPress(setting.id)}
+                  style={{
+                    padding: 16,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderBottomWidth: index === accountSettings.length - 1 ? 0 : 1,
+                    borderBottomColor: 'rgba(17, 24, 39, 0.06)',
+                  }}
+                  activeOpacity={0.7}
+                >
                 <View 
                   style={{ 
                     width: 40,
                     height: 40,
                     borderRadius: 20,
-                    backgroundColor: Colors.backgroundGray,
+                    backgroundColor: setting.bg,
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginRight: 12,
                   }}
                 >
-                  <IconComponent size={20} color={Colors.textSecondaryDark} />
+                  <IconComponent size={20} color={setting.color} />
                 </View>
                 
                 <View style={{ flex: 1 }}>
@@ -428,20 +465,36 @@ const ProfileScreen = () => {
 
                 <ChevronRight size={18} color={Colors.textSecondaryDark} />
               </TouchableOpacity>
-            );
-          })}
+              );
+            })}
+          </View>
         </View>
 
         {/* Current Balance Section */}
         <View
           style={{
-            backgroundColor: Colors.accent,
-            borderRadius: 12,
+            backgroundColor: '#0a0a0a',
+            borderRadius: 24,
             padding: 20,
             marginBottom: 24,
             position: 'relative',
+            overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.08)',
           }}
         >
+          <View
+            style={{
+              position: 'absolute',
+              bottom: -48,
+              right: -48,
+              width: 150,
+              height: 150,
+              borderRadius: 75,
+              backgroundColor: Colors.accent,
+              opacity: 0.13,
+            }}
+          />
           <View
             style={{
               flexDirection: 'row',
@@ -491,14 +544,27 @@ const ProfileScreen = () => {
                 </Text>
               )}
             </View>
-            <Wallet size={28} color={Colors.white} opacity={0.9} />
+            <View
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 23,
+                backgroundColor: 'rgba(202,255,51,0.18)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: 'rgba(202,255,51,0.28)',
+              }}
+            >
+              <Wallet size={24} color={Colors.accent} />
+            </View>
           </View>
 
           <TouchableOpacity
             onPress={handleViewWallet}
             style={{
-              backgroundColor: Colors.black,
-              borderRadius: 10,
+              backgroundColor: Colors.white,
+              borderRadius: 14,
               paddingVertical: 12,
               paddingHorizontal: 16,
               flexDirection: 'row',
@@ -511,22 +577,18 @@ const ProfileScreen = () => {
               style={{
                 fontSize: 14,
                 fontFamily: 'Poppins-SemiBold',
-                color: Colors.white,
+                color: Colors.textPrimary,
                 marginRight: 6,
               }}
             >
               View Wallet
             </Text>
-            <ArrowRight size={16} color={Colors.white} />
+            <ArrowRight size={16} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
         {/* Refer Friends Section */}
-        <View
-          style={{
-            marginBottom: 24,
-          }}
-        >
+        <View style={{ marginBottom: 24 }}>
           <Text
             style={{
               fontSize: 18,
@@ -553,34 +615,43 @@ const ProfileScreen = () => {
               alignItems: 'center',
               justifyContent: 'space-between',
               backgroundColor: Colors.white,
-              borderRadius: 12,
+              borderRadius: 20,
               padding: 16,
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.035,
+              shadowRadius: 10,
+              elevation: 2,
             }}
           >
-            <Text
-              style={{
-                fontSize: 13,
-                fontFamily: 'Poppins-Regular',
-                color: Colors.textSecondaryDark,
-              }}
-            >
-              Your code:{' '}
+            <View style={{ flex: 1, marginRight: 12 }}>
               <Text
                 style={{
-                  fontFamily: 'Poppins-SemiBold',
+                  fontSize: 12,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  marginBottom: 4,
+                }}
+              >
+                Your code
+              </Text>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontFamily: 'Poppins-Bold',
                   color: Colors.textPrimary,
                 }}
               >
                 {userData.referralCode}
               </Text>
-            </Text>
+            </View>
             <TouchableOpacity
               onPress={handleShareReferral}
               style={{
                 backgroundColor: Colors.accent,
-                borderRadius: 8,
+                borderRadius: 12,
                 paddingVertical: 8,
                 paddingHorizontal: 16,
               }}
@@ -605,7 +676,7 @@ const ProfileScreen = () => {
             onPress={handleBecomeProvider}
             style={{
               backgroundColor: Colors.accent,
-              borderRadius: 12,
+              borderRadius: 16,
               padding: 16,
               marginBottom: 12,
               flexDirection: 'row',
@@ -621,7 +692,7 @@ const ProfileScreen = () => {
                 color: Colors.white,
               }}
             >
-              Become a Provider
+              Switch to provider mode
             </Text>
           </TouchableOpacity>
 
@@ -720,20 +791,26 @@ const accountSettings = [
   {
     id: 'account',
     title: 'Account & Preferences',
-    subtitle: 'personal info, Notification',
+    subtitle: 'Personal info, notifications, and privacy',
     icon: User,
+    bg: '#F2F8EA',
+    color: Colors.accent,
   },
   {
     id: 'billing',
     title: 'Billing and payment',
-    subtitle: 'Transaction history, payment methods',
-    icon: MapPin,
+    subtitle: 'Payment methods and billing history',
+    icon: CreditCard,
+    bg: '#F7F8FA',
+    color: Colors.textPrimary,
   },
   {
     id: 'support',
     title: 'Support & Information',
-    subtitle: 'Manage preferences',
-    icon: MapPin,
+    subtitle: 'Help center, safety, and app information',
+    icon: HelpCircle,
+    bg: '#FFF7DF',
+    color: '#92400E',
   },
 ];
 

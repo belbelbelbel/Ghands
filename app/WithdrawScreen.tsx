@@ -159,9 +159,27 @@ export default function WithdrawScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaWrapper>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={Colors.accent} />
+      <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 }}>
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: '#F2F8EA',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 18,
+            }}
+          >
+            <ActivityIndicator size="large" color={Colors.accent} />
+          </View>
+          <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
+            Loading withdrawal
+          </Text>
+          <Text style={{ marginTop: 6, textAlign: 'center', fontSize: 13, lineHeight: 19, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
+            Checking your wallet balance and linked bank accounts.
+          </Text>
         </View>
       </SafeAreaWrapper>
     );
@@ -169,21 +187,35 @@ export default function WithdrawScreen() {
 
   if (bankAccounts.length === 0) {
     return (
-      <SafeAreaWrapper>
+      <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 16 }}>
           <ArrowLeft size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center' }}>
-          <Building2 size={64} color={Colors.textSecondaryDark} style={{ marginBottom: 16 }} />
+          <View
+            style={{
+              width: 84,
+              height: 84,
+              borderRadius: 42,
+              backgroundColor: Colors.white,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              marginBottom: 18,
+            }}
+          >
+            <Building2 size={38} color={Colors.accent} />
+          </View>
           <Text style={{ fontSize: 18, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 8, textAlign: 'center' }}>
             No bank account linked
           </Text>
-          <Text style={{ fontSize: 14, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 24 }}>
-            Link a bank account to withdraw your earnings
+          <Text style={{ fontSize: 14, lineHeight: 20, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', marginBottom: 24 }}>
+            Link a verified bank account before withdrawing your earnings.
           </Text>
           <TouchableOpacity
             onPress={() => router.push('/ProviderLinkBankAccountScreen' as any)}
-            style={{ backgroundColor: Colors.accent, paddingVertical: 14, paddingHorizontal: 24, borderRadius: BorderRadius.lg }}
+            style={{ backgroundColor: Colors.accent, paddingVertical: 14, paddingHorizontal: 24, borderRadius: 16 }}
           >
             <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.black }}>Link Bank Account</Text>
           </TouchableOpacity>
@@ -208,11 +240,26 @@ export default function WithdrawScreen() {
         <View
           style={{
             backgroundColor: '#0a0a0a',
-            borderRadius: BorderRadius.xl,
+            borderRadius: 24,
             padding: 20,
             marginBottom: 24,
+            overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.08)',
           }}
         >
+          <View
+            style={{
+              position: 'absolute',
+              top: -50,
+              right: -50,
+              width: 150,
+              height: 150,
+              borderRadius: 75,
+              backgroundColor: Colors.accent,
+              opacity: 0.14,
+            }}
+          />
           <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>
             Available Balance
           </Text>
@@ -229,11 +276,11 @@ export default function WithdrawScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: Colors.backgroundGray,
-            borderRadius: BorderRadius.lg,
+            backgroundColor: Colors.white,
+            borderRadius: 18,
             padding: 16,
             borderWidth: 1,
-            borderColor: Colors.border,
+            borderColor: 'rgba(17, 24, 39, 0.08)',
           }}
         >
           <Building2 size={20} color={Colors.textSecondaryDark} style={{ marginRight: 12 }} />
@@ -259,10 +306,10 @@ export default function WithdrawScreen() {
               style={{
                 paddingVertical: 12,
                 paddingHorizontal: 16,
-                borderRadius: BorderRadius.md,
-                backgroundColor: selectedAmount === a ? Colors.accent : Colors.backgroundGray,
+                borderRadius: 14,
+                backgroundColor: selectedAmount === a ? Colors.accent : Colors.white,
                 borderWidth: 1,
-                borderColor: selectedAmount === a ? Colors.accent : Colors.border,
+                borderColor: selectedAmount === a ? Colors.accent : 'rgba(17, 24, 39, 0.08)',
               }}
             >
               <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: selectedAmount === a ? Colors.black : Colors.textPrimary }}>
@@ -283,9 +330,11 @@ export default function WithdrawScreen() {
           placeholderTextColor={Colors.textSecondaryDark}
           keyboardType="numeric"
           style={{
-            backgroundColor: Colors.backgroundGray,
-            borderRadius: BorderRadius.lg,
+            backgroundColor: Colors.white,
+            borderRadius: 18,
             padding: 16,
+            borderWidth: 1,
+            borderColor: 'rgba(17, 24, 39, 0.08)',
             fontSize: 16,
             fontFamily: 'Poppins-Medium',
             color: Colors.textPrimary,
@@ -298,7 +347,7 @@ export default function WithdrawScreen() {
           style={{
             marginTop: 32,
             backgroundColor: hasEnoughBalance ? Colors.accent : Colors.border,
-            borderRadius: BorderRadius.xl,
+            borderRadius: 18,
             paddingVertical: 16,
             alignItems: 'center',
           }}

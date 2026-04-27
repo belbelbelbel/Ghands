@@ -124,8 +124,8 @@ export function useVoiceCallWebRtc(): VoiceCallWebRtcControls {
   const [error, setError] = useState<string | null>(null);
   const [lastSessionKeys, setLastSessionKeys] = useState<string[] | null>(null);
 
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
+  const pcRef = useRef<any | null>(null);
+  const localStreamRef = useRef<any | null>(null);
   const icePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const seenCandidateKeysRef = useRef<Set<string>>(new Set());
   const activeRefRef = useRef<string | null>(null);
@@ -141,7 +141,7 @@ export function useVoiceCallWebRtc(): VoiceCallWebRtcControls {
     activeRefRef.current = null;
 
     try {
-      localStreamRef.current?.getTracks().forEach((t) => t.stop());
+      localStreamRef.current?.getTracks().forEach((t: any) => t.stop());
     } catch {
       /* ignore */
     }
@@ -157,7 +157,7 @@ export function useVoiceCallWebRtc(): VoiceCallWebRtcControls {
   }, []);
 
   const setMuted = useCallback((muted: boolean) => {
-    localStreamRef.current?.getAudioTracks().forEach((t) => {
+    localStreamRef.current?.getAudioTracks().forEach((t: any) => {
       t.enabled = !muted;
     });
   }, []);
@@ -176,9 +176,9 @@ export function useVoiceCallWebRtc(): VoiceCallWebRtcControls {
     setError(null);
     setStatus('starting');
 
-      let RTCPeerConnection: typeof import('react-native-webrtc').RTCPeerConnection;
-      let RTCSessionDescription: typeof import('react-native-webrtc').RTCSessionDescription;
-      let mediaDevices: typeof import('react-native-webrtc').mediaDevices;
+      let RTCPeerConnection: any;
+      let RTCSessionDescription: any;
+      let mediaDevices: any;
 
       try {
         const mod = await import('react-native-webrtc');
@@ -224,7 +224,7 @@ export function useVoiceCallWebRtc(): VoiceCallWebRtcControls {
             ? JSON.stringify(iceServers).slice(0, 200)
             : String(iceServers),
         });
-        const pc = new RTCPeerConnection({ iceServers });
+        const pc = new RTCPeerConnection({ iceServers }) as any;
         pcRef.current = pc;
 
         pc.onconnectionstatechange = () => {
@@ -232,7 +232,7 @@ export function useVoiceCallWebRtc(): VoiceCallWebRtcControls {
             const cs = pc.connectionState;
             const ics = pc.iceConnectionState;
             if (__DEV__) logCallDebug('WebRTC: connectionState', { connectionState: cs, iceConnectionState: ics });
-            if (cs === 'connected' || cs === 'completed') {
+            if (cs === 'connected' || ics === 'completed') {
               setStatus('connected');
             }
             if (cs === 'failed' || cs === 'disconnected' || cs === 'closed') {
@@ -250,7 +250,7 @@ export function useVoiceCallWebRtc(): VoiceCallWebRtcControls {
           // If your backend expects posted ICE from client, add POST here.
         };
 
-        pc.ontrack = (ev) => {
+        pc.ontrack = (ev: any) => {
           if (__DEV__) {
             logCallDebug('WebRTC: remote track', { kind: ev.track?.kind });
           }
@@ -262,11 +262,11 @@ export function useVoiceCallWebRtc(): VoiceCallWebRtcControls {
           video: false,
         });
         if (activeRefRef.current !== callReference) {
-          local.getTracks().forEach((t) => t.stop());
+          local.getTracks().forEach((t: any) => t.stop());
           return;
         }
         localStreamRef.current = local;
-        local.getTracks().forEach((track) => pc.addTrack(track, local));
+        local.getTracks().forEach((track: any) => pc.addTrack(track, local));
 
         const remote = findRemoteDescription(session);
         if (remote) {

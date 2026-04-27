@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   providerService,
   communicationService,
@@ -167,6 +168,8 @@ export default function ChatScreen() {
   const chatCacheKey = isValidRequestId ? `@ghands:chat_messages:${requestId}` : null;
   const deletedIdsKey = isValidRequestId ? `@ghands:chat_deleted_ids:${requestId}` : null;
   const providerIdNum = params.providerId ? Number(params.providerId) : null;
+  const peerName = isProviderView ? clientName : providerName;
+  const peerRoleLabel = isProviderView ? 'Client' : 'Provider';
 
   useEffect(() => {
     setResolvedProviderId(null);
@@ -889,7 +892,6 @@ export default function ChatScreen() {
   const renderMessage = ({ item }: { item: UIMessage }) => {
     // Determine alignment: messages from current user go to the right, received messages go to the left
     const isFromCurrentUser = item.isFromCurrentUser ?? false;
-    
     const isFromProvider = item.sender === 'provider';
     
     const getStatusIcon = () => {
@@ -910,32 +912,33 @@ export default function ChatScreen() {
       }
     };
     
-    // Standard chat layout: MY messages → right, RECEIVED → left (like WhatsApp/iMessage)
+    // Standard chat layout: my messages right, received messages left.
     return (
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'flex-end',
-          marginBottom: 12,
+          marginBottom: 10,
           paddingHorizontal: 16,
           justifyContent: isFromCurrentUser ? 'flex-end' : 'flex-start',
         }}
       >
-        {/* Received: avatar left, bubble, spacer */}
         {!isFromCurrentUser && (
           <View
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
+              width: 28,
+              height: 28,
+              borderRadius: 14,
               overflow: 'hidden',
               marginRight: 8,
-              marginBottom: 4,
+              marginBottom: 18,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
             }}
           >
             <Image
               source={isFromProvider ? require('../assets/images/plumbericon2.png') : require('../assets/images/userimg.jpg')}
-              style={{ width: 32, height: 32, borderRadius: 16 }}
+              style={{ width: 28, height: 28, borderRadius: 14 }}
               resizeMode="cover"
             />
           </View>
@@ -952,23 +955,27 @@ export default function ChatScreen() {
         >
           <View
             style={{
-              backgroundColor: isFromCurrentUser ? '#6A9B00' : Colors.white,
-              borderRadius: 18,
-              borderBottomRightRadius: isFromCurrentUser ? 4 : 18,
-              borderBottomLeftRadius: isFromCurrentUser ? 18 : 4,
-              paddingHorizontal: 14,
+              backgroundColor: isFromCurrentUser ? Colors.accent : Colors.white,
+              borderRadius: 20,
+              borderBottomRightRadius: isFromCurrentUser ? 6 : 20,
+              borderBottomLeftRadius: isFromCurrentUser ? 20 : 6,
+              paddingHorizontal: 15,
               paddingVertical: 10,
               borderWidth: isFromCurrentUser ? 0 : 1,
-              borderColor: 'rgba(0,0,0,0.06)',
-              ...SHADOWS.sm,
+              borderColor: '#E7EBDf',
+              shadowColor: '#111827',
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: isFromCurrentUser ? 0.06 : 0.04,
+              shadowRadius: 8,
+              elevation: isFromCurrentUser ? 1 : 2,
             }}
           >
             <Text
               style={{
-                fontSize: 15,
+                fontSize: 14.5,
                 fontFamily: 'Poppins-Regular',
                 color: isFromCurrentUser ? Colors.white : Colors.textPrimary,
-                lineHeight: 21,
+                lineHeight: 20,
               }}
             >
               {item.text}
@@ -978,37 +985,17 @@ export default function ChatScreen() {
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              marginTop: 4,
+              marginTop: 5,
               paddingHorizontal: 4,
               justifyContent: isFromCurrentUser ? 'flex-end' : 'flex-start',
             }}
           >
-            <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: '#9CA3AF' }}>
+            <Text style={{ fontSize: 10.5, fontFamily: 'Poppins-Regular', color: '#9AA19A' }}>
               {item.time}
             </Text>
             {getStatusIcon()}
           </View>
         </TouchableOpacity>
-
-        {/* My messages: spacer, bubble, avatar right */}
-        {isFromCurrentUser && (
-          <View
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              overflow: 'hidden',
-              marginLeft: 8,
-              marginBottom: 4,
-            }}
-          >
-            <Image
-              source={isProviderView ? require('../assets/images/plumbericon2.png') : require('../assets/images/userimg.jpg')}
-              style={{ width: 32, height: 32, borderRadius: 16 }}
-              resizeMode="cover"
-            />
-          </View>
-        )}
       </View>
     );
   };
@@ -1043,12 +1030,11 @@ export default function ChatScreen() {
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: Spacing.lg,
-            paddingTop: Spacing.md + 4,
-            paddingBottom: Spacing.md,
+            paddingTop: Spacing.md,
+            paddingBottom: 12,
             borderBottomWidth: 1,
-            borderBottomColor: Colors.border,
+            borderBottomColor: '#EEF1E8',
             backgroundColor: Colors.white,
-            ...SHADOWS.sm,
           }}
         >
           <TouchableOpacity 
@@ -1058,37 +1044,53 @@ export default function ChatScreen() {
             }} 
             activeOpacity={0.7}
             style={{
-              width: 40,
-              height: 40,
+              width: 38,
+              height: 38,
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: 20,
+              borderRadius: 19,
+              backgroundColor: '#F6F8F1',
             }}
           >
-            <ArrowLeft size={24} color={Colors.textPrimary} />
+            <ArrowLeft size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
           
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: Spacing.md }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
             <View
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: Colors.backgroundGray,
+                width: 42,
+                height: 42,
+                borderRadius: 21,
+                backgroundColor: '#F6F8F1',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginRight: Spacing.sm,
+                marginRight: 10,
                 overflow: 'hidden',
+                borderWidth: 1,
+                borderColor: '#E7EBDf',
               }}
             >
               <Image
                 source={isProviderView ? require('../assets/images/userimg.jpg') : require('../assets/images/plumbericon2.png')}
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
                 }}
                 resizeMode="cover"
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  right: 1,
+                  bottom: 1,
+                  width: 11,
+                  height: 11,
+                  borderRadius: 6,
+                  backgroundColor: '#22C55E',
+                  borderWidth: 2,
+                  borderColor: Colors.white,
+                }}
               />
             </View>
             <View style={{ flex: 1 }}>
@@ -1099,23 +1101,23 @@ export default function ChatScreen() {
               color: Colors.textPrimary,
             }}
           >
-            {isProviderView ? clientName : providerName}
+            {peerName}
           </Text>
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontFamily: 'Poppins-Regular',
                   color: Colors.textSecondaryDark,
                   marginTop: 2,
                 }}
               >
-                {isProviderView ? 'Client' : 'Service Provider'}
+                {peerRoleLabel} • Usually replies here
                 {unreadCount > 0 && ` • ${unreadCount} unread`}
               </Text>
             </View>
           </View>
           
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TouchableOpacity 
               onPress={() => {
                 haptics.light();
@@ -1145,15 +1147,15 @@ export default function ChatScreen() {
               }} 
               activeOpacity={0.7}
               style={{
-                width: 40,
-                height: 40,
+                width: 38,
+                height: 38,
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderRadius: 20,
-                backgroundColor: Colors.backgroundGray,
+                borderRadius: 19,
+                backgroundColor: '#F2F8EA',
               }}
             >
-              <Phone size={20} color={Colors.textPrimary} />
+              <Phone size={19} color={Colors.accent} />
             </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => {
@@ -1162,15 +1164,15 @@ export default function ChatScreen() {
             }} 
             activeOpacity={0.7}
               style={{
-                width: 40,
-                height: 40,
+                width: 38,
+                height: 38,
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderRadius: 20,
-                backgroundColor: Colors.backgroundGray,
+                borderRadius: 19,
+                backgroundColor: '#F6F8F1',
               }}
             >
-              <MoreVertical size={20} color={Colors.textPrimary} />
+              <MoreVertical size={19} color={Colors.textPrimary} />
           </TouchableOpacity>
           </View>
         </View>
@@ -1179,31 +1181,53 @@ export default function ChatScreen() {
         {isSyncDegraded && (
           <View
             style={{
-              backgroundColor: '#FEF3C7',
+              backgroundColor: '#FFFBEB',
               borderBottomWidth: 1,
               borderBottomColor: '#FDE68A',
               paddingHorizontal: Spacing.lg,
-              paddingVertical: 8,
+              paddingVertical: 9,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
+            <AlertCircle size={14} color="#92400E" />
             <Text
               style={{
                 fontSize: 12,
                 fontFamily: 'Poppins-Medium',
                 color: '#92400E',
+                flex: 1,
               }}
               numberOfLines={1}
             >
-              Reconnecting messages... {lastSyncError ? 'Showing last saved chat.' : ''}
+              Reconnecting messages. {lastSyncError ? 'Showing last saved chat.' : ''}
             </Text>
           </View>
         )}
 
         {isLoading && messages.length === 0 ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={Colors.accent} />
-            <Text style={{ marginTop: Spacing.md, fontSize: 14, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
-              Loading messages...
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F7F8F5', paddingHorizontal: 28 }}>
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                backgroundColor: Colors.white,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: '#E7EBDf',
+                marginBottom: 14,
+              }}
+            >
+              <ActivityIndicator size="small" color={Colors.accent} />
+            </View>
+            <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 4 }}>
+              Loading conversation
+            </Text>
+            <Text style={{ fontSize: 13, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center', lineHeight: 20 }}>
+              Getting the latest messages for this service request.
             </Text>
           </View>
         ) : (
@@ -1213,12 +1237,64 @@ export default function ChatScreen() {
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
             contentContainerStyle={{ 
-              paddingVertical: 16,
-              paddingBottom: 24,
+              flexGrow: 1,
+              paddingTop: 18,
+              paddingBottom: 26,
             }}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            style={{ flex: 1, backgroundColor: '#F0F2F5' }}
+            style={{ flex: 1, backgroundColor: '#F7F8F5' }}
+            ListHeaderComponent={
+              messages.length > 0 ? (
+                <View
+                  style={{
+                    alignSelf: 'center',
+                    backgroundColor: '#E9EEE0',
+                    borderRadius: 999,
+                    paddingHorizontal: 12,
+                    paddingVertical: 5,
+                    marginBottom: 14,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontFamily: 'Poppins-Medium', color: '#64705A' }}>
+                    Today
+                  </Text>
+                </View>
+              ) : null
+            }
+            ListEmptyComponent={
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 28,
+                  paddingBottom: 60,
+                }}
+              >
+                <View
+                  style={{
+                    width: 82,
+                    height: 82,
+                    borderRadius: 41,
+                    backgroundColor: Colors.white,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 1,
+                    borderColor: '#E7EBDf',
+                    marginBottom: 16,
+                  }}
+                >
+                  <User size={30} color={Colors.accent} />
+                </View>
+                <Text style={{ fontSize: 17, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 6, textAlign: 'center' }}>
+                  Start the conversation
+                </Text>
+                <Text style={{ fontSize: 13, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, lineHeight: 20, textAlign: 'center' }}>
+                  Message {peerName} about timing, access details, materials, or anything needed for this job.
+                </Text>
+              </View>
+            }
             refreshControl={
               <RefreshControl
                 refreshing={isRefreshing}
@@ -1232,7 +1308,7 @@ export default function ChatScreen() {
 
         {/* Send Quotation Button - Only show for providers if quotation hasn't been sent yet */}
         {isProviderView && !hasQuotation && !isCheckingQuotation && (
-          <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm }}>
+          <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: 8, backgroundColor: '#F7F8F5' }}>
             <TouchableOpacity
               onPress={() => {
                 haptics.light();
@@ -1244,29 +1320,61 @@ export default function ChatScreen() {
                 });
               }}
               style={{
-                backgroundColor: '#EFF6FF',
-                borderRadius: BorderRadius.lg,
-                borderWidth: 1.5,
-                borderColor: '#3B82F6',
-                paddingVertical: Spacing.md,
-                paddingHorizontal: Spacing.lg,
+                backgroundColor: Colors.white,
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: '#DCE8C9',
+                paddingVertical: 11,
+                paddingHorizontal: 13,
                 flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'center',
-                ...SHADOWS.sm,
+                justifyContent: 'space-between',
+                shadowColor: '#111827',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.05,
+                shadowRadius: 12,
+                elevation: 2,
               }}
               activeOpacity={0.8}
             >
-              <FileText size={18} color="#3B82F6" style={{ marginRight: Spacing.sm }} />
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: '#3B82F6',
-                }}
-              >
-                Send Quotation
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <View
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 17,
+                    backgroundColor: '#F2F8EA',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 10,
+                  }}
+                >
+                  <FileText size={17} color={Colors.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 13.5,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.textPrimary,
+                    }}
+                  >
+                    Send quotation
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      marginTop: 1,
+                    }}
+                    numberOfLines={1}
+                  >
+                    Share pricing without leaving the chat flow
+                  </Text>
+                </View>
+              </View>
+              <Send size={16} color={Colors.accent} />
             </TouchableOpacity>
           </View>
         )}
@@ -1274,25 +1382,25 @@ export default function ChatScreen() {
         {/* Input Field */}
         <View
           style={{
-            paddingHorizontal: Spacing.lg,
+            paddingHorizontal: 14,
             paddingBottom: Platform.OS === 'ios' ? Spacing.xl : Spacing.lg,
-            paddingTop: Spacing.sm,
+            paddingTop: 10,
             borderTopWidth: 1,
-            borderTopColor: Colors.border,
+            borderTopColor: '#EEF1E8',
             backgroundColor: Colors.white,
           }}
         >
           <View
             style={{
               flexDirection: 'row',
-              alignItems: 'flex-end',
-              backgroundColor: Colors.backgroundGray,
-              borderRadius: BorderRadius.xl,
+              alignItems: 'center',
+              backgroundColor: '#F7F8F5',
+              borderRadius: 26,
               borderWidth: 1,
-              borderColor: Colors.border,
-              paddingHorizontal: Spacing.md,
-              paddingVertical: Spacing.sm,
-              minHeight: 48,
+              borderColor: '#E1E8D6',
+              paddingHorizontal: 7,
+              paddingVertical: 6,
+              minHeight: 52,
             }}
           >
             <TouchableOpacity 
@@ -1302,12 +1410,12 @@ export default function ChatScreen() {
               }}
               activeOpacity={0.7} 
               style={{ 
-                marginRight: Spacing.sm,
                 width: 36,
                 height: 36,
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: 18,
+                marginRight: 2,
               }}
             >
               <ImageIcon size={20} color={Colors.textSecondaryDark} />
@@ -1322,7 +1430,8 @@ export default function ChatScreen() {
                 fontSize: 15,
                 fontFamily: 'Poppins-Regular',
                 color: Colors.textPrimary,
-                paddingVertical: Spacing.sm,
+                paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+                paddingHorizontal: 4,
                 maxHeight: 100,
               }}
               placeholderTextColor={Colors.textSecondaryDark}
@@ -1337,28 +1446,32 @@ export default function ChatScreen() {
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={handleSend}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: Colors.accent,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginLeft: Spacing.sm,
-                  ...SHADOWS.sm,
-                }}
               >
-                <Send size={18} color={Colors.white} />
+                <LinearGradient
+                  colors={[Colors.accent, '#5D8700']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 19,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginLeft: 4,
+                  }}
+                >
+                  <Send size={18} color={Colors.white} />
+                </LinearGradient>
               </TouchableOpacity>
             ) : isSending ? (
               <View
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginLeft: Spacing.sm,
+                  marginLeft: 4,
                 }}
               >
                 <ActivityIndicator size="small" color={Colors.accent} />
@@ -1371,17 +1484,16 @@ export default function ChatScreen() {
                   // Voice message action
                 }}
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: Colors.accent,
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: '#E9EEE0',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginLeft: Spacing.sm,
-                  ...SHADOWS.sm,
+                  marginLeft: 4,
                 }}
               >
-                <Mic size={18} color={Colors.white} />
+                <Mic size={18} color="#64705A" />
               </TouchableOpacity>
             )}
           </View>

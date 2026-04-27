@@ -98,6 +98,7 @@ export interface CompanySignupResponse {
 }
 
 export interface ServiceCategory {
+  id?: number;
   name: string;
   displayName: string;
   description: string;
@@ -171,13 +172,13 @@ export interface ServiceRequest {
   description: string;
   comment?: string;
   location?: {
-    formattedAddress: string;
-    address: string;
-    city: string;
-    state: string;
-    country: string;
-    latitude: number;
-    longitude: number;
+    formattedAddress?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
     locationVerifiedAt?: string;
   };
   scheduledDate?: string;
@@ -186,10 +187,11 @@ export interface ServiceRequest {
   nearbyProviders?: NearbyProvider[];
   user?: {
     id: number;
-    firstName: string;
-    lastName: string;
-    phoneNumber: string;
-    email: string;
+    firstName?: string;
+    lastName?: string;
+    phoneNumber?: string;
+    phone?: string;
+    email?: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -199,6 +201,26 @@ export interface ServiceRequest {
     phoneNumber: string;
     email: string;
   };
+  provider?: {
+    id?: number;
+    name?: string;
+    phoneNumber?: string;
+    email?: string;
+  };
+  client?: {
+    id?: number;
+    firstName?: string;
+    lastName?: string;
+    name?: string;
+    phoneNumber?: string;
+    phone?: string;
+    email?: string;
+  };
+  providerName?: string;
+  totalCost?: number | string;
+  total_amount?: number | string;
+  paymentAmount?: number | string;
+  amount?: number | string;
   selectedAt?: string;
   selectionTimeoutAt?: string;
   visitRequest?: {
@@ -350,7 +372,7 @@ export interface Quotation {
   serviceCharge: number;
   tax: number;
   total: number;
-  status: 'pending' | 'accepted' | 'rejected' | 'expired';
+  status: 'draft' | 'pending' | 'accepted' | 'rejected' | 'expired';
   sentAt: string;
   acceptedAt?: string | null;
   rejectedAt?: string | null;
@@ -387,7 +409,7 @@ export interface QuotationWithProvider {
   serviceCharge: number;
   tax: number;
   total: number;
-  status: 'pending' | 'accepted' | 'rejected' | 'expired';
+  status: 'draft' | 'pending' | 'accepted' | 'rejected' | 'expired';
   sentAt: string;
   submittedAt?: string;
 }
@@ -411,7 +433,7 @@ export interface ProviderQuotationListItem {
   logisticsCost: number;
   materials: QuotationMaterial[];
   total: number;
-  status: 'pending' | 'accepted' | 'rejected' | 'expired';
+  status: 'draft' | 'pending' | 'accepted' | 'rejected' | 'expired';
   sentAt: string;
   acceptedAt?: string | null;
   rejectedAt?: string | null;

@@ -1,7 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Fonts, Spacing, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { useRouter } from 'expo-router';
-import { ArrowRight, Calendar, MapPin } from 'lucide-react-native';
+import { ArrowRight, BriefcaseBusiness, Calendar, CheckCircle2, Clock, MapPin } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View, RefreshControl } from 'react-native';
 import { JobHistoryCardSkeleton } from '@/components/LoadingSkeleton';
@@ -87,9 +87,9 @@ const mapApiStatusToJobStatus = (apiStatus: string, isFromAcceptedList: boolean 
 
 // Map ACCEPTED request (provider has already accepted) to JobItem format
 const mapAcceptedRequestToJobItem = (request: ServiceRequest): JobItem => {
-  const user = request.user || {};
-  const firstName = user.firstName || '';
-  const lastName = user.lastName || '';
+  const user = request.user;
+  const firstName = user?.firstName || '';
+  const lastName = user?.lastName || '';
   const clientName = `${firstName} ${lastName}`.trim() || 'Client';
   
   const location = request.location?.formattedAddress || 
@@ -123,9 +123,9 @@ const mapAcceptedRequestToJobItem = (request: ServiceRequest): JobItem => {
 
 // Map AVAILABLE (not yet accepted by this provider) request to JobItem format
 const mapAvailableRequestToJobItem = (request: ServiceRequest): JobItem => {
-  const user = request.user || {};
-  const firstName = user.firstName || '';
-  const lastName = user.lastName || '';
+  const user = request.user;
+  const firstName = user?.firstName || '';
+  const lastName = user?.lastName || '';
   const clientName = `${firstName} ${lastName}`.trim() || 'Client';
   
   const location = request.location?.formattedAddress || 
@@ -283,7 +283,7 @@ export default function ProviderJobsScreen() {
     return jobsArray.filter((job) => {
       // If activeTab is 'Ongoing', explicitly exclude 'Completed' jobs
       if (activeTab === 'Ongoing') {
-        return job.status === 'Ongoing' && job.status !== 'Completed';
+        return job.status === 'Ongoing';
       }
       return job.status === activeTab;
     });
@@ -591,9 +591,52 @@ export default function ProviderJobsScreen() {
           ) : getJobsForTab().length > 0 ? (
             getJobsForTab().map((job) => renderJobCard(job))
           ) : (
-            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
-              <Text style={{ ...Fonts.bodyMedium, color: Colors.textTertiary }}>
+            <View
+              style={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 44,
+                paddingHorizontal: 22,
+                marginTop: 18,
+                backgroundColor: Colors.white,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: 'rgba(17, 24, 39, 0.08)',
+                shadowColor: '#101828',
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.04,
+                shadowRadius: 14,
+                elevation: 2,
+              }}
+            >
+              <View
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 36,
+                  backgroundColor: activeTab === 'Completed' ? '#ECFDF3' : activeTab === 'Pending' ? '#FFF7DF' : '#F2F8EA',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 16,
+                }}
+              >
+                {activeTab === 'Completed' ? (
+                  <CheckCircle2 size={34} color="#047857" />
+                ) : activeTab === 'Pending' ? (
+                  <Clock size={34} color="#92400E" />
+                ) : (
+                  <BriefcaseBusiness size={34} color={Colors.accent} />
+                )}
+              </View>
+              <Text style={{ ...Fonts.h3, color: Colors.textPrimary, textAlign: 'center', marginBottom: 8 }}>
                 No {activeTab.toLowerCase()} jobs yet
+              </Text>
+              <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, textAlign: 'center', lineHeight: 20 }}>
+                {activeTab === 'Ongoing'
+                  ? 'Accepted jobs and active work orders will appear here.'
+                  : activeTab === 'Pending'
+                    ? 'New requests waiting for your action will show here.'
+                    : 'Completed jobs and customer confirmations will appear here.'}
               </Text>
             </View>
           )}

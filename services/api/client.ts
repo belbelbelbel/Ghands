@@ -1,5 +1,6 @@
 import { AuthError } from '../../utils/errors';
 import { authService as authServiceInstance } from '../authService';
+import { notifySessionExpired } from '../../utils/sessionExpiredEvents';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://bamibuildit-backend-v1.onrender.com';
 
@@ -37,6 +38,7 @@ class ApiClient {
       if (!config.skipAuth) {
         const token = await authServiceInstance.getAuthToken();
         if (!token) {
+          notifySessionExpired();
           throw new AuthError('Your session has expired. Please sign in again.');
         }
         const existingHeaders = config.headers || {};
@@ -214,6 +216,8 @@ class ApiClient {
             !config.skipAuth &&
             (statusCode === 401 || statusCode === 403)
           ) {
+            await authServiceInstance.clearAuthTokens();
+            notifySessionExpired();
             throw new AuthError('Your session has expired. Please sign in again.');
           }
           const isExpected500 = statusCode === 500;

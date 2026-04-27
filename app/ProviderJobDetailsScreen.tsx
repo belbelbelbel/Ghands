@@ -5,7 +5,7 @@ import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { BorderRadius, Colors } from '@/lib/designSystem';
-import { Quotation, ServiceRequest, authService, providerService, serviceRequestService } from '@/services/api';
+import { Quotation, QuotationWithProvider, ServiceRequest, authService, providerService, serviceRequestService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { makeCall } from '@/utils/callUtils';
 import { formatDateLong, formatDateShort, formatTimeAgo } from '@/utils/dateFormatting';
@@ -1102,20 +1102,6 @@ export default function ProviderJobDetailsScreen() {
     } as any);
   }, [params.requestId, request?.jobTitle, router]);
 
-  const handleMessageClient = useCallback(() => {
-    haptics.light();
-    const recipientName = request?.user
-      ? `${request.user.firstName || ''} ${request.user.lastName || ''}`.trim() || 'Client'
-      : 'Client';
-    router.push({
-      pathname: '/ChatScreen',
-      params: {
-        clientName: recipientName,
-        requestId: params.requestId,
-      },
-    } as any);
-  }, [params.requestId, request?.user, router]);
-
   // Create animation values for timeline
   const stepCount = timelineSteps.length;
   const timelineAnimations = useMemo(
@@ -1167,9 +1153,9 @@ export default function ProviderJobDetailsScreen() {
   }, [timelineSteps, timelineAnimations, lineAnimations]);
 
   // Get user info from request
-  const user = request?.user || {};
-  const firstName = user.firstName || '';
-  const lastName = user.lastName || '';
+  const user = request?.user;
+  const firstName = user?.firstName || '';
+  const lastName = user?.lastName || '';
   const clientName = `${firstName} ${lastName}`.trim() || 'Client';
   
   // Get location info
@@ -1435,71 +1421,44 @@ export default function ProviderJobDetailsScreen() {
             style={{
               backgroundColor: Colors.white,
               borderRadius: BorderRadius.xl,
-              padding: 14,
-              marginBottom: 16,
+              padding: 12,
+              marginBottom: 12,
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: '#E7EBDf',
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Image
                 source={require('../assets/images/userimg.jpg')}
                 style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  marginRight: 12,
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
+                  marginRight: 10,
                 }}
                 resizeMode="cover"
               />
               <View style={{ flex: 1 }}>
                 <Text
                   style={{
-                    fontSize: 16,
+                    fontSize: 15,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.textPrimary,
-                    marginBottom: 3,
                   }}
                 >
                   {clientName}
                 </Text>
                 <Text
                   style={{
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontFamily: 'Poppins-Regular',
                     color: Colors.textSecondaryDark,
+                    marginTop: 2,
                   }}
                 >
-                  {user.email || 'Client'}
+                  Client
                 </Text>
               </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontFamily: 'Poppins-Medium',
-                    color: Colors.textSecondaryDark,
-                    marginBottom: 2,
-                  }}
-                >
-                  Member since
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.textPrimary,
-                  }}
-                >
-                  {(request?.user as any)?.createdAt
-                    ? formatDate((request?.user as any)?.createdAt)
-                    : 'N/A'}
-                </Text>
-              </View>
-            </View>
-
-            {/* Action Buttons */}
-            <View style={{ flexDirection: 'row', gap: 10 }}>
               <TouchableOpacity
                 onPress={() => {
                   haptics.light();
@@ -1523,27 +1482,33 @@ export default function ProviderJobDetailsScreen() {
                   );
                 }}
                 style={{
-                  flex: 1,
-                  backgroundColor: Colors.accent,
-                  borderRadius: BorderRadius.default,
-                  paddingVertical: 10,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: '#F2F8EA',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  marginLeft: 8,
                 }}
                 activeOpacity={0.8}
+                accessibilityLabel="Call client"
               >
-                <Phone size={18} color={Colors.white} />
+                <Phone size={18} color={Colors.accent} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={{
-                  flex: 1,
-                  backgroundColor: Colors.accent,
-                  borderRadius: BorderRadius.default,
-                  paddingVertical: 10,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: '#F7FAF0',
+                  borderWidth: 1,
+                  borderColor: 'rgba(106, 155, 0, 0.18)',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  marginLeft: 8,
                 }}
                 activeOpacity={0.8}
+                accessibilityLabel="Message client"
                 onPress={() => {
                   router.push({
                     pathname: '/ChatScreen',
@@ -1554,7 +1519,7 @@ export default function ProviderJobDetailsScreen() {
                   } as any);
                 }}
               >
-                <MessageCircle size={18} color={Colors.white} />
+                <MessageCircle size={18} color={Colors.accent} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1564,8 +1529,7 @@ export default function ProviderJobDetailsScreen() {
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 10,
-                marginBottom: 16,
+                marginBottom: 14,
               }}
             >
               <TouchableOpacity
@@ -1574,8 +1538,8 @@ export default function ProviderJobDetailsScreen() {
                 style={{
                   flex: 1,
                   backgroundColor: Colors.accent,
-                  borderRadius: 16,
-                  paddingVertical: 13,
+                  borderRadius: 18,
+                  paddingVertical: 14,
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexDirection: 'row',
@@ -1597,23 +1561,6 @@ export default function ProviderJobDetailsScreen() {
                   Send quotation
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleMessageClient}
-                activeOpacity={0.85}
-                accessibilityLabel="Message client"
-                style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: 16,
-                  backgroundColor: '#F3F7EA',
-                  borderWidth: 1,
-                  borderColor: 'rgba(106, 155, 0, 0.22)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <MessageCircle size={21} color={Colors.accent} />
-              </TouchableOpacity>
             </View>
           )}
 
@@ -1623,29 +1570,29 @@ export default function ProviderJobDetailsScreen() {
             style={{
               backgroundColor: statusMessage.variant === 'action' ? '#E8F5E9' : statusMessage.variant === 'success' ? '#E8F5E9' : '#F9FAFB',
               borderRadius: 16,
-              padding: 16,
-              marginBottom: 16,
+              padding: 14,
+              marginBottom: 14,
               borderWidth: 1,
               borderColor: statusMessage.variant === 'action' ? 'rgba(106, 155, 0, 0.3)' : statusMessage.variant === 'success' ? 'rgba(106, 155, 0, 0.2)' : '#E5E7EB',
             }}
             >
               <Text
                 style={{
-                  fontSize: 22,
+                  fontSize: 20,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.textPrimary,
-                  marginBottom: 8,
+                  marginBottom: 6,
                 }}
               >
                 {statusMessage.title}
               </Text>
               <Text
                 style={{
-                  fontSize: 16,
+                  fontSize: 14,
                   fontFamily: 'Poppins-Regular',
                   color: statusMessage.variant === 'action' ? '#1B4332' : Colors.textSecondaryDark,
-                  marginBottom: statusMessage.showDetails ? 12 : 0,
-                  lineHeight: 24,
+                  marginBottom: statusMessage.showDetails ? 10 : 0,
+                  lineHeight: 21,
                 }}
               >
                 {statusMessage.message}
@@ -1843,7 +1790,10 @@ export default function ProviderJobDetailsScreen() {
                             fontFamily: 'Poppins-Bold',
                             color: Colors.textPrimary,
                             lineHeight: 20,
+                            flex: 1,
+                            marginRight: 8,
                           }}
+                          numberOfLines={2}
                         >
                           {step.title}
                         </Text>
@@ -1907,10 +1857,12 @@ export default function ProviderJobDetailsScreen() {
                               style={{
                                 flexDirection: 'row',
                                 alignItems: 'center',
-                                paddingVertical: 6,
+                                paddingVertical: 8,
                                 paddingHorizontal: 12,
-                                backgroundColor: Colors.backgroundGray,
-                                borderRadius: BorderRadius.default,
+                                backgroundColor: '#F2F8EA',
+                                borderRadius: 12,
+                                borderWidth: 1,
+                                borderColor: 'rgba(106, 155, 0, 0.16)',
                               }}
                               activeOpacity={0.7}
                             >
@@ -1933,7 +1885,14 @@ export default function ProviderJobDetailsScreen() {
                                   },
                                 } as any);
                               }}
-                              style={{ flexDirection: 'row', alignItems: 'center' }}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                paddingVertical: 8,
+                                paddingHorizontal: 10,
+                                borderRadius: 12,
+                                backgroundColor: '#F7F8FA',
+                              }}
                               activeOpacity={0.7}
                             >
                               <Text
@@ -1989,10 +1948,10 @@ export default function ProviderJobDetailsScreen() {
                               }}
                               style={{
                                 backgroundColor: (step as any).startButtonEnabled && !isStartingJob ? Colors.accent : Colors.backgroundGray,
-                                paddingVertical: 10,
-                                paddingHorizontal: 20,
-                                borderRadius: BorderRadius.default,
-                                minWidth: 80,
+                                paddingVertical: 9,
+                                paddingHorizontal: 16,
+                                borderRadius: 12,
+                                minWidth: 76,
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 opacity: (step as any).startButtonEnabled && !isStartingJob ? 1 : 0.5,
@@ -2572,7 +2531,7 @@ export default function ProviderJobDetailsScreen() {
                         marginBottom: 4,
                       }}
                     >
-                      {user.email || 'Client'}
+                      {user?.email || 'Client'}
                     </Text>
                     {(request?.user as any)?.rating != null || (request?.user as any)?.totalReviews != null ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -2584,7 +2543,7 @@ export default function ProviderJobDetailsScreen() {
                   </View>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity
-                      onPress={() => makeCall(clientName, user.phone || '')}
+                      onPress={() => makeCall(clientName, user?.phone || user?.phoneNumber || '')}
                       style={{
                         width: 40,
                         height: 40,
@@ -3087,7 +3046,7 @@ export default function ProviderJobDetailsScreen() {
           }}
         >
           {/* Job Status Icon - Small icon in top right of bottom section */}
-          {request && (isFromAcceptedRequests || request.status === 'accepted' || request.status === 'in_progress' || request.status === 'completed') && (
+          {request && (isFromAcceptedRequests || (request.status as string) === 'accepted' || (request.status as string) === 'in_progress' || (request.status as string) === 'completed') && (
             <View
               style={{
                 position: 'absolute',
@@ -3161,9 +3120,9 @@ export default function ProviderJobDetailsScreen() {
               {/* Request Changes Button - Disabled when job started, provider marked complete, or work done */}
               {(() => {
                 const workOrderIsActive = request && (
-                  request.status === 'in_progress' ||
-                  request.status === 'reviewing' ||
-                  request.status === 'completed' ||
+                  (request.status as string) === 'in_progress' ||
+                  (request.status as string) === 'reviewing' ||
+                  (request.status as string) === 'completed' ||
                   workOrderStatus === 'active'
                 );
                 const canRequestChanges = !workOrderIsActive;

@@ -220,28 +220,24 @@ export default function WalletScreen() {
           paddingBottom: 100,
         }}
       >
-        {/* Current Balance Card - Ultra Premium Design */}
+        {/* Current Balance Card */}
         <View
           style={{
             backgroundColor: '#0a0a0a',
-            borderRadius: BorderRadius.xl + 6,
+            borderRadius: 24,
             marginTop: 12,
             marginBottom: 20,
             position: 'relative',
             overflow: 'hidden',
-            shadowColor: '#000',
-            shadowOffset: {
-              width: 0,
-              height: 12,
-            },
-            shadowOpacity: 0.35,
-            shadowRadius: 24,
-            elevation: 20,
-            borderWidth: 1.5,
+            shadowColor: '#101828',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.18,
+            shadowRadius: 18,
+            elevation: 8,
+            borderWidth: 1,
             borderColor: 'rgba(255, 255, 255, 0.08)',
           }}
         >
-          {/* Enhanced Decorative Gradient Circles */}
           <View
             style={{
               position: 'absolute',
@@ -279,44 +275,35 @@ export default function WalletScreen() {
             }}
           />
 
-          {/* Wallet Icon - Top Right - Enhanced */}
           <View
             style={{
               position: 'absolute',
               top: 20,
               right: 20,
-              width: 52,
-              height: 52,
-              borderRadius: 26,
-              backgroundColor: Colors.accent,
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: 'rgba(202, 255, 51, 0.18)',
               alignItems: 'center',
               justifyContent: 'center',
-              shadowColor: Colors.accent,
-              shadowOffset: {
-                width: 0,
-                height: 6,
-              },
-              shadowOpacity: 0.5,
-              shadowRadius: 16,
-              elevation: 12,
-              borderWidth: 2,
-              borderColor: 'rgba(255, 255, 255, 0.2)',
+              borderWidth: 1,
+              borderColor: 'rgba(202, 255, 51, 0.28)',
             }}
           >
-            <Wallet size={26} color={Colors.white} />
+            <Wallet size={24} color={Colors.accent} />
           </View>
 
-          <View style={{ padding: 18 }}>
+          <View style={{ padding: 20 }}>
             {/* Wallet ID - only show when available from API */}
             {walletId != null && (
               <Text
                 style={{
-                  fontSize: 10,
+                fontSize: 11,
                   fontFamily: 'Poppins-Medium',
                   color: Colors.white,
-                  opacity: 0.65,
+                opacity: 0.62,
                   marginBottom: 10,
-                  letterSpacing: 1,
+                letterSpacing: 0.8,
                 }}
               >
                 WALLET ID: GH-WLT-{String(walletId).padStart(8, '0')}
@@ -326,12 +313,12 @@ export default function WalletScreen() {
             {/* Current Balance Label - Enhanced */}
             <Text
               style={{
-                fontSize: 13,
+                fontSize: 12,
                 fontFamily: 'Poppins-SemiBold',
                 color: Colors.white,
-                opacity: 0.95,
+                opacity: 0.78,
                 marginBottom: 8,
-                letterSpacing: 0.8,
+                letterSpacing: 0.7,
                 textTransform: 'uppercase',
               }}
             >
@@ -371,14 +358,11 @@ export default function WalletScreen() {
                 ) : (
                   <Text
                     style={{
-                      fontSize: 42,
+                    fontSize: 40,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.white,
-                      letterSpacing: -2,
-                      lineHeight: 52,
-                      textShadowColor: 'rgba(0, 0, 0, 0.3)',
-                      textShadowOffset: { width: 0, height: 2 },
-                      textShadowRadius: 4,
+                      letterSpacing: -1.6,
+                      lineHeight: 50,
                     }}
                   >
                     {balance.toLocaleString('en-NG', {
@@ -396,7 +380,7 @@ export default function WalletScreen() {
                 flexDirection: 'row',
                 alignItems: 'center',
                 paddingTop: 16,
-                borderTopWidth: 1.5,
+                borderTopWidth: 1,
                 borderTopColor: 'rgba(255, 255, 255, 0.15)',
               }}
             >
@@ -442,7 +426,7 @@ export default function WalletScreen() {
                     letterSpacing: 0.3,
                   }}
                 >
-                  Status
+                  Wallet status
                 </Text>
                 <View
                   style={{
@@ -452,23 +436,16 @@ export default function WalletScreen() {
                 >
                   <View
                     style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
                       backgroundColor: Colors.accent,
                       marginRight: 8,
-                      shadowColor: Colors.accent,
-                      shadowOffset: {
-                        width: 0,
-                        height: 0,
-                      },
-                      shadowOpacity: 0.8,
-                      shadowRadius: 4,
                     }}
                   />
                   <Text
                     style={{
-                      fontSize: 18,
+                    fontSize: 16,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.white,
                     }}
@@ -481,7 +458,7 @@ export default function WalletScreen() {
           </View>
         </View>
 
-        {/* Action Buttons - Enhanced Premium Design */}
+        {/* Action Buttons */}
         <View
           style={{
             flexDirection: 'row',
@@ -495,20 +472,17 @@ export default function WalletScreen() {
             style={{
               flex: 1,
               backgroundColor: Colors.accent,
-              borderRadius: BorderRadius.md,
-              paddingVertical: 10,
+              borderRadius: 14,
+              paddingVertical: 12,
               paddingHorizontal: 10,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
               shadowColor: Colors.accent,
-              shadowOffset: {
-                width: 0,
-                height: 4,
-              },
-              shadowOpacity: 0.3,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.18,
               shadowRadius: 8,
-              elevation: 8,
+              elevation: 4,
             }}
             activeOpacity={0.85}
           >
@@ -532,22 +506,19 @@ export default function WalletScreen() {
             style={{
               flex: 1,
               backgroundColor: '#1a1a1a',
-              borderRadius: BorderRadius.md,
-              paddingVertical: 10,
+              borderRadius: 14,
+              paddingVertical: 12,
               paddingHorizontal: 10,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              borderWidth: 1.5,
-              borderColor: 'rgba(255, 255, 255, 0.1)',
-              shadowColor: '#000',
-              shadowOffset: {
-                width: 0,
-                height: 4,
-              },
-              shadowOpacity: 0.2,
+              borderWidth: 1,
+              borderColor: 'rgba(255, 255, 255, 0.08)',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.12,
               shadowRadius: 8,
-              elevation: 6,
+              elevation: 3,
             }}
             activeOpacity={0.85}
           >
@@ -619,14 +590,14 @@ export default function WalletScreen() {
             <EmptyState
               icon={<Receipt size={40} color={Colors.textSecondaryDark} />}
               title="No transactions yet"
-              description="Your recent wallet activity will appear here"
+              description="Completed payments, top-ups, and refunds will appear here once they settle."
               style={{
                 flex: 0,
                 backgroundColor: Colors.white,
                 borderRadius: BorderRadius.xl,
                 padding: 32,
                 borderWidth: 1,
-                borderColor: Colors.border,
+                borderColor: 'rgba(17, 24, 39, 0.08)',
               }}
             />
           ) : (
@@ -635,19 +606,16 @@ export default function WalletScreen() {
               key={transaction.id}
               style={{
                 backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                padding: 18,
-                marginBottom: 14,
+                borderRadius: 18,
+                padding: 15,
+                marginBottom: 12,
                 borderWidth: 1,
-                borderColor: Colors.border,
-                shadowColor: '#000',
-                shadowOffset: {
-                  width: 0,
-                  height: 2,
-                },
-                shadowOpacity: 0.05,
-                shadowRadius: 8,
-                elevation: 3,
+                borderColor: 'rgba(17, 24, 39, 0.08)',
+                shadowColor: '#101828',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.035,
+                shadowRadius: 10,
+                elevation: 2,
               }}
             >
               <View
@@ -680,21 +648,25 @@ export default function WalletScreen() {
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      fontSize: 13,
+                      fontSize: 14,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.textPrimary,
                       marginBottom: 2,
+                      lineHeight: 19,
                     }}
+                    numberOfLines={1}
                   >
                     {transaction.serviceName}
                   </Text>
                   <Text
                     style={{
-                      fontSize: 11,
+                      fontSize: 12,
                       fontFamily: 'Poppins-Medium',
                       color: Colors.textSecondaryDark,
                       marginBottom: 2,
+                      lineHeight: 17,
                     }}
+                    numberOfLines={2}
                   >
                     {transaction.serviceDescription}
                   </Text>
@@ -716,7 +688,7 @@ export default function WalletScreen() {
                       paddingHorizontal: 8,
                       paddingVertical: 4,
                       borderRadius: 12,
-                      backgroundColor: transaction.status === 'pending' ? '#FEF3C7' : '#D1FAE5',
+                      backgroundColor: transaction.status === 'pending' ? '#FFF7DF' : '#ECFDF3',
                       marginBottom: 6,
                     }}
                   >
@@ -724,7 +696,7 @@ export default function WalletScreen() {
                       style={{
                         fontSize: 11,
                         fontFamily: 'Poppins-SemiBold',
-                        color: transaction.status === 'pending' ? '#D97706' : '#059669',
+                        color: transaction.status === 'pending' ? '#92400E' : '#047857',
                       }}
                     >
                       {transaction.status === 'pending' ? 'Pending' : 'Completed'}
@@ -732,7 +704,7 @@ export default function WalletScreen() {
                   </View>
                   <Text
                     style={{
-                      fontSize: 18,
+                    fontSize: 16,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.textPrimary,
                       letterSpacing: -0.3,

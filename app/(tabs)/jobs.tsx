@@ -314,21 +314,50 @@ export default function JobsScreen() {
             }
           >
             {jobs.length === 0 ? (
-              <View className="items-center justify-center py-20">
-                <Ionicons 
-                  name={activeTab === 'Ongoing' ? 'briefcase-outline' : activeTab === 'Completed' ? 'checkmark-circle-outline' : 'close-circle-outline'} 
-                  size={64} 
-                  color="#9CA3AF" 
-                />
-                <Text className="text-gray-600 mt-4 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
+              <View
+                style={{
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 44,
+                  paddingHorizontal: 22,
+                  marginTop: 18,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 24,
+                  borderWidth: 1,
+                  borderColor: 'rgba(17, 24, 39, 0.08)',
+                  shadowColor: '#101828',
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.04,
+                  shadowRadius: 14,
+                  elevation: 2,
+                }}
+              >
+                <View
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: 36,
+                    backgroundColor: activeTab === 'Completed' ? '#ECFDF3' : activeTab === 'Cancelled' ? '#FEF2F2' : '#F2F8EA',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 16,
+                  }}
+                >
+                  <Ionicons
+                    name={activeTab === 'Ongoing' ? 'briefcase-outline' : activeTab === 'Completed' ? 'checkmark-circle-outline' : 'close-circle-outline'}
+                    size={34}
+                    color={activeTab === 'Completed' ? '#047857' : activeTab === 'Cancelled' ? '#DC2626' : '#6A9B00'}
+                  />
+                </View>
+                <Text className="text-gray-900 text-center" style={{ fontFamily: 'Poppins-Bold', fontSize: 17 }}>
                   No {activeTab.toLowerCase()} jobs yet
                 </Text>
-                <Text className="text-gray-500 mt-2 text-center text-sm px-8" style={{ fontFamily: 'Poppins-Regular' }}>
+                <Text className="text-gray-500 mt-2 text-center text-sm" style={{ fontFamily: 'Poppins-Regular', lineHeight: 20 }}>
                   {activeTab === 'Ongoing' 
-                    ? 'Your ongoing service requests will appear here.'
+                    ? 'Your active bookings and pending provider updates will appear here.'
                     : activeTab === 'Completed'
-                    ? 'Completed jobs will appear here once finished.'
-                    : 'Cancelled requests will appear here.'}
+                    ? 'Completed jobs and receipts will appear here once work is finished.'
+                    : 'Cancelled requests will stay here for your records.'}
                 </Text>
               </View>
             ) : (

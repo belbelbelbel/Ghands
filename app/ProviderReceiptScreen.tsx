@@ -308,7 +308,16 @@ export default function ProviderReceiptScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [params.requestId]);
+  }, [
+    params.amount,
+    params.providerName,
+    params.reference,
+    params.requestId,
+    params.serviceDate,
+    params.serviceName,
+    params.serviceTime,
+    params.transactionId,
+  ]);
 
   useEffect(() => {
     loadReceiptData();
@@ -345,10 +354,25 @@ export default function ProviderReceiptScreen() {
   if (isLoading) {
     return (
       <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={Colors.accent} />
-          <Text style={{ marginTop: 12, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
-            Loading receipt...
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 }}>
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: '#F2F8EA',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 18,
+            }}
+          >
+            <ActivityIndicator size="large" color={Colors.accent} />
+          </View>
+          <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, textAlign: 'center' }}>
+            Preparing receipt
+          </Text>
+          <Text style={{ marginTop: 6, fontSize: 13, lineHeight: 19, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center' }}>
+            We&apos;re confirming the transaction details and building your receipt.
           </Text>
         </View>
       </SafeAreaWrapper>
@@ -358,14 +382,27 @@ export default function ProviderReceiptScreen() {
   if (!receiptData) {
     return (
       <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
-          <FileText size={44} color={Colors.textTertiary} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 }}>
+          <View
+            style={{
+              width: 76,
+              height: 76,
+              borderRadius: 38,
+              backgroundColor: Colors.white,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              marginBottom: 16,
+            }}
+          >
+            <FileText size={34} color={Colors.textTertiary} />
+          </View>
           <Text
             style={{
-              marginTop: 12,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
-              fontSize: 16,
+              fontSize: 17,
               textAlign: 'center',
             }}
           >
@@ -381,7 +418,7 @@ export default function ProviderReceiptScreen() {
               lineHeight: 18,
             }}
           >
-            Please try again.
+            We couldn&apos;t confirm the receipt details. Please retry, or check the activity screen again shortly.
           </Text>
           <TouchableOpacity
             onPress={() => {
@@ -458,31 +495,36 @@ export default function ProviderReceiptScreen() {
           <View
             style={{
               backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
-              padding: 14,
+              borderRadius: 24,
+              padding: 16,
               marginBottom: 14,
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.04,
+              shadowRadius: 16,
+              elevation: 2,
             }}
           >
             {/* Receipt Header */}
             <View style={{ alignItems: 'center', marginBottom: 16 }}>
               <View
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: Colors.accent,
+                  width: 52,
+                  height: 52,
+                  borderRadius: 26,
+                  backgroundColor: '#F2F8EA',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginBottom: 8,
+                  marginBottom: 10,
                 }}
               >
-                <FileText size={22} color={Colors.white} />
+                <FileText size={24} color={Colors.accent} />
               </View>
               <Text
                 style={{
-                  fontSize: 15,
+                  fontSize: 17,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.textPrimary,
                   marginBottom: 3,
@@ -499,6 +541,24 @@ export default function ProviderReceiptScreen() {
               >
                 Receipt #{receiptData.receiptNumber}
               </Text>
+              <View
+                style={{
+                  marginTop: 14,
+                  alignSelf: 'stretch',
+                  backgroundColor: '#0a0a0a',
+                  borderRadius: 18,
+                  paddingVertical: 16,
+                  paddingHorizontal: 14,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 11, fontFamily: 'Poppins-SemiBold', color: 'rgba(255,255,255,0.66)', letterSpacing: 0.7, textTransform: 'uppercase' }}>
+                  Total paid
+                </Text>
+                <Text style={{ marginTop: 4, fontSize: 28, lineHeight: 36, fontFamily: 'Poppins-Bold', color: Colors.white, letterSpacing: -0.8 }}>
+                  ₦{formatCurrency(receiptData.totalAmount)}
+                </Text>
+              </View>
             </View>
 
             {/* Job Details */}
@@ -515,8 +575,8 @@ export default function ProviderReceiptScreen() {
               </Text>
               <View
                 style={{
-                  backgroundColor: Colors.backgroundGray,
-                  borderRadius: BorderRadius.default,
+                  backgroundColor: '#F7F8FA',
+                  borderRadius: 16,
                   padding: 12,
                 }}
               >
@@ -529,7 +589,7 @@ export default function ProviderReceiptScreen() {
                       marginBottom: 2,
                     }}
                   >
-                    Job Title
+                    Job
                   </Text>
                   <Text
                     style={{
@@ -734,13 +794,15 @@ export default function ProviderReceiptScreen() {
             {/* Payment Status */}
             <View
               style={{
-                backgroundColor: Colors.successLight,
-                borderRadius: BorderRadius.default,
-                padding: 10,
+                backgroundColor: '#ECFDF3',
+                borderRadius: 16,
+                padding: 12,
                 marginBottom: 14,
+                borderWidth: 1,
+                borderColor: 'rgba(4, 120, 87, 0.12)',
               }}
             >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                 <Text
                   style={{
                     fontSize: 13,
@@ -748,14 +810,17 @@ export default function ProviderReceiptScreen() {
                     color: Colors.success,
                   }}
                 >
-                  Payment Status: {receiptData.paymentStatus}
+                  Status: {receiptData.paymentStatus}
                 </Text>
                 <Text
                   style={{
                     fontSize: 12,
                     fontFamily: 'Poppins-Regular',
                     color: Colors.textSecondaryDark,
+                    flex: 1,
+                    textAlign: 'right',
                   }}
+                  numberOfLines={1}
                 >
                   {receiptData.paymentDate}
                 </Text>

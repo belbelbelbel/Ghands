@@ -15,6 +15,7 @@ import { performance } from '@/services/performance';
 import { crashReporting } from '@/services/crashReporting';
 import { AuthError } from '@/utils/errors';
 import { handleTokenExpiration } from '@/utils/tokenExpirationHandler';
+import { subscribeToSessionExpired } from '@/utils/sessionExpiredEvents';
 import { authService } from '@/services/authService';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
@@ -86,6 +87,31 @@ export default function RootLayout() {
 
     configureAndroidNav();
   }, []);
+
+  useEffect(() => {
+    let redirecting = false;
+
+    return subscribeToSessionExpired(async () => {
+      if (redirecting) return;
+      redirecting = true;
+      try {
+        const isSwitchingRole = await AsyncStorage.getItem(ROLE_SWITCHING_KEY);
+        if (isSwitchingRole === 'true') return;
+
+        const currentPath = pathname || '';
+        const isOnAuthScreen =
+          currentPath.startsWith('/LoginScreen') ||
+          currentPath.startsWith('/ProviderSignInScreen') ||
+          currentPath.startsWith('/SelectAccountTypeScreen');
+        if (isOnAuthScreen) return;
+
+        const route = await handleTokenExpiration();
+        router.replace((route || '/SelectAccountTypeScreen') as any);
+      } finally {
+        redirecting = false;
+      }
+    });
+  }, [router, pathname]);
 
   useEffect(() => {
     // Initialize analytics and performance monitoring

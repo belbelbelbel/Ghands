@@ -25,7 +25,7 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGettingCurrentLocation, setIsGettingCurrentLocation] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -97,7 +97,7 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
       const locationDetails = await locationService.getCurrentLocation(latitude, longitude);
       
       setSelectedLocation({
-        placeId: locationDetails.placeId,
+        placeId: locationDetails.placeId || `lat_${latitude}_${longitude}`,
         placeName: locationDetails.city || locationDetails.address,
         fullAddress: locationDetails.formattedAddress,
         address: locationDetails.address,
@@ -123,7 +123,7 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
     setIsSaving(true);
 
     try {
-      let locationToSave: LocationSearchResult;
+      let locationToSave: LocationSearchResult | undefined;
       let locationText = '';
 
       if (selectedLocation) {
@@ -132,8 +132,9 @@ export default function LocationSearchModal({ visible, onClose, onLocationSelect
         locationText = locationToSave.fullAddress;
       } else {
         // User typed manually, try to get details from search results
-        if (searchResults.length > 0) {
-          locationToSave = searchResults[0];
+        const firstResult = searchResults[0];
+        if (firstResult) {
+          locationToSave = firstResult;
           locationText = locationToSave.fullAddress;
         } else {
           // Fallback: save as text only

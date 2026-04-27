@@ -64,7 +64,7 @@ export default function PaymentPendingScreen() {
         <View
           style={{
             alignItems: 'center',
-            marginBottom: 32,
+            marginBottom: 24,
           }}
         >
           <View
@@ -72,13 +72,15 @@ export default function PaymentPendingScreen() {
               width: 80,
               height: 80,
               borderRadius: 40,
-              backgroundColor: Colors.backgroundGray,
+              backgroundColor: '#FFF7DF',
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: 16,
+              borderWidth: 1,
+              borderColor: 'rgba(146, 64, 14, 0.12)',
             }}
           >
-            <Hourglass size={40} color={Colors.textSecondaryDark} />
+            <Hourglass size={40} color="#92400E" />
           </View>
           <Text
             style={{
@@ -101,17 +103,24 @@ export default function PaymentPendingScreen() {
               paddingHorizontal: 20,
             }}
           >
-            Your payment is held securely and will be released to the provider once you mark the job as complete.
+            Your payment is held securely and will be released when the job is confirmed complete.
           </Text>
         </View>
 
         {/* Payment Summary Card */}
         <View
           style={{
-            backgroundColor: Colors.backgroundGray,
-            borderRadius: BorderRadius.xl,
+            backgroundColor: Colors.white,
+            borderRadius: 24,
             padding: 20,
             marginBottom: 20,
+            borderWidth: 1,
+            borderColor: 'rgba(17, 24, 39, 0.08)',
+            shadowColor: '#101828',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.04,
+            shadowRadius: 16,
+            elevation: 2,
           }}
         >
           {/* Total Payment */}
@@ -120,7 +129,7 @@ export default function PaymentPendingScreen() {
               marginBottom: 20,
               paddingBottom: 20,
               borderBottomWidth: 1,
-              borderBottomColor: Colors.border,
+              borderBottomColor: 'rgba(17, 24, 39, 0.08)',
             }}
           >
             <Text
@@ -135,11 +144,11 @@ export default function PaymentPendingScreen() {
             </Text>
             <Text
               style={{
-                fontSize: 22,
+                fontSize: 28,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
                 marginBottom: 4,
-                letterSpacing: -0.4,
+                letterSpacing: -0.8,
               }}
             >
               ₦{transactionData.totalPayment}
@@ -168,7 +177,7 @@ export default function PaymentPendingScreen() {
                 width: 40,
                 height: 40,
                 borderRadius: 20,
-                backgroundColor: Colors.black,
+                backgroundColor: '#0a0a0a',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginRight: 12,
@@ -194,7 +203,7 @@ export default function PaymentPendingScreen() {
                   color: Colors.textSecondaryDark,
                 }}
               >
-                Service Provider
+                Provider
               </Text>
             </View>
           </View>

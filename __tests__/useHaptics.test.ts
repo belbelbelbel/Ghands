@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import * as Haptics from 'expo-haptics';
 import { haptics } from '../hooks/useHaptics';
 

@@ -49,7 +49,7 @@ export default function CategoryPage() {
   const tabScrollTop = useTabScrollContentPaddingTop(20);
   const searchInputRef = useRef<TextInput>(null);
   const categoryRefs = useRef<{ [key: string]: number }>({});
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch categories from API on mount
   useEffect(() => {
@@ -507,11 +507,12 @@ export default function CategoryPage() {
             scrollEnabled={true}
             onContentSizeChange={() => {
               // When content size changes, re-check if we need to scroll to selected category
-              if (params.selectedCategoryId && categories.length > 0) {
+              const selectedCategoryId = params.selectedCategoryId;
+              if (selectedCategoryId && categories.length > 0) {
                 const category = categories.find(
                   (cat) => 
-                    cat.name === params.selectedCategoryId || 
-                    cat.name?.toLowerCase() === params.selectedCategoryId.toLowerCase()
+                    cat.name === selectedCategoryId || 
+                    cat.name?.toLowerCase() === selectedCategoryId.toLowerCase()
                 );
                 if (category && categoryRefs.current[category.name] !== undefined) {
                   setTimeout(() => {

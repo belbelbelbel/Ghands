@@ -1,7 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { ArrowRight, Upload, X } from 'lucide-react-native';
+import { ArrowRight, ShieldCheck, Upload, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View, Image, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -68,34 +68,65 @@ export default function ProviderUploadDocumentsScreen() {
   };
 
   return (
-    <SafeAreaWrapper>
+    <SafeAreaWrapper backgroundColor="#F8FAFC">
       <View style={{ paddingTop: 20, paddingHorizontal: 20 }}>
         <TouchableOpacity onPress={() => router.back()} className="mb-6">
           <Ionicons name="arrow-back" size={22} color="#000" />
         </TouchableOpacity>
       </View>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-        <Text className="text-3xl font-bold text-black mb-8" style={{
-          fontFamily: 'Poppins-ExtraBold',
-        }}>Upload Documents</Text>
+        <View
+          style={{
+            backgroundColor: '#0a0a0a',
+            borderRadius: 24,
+            padding: 20,
+            marginBottom: 22,
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            style={{
+              position: 'absolute',
+              top: -50,
+              right: -50,
+              width: 150,
+              height: 150,
+              borderRadius: 75,
+              backgroundColor: '#6A9B00',
+              opacity: 0.14,
+            }}
+          />
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(202,255,51,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+            <ShieldCheck size={24} color="#CAFF33" />
+          </View>
+          <Text className="text-white mb-2" style={{ fontFamily: 'Poppins-Bold', fontSize: 22, letterSpacing: -0.4 }}>
+            Upload documents
+          </Text>
+          <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 13, lineHeight: 20, color: 'rgba(255,255,255,0.68)' }}>
+            Add business documents that help clients trust your provider profile.
+          </Text>
+        </View>
 
         <View className="mb-6">
           <Text className="text-base text-black mb-3" style={{ fontFamily: 'Poppins-SemiBold' }}>
             Business License
           </Text>
           {!businessLicense ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => handleUpload('license')}
-              className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl py-12 items-center justify-center"
+              className="bg-white border-2 border-dashed border-gray-200 rounded-2xl py-12 items-center justify-center"
               activeOpacity={0.7}
             >
-              <Upload size={32} color="#9CA3AF" />
-              <Text className="text-gray-500 text-base mt-2" style={{ fontFamily: 'Poppins-Medium' }}>
-                Tap to upload
+              <Upload size={32} color="#6A9B00" />
+              <Text className="text-gray-900 text-base mt-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                Upload business license
+              </Text>
+              <Text className="text-gray-500 text-xs mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
+                JPG or PNG document photo
               </Text>
             </TouchableOpacity>
           ) : (
-            <View className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex-row items-center">
+            <View className="bg-white border border-gray-200 rounded-2xl px-4 py-3 flex-row items-center">
               <View className="w-12 h-12 rounded-lg overflow-hidden mr-3">
                 <Image 
                   source={{ uri: businessLicense.uri }} 
@@ -129,18 +160,21 @@ export default function ProviderUploadDocumentsScreen() {
             Tax Document
           </Text>
           {!taxDocument ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => handleUpload('tax')}
-              className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl py-12 items-center justify-center"
+              className="bg-white border-2 border-dashed border-gray-200 rounded-2xl py-12 items-center justify-center"
               activeOpacity={0.7}
             >
-              <Upload size={32} color="#9CA3AF" />
-              <Text className="text-gray-500 text-base mt-2" style={{ fontFamily: 'Poppins-Medium' }}>
-                Tap to upload
+              <Upload size={32} color="#6A9B00" />
+              <Text className="text-gray-900 text-base mt-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                Upload tax document
+              </Text>
+              <Text className="text-gray-500 text-xs mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
+                Optional, but helps verification
               </Text>
             </TouchableOpacity>
           ) : (
-            <View className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex-row items-center">
+            <View className="bg-white border border-gray-200 rounded-2xl px-4 py-3 flex-row items-center">
               <View className="w-12 h-12 rounded-lg overflow-hidden mr-3">
                 <Image 
                   source={{ uri: taxDocument.uri }} 
@@ -174,12 +208,12 @@ export default function ProviderUploadDocumentsScreen() {
             License or certification
           </Text>
           <TextInput
-            placeholder="Enter certification details"
+            placeholder="Example: Licensed plumber, CAC registration, years of experience..."
             value={certification}
             onChangeText={setCertification}
             multiline
             numberOfLines={4}
-            className="bg-gray-100 rounded-xl px-4 py-3 text-black text-base"
+            className="bg-white rounded-2xl px-4 py-3 text-black text-base border border-gray-200"
             placeholderTextColor="#666666"
             style={{ 
               fontFamily: 'Poppins-Medium',
@@ -191,7 +225,7 @@ export default function ProviderUploadDocumentsScreen() {
 
         <TouchableOpacity
           onPress={handleContinue}
-          className="bg-[#6A9B00] rounded-xl py-4 px-6 flex-row items-center justify-center"
+          className="bg-[#6A9B00] rounded-2xl py-4 px-6 flex-row items-center justify-center"
           activeOpacity={0.8}
         >
           <Text className="text-white text-lg font-semibold mr-2" style={{ fontFamily: 'Poppins-SemiBold' }}>

@@ -8,7 +8,6 @@ import {
   Text,
   TouchableOpacity,
   Image,
-  Platform,
 } from 'react-native';
 import { haptics } from '@/hooks/useHaptics';
 import { useVoiceCallWebRtc } from '@/hooks/useVoiceCallWebRtc';
@@ -45,7 +44,7 @@ interface JobDetails {
 
 export default function CallScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<CallScreenParams>();
+  const params = useLocalSearchParams() as unknown as CallScreenParams;
   
   // Parse call state from params
   const initialCallState: CallState = (params.callState as CallState) || 'incoming';
@@ -78,6 +77,30 @@ export default function CallScreen() {
 
   const callerName = params.callerName || (isProvider ? 'JohnDoe Akpan' : 'AquaFix Solutions');
   const callerImage = params.callerImage;
+  const statusLabel =
+    callState === 'incoming'
+      ? 'Incoming call'
+      : callState === 'outgoing'
+        ? isCreatingCall
+          ? 'Starting secure call'
+          : callSetupError
+            ? 'Call failed'
+            : 'Ringing'
+        : callState === 'active'
+          ? 'Connected'
+          : 'Call ended';
+  const statusColor =
+    callState === 'active'
+      ? '#047857'
+      : callState === 'ended' || callSetupError
+        ? '#DC2626'
+        : '#92400E';
+  const statusBg =
+    callState === 'active'
+      ? '#ECFDF3'
+      : callState === 'ended' || callSetupError
+        ? '#FEF2F2'
+        : '#FFF7DF';
 
   useEffect(() => {
     logCallDebug('CallScreen mounted', {
@@ -275,13 +298,18 @@ export default function CallScreen() {
   const JobDetailsCard = () => (
     <View
       style={{
-        backgroundColor: '#F3F4F6',
-        borderRadius: BorderRadius.lg,
-        padding: Spacing.lg,
+        backgroundColor: Colors.white,
+        borderRadius: 20,
+        padding: 16,
         marginHorizontal: Spacing.lg,
-        marginTop: Spacing.xl,
+        marginTop: Spacing.lg,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: 'rgba(17, 24, 39, 0.08)',
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.035,
+        shadowRadius: 10,
+        elevation: 2,
       }}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md }}>
@@ -291,7 +319,9 @@ export default function CallScreen() {
             fontFamily: 'Poppins-Bold',
             color: Colors.textPrimary,
             flex: 1,
+            lineHeight: 24,
           }}
+          numberOfLines={2}
         >
           {jobDetails.title}
         </Text>
@@ -300,7 +330,7 @@ export default function CallScreen() {
             backgroundColor: '#FEF9C3',
             paddingHorizontal: Spacing.sm + 2,
             paddingVertical: 4,
-            borderRadius: BorderRadius.default,
+            borderRadius: 999,
             marginLeft: Spacing.sm,
           }}
         >
@@ -321,8 +351,10 @@ export default function CallScreen() {
           fontSize: 14,
           fontFamily: 'Poppins-Regular',
           color: Colors.textSecondaryDark,
-          marginBottom: Spacing.sm,
+          marginBottom: Spacing.md,
+          lineHeight: 20,
         }}
+        numberOfLines={2}
       >
         {jobDetails.description}
       </Text>
@@ -337,7 +369,7 @@ export default function CallScreen() {
               color: Colors.textSecondaryDark,
             }}
           >
-            {jobDetails.scheduledDate} - {jobDetails.scheduledTime}
+            {jobDetails.scheduledDate} • {jobDetails.scheduledTime}
           </Text>
         </View>
 
@@ -348,7 +380,9 @@ export default function CallScreen() {
               fontSize: 13,
               fontFamily: 'Poppins-Regular',
               color: Colors.textSecondaryDark,
+              flex: 1,
             }}
+            numberOfLines={1}
           >
             {jobDetails.location}
           </Text>
@@ -389,8 +423,8 @@ export default function CallScreen() {
   );
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.white}>
-      <View style={{ flex: 1, backgroundColor: Colors.white }}>
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+      <View style={{ flex: 1, backgroundColor: Colors.backgroundLight }}>
         {/* Header */}
         <View
           style={{
@@ -399,7 +433,7 @@ export default function CallScreen() {
             justifyContent: 'space-between',
             paddingHorizontal: Spacing.lg,
             paddingTop: Spacing.md + 4,
-            paddingBottom: Spacing.md,
+            paddingBottom: Spacing.sm,
           }}
         >
           <TouchableOpacity
@@ -414,109 +448,90 @@ export default function CallScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: 20,
+              backgroundColor: Colors.white,
             }}
           >
             <ArrowLeft size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
 
           <View style={{ flex: 1, alignItems: 'center' }}>
-            {callState === 'active' && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: '#10B981',
-                  }}
-                >
-                  Connected
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontFamily: 'Poppins-Medium',
-                    color: Colors.textPrimary,
-                  }}
-                >
-                  {formatDuration(callDuration)}
-                </Text>
-                <View
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: '#EF4444',
-                  }}
-                />
-              </View>
-            )}
-            {callState === 'ended' && (
+            <View
+              style={{
+                backgroundColor: statusBg,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: callState === 'active' ? 'rgba(4, 120, 87, 0.12)' : 'rgba(17, 24, 39, 0.06)',
+              }}
+            >
               <Text
                 style={{
-                  fontSize: 16,
+                  fontSize: 13,
                   fontFamily: 'Poppins-SemiBold',
-                  color: '#EF4444',
+                  color: statusColor,
                 }}
               >
-                Call ended
+                {statusLabel}
+                {callState === 'active' ? ` • ${formatDuration(callDuration)}` : ''}
               </Text>
-            )}
-            {callState !== 'active' && callState !== 'ended' && (
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.textPrimary,
-                }}
-              >
-                {callState === 'incoming'
-                  ? 'Incoming call'
-                  : isCreatingCall
-                  ? 'Starting call...'
-                  : callSetupError
-                  ? 'Call failed'
-                  : 'Ringing...'}
-              </Text>
-            )}
+            </View>
           </View>
 
           <View style={{ width: 40 }} />
         </View>
 
         {/* Caller Info */}
-        <View style={{ alignItems: 'center', marginTop: Spacing.xl }}>
+        <View
+          style={{
+            alignItems: 'center',
+            marginTop: Spacing.md,
+            marginHorizontal: Spacing.lg,
+            backgroundColor: Colors.white,
+            borderRadius: 28,
+            paddingVertical: 26,
+            paddingHorizontal: 18,
+            borderWidth: 1,
+            borderColor: 'rgba(17, 24, 39, 0.08)',
+            shadowColor: '#101828',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.045,
+            shadowRadius: 18,
+            elevation: 3,
+          }}
+        >
           <View
             style={{
-              width: 120,
-              height: 120,
-              borderRadius: 60,
-              backgroundColor: '#111827',
+              width: 112,
+              height: 112,
+              borderRadius: 56,
+              backgroundColor: '#0a0a0a',
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: Spacing.lg,
-              borderWidth: 4,
-              borderColor: '#3B82F6',
+              borderWidth: 3,
+              borderColor: callState === 'active' ? Colors.accent : 'rgba(17, 24, 39, 0.08)',
               overflow: 'hidden',
             }}
           >
             {callerImage ? (
               <Image
                 source={{ uri: callerImage }}
-                style={{ width: 120, height: 120, borderRadius: 60 }}
+                style={{ width: 112, height: 112, borderRadius: 56 }}
                 resizeMode="cover"
               />
             ) : (
               <View
                 style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 40,
-                  backgroundColor: '#3B82F6',
+                  width: 72,
+                  height: 72,
+                  borderRadius: 36,
+                  backgroundColor: 'rgba(202, 255, 51, 0.18)',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <User size={40} color={Colors.white} />
+                <User size={36} color={Colors.accent} />
               </View>
             )}
           </View>
@@ -527,22 +542,23 @@ export default function CallScreen() {
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
               marginBottom: Spacing.xs,
+              textAlign: 'center',
+              letterSpacing: -0.4,
             }}
+            numberOfLines={1}
           >
             {callerName}
           </Text>
 
-          {callState === 'active' && (
-            <Text
-              style={{
-                fontSize: 14,
-                fontFamily: 'Poppins-Regular',
-                color: Colors.textSecondaryDark,
-              }}
-            >
-              {isProvider ? 'Client' : 'Provider'}
-            </Text>
-          )}
+          <Text
+            style={{
+              fontSize: 13,
+              fontFamily: 'Poppins-Medium',
+              color: Colors.textSecondaryDark,
+            }}
+          >
+            {isProvider ? 'Client' : 'Provider'}
+          </Text>
 
           {callState === 'outgoing' && (
             <Text
@@ -550,7 +566,9 @@ export default function CallScreen() {
                 fontSize: 14,
                 fontFamily: 'Poppins-Regular',
                 color: callSetupError ? '#DC2626' : Colors.textSecondaryDark,
-                marginTop: Spacing.sm,
+                marginTop: Spacing.md,
+                textAlign: 'center',
+                lineHeight: 20,
               }}
             >
               {callSetupError
@@ -588,10 +606,10 @@ export default function CallScreen() {
                 fontSize: 14,
                 fontFamily: 'Poppins-Regular',
                 color: Colors.textSecondaryDark,
-                marginTop: Spacing.sm,
+                marginTop: Spacing.md,
               }}
             >
-              Call duration: {formatDuration(callDuration)}
+              Duration: {formatDuration(callDuration)}
             </Text>
           )}
         </View>
@@ -609,16 +627,16 @@ export default function CallScreen() {
               justifyContent: 'center',
               gap: Spacing.xl,
               marginTop: 'auto',
-              paddingBottom: Spacing.xxl,
+              paddingBottom: Spacing.xl,
             }}
           >
             <TouchableOpacity
               onPress={handleDeclineCall}
               activeOpacity={0.8}
               style={{
-                width: 70,
-                height: 70,
-                borderRadius: 35,
+                width: 68,
+                height: 68,
+                borderRadius: 34,
                 backgroundColor: '#EF4444',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -632,10 +650,10 @@ export default function CallScreen() {
               onPress={handleAcceptCall}
               activeOpacity={0.8}
               style={{
-                width: 70,
-                height: 70,
-                borderRadius: 35,
-                backgroundColor: '#10B981',
+                width: 68,
+                height: 68,
+                borderRadius: 34,
+                backgroundColor: Colors.accent,
                 alignItems: 'center',
                 justifyContent: 'center',
                 ...SHADOWS.md,
@@ -651,7 +669,7 @@ export default function CallScreen() {
             style={{
               alignItems: 'center',
               marginTop: 'auto',
-              paddingBottom: Spacing.xxl,
+              paddingBottom: Spacing.xl,
               gap: Spacing.md,
             }}
           >
@@ -678,10 +696,10 @@ export default function CallScreen() {
                 onPress={handleCallAgain}
                 activeOpacity={0.8}
                 style={{
-                  backgroundColor: Colors.backgroundGray,
-                  borderRadius: BorderRadius.default,
+                  backgroundColor: Colors.white,
+                  borderRadius: 14,
                   borderWidth: 1,
-                  borderColor: Colors.border,
+                  borderColor: 'rgba(17, 24, 39, 0.08)',
                   paddingVertical: 10,
                   paddingHorizontal: 18,
                 }}
@@ -705,9 +723,9 @@ export default function CallScreen() {
             style={{
               flexDirection: 'row',
               justifyContent: 'center',
-              gap: Spacing.xl,
+              gap: Spacing.lg,
               marginTop: 'auto',
-              paddingBottom: Spacing.xxl,
+              paddingBottom: Spacing.xl,
             }}
           >
             <TouchableOpacity
@@ -717,7 +735,9 @@ export default function CallScreen() {
                 width: 60,
                 height: 60,
                 borderRadius: 30,
-                backgroundColor: Colors.backgroundGray,
+                backgroundColor: isMuted ? '#FEF2F2' : Colors.white,
+                borderWidth: 1,
+                borderColor: isMuted ? 'rgba(220, 38, 38, 0.14)' : 'rgba(17, 24, 39, 0.08)',
                 alignItems: 'center',
                 justifyContent: 'center',
                 ...SHADOWS.sm,
@@ -753,7 +773,9 @@ export default function CallScreen() {
                 width: 60,
                 height: 60,
                 borderRadius: 30,
-                backgroundColor: Colors.backgroundGray,
+                backgroundColor: isSpeakerOn ? '#F2F8EA' : Colors.white,
+                borderWidth: 1,
+                borderColor: isSpeakerOn ? 'rgba(106, 155, 0, 0.16)' : 'rgba(17, 24, 39, 0.08)',
                 alignItems: 'center',
                 justifyContent: 'center',
                 ...SHADOWS.sm,
@@ -769,7 +791,7 @@ export default function CallScreen() {
             style={{
               alignItems: 'center',
               marginTop: 'auto',
-              paddingBottom: Spacing.xxl,
+              paddingBottom: Spacing.xl,
               gap: Spacing.lg,
             }}
           >

@@ -6,7 +6,7 @@ import { providerService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, Wallet } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -355,8 +355,8 @@ export default function RequestVisitScreen() {
   }
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.white}>
-      <View style={{ flex: 1 }}>
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
+      <View style={{ flex: 1, backgroundColor: Colors.backgroundLight }}>
         {/* Header */}
         <View
           style={{
@@ -364,7 +364,7 @@ export default function RequestVisitScreen() {
             alignItems: 'center',
             paddingHorizontal: Spacing.lg,
             paddingTop: Spacing.md,
-            paddingBottom: Spacing.sm,
+            paddingBottom: Spacing.md,
           }}
         >
           <TouchableOpacity
@@ -373,7 +373,7 @@ export default function RequestVisitScreen() {
               width: 40,
               height: 40,
               borderRadius: 20,
-              backgroundColor: Colors.backgroundGray,
+              backgroundColor: Colors.white,
               alignItems: 'center',
               justifyContent: 'center',
               marginRight: Spacing.md,
@@ -382,15 +382,29 @@ export default function RequestVisitScreen() {
           >
             <ArrowLeft size={20} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text
-            style={{
-              fontSize: 20,
-              fontFamily: 'Poppins-Bold',
-              color: Colors.textPrimary,
-            }}
-          >
-            Request visit
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 20,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.textPrimary,
+                letterSpacing: -0.3,
+              }}
+            >
+              Request visit
+            </Text>
+            <Text
+              style={{
+                marginTop: 2,
+                fontSize: 12,
+                fontFamily: 'Poppins-Regular',
+                color: Colors.textSecondaryDark,
+              }}
+              numberOfLines={1}
+            >
+              Choose visit fee, date, and time for the client.
+            </Text>
+          </View>
         </View>
 
         <Animated.View style={[{ flex: 1 }, animatedStyles]}>
@@ -400,30 +414,115 @@ export default function RequestVisitScreen() {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{
               paddingHorizontal: Spacing.lg,
-              paddingBottom: 120,
+              paddingBottom: 132,
             }}
           >
-            {/* Logistics Cost */}
-            <View style={{ marginBottom: Spacing.xl }}>
+            <View
+              style={{
+                backgroundColor: '#0a0a0a',
+                borderRadius: 24,
+                padding: 18,
+                marginTop: 4,
+                marginBottom: Spacing.lg,
+                overflow: 'hidden',
+              }}
+            >
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -50,
+                  right: -50,
+                  width: 150,
+                  height: 150,
+                  borderRadius: 75,
+                  backgroundColor: Colors.accent,
+                  opacity: 0.14,
+                }}
+              />
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: 11,
                   fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                  marginBottom: Spacing.sm,
+                  color: 'rgba(255,255,255,0.65)',
+                  letterSpacing: 0.7,
+                  textTransform: 'uppercase',
+                  marginBottom: 8,
                 }}
               >
-                Logistics Cost:
+                Visit request
               </Text>
+              <Text
+                style={{
+                  fontSize: 18,
+                  lineHeight: 25,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.white,
+                  marginBottom: 8,
+                }}
+                numberOfLines={2}
+              >
+                {params.jobTitle || 'Service inspection'}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  lineHeight: 18,
+                  fontFamily: 'Poppins-Regular',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                The client will see this schedule and pay the visit fee before inspection.
+              </Text>
+            </View>
+
+            {/* Logistics Cost */}
+            <View
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: 20,
+                padding: 16,
+                marginBottom: Spacing.lg,
+                borderWidth: 1,
+                borderColor: 'rgba(17, 24, 39, 0.08)',
+                shadowColor: '#101828',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.035,
+                shadowRadius: 10,
+                elevation: 2,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <View
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 17,
+                    backgroundColor: '#F2F8EA',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 10,
+                  }}
+                >
+                  <Wallet size={17} color={Colors.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
+                    Visit fee
+                  </Text>
+                  <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
+                    Charge only the transport/inspection cost.
+                  </Text>
+                </View>
+              </View>
               <View
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   borderWidth: 1,
-                  borderColor: Colors.border,
-                  borderRadius: BorderRadius.default,
+                  borderColor: 'rgba(17, 24, 39, 0.08)',
+                  borderRadius: 14,
                   paddingHorizontal: Spacing.md,
-                  backgroundColor: Colors.white,
+                  backgroundColor: '#F7F8FA',
                 }}
               >
                 <Text
@@ -454,7 +553,7 @@ export default function RequestVisitScreen() {
             </View>
 
             {/* Select Date */}
-            <View style={{ marginBottom: Spacing.xl }}>
+            <View style={{ marginBottom: Spacing.lg }}>
               <Text
                 style={{
                   fontSize: 14,
@@ -463,15 +562,20 @@ export default function RequestVisitScreen() {
                   marginBottom: Spacing.md,
                 }}
               >
-                Select Date
+                Select date
               </Text>
               <View
                 style={{
                   backgroundColor: Colors.white,
-                  borderRadius: BorderRadius.lg,
+                  borderRadius: 20,
                   padding: Spacing.md,
                   borderWidth: 1,
-                  borderColor: Colors.border,
+                  borderColor: 'rgba(17, 24, 39, 0.08)',
+                  shadowColor: '#101828',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.035,
+                  shadowRadius: 10,
+                  elevation: 2,
                 }}
               >
                 {/* Month Navigation */}
@@ -566,7 +670,7 @@ export default function RequestVisitScreen() {
                           width: 40,
                           height: 40,
                           borderRadius: 20,
-                          backgroundColor: isSelected ? Colors.accent : 'transparent',
+                          backgroundColor: isSelected ? Colors.accent : disabled ? '#F7F8FA' : 'transparent',
                           alignItems: 'center',
                           justifyContent: 'center',
                           margin: 2,
@@ -596,17 +700,44 @@ export default function RequestVisitScreen() {
             </View>
 
             {/* Select Hours */}
-            <View style={{ marginBottom: Spacing.xl }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                  marginBottom: Spacing.md,
-                }}
-              >
-                Select Hours
-              </Text>
+            <View
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: 20,
+                padding: 16,
+                marginBottom: Spacing.xl,
+                borderWidth: 1,
+                borderColor: 'rgba(17, 24, 39, 0.08)',
+                shadowColor: '#101828',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.035,
+                shadowRadius: 10,
+                elevation: 2,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
+                <View
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 17,
+                    backgroundColor: '#FFF7DF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 10,
+                  }}
+                >
+                  <Clock3 size={17} color="#92400E" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
+                    Select time
+                  </Text>
+                  <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
+                    Pick a future time slot.
+                  </Text>
+                </View>
+              </View>
 
               {/* AM Hours */}
               <View style={{ marginBottom: Spacing.md }}>
@@ -638,18 +769,18 @@ export default function RequestVisitScreen() {
                         style={{
                           paddingVertical: Spacing.sm,
                           paddingHorizontal: Spacing.md,
-                          borderRadius: BorderRadius.default,
+                          borderRadius: 12,
                           backgroundColor: isSelected
                             ? Colors.accent
                             : disabled
-                            ? Colors.backgroundGray
-                            : Colors.backgroundGray,
+                            ? '#F7F8FA'
+                            : '#F2F8EA',
                           borderWidth: 1,
                           borderColor: isSelected
                             ? Colors.accent
                             : disabled
-                            ? Colors.border
-                            : Colors.border,
+                            ? 'rgba(17, 24, 39, 0.08)'
+                            : 'rgba(106, 155, 0, 0.16)',
                           opacity: disabled && !isSelected ? 0.45 : 1,
                         }}
                         disabled={disabled}
@@ -704,18 +835,18 @@ export default function RequestVisitScreen() {
                         style={{
                           paddingVertical: Spacing.sm,
                           paddingHorizontal: Spacing.md,
-                          borderRadius: BorderRadius.default,
+                          borderRadius: 12,
                           backgroundColor: isSelected
                             ? Colors.accent
                             : disabled
-                            ? Colors.backgroundGray
-                            : Colors.backgroundGray,
+                            ? '#F7F8FA'
+                            : '#F2F8EA',
                           borderWidth: 1,
                           borderColor: isSelected
                             ? Colors.accent
                             : disabled
-                            ? Colors.border
-                            : Colors.border,
+                            ? 'rgba(17, 24, 39, 0.08)'
+                            : 'rgba(106, 155, 0, 0.16)',
                           opacity: disabled && !isSelected ? 0.45 : 1,
                         }}
                         disabled={disabled}
@@ -754,7 +885,12 @@ export default function RequestVisitScreen() {
             paddingBottom: 28,
             backgroundColor: Colors.white,
             borderTopWidth: 1,
-            borderTopColor: Colors.border,
+            borderTopColor: 'rgba(17, 24, 39, 0.08)',
+            shadowColor: '#101828',
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.06,
+            shadowRadius: 14,
+            elevation: 8,
           }}
         >
           <TouchableOpacity
@@ -765,7 +901,7 @@ export default function RequestVisitScreen() {
             style={{
               backgroundColor: Colors.accent,
               paddingVertical: 16,
-              borderRadius: 12,
+              borderRadius: 16,
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -778,7 +914,7 @@ export default function RequestVisitScreen() {
                 color: Colors.white,
               }}
             >
-              Review & send visit request
+              Review visit request
             </Text>
           </TouchableOpacity>
         </View>

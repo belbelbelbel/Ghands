@@ -144,8 +144,9 @@ export default function PaymentSuccessfulScreen() {
         serviceTime = 'N/A';
       }
 
-      const paymentDate = quotation?.acceptedAt
-        ? formatDate(new Date(quotation.acceptedAt), 'MMM dd, yyyy \'at\' h:mm a')
+      const acceptedAt = (quotation as any)?.acceptedAt;
+      const paymentDate = acceptedAt
+        ? formatDate(new Date(acceptedAt), 'MMM dd, yyyy \'at\' h:mm a')
         : formatDate(new Date(), 'MMM dd, yyyy \'at\' h:mm a');
 
       const data: TransactionData = {
@@ -213,14 +214,28 @@ export default function PaymentSuccessfulScreen() {
     }
   };
 
-  // Show loading state
   if (isLoading || !transactionData) {
     return (
       <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
-          <ActivityIndicator size="large" color={Colors.accent} />
-          <Text style={{ marginTop: 16, fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
-            Loading transaction details...
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 }}>
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: '#F2F8EA',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 18,
+            }}
+          >
+            <ActivityIndicator size="large" color={Colors.accent} />
+          </View>
+          <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, textAlign: 'center' }}>
+            Preparing payment receipt
+          </Text>
+          <Text style={{ marginTop: 6, fontSize: 13, lineHeight: 19, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, textAlign: 'center' }}>
+            We&apos;re confirming the payment details and receipt reference.
           </Text>
         </View>
       </SafeAreaWrapper>
@@ -262,13 +277,13 @@ export default function PaymentSuccessfulScreen() {
           paddingBottom: 100,
         }}
       >
-        {/* App Branding Section - Full Vertical Splash Screen Style */}
+        {/* App Branding Section */}
         <View
           style={{
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: 32,
-            paddingVertical: 20,
+            marginBottom: 20,
+            paddingVertical: 10,
           }}
         >
           <Image
@@ -299,18 +314,23 @@ export default function PaymentSuccessfulScreen() {
               textAlign: 'center',
             }}
           >
-            Professional Service Platform
+            Secure service payment
           </Text>
         </View>
         {/* Payment Successful Card */}
         <View
           style={{
             backgroundColor: Colors.white,
-            borderRadius: BorderRadius.xl,
+            borderRadius: 24,
             padding: 20,
             marginBottom: 20,
             borderWidth: 1,
-            borderColor: Colors.border,
+            borderColor: 'rgba(17, 24, 39, 0.08)',
+            shadowColor: '#101828',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.04,
+            shadowRadius: 16,
+            elevation: 2,
           }}
         >
           <View
@@ -324,7 +344,7 @@ export default function PaymentSuccessfulScreen() {
                 width: 64,
                 height: 64,
                 borderRadius: 32,
-                backgroundColor: '#DCFCE7',
+                backgroundColor: '#F2F8EA',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 16,
@@ -351,8 +371,26 @@ export default function PaymentSuccessfulScreen() {
                 textAlign: 'center',
               }}
             >
-              Your payment has been processed
+              Your wallet payment has been processed and recorded.
             </Text>
+            <View
+              style={{
+                marginTop: 18,
+                alignSelf: 'stretch',
+                backgroundColor: '#0a0a0a',
+                borderRadius: 18,
+                paddingVertical: 16,
+                paddingHorizontal: 14,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 11, fontFamily: 'Poppins-SemiBold', color: 'rgba(255,255,255,0.66)', letterSpacing: 0.7, textTransform: 'uppercase' }}>
+                Total paid
+              </Text>
+              <Text style={{ marginTop: 4, fontSize: 30, lineHeight: 38, fontFamily: 'Poppins-Bold', color: Colors.white, letterSpacing: -0.9 }}>
+                ₦{transactionData.totalAmount}
+              </Text>
+            </View>
           </View>
 
           {/* Service Details */}
@@ -454,16 +492,16 @@ export default function PaymentSuccessfulScreen() {
         <View
           style={{
             backgroundColor: Colors.white,
-            borderRadius: BorderRadius.xl,
+            borderRadius: 20,
             padding: 20,
             marginBottom: 20,
             borderWidth: 1,
-            borderColor: Colors.border,
+            borderColor: 'rgba(17, 24, 39, 0.08)',
           }}
         >
           <Text
             style={{
-              fontSize: 18,
+              fontSize: 17,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
               marginBottom: 16,
@@ -560,14 +598,14 @@ export default function PaymentSuccessfulScreen() {
               marginTop: 12,
               paddingTop: 12,
               borderTopWidth: 1,
-              borderTopColor: Colors.border,
+              borderTopColor: 'rgba(17, 24, 39, 0.08)',
             }}
           >
             <Text
               style={{
-                fontSize: 16,
+                fontSize: 17,
                 fontFamily: 'Poppins-Bold',
-                color: Colors.textPrimary,
+                color: Colors.accent,
               }}
             >
               Total Amount
@@ -588,16 +626,16 @@ export default function PaymentSuccessfulScreen() {
         <View
           style={{
             backgroundColor: Colors.white,
-            borderRadius: BorderRadius.xl,
+            borderRadius: 20,
             padding: 20,
             marginBottom: 24,
             borderWidth: 1,
-            borderColor: Colors.border,
+            borderColor: 'rgba(17, 24, 39, 0.08)',
           }}
         >
           <Text
             style={{
-              fontSize: 18,
+              fontSize: 17,
               fontFamily: 'Poppins-Bold',
               color: Colors.textPrimary,
               marginBottom: 16,
@@ -704,7 +742,7 @@ export default function PaymentSuccessfulScreen() {
             </Text>
             <View
               style={{
-                backgroundColor: '#DCFCE7',
+                backgroundColor: '#ECFDF3',
                 paddingHorizontal: 12,
                 paddingVertical: 4,
                 borderRadius: 12,
@@ -714,7 +752,7 @@ export default function PaymentSuccessfulScreen() {
                 style={{
                   fontSize: 12,
                   fontFamily: 'Poppins-SemiBold',
-                  color: Colors.accent,
+                  color: '#047857',
                 }}
               >
                 Completed

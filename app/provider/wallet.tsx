@@ -271,15 +271,46 @@ export default function ProviderWalletScreen() {
         {/* Wallet Balance Card */}
         <View
           style={{
-            backgroundColor: 'rgba(18, 18, 18, 1)',
-            borderRadius: 12,
+            backgroundColor: '#0a0a0a',
+            borderRadius: 24,
             padding: 20,
-            marginTop: 20,
+            marginTop: 16,
             marginBottom: 20,
             position: 'relative',
             overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.08)',
+            shadowColor: '#101828',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.18,
+            shadowRadius: 18,
+            elevation: 8,
           }}
         >
+          <View
+            style={{
+              position: 'absolute',
+              top: -54,
+              right: -54,
+              width: 170,
+              height: 170,
+              borderRadius: 85,
+              backgroundColor: Colors.accent,
+              opacity: 0.14,
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              bottom: -52,
+              left: -52,
+              width: 150,
+              height: 150,
+              borderRadius: 75,
+              backgroundColor: Colors.accent,
+              opacity: 0.1,
+            }}
+          />
           {/* Wallet Icon */}
           <View
             style={{
@@ -289,26 +320,30 @@ export default function ProviderWalletScreen() {
               width: 48,
               height: 48,
               borderRadius: 24,
-              backgroundColor: Colors.accent,
+              backgroundColor: 'rgba(202, 255, 51, 0.18)',
               alignItems: 'center',
               justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: 'rgba(202, 255, 51, 0.28)',
             }}
           >
-            <Wallet size={24} color={Colors.white} />
+            <Wallet size={24} color={Colors.accent} />
           </View>
 
           {/* Wallet ID */}
           {walletId && (
             <Text
               style={{
-                fontSize: 12,
-                fontFamily: 'Poppins-Regular',
+                fontSize: 11,
+                fontFamily: 'Poppins-Medium',
                 color: Colors.white,
-                opacity: 0.7,
-                marginBottom: 8,
+                opacity: 0.62,
+                marginBottom: 10,
+                letterSpacing: 0.8,
+                textTransform: 'uppercase',
               }}
             >
-              Id: GH-WLT-{String(walletId).padStart(8, '0')}
+              Wallet ID: GH-WLT-{String(walletId).padStart(8, '0')}
             </Text>
           )}
 
@@ -316,13 +351,15 @@ export default function ProviderWalletScreen() {
           <Text
             style={{
               fontSize: 13,
-              fontFamily: 'Poppins-Regular',
+              fontFamily: 'Poppins-SemiBold',
               color: Colors.white,
-              opacity: 0.8,
+              opacity: 0.78,
               marginBottom: 8,
+              letterSpacing: 0.7,
+              textTransform: 'uppercase',
             }}
           >
-            Current balance
+            Available Balance
           </Text>
           {isLoadingBalance ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
@@ -341,10 +378,11 @@ export default function ProviderWalletScreen() {
           ) : (
             <Text
               style={{
-                fontSize: 28,
+                fontSize: 34,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.white,
                 marginBottom: 16,
+                letterSpacing: -0.8,
               }}
             >
               ₦{balance.toLocaleString('en-NG', {
@@ -354,22 +392,37 @@ export default function ProviderWalletScreen() {
             </Text>
           )}
 
-          {/* Pending Earnings */}
-          {pendingEarnings > 0 && (
+          <View
+            style={{
+              borderTopWidth: 1,
+              borderTopColor: 'rgba(255, 255, 255, 0.15)',
+              paddingTop: 14,
+            }}
+          >
             <Text
               style={{
-                fontSize: 13,
+                fontSize: 11,
                 fontFamily: 'Poppins-Regular',
                 color: Colors.white,
-                opacity: 0.8,
+                opacity: 0.65,
+                marginBottom: 6,
               }}
             >
-              Pending Earnings (Escrow): ₦{pendingEarnings.toLocaleString('en-NG', {
+              Pending escrow earnings
+            </Text>
+            <Text
+              style={{
+                fontSize: 16,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.white,
+              }}
+            >
+              ₦{pendingEarnings.toLocaleString('en-NG', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
             </Text>
-          )}
+          </View>
         </View>
 
         {/* Action Buttons */}
@@ -384,7 +437,7 @@ export default function ProviderWalletScreen() {
             style={{
               flex: 1,
               backgroundColor: Colors.accent,
-              borderRadius: 8,
+              borderRadius: 14,
               paddingVertical: 14,
               paddingHorizontal: 16,
               flexDirection: 'row',
@@ -408,8 +461,8 @@ export default function ProviderWalletScreen() {
           <TouchableOpacity
             style={{
               flex: 1,
-              backgroundColor: 'rgba(18, 18, 18, 1)',
-              borderRadius: 8,
+              backgroundColor: '#111111',
+              borderRadius: 14,
               paddingVertical: 14,
               paddingHorizontal: 16,
               flexDirection: 'row',
@@ -474,7 +527,7 @@ export default function ProviderWalletScreen() {
           <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
             <ActivityIndicator size="large" color={Colors.accent} />
             <Text style={{ marginTop: 16, fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
-              Loading activities...
+              Loading wallet activity...
             </Text>
           </View>
         ) : activities.length === 0 ? (
@@ -486,7 +539,7 @@ export default function ProviderWalletScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
             }}
           >
             <Receipt size={48} color={Colors.textSecondaryDark} style={{ marginBottom: 16 }} />
@@ -498,7 +551,7 @@ export default function ProviderWalletScreen() {
                 marginBottom: 8,
               }}
             >
-              No activities yet
+              No wallet activity yet
             </Text>
             <Text
               style={{
@@ -508,7 +561,7 @@ export default function ProviderWalletScreen() {
                 textAlign: 'center',
               }}
             >
-              Your recent wallet activity will appear here
+              Completed jobs, withdrawals, and pending earnings will appear here.
             </Text>
           </View>
         ) : (
@@ -517,11 +570,16 @@ export default function ProviderWalletScreen() {
             key={activity.id}
             style={{
               backgroundColor: Colors.white,
-              borderRadius: 10,
-              padding: 16,
+              borderRadius: 18,
+              padding: 15,
               marginBottom: 12,
               borderWidth: 1,
-              borderColor: Colors.border,
+              borderColor: 'rgba(17, 24, 39, 0.08)',
+              shadowColor: '#101828',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.035,
+              shadowRadius: 10,
+              elevation: 2,
             }}
           >
             {/* Top Row */}
@@ -532,34 +590,38 @@ export default function ProviderWalletScreen() {
                   width: 40,
                   height: 40,
                   borderRadius: 20,
-                  backgroundColor: '#F5F5F5',
+                  backgroundColor: activity.status === 'pending' ? '#FFF7DF' : '#ECFDF3',
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: 12,
                 }}
               >
-                <Check size={20} color={Colors.textSecondaryDark} />
+                <Check size={20} color={activity.status === 'pending' ? '#92400E' : '#047857'} />
               </View>
 
               {/* Content */}
               <View style={{ flex: 1 }}>
                 <Text
                   style={{
-                    fontSize: 15,
+                    fontSize: 14,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.textPrimary,
                     marginBottom: 4,
+                    lineHeight: 19,
                   }}
+                  numberOfLines={1}
                 >
                   {activity.serviceName}
                 </Text>
                 <Text
                   style={{
-                    fontSize: 13,
-                    fontFamily: 'Poppins-Regular',
+                    fontSize: 12,
+                    lineHeight: 17,
+                    fontFamily: 'Poppins-Medium',
                     color: Colors.textSecondaryDark,
                     marginBottom: 8,
                   }}
+                  numberOfLines={2}
                 >
                   {activity.serviceType}
                 </Text>
@@ -580,14 +642,14 @@ export default function ProviderWalletScreen() {
                   paddingHorizontal: 10,
                   paddingVertical: 4,
                   borderRadius: 12,
-                  backgroundColor: activity.status === 'pending' ? '#FEF3C7' : '#D1FAE5',
+                  backgroundColor: activity.status === 'pending' ? '#FFF7DF' : '#ECFDF3',
                 }}
               >
                 <Text
                   style={{
                     fontSize: 11,
                     fontFamily: 'Poppins-SemiBold',
-                    color: activity.status === 'pending' ? '#D97706' : '#059669',
+                    color: activity.status === 'pending' ? '#92400E' : '#047857',
                   }}
                 >
                   {activity.status === 'pending' ? 'Pending' : 'Completed'}
@@ -598,7 +660,7 @@ export default function ProviderWalletScreen() {
             {/* Amount */}
             <Text
               style={{
-                fontSize: 16,
+                fontSize: 17,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
                 marginBottom: 12,
@@ -613,7 +675,7 @@ export default function ProviderWalletScreen() {
               <TouchableOpacity
                 style={{
                   backgroundColor: Colors.accent,
-                  borderRadius: 8,
+                borderRadius: 12,
                   paddingVertical: 12,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -635,11 +697,11 @@ export default function ProviderWalletScreen() {
               <TouchableOpacity
                 style={{
                   backgroundColor: Colors.white,
-                  borderRadius: 8,
+                  borderRadius: 12,
                   paddingVertical: 12,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  borderWidth: 1.5,
+                  borderWidth: 1,
                   borderColor: Colors.accent,
                   flexDirection: 'row',
                 }}
@@ -647,13 +709,13 @@ export default function ProviderWalletScreen() {
                 onPress={() => router.push({
                   pathname: '/ProviderReceiptScreen' as any,
                   params: {
-                    transactionId: item.id,
-                    ...(item.requestId ? { requestId: String(item.requestId) } : {}),
-                    amount: item.amount.replace(/[₦,\s]/g, ''),
-                    providerName: item.serviceName,
-                    serviceName: item.serviceType,
-                    serviceDate: item.date,
-                    serviceTime: item.time,
+                    transactionId: activity.id,
+                    ...(activity.requestId ? { requestId: String(activity.requestId) } : {}),
+                    amount: activity.amount.replace(/[₦,\s]/g, ''),
+                    providerName: activity.serviceName,
+                    serviceName: activity.serviceType,
+                    serviceDate: activity.date,
+                    serviceTime: activity.time,
                   },
                 } as any)}
               >

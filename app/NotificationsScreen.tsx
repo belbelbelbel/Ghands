@@ -704,10 +704,10 @@ export default function NotificationsScreen() {
                   key={i}
                   style={{
                     flexDirection: 'row',
-                    marginBottom: i < 3 ? 12 : 0,
+                    marginBottom: i < 3 ? 10 : 0,
                     backgroundColor: '#F8FAF7',
-                    borderRadius: 22,
-                    padding: 16,
+                    borderRadius: 18,
+                    padding: 12,
                     opacity: 0.6,
                     borderWidth: 1,
                     borderColor: '#EEF1E8',
@@ -724,36 +724,36 @@ export default function NotificationsScreen() {
                   />
                   <View
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 22,
+                      width: 36,
+                      height: 36,
+                      borderRadius: 14,
                       backgroundColor: '#E5E7EB',
-                      marginRight: 12,
+                      marginRight: 10,
                     }}
                   />
                   <View style={{ flex: 1 }}>
                     <View
                       style={{
                         width: '40%',
-                        height: 12,
+                        height: 10,
                         borderRadius: 6,
                         backgroundColor: '#E5E7EB',
-                        marginBottom: 8,
+                        marginBottom: 7,
                       }}
                     />
                     <View
                       style={{
                         width: '90%',
-                        height: 10,
+                        height: 9,
                         borderRadius: 6,
                         backgroundColor: '#E5E7EB',
-                        marginBottom: 6,
+                        marginBottom: 5,
                       }}
                     />
                     <View
                       style={{
                         width: '60%',
-                        height: 10,
+                        height: 9,
                         borderRadius: 6,
                         backgroundColor: '#E5E7EB',
                       }}
@@ -847,8 +847,8 @@ export default function NotificationsScreen() {
                         <View
                           style={{
                             flexDirection: 'row',
-                            marginBottom: index < sectionNotifications.length - 1 ? 14 : 0,
-                            minHeight: 90,
+                            marginBottom: index < sectionNotifications.length - 1 ? 10 : 0,
+                            minHeight: 74,
                             alignItems: 'stretch',
                           }}
                         >
@@ -894,34 +894,34 @@ export default function NotificationsScreen() {
                     <View
                       style={{
                         flexDirection: 'row',
-                        marginBottom: index < sectionNotifications.length - 1 ? 14 : 0,
+                        marginBottom: index < sectionNotifications.length - 1 ? 10 : 0,
                         backgroundColor: Colors.white,
-                        borderRadius: 22,
-                        paddingVertical: 14,
-                        paddingHorizontal: 14,
+                        borderRadius: 18,
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
                         borderWidth: 1,
                         borderColor: notification.isRead ? '#EEF1E8' : 'rgba(106, 155, 0, 0.22)',
                         shadowColor: '#101828',
-                        shadowOffset: { width: 0, height: 7 },
-                        shadowOpacity: notification.isRead ? 0.025 : 0.055,
-                        shadowRadius: 14,
-                        elevation: notification.isRead ? 1 : 3,
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: notification.isRead ? 0.018 : 0.04,
+                        shadowRadius: 10,
+                        elevation: notification.isRead ? 1 : 2,
                       }}
                     >
                       <View
                         style={{
-                          width: 42,
-                          height: 42,
-                          borderRadius: 16,
+                          width: 36,
+                          height: 36,
+                          borderRadius: 14,
                           backgroundColor: notification.iconBgColor,
                           alignItems: 'center',
                           justifyContent: 'center',
-                          marginRight: 12,
+                          marginRight: 10,
                         }}
                       >
                         {notification.icon && (
                           <notification.icon
-                            size={21}
+                            size={18}
                             color={notification.iconColor}
                           />
                         )}
@@ -932,12 +932,12 @@ export default function NotificationsScreen() {
                         <Text
                           style={{
                               flex: 1,
-                              fontSize: 14,
+                              fontSize: 13,
                             fontFamily: 'Poppins-Bold',
                             color: Colors.textPrimary,
-                              lineHeight: 19,
+                              lineHeight: 17,
                           }}
-                            numberOfLines={2}
+                            numberOfLines={1}
                         >
                           {notification.type}
                         </Text>
@@ -959,23 +959,23 @@ export default function NotificationsScreen() {
                               fontSize: 12,
                               fontFamily: 'Poppins-Regular',
                               color: Colors.textSecondaryDark,
-                              marginBottom: 10,
-                              lineHeight: 18,
+                              marginBottom: 8,
+                              lineHeight: 16,
                             }}
-                            numberOfLines={3}
+                            numberOfLines={2}
                           >
                             {notification.description}
                           </Text>
                         )}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                           <TouchableOpacity
                             onPress={() => {
                               handleMarkAsRead(notification.id);
                               handleNavigateToDetails(notification);
                             }}
                             style={{
-                              paddingHorizontal: 12,
-                              paddingVertical: 7,
+                              paddingHorizontal: 10,
+                              paddingVertical: 5,
                               borderRadius: 999,
                               backgroundColor: '#F2F8EA',
                             }}
@@ -983,7 +983,7 @@ export default function NotificationsScreen() {
                           >
                             <Text
                               style={{
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontFamily: 'Poppins-SemiBold',
                                 color: Colors.accent,
                               }}
@@ -997,18 +997,18 @@ export default function NotificationsScreen() {
                               style={{
                                 flexDirection: 'row',
                                 alignItems: 'center',
-                                paddingHorizontal: 10,
-                                paddingVertical: 7,
+                                paddingHorizontal: 9,
+                                paddingVertical: 5,
                                 borderRadius: 999,
                                 borderWidth: 1,
                                 borderColor: '#E5E7EB',
                               }}
                               activeOpacity={0.7}
                             >
-                              <CheckCheck size={13} color={Colors.textSecondaryDark} style={{ marginRight: 4 }} />
+                              <CheckCheck size={12} color={Colors.textSecondaryDark} style={{ marginRight: 4 }} />
                               <Text
                                 style={{
-                                  fontSize: 11,
+                                  fontSize: 10,
                                   fontFamily: 'Poppins-SemiBold',
                                   color: Colors.textSecondaryDark,
                                 }}
@@ -1020,13 +1020,13 @@ export default function NotificationsScreen() {
                         </View>
                       </View>
 
-                      <View style={{ alignItems: 'flex-end', marginLeft: 10, minWidth: 52 }}>
+                      <View style={{ alignItems: 'flex-end', marginLeft: 8, minWidth: 48 }}>
                         <Text
                           style={{
-                            fontSize: 11,
+                            fontSize: 10,
                             fontFamily: 'Poppins-Medium',
                             color: Colors.textSecondaryDark,
-                            marginBottom: 4,
+                            marginBottom: 3,
                             textAlign: 'right',
                           }}
                         >
@@ -1034,7 +1034,7 @@ export default function NotificationsScreen() {
                         </Text>
                         <Text
                           style={{
-                            fontSize: 10,
+                            fontSize: 9,
                             fontFamily: 'Poppins-SemiBold',
                             color: notification.isRead ? Colors.textTertiary : Colors.accent,
                           }}

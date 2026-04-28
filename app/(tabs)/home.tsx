@@ -15,7 +15,7 @@ import { useUserLocation } from '@/hooks/useUserLocation';
 import { Colors, REFRESH_CONTROL, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { ServiceRequest, authService, serviceRequestService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
-import { getCategoryIcon } from '@/utils/categoryIcons';
+import { getCategoryIcon, resolveCategoryImageSource } from '@/utils/categoryIcons';
 import { AuthError } from '@/utils/errors';
 // import { shareReferral } from '@/utils/referral';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,16 +42,27 @@ const CategoryItem = React.memo(({
     <TouchableOpacity
       key={category.id}
       onPress={handlePress}
-      className="rounded-2xl bg-gray-100 px-3 py-2 items-center"
-      style={{ width: 100, marginRight: 12 }}
+      className="rounded-2xl bg-white px-3 py-3 items-center"
+      style={{
+        width: 98,
+        marginRight: 10,
+        borderWidth: 1,
+        borderColor: '#EEF1E8',
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.035,
+        shadowRadius: 10,
+        elevation: 1,
+      }}
       activeOpacity={0.8}
     >
-      <View className="w-22 h-22 rounded-2xl items-center  justify-center mb-2 border-0">
+      <View className="w-12 h-12 rounded-2xl items-center justify-center mb-2 bg-[#F4F8EF]">
         <IconComponent />
       </View>
       <Text
         className="text-xs font-medium text-black text-center"
-        style={{ fontFamily: 'Poppins-Medium' }}
+        style={{ fontFamily: 'Poppins-SemiBold' }}
+        numberOfLines={1}
       >
         {category.title}
       </Text>
@@ -60,6 +71,23 @@ const CategoryItem = React.memo(({
 });
 
 CategoryItem.displayName = 'CategoryItem';
+
+const parseMoneyValue = (value: unknown): number | null => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[^\d.-]/g, '');
+    if (!cleaned) return null;
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const formatNaira = (amount: number): string =>
+  `₦${amount.toLocaleString('en-NG', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })}`;
 
 const HomeScreen = React.memo(() => {
   const router = useRouter();
@@ -167,9 +195,18 @@ const HomeScreen = React.memo(() => {
       status = 'In Progress';
     }
 
-    const requestPrice = (request as any).price ?? (request as any).total;
-    const price = requestPrice != null ? Number(requestPrice) : priceFromQuotations;
-    const priceRange = price != null && !isNaN(price) ? `₦${Number(price).toLocaleString()}` : 'Price pending';
+    const requestPrice = [
+      (request as any).totalCost,
+      (request as any).total_amount,
+      (request as any).paymentAmount,
+      (request as any).amount,
+      (request as any).price,
+      (request as any).total,
+      (request as any).quotationTotal,
+      (request as any).quoteTotal,
+    ].map(parseMoneyValue).find((value) => value != null && value > 0);
+    const price = requestPrice ?? priceFromQuotations;
+    const priceRange = price != null && !isNaN(price) && price > 0 ? formatNaira(price) : 'Awaiting quote';
 
     return {
       id: request.id.toString(),
@@ -332,19 +369,23 @@ const HomeScreen = React.memo(() => {
       // Map API categories to ServiceCategory format with icons
       const categoriesWithIcons: ServiceCategory[] = categories
         .map((cat: any) => {
+          const hasBundledIcon = !!resolveCategoryImageSource(cat.name, cat.displayName, cat.description);
           const IconComponent = getCategoryIcon(cat.name, cat.displayName, cat.description);
           return {
             id: cat.name || cat.categoryName || cat.id || `category-${cat.name}`,
             title: cat.displayName || cat.name || 'Service',
             icon: IconComponent,
+            hasBundledIcon,
           };
         });
 
-      // Shuffle categories for random order on home page
-      const shuffledCategories = shuffleArray(categoriesWithIcons);
+      // Prioritize categories with proper bundled icons on home so the first row looks polished.
+      const iconCategories = shuffleArray(categoriesWithIcons.filter((cat: any) => cat.hasBundledIcon));
+      const fallbackCategories = shuffleArray(categoriesWithIcons.filter((cat: any) => !cat.hasBundledIcon));
+      const prioritizedCategories = [...iconCategories, ...fallbackCategories];
 
       // Limit to 8 for home screen (same as dummy data)
-      const limitedCategories = shuffledCategories.slice(0, 8);
+      const limitedCategories = prioritizedCategories.slice(0, 8);
 
       // Replace dummy data with API data
       setApiCategories(limitedCategories);
@@ -543,13 +584,13 @@ const HomeScreen = React.memo(() => {
             </CoachMarkTarget>
           </View>
             <CoachMarkTarget name="categories-section">
-            <View className="px-4 pt-4 mb-0">
-              <View className="flex-row pb-1 items-center justify-between mb-2">
+            <View className="px-4 pt-6 mb-0">
+              <View className="flex-row pb-1 items-center justify-between mb-3">
                 <Text
                   className="text-lg font-bold text-black"
                   style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
                 >
-                  Categories
+                  Popular services
                 </Text>
                 <TouchableOpacity
                   onPress={handleViewAllCategories}
@@ -626,18 +667,28 @@ const HomeScreen = React.memo(() => {
 
           {/* Quick Actions */}
           <CoachMarkTarget name="quick-actions">
-            <View className="px-4 mt-3 mb-8">
-              <Text
-                className="text-lg font-bold text-black mb-4"
-                style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
-              >
-                Quick Actions
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingRight: 16 }}
-              >
+            <View className="px-4 mt-2 mb-7">
+              <View className="flex-row items-end justify-between mb-3">
+                <View>
+                  <Text
+                    className="text-lg font-bold text-black"
+                    style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
+                  >
+                    Quick actions
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      marginTop: 2,
+                    }}
+                  >
+                    Start common tasks in one tap.
+                  </Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
                 {(quickActions || []).map((action: QuickAction) => (
                   <TouchableOpacity
                     key={action.id}
@@ -656,47 +707,54 @@ const HomeScreen = React.memo(() => {
                     }}
                     activeOpacity={0.8}
                     style={{
-                      minWidth: 140,
-                      marginRight: 12,
-                      backgroundColor: '#F3F4F6',
-                      borderRadius: 16,
-                      padding: 16,
+                      flex: 1,
+                      backgroundColor: Colors.white,
+                      borderRadius: 18,
+                      paddingVertical: 14,
+                      paddingHorizontal: 10,
                       alignItems: 'center',
                       justifyContent: 'center',
                       borderWidth: 1,
-                      borderColor: '#E5E7EB',
+                      borderColor: '#EEF1E8',
+                      shadowColor: '#101828',
+                      shadowOffset: { width: 0, height: 5 },
+                      shadowOpacity: 0.035,
+                      shadowRadius: 10,
+                      elevation: 1,
                     }}
                   >
                     <View
                       style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 24,
-                        backgroundColor: '#FFFFFF',
+                        width: 42,
+                        height: 42,
+                        borderRadius: 21,
+                        backgroundColor: action.id === 'emergency' ? '#FEF2F2' : '#F4F8EF',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: 10,
+                        marginBottom: 9,
                       }}
                     >
                       <Ionicons
                         name={action.iconName as any}
-                        size={24}
-                        color={action.id === 'emergency' ? '#DC2626' : '#000000'}
+                        size={21}
+                        color={action.id === 'emergency' ? '#DC2626' : Colors.textPrimary}
                       />
                     </View>
                     <Text
                       style={{
-                        fontSize: 13,
+                        fontSize: 12,
                         fontFamily: 'Poppins-SemiBold',
                         color: '#000000',
                         textAlign: 'center',
+                        lineHeight: 16,
                       }}
+                      numberOfLines={2}
                     >
-                      {action.title}
+                      {action.id === 'emergency' ? 'Urgent help' : action.title}
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
             </View>
           </CoachMarkTarget>
 
@@ -791,25 +849,45 @@ const HomeScreen = React.memo(() => {
           </View>
           <CoachMarkTarget name="job-activity">
             <View className="px-4 mb-8">
-              <View className="flex-row items-center justify-between mb-3">
-                <Text
-                  className="text-lg font-bold text-black"
-                  style={{ letterSpacing: -0.3, fontFamily: 'Poppins-Bold' }}
-                >
-                  Job Activity
-                </Text>
+              <View className="flex-row items-end justify-between mb-3">
+                <View>
+                  <Text
+                    className="text-lg font-bold text-black"
+                    style={{ letterSpacing: -0.3, fontFamily: 'Poppins-Bold' }}
+                  >
+                    Job activity
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      marginTop: 2,
+                    }}
+                  >
+                    Track recent requests and quotations.
+                  </Text>
+                </View>
                 <TouchableOpacity
                   className="flex-row items-center"
                   onPress={handleViewAllJobs}
                   activeOpacity={0.7}
+                  style={{
+                    backgroundColor: Colors.white,
+                    paddingHorizontal: 11,
+                    paddingVertical: 7,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: '#E8ECE3',
+                  }}
                 >
                   <Text
-                    className="text-sm text-black"
+                    className="text-xs text-black"
                     style={{ fontFamily: 'Poppins-SemiBold' }}
                   >
                     View all
                   </Text>
-                  <Ionicons name="chevron-forward" size={16} color="black" />
+                  <Ionicons name="chevron-forward" size={14} color="black" />
                 </TouchableOpacity>
               </View>
               {isLoadingJobs ? (

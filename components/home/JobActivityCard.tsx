@@ -37,6 +37,7 @@ type JobActivityCardProps = {
 const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
   const router = useRouter();
   const theme = jobStatusTheme[activity.status];
+  const isAwaitingQuote = activity.priceRange.toLowerCase().includes('awaiting');
 
   const handlePress = () => {
     const requestId = parseInt(activity.id, 10);
@@ -59,19 +60,29 @@ const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
 
   return (
     <TouchableOpacity
-      className="bg-white rounded-2xl px-4 py-7 border border-gray-100 shadow-[0px_6px_18px_rgba(16,24,40,0.04)]"
+      className="bg-white rounded-2xl px-4 py-4 shadow-[0px_6px_18px_rgba(16,24,40,0.04)]"
       activeOpacity={0.7}
       onPress={handlePress}
+      style={{
+        borderWidth: 1,
+        borderColor: '#EEF1E8',
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.045,
+        shadowRadius: 16,
+        elevation: 2,
+      }}
     >
       <View className="flex-row items-center justify-between mb-3">
-        <View className="flex-row items-center">
-          <View className="w-10 h-10 rounded-full bg-[#F2F7EC] items-center justify-center mr-3">
-            <Ionicons name="construct" size={18} color="#6A9B00" />
+        <View className="flex-row items-center flex-1 pr-3">
+          <View className="w-9 h-9 rounded-full bg-[#F2F7EC] items-center justify-center mr-3">
+            <Ionicons name="construct" size={17} color="#6A9B00" />
           </View>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text
               className="text-base text-black"
-              style={{ fontFamily: 'Poppins-SemiBold' }}
+              style={{ fontFamily: 'Poppins-SemiBold', lineHeight: 20 }}
+              numberOfLines={1}
             >
               {activity.title}
             </Text>
@@ -95,19 +106,47 @@ const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
           </Text>
         </View>
       </View>
-      <View className="flex-row items-center justify-between">
-        <Text
-          className="text-xs text-gray-500"
-          style={{ fontFamily: 'Poppins-Medium' }}
+      <View className="flex-row items-center justify-between pt-2">
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text
+            className="text-xs text-gray-500"
+            style={{ fontFamily: 'Poppins-Medium', marginBottom: 3 }}
+          >
+            {activity.quotes} {activity.quotes === 1 ? 'quote' : 'quotes'} received
+          </Text>
+          <Text
+            className="text-xs text-gray-400"
+            style={{ fontFamily: 'Poppins-Regular' }}
+          >
+            {isAwaitingQuote ? 'Price will appear after a provider sends a quote' : 'Estimated total'}
+          </Text>
+        </View>
+        <View
+          style={{
+            backgroundColor: isAwaitingQuote ? '#F9FAFB' : '#F2F7EC',
+            borderWidth: 1,
+            borderColor: isAwaitingQuote ? '#EEF1E8' : '#E3EED4',
+            borderRadius: 13,
+            paddingHorizontal: 10,
+            paddingVertical: 7,
+            alignItems: 'flex-end',
+            minWidth: isAwaitingQuote ? 82 : 74,
+          }}
         >
-          {activity.quotes} {activity.quotes === 1 ? 'quote' : 'quotes'} received
-        </Text>
-        <Text
-          className="text-sm text-black"
-          style={{ fontFamily: 'Poppins-SemiBold' }}
-        >
-          {activity.priceRange}
-        </Text>
+          <Text
+            className="text-[10px] text-gray-500"
+            style={{ fontFamily: 'Poppins-Medium', marginBottom: 1 }}
+          >
+            {isAwaitingQuote ? 'Pending' : 'Price'}
+          </Text>
+          <Text
+            className="text-xs text-black"
+            style={{ fontFamily: 'Poppins-SemiBold' }}
+            numberOfLines={1}
+          >
+            {isAwaitingQuote ? 'No quote yet' : activity.priceRange}
+          </Text>
+        </View>
       </View>
     </TouchableOpacity>
   );

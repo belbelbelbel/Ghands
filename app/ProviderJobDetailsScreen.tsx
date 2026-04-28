@@ -3724,7 +3724,7 @@ export default function ProviderJobDetailsScreen() {
         <View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            backgroundColor: 'rgba(17, 24, 39, 0.62)',
             justifyContent: 'center',
             paddingHorizontal: 20,
           }}
@@ -3738,193 +3738,231 @@ export default function ProviderJobDetailsScreen() {
           <View
             style={{
               backgroundColor: Colors.white,
-              borderRadius: 28,
-              padding: 20,
+              borderRadius: 30,
+              padding: 18,
               borderWidth: 1,
-              borderColor: '#E5E7EB',
+              borderColor: '#D1D5DB',
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 18 },
-              shadowOpacity: 0.18,
-              shadowRadius: 28,
-              elevation: 12,
+              shadowOpacity: 0.28,
+              shadowRadius: 30,
+              elevation: 18,
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <View
-                  style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 21,
-                    backgroundColor: '#ECFDF3',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: 12,
-                    borderWidth: 1,
-                    borderColor: '#BBF7D0',
-                  }}
-                >
-                  <CheckCircle2 size={22} color={'#166534'} />
-                </View>
-                <Text
-                  style={{
-                    fontSize: 19,
-                    fontFamily: 'Poppins-Bold',
-                    color: Colors.textPrimary,
-                    marginBottom: 5,
-                  }}
-                >
-                  Job completed
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.textSecondaryDark,
-                    lineHeight: 18,
-                  }}
-                >
-                  This job is closed. You can review the payment receipt or report a problem if something needs attention.
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setShowCompletedActionsModal(false)}
-                activeOpacity={0.8}
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 17,
-                  backgroundColor: '#F3F4F6',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <X size={17} color={Colors.textSecondaryDark} />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
+            <View
               style={{
-                backgroundColor: '#F7FEE7',
-                borderWidth: 1,
-                borderColor: '#D9F99D',
-                borderRadius: 18,
-                paddingVertical: 14,
-                paddingHorizontal: 14,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 12,
-              }}
-              activeOpacity={0.85}
-              onPress={() => {
-                haptics.light();
-                setShowCompletedActionsModal(false);
-                router.push({
-                  pathname: '/ProviderReceiptScreen' as any,
-                  params: { requestId: params.requestId },
-                } as any);
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <View
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 17,
-                    backgroundColor: Colors.white,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 10,
-                  }}
-                >
-                  <Receipt size={17} color={'#166534'} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: '#166534' }}>
-                    View receipt
-                  </Text>
-                  <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: '#3F6212', marginTop: 2 }}>
-                    See amount, service, and payment details
-                  </Text>
-                </View>
-              </View>
-              <ArrowRight size={16} color={'#166534'} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{
-                backgroundColor: Colors.white,
-                borderWidth: 1,
-                borderColor: '#FECACA',
-                borderRadius: 18,
-                paddingVertical: 14,
-                paddingHorizontal: 14,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                backgroundColor: '#111827',
+                borderRadius: 24,
+                padding: 16,
                 marginBottom: 14,
               }}
-              activeOpacity={0.85}
-              onPress={() => {
-                if (!request) return;
-                haptics.light();
-                setShowCompletedActionsModal(false);
-                router.push({
-                  pathname: '/ReportIssueScreen' as any,
-                  params: {
-                    requestId: params.requestId,
-                    jobTitle: request.categoryName || 'Service Request',
-                    orderNumber: `Order #${request.id || 'N/A'}`,
-                    cost: quotation?.total ? `₦${quotation.total.toFixed(2)}` : 'N/A',
-                    assignee: clientName,
-                    completionDate: request.updatedAt ? formatDate(request.updatedAt) : 'N/A',
-                  },
-                } as any);
-              }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <View
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      backgroundColor: '#FFFFFF',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 12,
+                    }}
+                  >
+                    <CheckCircle2 size={24} color={Colors.accent} strokeWidth={2.6} />
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 19,
+                      fontFamily: 'Poppins-Bold',
+                      color: Colors.white,
+                      marginBottom: 5,
+                    }}
+                  >
+                    Job completed
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Regular',
+                      color: '#D1D5DB',
+                      lineHeight: 18,
+                    }}
+                  >
+                    This job is closed. View the receipt or report a problem if something needs attention.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowCompletedActionsModal(false)}
+                  activeOpacity={0.8}
                   style={{
                     width: 34,
                     height: 34,
                     borderRadius: 17,
+                    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.16)',
+                  }}
+                >
+                  <X size={18} color={Colors.white} strokeWidth={2.4} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={{ gap: 10 }}>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: Colors.white,
+                  borderWidth: 1,
+                  borderColor: '#D1D5DB',
+                  borderRadius: 18,
+                  paddingVertical: 14,
+                  paddingHorizontal: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  shadowColor: '#111827',
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.07,
+                  shadowRadius: 14,
+                  elevation: 3,
+                }}
+                activeOpacity={0.85}
+                onPress={() => {
+                  haptics.light();
+                  setShowCompletedActionsModal(false);
+                  router.push({
+                    pathname: '/ProviderReceiptScreen' as any,
+                    params: { requestId: params.requestId },
+                  } as any);
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: '#111827',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 12,
+                    }}
+                  >
+                    <Receipt size={19} color={Colors.white} strokeWidth={2.4} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
+                      View receipt
+                    </Text>
+                    <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 2, lineHeight: 16 }}>
+                      Amount, service, and payment details
+                    </Text>
+                  </View>
+                </View>
+                <View
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: '#F3F4F6',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ArrowRight size={15} color={Colors.textPrimary} strokeWidth={2.4} />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  backgroundColor: Colors.white,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                  borderRadius: 18,
+                  paddingVertical: 14,
+                  paddingHorizontal: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+                activeOpacity={0.85}
+                onPress={() => {
+                  if (!request) return;
+                  haptics.light();
+                  setShowCompletedActionsModal(false);
+                  router.push({
+                    pathname: '/ReportIssueScreen' as any,
+                    params: {
+                      requestId: params.requestId,
+                      jobTitle: request.categoryName || 'Service Request',
+                      orderNumber: `Order #${request.id || 'N/A'}`,
+                      cost: quotation?.total ? `₦${quotation.total.toFixed(2)}` : 'N/A',
+                      assignee: clientName,
+                      completionDate: request.updatedAt ? formatDate(request.updatedAt) : 'N/A',
+                    },
+                  } as any);
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: '#FEF2F2',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 12,
+                      borderWidth: 1,
+                      borderColor: '#FECACA',
+                    }}
+                  >
+                    <Activity size={19} color={Colors.error} strokeWidth={2.3} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
+                      Report an issue
+                    </Text>
+                    <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 2, lineHeight: 16 }}>
+                      Get support for this completed job
+                    </Text>
+                  </View>
+                </View>
+                <View
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
                     backgroundColor: '#FEF2F2',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 10,
                   }}
                 >
-                  <Activity size={17} color={Colors.error} />
+                  <ExternalLink size={14} color={Colors.error} strokeWidth={2.3} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.error }}>
-                    Report an issue
-                  </Text>
-                  <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: '#991B1B', marginTop: 2 }}>
-                    Contact support about this completed job
-                  </Text>
-                </View>
-              </View>
-              <ExternalLink size={15} color={Colors.error} />
-            </TouchableOpacity>
+              </TouchableOpacity>
 
-            <View
-              style={{
-                backgroundColor: '#F9FAFB',
-                borderRadius: 16,
-                paddingVertical: 12,
-                paddingHorizontal: 13,
-                flexDirection: 'row',
-                alignItems: 'flex-start',
-                borderWidth: 1,
-                borderColor: '#EEF2F7',
-              }}
-            >
-              <CheckCircle2 size={16} color={'#6A9B00'} style={{ marginRight: 8, marginTop: 1 }} />
-              <Text style={{ flex: 1, fontSize: 11, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, lineHeight: 17 }}>
-                Payment and completion details are saved for your records.
-              </Text>
+                <View
+                  style={{
+                  backgroundColor: '#F9FAFB',
+                  borderRadius: 16,
+                  paddingVertical: 12,
+                  paddingHorizontal: 13,
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  borderWidth: 1,
+                  borderColor: '#EEF2F7',
+                }}
+              >
+                <CheckCircle2 size={16} color={Colors.accent} style={{ marginRight: 8, marginTop: 1 }} strokeWidth={2.4} />
+                <Text style={{ flex: 1, fontSize: 11, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, lineHeight: 17 }}>
+                  Payment and completion details are saved for your records.
+                </Text>
+              </View>
             </View>
           </View>
         </View>

@@ -12,24 +12,58 @@ const LiveSupportScreen = () => {
 
   return (
     <View className='px-4 mb-6'>
-      <View className='bg-[#EEFFD9] border border-[#D4FF8C] rounded-2xl p-5'>
-        <View className='flex-row items-center mb-2'>
-          <Ionicons name='chatbubble' size={20} color="#6A9B00" />
-          <Text 
-            className='text-lg font-bold text-black ml-2' 
-            style={{ fontFamily: 'Poppins-Bold' }}
+      <View
+        style={{
+          backgroundColor: '#FFFFFF',
+          borderWidth: 1,
+          borderColor: '#EEF1E8',
+          borderRadius: 22,
+          padding: 16,
+          shadowColor: '#101828',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.04,
+          shadowRadius: 16,
+          elevation: 2,
+        }}
+      >
+        <View className='flex-row items-center mb-3'>
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: '#F2F7EC',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 10,
+            }}
           >
-            Live chat Support
-          </Text>
+            <Ionicons name='chatbubble' size={18} color="#6A9B00" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text 
+              className='text-base font-bold text-black' 
+              style={{ fontFamily: 'Poppins-Bold' }}
+            >
+              Need help?
+            </Text>
+            <Text 
+              className='text-gray-500 text-xs' 
+              style={{ fontFamily: 'Poppins-Regular', marginTop: 1 }}
+            >
+              Chat with support anytime.
+            </Text>
+          </View>
         </View>
         <Text 
-          className='text-gray-700 text-sm mb-4' 
-          style={{ fontFamily: 'Poppins-Medium' }}
+          className='text-gray-600 text-sm mb-4' 
+          style={{ fontFamily: 'Poppins-Regular', lineHeight: 20 }}
         >
-          Get instant answers to your questions from our friendly support team.
+          Get answers about bookings, payments, providers, and job updates.
         </Text>
         <TouchableOpacity 
-          className='bg-[#6A9B00] rounded-xl py-3 px-6 items-center'
+          className='rounded-xl py-3 px-6 items-center'
+          style={{ backgroundColor: '#111827' }}
           onPress={handleStartChat}
           activeOpacity={0.85}
         >

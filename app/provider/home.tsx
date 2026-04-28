@@ -721,7 +721,7 @@ export default function ProviderHomeScreen() {
       {isActive ? (
         <TouchableOpacity
           style={{
-            backgroundColor: Colors.black,
+            backgroundColor: Colors.white,
             paddingVertical: 12,
             paddingHorizontal: 16,
             borderRadius: BorderRadius.default,
@@ -729,6 +729,8 @@ export default function ProviderHomeScreen() {
             alignItems: 'center',
             justifyContent: 'center',
             width: '100%',
+            borderWidth: 1,
+            borderColor: Colors.border,
           }}
           onPress={() => {
             haptics.light();
@@ -747,10 +749,10 @@ export default function ProviderHomeScreen() {
             } as any);
           }}
         >
-          <Text style={{ color: Colors.white, fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
+          <Text style={{ color: Colors.textPrimary, fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
             Check Updates
           </Text>
-          <ArrowRight size={14} color={Colors.white} />
+          <ArrowRight size={14} color={Colors.textPrimary} />
         </TouchableOpacity>
       ) : (
         <View style={{ flexDirection: 'column', gap: 8, width: '100%' }}>
@@ -921,29 +923,53 @@ export default function ProviderHomeScreen() {
           </View>
         </View>
 
-        {/* Earnings card — same green layout whether or not there are active jobs; amount is always real month-to-date */}
+        {/* Earnings card — premium dashboard summary; amount is always real month-to-date */}
         <View style={{ marginBottom: hasActiveJobs ? 32 : 24 }}>
           <View
             style={{
               marginHorizontal: 16,
-              borderRadius: BorderRadius.md,
+              borderRadius: 26,
               overflow: 'hidden',
-              shadowColor: Colors.accent,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.2,
-              shadowRadius: 8,
-              elevation: 4,
+              shadowColor: '#111827',
+              shadowOffset: { width: 0, height: 16 },
+              shadowOpacity: 0.18,
+              shadowRadius: 26,
+              elevation: 10,
             }}
           >
             <LinearGradient
-              colors={['#8BC34A', Colors.accent]}
+              colors={['#101827', '#172033', '#0B1120']}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={{
                 paddingVertical: earningsPaddingV,
                 paddingHorizontal: earningsPaddingH,
               }}
             >
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  top: -38,
+                  right: -32,
+                  width: 128,
+                  height: 128,
+                  borderRadius: 64,
+                  backgroundColor: 'rgba(106, 155, 0, 0.22)',
+                }}
+              />
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  bottom: -54,
+                  left: -42,
+                  width: 132,
+                  height: 132,
+                  borderRadius: 66,
+                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                }}
+              />
               <View
                 style={{
                   flexDirection: 'row',
@@ -955,8 +981,8 @@ export default function ProviderHomeScreen() {
                 <Text
                   style={{
                     fontSize: 14,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.black,
+                    fontFamily: 'Poppins-Medium',
+                    color: '#E5E7EB',
                     flex: 1,
                     marginRight: 8,
                   }}
@@ -966,37 +992,60 @@ export default function ProviderHomeScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/AnalyticsScreen' as any)}
                   activeOpacity={0.7}
-                  style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    flexShrink: 0,
+                    backgroundColor: 'rgba(255, 255, 255, 0.11)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.12)',
+                    paddingVertical: 7,
+                    paddingHorizontal: 10,
+                    borderRadius: 999,
+                  }}
                 >
-                  <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: 2 }}>
-                    View full analytics
+                  <Text style={{ fontSize: 11, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: 4 }}>
+                    Analytics
                   </Text>
-                  <ArrowRight size={12} color={Colors.white} />
+                  <ArrowRight size={12} color={Colors.white} strokeWidth={2.4} />
                 </TouchableOpacity>
               </View>
               <Text
                 style={{
                   fontSize: earningsAmountFontSize,
                   fontFamily: 'Poppins-Bold',
-                  color: Colors.black,
+                  color: Colors.white,
                   marginBottom: 14,
                   lineHeight: earningsAmountFontSize * 1.1,
+                  letterSpacing: -0.8,
                 }}
               >
                 {formatNaira(monthlyEarnings)}
               </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+              <View
+                style={{
+                  alignSelf: 'flex-start',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  backgroundColor: 'rgba(255, 255, 255, 0.10)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255, 255, 255, 0.12)',
+                  paddingVertical: 8,
+                  paddingHorizontal: 10,
+                  borderRadius: 999,
+                }}
+              >
                 {earningsVsLastMonth.trend === 'down' ? (
-                  <TrendingDown size={14} color={Colors.black} style={{ marginRight: 4 }} />
+                  <TrendingDown size={14} color={'#FCA5A5'} style={{ marginRight: 5 }} />
                 ) : (
-                  <TrendingUp size={14} color={Colors.black} style={{ marginRight: 4 }} />
+                  <TrendingUp size={14} color={Colors.accent} style={{ marginRight: 5 }} />
                 )}
                 <Text
                   style={{
-                    fontSize: 13,
+                    fontSize: 12,
                     fontFamily: 'Poppins-SemiBold',
-                    color: Colors.black,
-                    flex: 1,
+                    color: '#F9FAFB',
                   }}
                 >
                   {earningsVsLastMonth.label}

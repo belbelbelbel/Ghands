@@ -4,6 +4,7 @@ import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { providerService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { saveCachedVisitRequest } from '@/utils/visitRequestCache';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, Wallet } from 'lucide-react-native';
@@ -264,7 +265,15 @@ export default function RequestVisitScreen() {
             payload: visitPayload,
           });
         }
+        await saveCachedVisitRequest(rid, {
+          ...visitPayload,
+          logisticsStatus: 'pending_payment',
+        });
         const visitResponse = await providerService.requestVisit(rid, visitPayload);
+        await saveCachedVisitRequest(rid, {
+          ...visitPayload,
+          ...(visitResponse as any),
+        });
         if (__DEV__) {
           console.log('[RequestVisit] requestVisit success', {
             requestId: rid,
@@ -284,6 +293,12 @@ export default function RequestVisitScreen() {
         }
         const msg = (visitErr?.message || visitErr?.details?.data?.message || '').toLowerCase();
         if (msg.includes('visit has already been requested') || msg.includes('already been requested')) {
+          await saveCachedVisitRequest(rid, {
+            scheduledDate: formattedDate,
+            scheduledTime: timeFormatted,
+            logisticsCost: parseFloat(logisticsCost) || 0,
+            logisticsStatus: 'pending_payment',
+          });
           haptics.success();
           showSuccess('Visit request was already submitted. Client has been notified.');
           setShowSummaryModal(false);

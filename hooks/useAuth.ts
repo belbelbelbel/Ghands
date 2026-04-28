@@ -86,7 +86,6 @@ export function useAuthRole(): UseAuthRoleReturn {
 
       // Set new role
       await AsyncStorage.setItem(AUTH_ROLE_KEY, newRole);
-      setRoleState(newRole);
 
       // Mark onboarding as complete so user doesn't see it again
       await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
@@ -100,6 +99,7 @@ export function useAuthRole(): UseAuthRoleReturn {
       } else {
         router.replace('/LoginScreen');
       }
+      setRoleState(newRole);
 
       setTimeout(() => {
         AsyncStorage.removeItem(ROLE_SWITCHING_KEY).catch(() => {

@@ -1486,18 +1486,46 @@ export default function ProviderProfileScreen() {
 
             <View
               style={{
-                backgroundColor: '#F8F5EF',
-                borderRadius: 24,
+                backgroundColor: Colors.white,
+                borderRadius: 22,
                 borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.06)',
+                borderColor: '#E7EBDf',
                 overflow: 'hidden',
+                shadowColor: '#111827',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.04,
+                shadowRadius: 18,
+                elevation: 2,
               }}
             >
+              <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10 }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  Account access
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textSecondaryDark,
+                    marginTop: 2,
+                  }}
+                >
+                  Manage your session and account security.
+                </Text>
+              </View>
+
               <TouchableOpacity
                 onPress={handleSignOut}
                 style={{
-                  minHeight: 82,
+                  minHeight: 92,
                   paddingHorizontal: 18,
+                  paddingVertical: 16,
                   flexDirection: 'row',
                   alignItems: 'center',
                 }}
@@ -1505,68 +1533,92 @@ export default function ProviderProfileScreen() {
               >
                 <View
                   style={{
-                    width: 54,
-                    height: 54,
-                    borderRadius: 18,
-                    backgroundColor: '#F6E7E2',
+                    width: 44,
+                    height: 44,
+                    borderRadius: 16,
+                    backgroundColor: '#FFF4ED',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 16,
+                    marginRight: 15,
                   }}
                 >
-                  <LogOut size={23} color="#C2413D" />
+                  <LogOut size={20} color="#C2413D" />
                 </View>
-                <Text
-                  style={{
-                    flex: 1,
-                    fontSize: 19,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.textPrimary,
-                    letterSpacing: -0.2,
-                  }}
-                >
-                  Sign out
-                </Text>
-                <ChevronRight size={24} color="rgba(17, 24, 39, 0.32)" />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: Colors.textPrimary,
+                    }}
+                  >
+                    Sign out
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      marginTop: 5,
+                      lineHeight: 18,
+                    }}
+                  >
+                    End this session and return to login.
+                  </Text>
+                </View>
+                <ChevronRight size={21} color="rgba(17, 24, 39, 0.28)" />
               </TouchableOpacity>
 
-              <View style={{ height: 1, backgroundColor: 'rgba(17, 24, 39, 0.06)', marginLeft: 88 }} />
+              <View style={{ height: 1, backgroundColor: '#EEF1E8', marginLeft: 78, marginRight: 18 }} />
 
               <TouchableOpacity
                 onPress={handleDeleteAccount}
                 style={{
-                  minHeight: 82,
+                  minHeight: 94,
                   paddingHorizontal: 18,
+                  paddingVertical: 16,
                   flexDirection: 'row',
                   alignItems: 'center',
+                  backgroundColor: '#FFFBFA',
                 }}
                 activeOpacity={0.72}
               >
                 <View
                   style={{
-                    width: 54,
-                    height: 54,
-                    borderRadius: 18,
-                    backgroundColor: '#EFEDE7',
+                    width: 44,
+                    height: 44,
+                    borderRadius: 16,
+                    backgroundColor: '#FEE2E2',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 16,
+                    marginRight: 15,
                   }}
                 >
-                  <Trash2 size={23} color="#52635A" />
+                  <Trash2 size={20} color="#B42318" />
                 </View>
-                <Text
-                  style={{
-                    flex: 1,
-                    fontSize: 19,
-                    fontFamily: 'Poppins-Medium',
-                    color: 'rgba(17, 24, 39, 0.42)',
-                    letterSpacing: -0.2,
-                  }}
-                >
-                  Delete account
-                </Text>
-                <ChevronRight size={24} color="rgba(17, 24, 39, 0.28)" />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontFamily: 'Poppins-SemiBold',
+                      color: '#B42318',
+                    }}
+                  >
+                    Delete account
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Regular',
+                      color: '#7F1D1D',
+                      marginTop: 5,
+                      lineHeight: 18,
+                    }}
+                  >
+                    Permanently remove your provider profile and data.
+                  </Text>
+                </View>
+                <ChevronRight size={21} color="rgba(180, 35, 24, 0.35)" />
               </TouchableOpacity>
             </View>
           </View>

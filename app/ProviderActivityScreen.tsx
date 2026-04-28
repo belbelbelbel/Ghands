@@ -12,6 +12,7 @@ import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 interface Transaction {
   id: string;
   requestId?: number | null;
+  balanceAfter?: number | null;
   serviceName: string;
   serviceDescription: string;
   date: string;
@@ -70,6 +71,11 @@ export default function ProviderActivityScreen() {
       return {
         id: String(apiTx.id || apiTx.reference || Math.random()),
         requestId: apiTx.requestId ?? apiTx.request_id ?? null,
+        balanceAfter: typeof apiTx.balanceAfter === 'number'
+          ? apiTx.balanceAfter
+          : typeof apiTx.balance_after === 'number'
+            ? apiTx.balance_after
+            : null,
         serviceName,
         serviceDescription,
         date,
@@ -161,6 +167,7 @@ export default function ProviderActivityScreen() {
         transactionId: transaction.id,
         ...(transaction.requestId ? { requestId: String(transaction.requestId) } : {}),
         amount: String(transaction.amount),
+        ...(transaction.balanceAfter != null ? { balanceAfter: String(transaction.balanceAfter) } : {}),
         providerName: transaction.serviceName,
         serviceName: transaction.serviceDescription,
         serviceDate: transaction.date,

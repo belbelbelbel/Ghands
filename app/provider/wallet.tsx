@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 interface ActivityItem {
   id: string;
   requestId?: number | null;
+  balanceAfter?: number | null;
   serviceName: string;
   serviceType: string;
   date: string;
@@ -75,6 +76,11 @@ export default function ProviderWalletScreen() {
       return {
         id: String(apiTransaction.id || apiTransaction.reference || Math.random()),
         requestId: apiTransaction.requestId ?? apiTransaction.request_id ?? null,
+        balanceAfter: typeof apiTransaction.balanceAfter === 'number'
+          ? apiTransaction.balanceAfter
+          : typeof apiTransaction.balance_after === 'number'
+            ? apiTransaction.balance_after
+            : null,
         serviceName,
         serviceType,
         date,
@@ -712,6 +718,7 @@ export default function ProviderWalletScreen() {
                     transactionId: activity.id,
                     ...(activity.requestId ? { requestId: String(activity.requestId) } : {}),
                     amount: activity.amount.replace(/[₦,\s]/g, ''),
+                    ...(activity.balanceAfter != null ? { balanceAfter: String(activity.balanceAfter) } : {}),
                     providerName: activity.serviceName,
                     serviceName: activity.serviceType,
                     serviceDate: activity.date,

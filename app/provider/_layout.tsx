@@ -1,10 +1,12 @@
 import { useAuthRole } from '@/hooks/useAuth';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Platform } from 'react-native';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
+const ROLE_SWITCHING_KEY = '@ghands:role_switching';
 
 const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color: string; focused: boolean }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -50,9 +52,24 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color:
 
 export default function ProviderLayout() {
   const { role, isLoading } = useAuthRole();
+  const [isSwitchingRole, setIsSwitchingRole] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(ROLE_SWITCHING_KEY)
+      .then((value) => {
+        if (mounted) setIsSwitchingRole(value === 'true');
+      })
+      .catch(() => {
+        if (mounted) setIsSwitchingRole(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [role]);
 
   // While loading role, avoid showing wrong layout
-  if (isLoading) {
+  if (isLoading || isSwitchingRole) {
     return null;
   }
 

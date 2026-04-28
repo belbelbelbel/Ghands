@@ -14,6 +14,7 @@ import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { isConnectivityOrNetworkError } from '@/utils/isNetworkFailure';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { formatProviderProximitySubtitle } from '@/utils/navigationUtils';
+import { mergeCachedVisitRequest } from '@/utils/visitRequestCache';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { CheckCircle, CheckCircle2, Circle, Clock, FileText, MapPinned, Wrench } from 'lucide-react-native';
@@ -190,6 +191,7 @@ export default function OngoingJobDetails() {
   }, [params.requestId]);
   const [activeTab, setActiveTab] = useState<'Updates' | 'Quotations'>('Updates');
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
+  const [expandedQuoteProviderId, setExpandedQuoteProviderId] = useState<string | number | null>(null);
   const quoteCardAnim = useRef(new Animated.Value(1)).current;
   const [isSelectingProvider, setIsSelectingProvider] = useState(false);
   const [selectionCountdown, setSelectionCountdown] = useState<number | null>(null);
@@ -208,11 +210,11 @@ export default function OngoingJobDetails() {
     const totalProvidersSentTo = request.nearbyProviders?.length || acceptedProviders.length || 0;
     timeline.push({
       id: 'step-1',
-      title: 'Job Request Submitted',
+      title: 'Request sent',
       description: totalProvidersSentTo > 0 
-        ? `Sent to ${totalProvidersSentTo} nearby ${totalProvidersSentTo === 1 ? 'provider' : 'providers'}. They will respond shortly.`
-        : 'Submitted. Nearby providers will be notified and can respond.',
-      status: `Completed - ${formatTimeAgo(request.createdAt || request.updatedAt)}`,
+        ? `${totalProvidersSentTo} nearby ${totalProvidersSentTo === 1 ? 'provider' : 'providers'} notified.`
+        : 'Nearby providers have been notified.',
+      status: formatTimeAgo(request.createdAt || request.updatedAt),
       accent: '#DCFCE7',
       dotColor: '#6A9B00',
       isActive: false,
@@ -226,9 +228,9 @@ export default function OngoingJobDetails() {
         // Provider accepted selection
       timeline.push({
           id: 'step-1.5',
-          title: 'Provider Selected',
-          description: `${request.selectedProvider.name} accepted your selection`,
-          status: `Completed - ${formatTimeAgo(request.updatedAt || request.selectedAt || '')}`,
+          title: 'Provider selected',
+          description: `${request.selectedProvider.name} accepted.`,
+          status: formatTimeAgo(request.updatedAt || request.selectedAt || ''),
           accent: '#DCFCE7',
           dotColor: '#6A9B00',
           isActive: false,
@@ -241,9 +243,9 @@ export default function OngoingJobDetails() {
         const secs = selectionCountdown % 60;
         timeline.push({
           id: 'step-1.5',
-          title: 'Provider Selected',
-          description: `Waiting for provider to accept (${mins}:${secs.toString().padStart(2, '0')} remaining)`,
-          status: 'In Progress',
+          title: 'Provider selected',
+          description: `Waiting for acceptance. ${mins}:${secs.toString().padStart(2, '0')} left.`,
+          status: 'Waiting',
           accent: '#FEF9C3',
         dotColor: '#F59E0B',
           isActive: true,
@@ -253,9 +255,9 @@ export default function OngoingJobDetails() {
       } else if (request.selectedAt) {
         timeline.push({
           id: 'step-1.5',
-          title: 'Provider Selected',
-          description: 'Waiting for provider to accept (5 minutes)',
-          status: 'In Progress',
+          title: 'Provider selected',
+          description: 'Waiting for acceptance.',
+          status: 'Waiting',
           accent: '#FEF9C3',
           dotColor: '#F59E0B',
           isActive: true,
@@ -300,11 +302,11 @@ export default function OngoingJobDetails() {
       
       timeline.push({
         id: 'step-2',
-        title: 'Provider Accepted',
+        title: 'Provider accepted',
         description: hasAcceptedProvidersFromAPI 
-          ? `${providerCount} ${providerCount === 1 ? 'provider has' : 'providers have'} accepted. They will inspect and send a quotation.`
-          : 'Provider accepted. They will inspect and send a quotation.',
-        status: `Completed - ${formatTimeAgo(acceptanceTime)}`,
+          ? `${providerCount} ${providerCount === 1 ? 'provider has' : 'providers have'} accepted.`
+          : 'Provider accepted the job.',
+        status: formatTimeAgo(acceptanceTime),
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
         isActive: false,
@@ -316,8 +318,8 @@ export default function OngoingJobDetails() {
       // No providers accepted yet. Use Clock (not Circle) so icon has visible shape
       timeline.push({
         id: 'step-2',
-        title: 'Provider Acceptance',
-        description: 'Waiting for providers to review and accept your request.',
+        title: 'Provider response',
+        description: 'Waiting for a provider.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -356,8 +358,8 @@ export default function OngoingJobDetails() {
         timeline.push({
           id: 'step-3',
           title: 'Inspection',
-          description: hasVisitRequested ? 'Visit completed.' : 'Provider sent quotation directly.',
-          status: 'Completed',
+          description: hasVisitRequested ? 'Visit handled.' : 'Quotation sent directly.',
+          status: 'Done',
           accent: '#DCFCE7',
           dotColor: '#6A9B00',
           isActive: false,
@@ -368,8 +370,8 @@ export default function OngoingJobDetails() {
         timeline.push({
           id: 'step-3',
           title: 'Inspection',
-          description: 'Visit declined. Provider will send quotation directly.',
-          status: 'In Progress',
+          description: 'Visit declined. Waiting for quotation.',
+          status: 'Active',
           accent: '#FEF9C3',
           dotColor: '#F59E0B',
           isActive: true,
@@ -381,11 +383,11 @@ export default function OngoingJobDetails() {
           id: 'step-3',
           title: 'Inspection',
           description: visitPaid
-            ? `Visit confirmed for ${visitScheduleText}. Awaiting quotation.`
+            ? `Visit confirmed for ${visitScheduleText}.`
             : visitFeeText
-              ? `Provider requested a visit for ${visitScheduleText}. Confirm by paying ${visitFeeText} or decline.`
-              : `Provider requested a visit for ${visitScheduleText}. Visit fee is still being loaded.`,
-          status: visitPaid ? 'Completed' : 'In Progress',
+              ? `Visit requested for ${visitScheduleText}. Fee: ${visitFeeText}.`
+              : `Visit requested for ${visitScheduleText}.`,
+          status: visitPaid ? 'Done' : 'Active',
           accent: visitPaid ? '#DCFCE7' : '#FEF9C3',
           dotColor: visitPaid ? '#6A9B00' : '#F59E0B',
           isActive: !visitPaid,
@@ -401,8 +403,8 @@ export default function OngoingJobDetails() {
         timeline.push({
           id: 'step-3',
           title: 'Inspection',
-          description: 'Provider will inspect and send a quotation. You will receive it shortly.',
-          status: 'In Progress',
+          description: 'Waiting for inspection or quotation.',
+          status: 'Active',
           accent: '#FEF9C3',
           dotColor: '#F59E0B',
           isActive: true,
@@ -414,7 +416,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-3',
         title: 'Inspection',
-        description: 'Waiting for providers to accept. Then they will inspect and send a quotation.',
+        description: 'Waiting for a provider.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -431,8 +433,8 @@ export default function OngoingJobDetails() {
         timeline.push({
           id: 'step-3b',
           title: 'Quotation',
-          description: 'Provider sent a quotation. Review cost and details, then accept or decline.',
-          status: `Completed - ${formatTimeAgo(quotation?.sentAt || (quotation as any)?.submittedAt || request.updatedAt || '')}`,
+          description: 'Review the quote when ready.',
+          status: formatTimeAgo(quotation?.sentAt || (quotation as any)?.submittedAt || request.updatedAt || ''),
           accent: '#DCFCE7',
           dotColor: '#6A9B00',
           isActive: false,
@@ -444,14 +446,14 @@ export default function OngoingJobDetails() {
           id: 'step-3b',
           title: 'Quotation',
           description: visitDeclined
-            ? 'Visit was declined. Waiting for provider to send quotation directly.'
+            ? 'Waiting for quotation.'
             : hasVisitRequested && !visitPaid
-            ? 'After you pay the logistics fee, provider will visit and send a quotation.'
-            : 'Provider is preparing a quotation. You will receive it shortly.',
-          status: 'In Progress',
-          accent: '#FEF9C3',
-          dotColor: '#F59E0B',
-          isActive: true,
+            ? 'Visit payment comes first.'
+            : 'Provider is preparing the quote.',
+          status: hasVisitRequested && !visitPaid ? 'Pending' : 'Active',
+          accent: hasVisitRequested && !visitPaid ? '#F3F4F6' : '#FEF9C3',
+          dotColor: hasVisitRequested && !visitPaid ? '#9CA3AF' : '#F59E0B',
+          isActive: !(hasVisitRequested && !visitPaid),
           isCompleted: false,
           icon: FileText,
         });
@@ -460,7 +462,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-3b',
         title: 'Quotation',
-        description: 'Waiting for quotation from provider.',
+        description: 'No quote yet.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -478,9 +480,9 @@ export default function OngoingJobDetails() {
     if (quotationAccepted) {
       timeline.push({
         id: 'step-4',
-        title: 'Quotation Accepted',
-        description: 'You accepted the quotation. Proceed with payment to secure the job.',
-        status: `Completed - ${formatTimeAgo((acceptedQuotation as any)?.acceptedAt || acceptedQuotation?.sentAt || request.updatedAt || '')}`,
+        title: 'Quote accepted',
+        description: 'Complete payment to start.',
+        status: formatTimeAgo((acceptedQuotation as any)?.acceptedAt || acceptedQuotation?.sentAt || request.updatedAt || ''),
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
         isActive: false,
@@ -491,9 +493,9 @@ export default function OngoingJobDetails() {
       // Quotation sent but not accepted yet - YELLOW (waiting for client to accept)
       timeline.push({
         id: 'step-4',
-        title: 'Quotation Accepted',
-        description: 'Quotation received. Review and accept to proceed with payment.',
-        status: 'In Progress',
+        title: 'Quote accepted',
+        description: 'Review and accept the quote.',
+        status: 'Active',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
         isActive: true,
@@ -504,8 +506,8 @@ export default function OngoingJobDetails() {
       // No quotation sent yet - grey (pending). Use FileText so icon isn't empty-looking
       timeline.push({
         id: 'step-4',
-        title: 'Quotation Accepted',
-        description: 'Waiting for quotation from provider.',
+        title: 'Quote accepted',
+        description: 'Waiting for quote.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -525,9 +527,9 @@ export default function OngoingJobDetails() {
       // Provider has started – GREEN so it clearly differs from "waiting for provider"
       timeline.push({
         id: 'step-5',
-        title: 'Job in Progress',
-        description: 'Provider is on site working. Mark complete when satisfied with the work.',
-        status: 'In Progress',
+        title: 'Work started',
+        description: 'Provider is working.',
+        status: 'Active',
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
         isActive: true,
@@ -538,9 +540,9 @@ export default function OngoingJobDetails() {
       // Provider marked complete – YELLOW: client must verify and release payment
       timeline.push({
         id: 'step-5',
-        title: 'Job in Progress',
-        description: 'Provider has finished. Verify the work and mark complete to release payment.',
-        status: 'Awaiting your confirmation',
+        title: 'Ready to review',
+        description: 'Check the work before releasing payment.',
+        status: 'Review',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
         isActive: true,
@@ -550,9 +552,9 @@ export default function OngoingJobDetails() {
     } else if (request.status === 'completed') {
       timeline.push({
         id: 'step-5',
-        title: 'Job in Progress',
-        description: 'Work completed. Payment released to provider.',
-        status: 'Completed',
+        title: 'Work completed',
+        description: 'Payment released.',
+        status: 'Done',
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
         isActive: false,
@@ -563,9 +565,9 @@ export default function OngoingJobDetails() {
       // Payment completed – waiting for provider to click Start → keep step grey until provider starts job
       timeline.push({
         id: 'step-5',
-        title: 'Job in Progress',
-        description: 'Payment secured. Provider will start the job shortly.',
-        status: 'Waiting for provider',
+        title: 'Work scheduled',
+        description: 'Waiting for provider to start.',
+        status: 'Waiting',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
         isActive: false,
@@ -576,10 +578,10 @@ export default function OngoingJobDetails() {
       // Not ready yet - grey (pending) - payments handled from the Quotations tab
       timeline.push({
         id: 'step-5',
-        title: 'Job in Progress',
+        title: 'Work scheduled',
         description: quotationAccepted
-          ? 'Complete payment to authorize the provider to start.'
-          : 'Accept quotation and complete payment to proceed.',
+          ? 'Complete payment to start.'
+          : 'Accept a quote first.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -594,8 +596,8 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-6',
         title: 'Complete',
-        description: 'The job has been successfully completed and approved. Payment has been released from escrow to the provider. Thank you for using G-Hands! You can leave a review and provide feedback to help improve our service.',
-        status: `Completed - ${formatTimeAgo(request.updatedAt || request.createdAt)}`,
+        description: 'Job closed. You can leave a review.',
+        status: formatTimeAgo(request.updatedAt || request.createdAt),
         accent: '#DCFCE7',
         dotColor: '#6A9B00',
         isActive: false,
@@ -606,8 +608,8 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-6',
         title: 'Complete',
-        description: 'Verify the work is satisfactory, then tap Mark as complete to release payment from escrow to the provider.',
-        status: 'Confirm to release payment',
+        description: 'Confirm when you are satisfied.',
+        status: 'Review',
         accent: '#FEF9C3',
         dotColor: '#F59E0B',
         isActive: true,
@@ -619,7 +621,7 @@ export default function OngoingJobDetails() {
       timeline.push({
         id: 'step-6',
         title: 'Complete',
-        description: 'When the provider finishes the work, verify the results and mark complete to release payment from escrow to the provider.',
+        description: 'Final step after the work is done.',
         status: 'Pending',
         accent: '#F3F4F6',
         dotColor: '#9CA3AF',
@@ -667,9 +669,31 @@ export default function OngoingJobDetails() {
       const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
       const hasVR = !!(vr && (vr.scheduledDate || vr.scheduledTime || vr.requestedAt || vr.logisticsStatus || vr.logisticsCost != null));
       const vPaid = vr?.logisticsStatus === 'paid';
-      const logisticsCost = typeof vr?.logisticsCost === 'number' && Number.isFinite(vr.logisticsCost)
-        ? vr.logisticsCost
-        : undefined;
+      const parseVisitFee = (value: unknown): number | undefined => {
+        if (value == null || value === '') return undefined;
+        if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+        if (typeof value === 'string') {
+          const parsed = Number(value.replace(/[₦,\s]/g, ''));
+          return Number.isFinite(parsed) ? parsed : undefined;
+        }
+        return undefined;
+      };
+      const logisticsCost =
+        parseVisitFee(vr?.logisticsCost) ??
+        parseVisitFee(vr?.logistics_cost) ??
+        parseVisitFee(vr?.logisticsFee) ??
+        parseVisitFee(vr?.logistics_fee) ??
+        parseVisitFee(vr?.visitFee) ??
+        parseVisitFee(vr?.visit_fee) ??
+        parseVisitFee(vr?.inspectionFee) ??
+        parseVisitFee(vr?.inspection_fee) ??
+        parseVisitFee(vr?.amount) ??
+        parseVisitFee((request as any)?.logisticsCost) ??
+        parseVisitFee((request as any)?.logistics_cost) ??
+        parseVisitFee((request as any)?.visitFee) ??
+        parseVisitFee((request as any)?.visit_fee) ??
+        parseVisitFee((request as any)?.inspectionFee) ??
+        parseVisitFee((request as any)?.inspection_fee);
       const hasPayableVisitFee = typeof logisticsCost === 'number' && logisticsCost > 0;
 
       if (__DEV__ && hasVR) {
@@ -694,7 +718,7 @@ export default function OngoingJobDetails() {
         pillText: '#92400E',
         timestamp: acceptedAt ? formatTimeAgo(acceptedAt) : null,
         provider: headerProvider,
-        showVisitPayButton: hasVR && !vPaid && !visitDeclined && hasPayableVisitFee,
+        showVisitPayButton: hasVR && !vPaid && !visitDeclined,
         visitLogisticsCost: logisticsCost,
         onVisitPay: () => {
           if (params.requestId == null) return;
@@ -828,28 +852,29 @@ export default function OngoingJobDetails() {
       // 1) Load core request details (list fallback when GET /requests/:id returns 5xx)
       const { request: requestDetails, usedListFallback } =
         await serviceRequestService.getRequestDetailsWithListFallback(requestId);
+      const hydratedRequestDetails = await mergeCachedVisitRequest(requestId, requestDetails);
       if (__DEV__) {
         console.log('[OngoingJobDetails] request details loaded', {
           requestId,
-          status: requestDetails?.status,
-          visitRequest: (requestDetails as any)?.visitRequest,
-          rawVisitKeys: (requestDetails as any)?.visitRequest
-            ? Object.keys((requestDetails as any).visitRequest)
+          status: hydratedRequestDetails?.status,
+          visitRequest: (hydratedRequestDetails as any)?.visitRequest,
+          rawVisitKeys: (hydratedRequestDetails as any)?.visitRequest
+            ? Object.keys((hydratedRequestDetails as any).visitRequest)
             : [],
           usedListFallback,
         });
-        const visitStatus = ((requestDetails as any)?.visitRequest?.logisticsStatus || '').toString().toLowerCase();
-        const requestStatus = (requestDetails?.status || '').toString().toLowerCase();
+        const visitStatus = ((hydratedRequestDetails as any)?.visitRequest?.logisticsStatus || '').toString().toLowerCase();
+        const requestStatus = (hydratedRequestDetails?.status || '').toString().toLowerCase();
         if (requestStatus === 'cancelled' && ['cancelled', 'declined', 'rejected'].includes(visitStatus)) {
           console.warn('[OngoingJobDetails] decline visit may have cancelled the whole request', {
             requestId,
             requestStatus,
             visitStatus,
-            visitRequest: (requestDetails as any)?.visitRequest,
+            visitRequest: (hydratedRequestDetails as any)?.visitRequest,
           });
         }
       }
-      setRequest(requestDetails);
+      setRequest(hydratedRequestDetails);
       if (usedListFallback && !silent) {
         showWarning(
           'The server returned an error for full job details. Showing a summary from your jobs list until that is fixed.'
@@ -1466,47 +1491,31 @@ export default function OngoingJobDetails() {
                       }),
                     },
                   ],
-                  backgroundColor: step.isCompleted
-                    ? '#FFFFFF'
-                    : step.isActive
-                      ? '#FFFCF2'
-                      : '#FFFFFF',
-                  borderRadius: 18,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 16,
                   borderWidth: 1,
                   borderColor: step.isActive
-                    ? 'rgba(245, 158, 11, 0.22)'
+                    ? '#EADFC2'
                     : step.isCompleted
-                      ? 'rgba(106, 155, 0, 0.14)'
-                      : '#EAECF0',
-                  padding: 14,
+                      ? '#E3ECD9'
+                      : '#EDF0F2',
+                  padding: 13,
                   marginRight: 4,
                   shadowColor: '#101828',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.035,
-                  shadowRadius: 10,
-                  elevation: 2,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.02,
+                  shadowRadius: 6,
+                  elevation: 1,
                 }}
               >
-                <View
-                  style={{
-                    backgroundColor: step.isCompleted
-                      ? '#F2F8EA'
-                      : step.isActive
-                        ? '#FFF7DF'
-                        : '#F7F8FA',
-                    borderRadius: 14,
-                    paddingHorizontal: 12,
-                    paddingVertical: 12,
-                    marginBottom: 9,
-                  }}
-                >
+                <View style={{ marginBottom: 8 }}>
                   <Text
                     style={{
-                      fontSize: 15,
+                      fontSize: 14,
                       fontFamily: 'Poppins-Bold',
                       color: step.isCompleted || step.isActive ? Colors.textPrimary : Colors.textSecondaryDark,
-                      marginBottom: 5,
-                      lineHeight: 20,
+                      marginBottom: 4,
+                      lineHeight: 19,
                     }}
                   >
                     {step.title}
@@ -1514,7 +1523,7 @@ export default function OngoingJobDetails() {
                   <Text
                     style={{
                       fontSize: 12,
-                      fontFamily: 'Poppins-Medium',
+                      fontFamily: 'Poppins-Regular',
                       color: step.isCompleted || step.isActive ? Colors.textSecondaryDark : Colors.textTertiary,
                       lineHeight: 18,
                     }}
@@ -1659,6 +1668,8 @@ export default function OngoingJobDetails() {
   const renderProviderCard = (provider: typeof mappedProviders[number], index: number, compactBottom?: boolean) => {
     const animation = providerAnimations[index];
     const proximityLine = formatProviderProximitySubtitle(provider.distanceKm, provider.minutesAway);
+    const providerKey = provider.providerId ?? provider.id;
+    const quoteExpanded = expandedQuoteProviderId === providerKey;
     return (
       <Animated.View
         key={provider.id}
@@ -1738,27 +1749,51 @@ export default function OngoingJobDetails() {
         </View>
 
         {provider.quote ? (
-          <View className="px-5 mt-4 mb-4">
-            <View className="rounded-2xl bg-gray-50 px-5 py-5 border border-gray-100">
-              <View className="flex-row items-center justify-between mb-3">
-                <Text className="text-sm text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
-                  Quote Details
-                </Text>
+          <View className="px-5 mt-3 mb-4">
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                haptics.selection();
+                setExpandedQuoteProviderId((current) => (current === providerKey ? null : providerKey));
+              }}
+              className="rounded-2xl bg-gray-50 px-4 py-4 border border-gray-100"
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1 pr-3">
+                  <Text className="text-xs text-gray-500 mb-1" style={{ fontFamily: 'Poppins-Medium' }}>
+                    Quote submitted
+                  </Text>
+                  <Text className="text-sm text-gray-900" style={{ fontFamily: 'Poppins-SemiBold' }} numberOfLines={1}>
+                    Tap to {quoteExpanded ? 'hide' : 'review'} quote details
+                  </Text>
+                </View>
+                <View className="flex-row items-center">
                 <Text className="text-lg text-[#6A9B00]" style={{ fontFamily: 'Poppins-Bold' }}>
                   {provider.quote}
                 </Text>
+                  <Ionicons
+                    name={quoteExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color="#6B7280"
+                    style={{ marginLeft: 8 }}
+                  />
+                </View>
               </View>
-              <Text className="text-sm text-gray-600 mb-3" style={{ fontFamily: 'Poppins-Regular' }}>
-                {provider.quoteDetails}
-              </Text>
-              {/* High‑level status message so this section clearly reflects the timeline state */}
-              <Text className="text-sm text-gray-700 mb-3" style={{ fontFamily: 'Poppins-Medium' }}>
-                Quotation received. Review cost and details, then accept or decline.
-              </Text>
-              <Text className="text-sm text-gray-900" style={{ fontFamily: 'Poppins-SemiBold' }}>
-                Duration: <Text style={{ fontFamily: 'Poppins-Regular' }}>{provider.duration}</Text>
-              </Text>
-            </View>
+
+              {quoteExpanded ? (
+                <View className="mt-4 pt-4 border-t border-gray-200">
+                  <Text className="text-sm text-gray-600 mb-3" style={{ fontFamily: 'Poppins-Regular' }}>
+                    {provider.quoteDetails}
+                  </Text>
+                  <Text className="text-sm text-gray-700 mb-3" style={{ fontFamily: 'Poppins-Medium' }}>
+                    Review cost and details, then accept or decline.
+                  </Text>
+                  <Text className="text-sm text-gray-900" style={{ fontFamily: 'Poppins-SemiBold' }}>
+                    Duration: <Text style={{ fontFamily: 'Poppins-Regular' }}>{provider.duration}</Text>
+                  </Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
             <View className="flex-row items-center justify-between mt-3">
               <Text className="text-xs text-gray-500" style={{ fontFamily: 'Poppins-Medium' }}>
                 {provider.inspectionStatus}

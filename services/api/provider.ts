@@ -1,4 +1,5 @@
 import { AuthError } from '../../utils/errors';
+import { saveCachedVisitRequest } from '../../utils/visitRequestCache';
 import { extractUserIdFromToken } from '../../utils/tokenUtils';
 import { authService as authServiceInstance } from '../authService';
 import { apiClient, extractResponseData } from './client';
@@ -570,8 +571,17 @@ const providerService = {
     requestId: number,
     payload: { scheduledDate: string; scheduledTime: string; logisticsCost: number }
   ): Promise<{ requestId: number; scheduledDate: string; scheduledTime: string; logisticsCost: number; logisticsStatus: string; message: string }> => {
+    await saveCachedVisitRequest(requestId, {
+      ...payload,
+      logisticsStatus: 'pending_payment',
+    });
     const response = await apiClient.post<any>(`/api/provider/requests/${requestId}/request-visit`, payload);
-    return (response as any)?.data?.data ?? (response as any)?.data;
+    const data = (response as any)?.data?.data ?? (response as any)?.data;
+    await saveCachedVisitRequest(requestId, {
+      ...payload,
+      ...(data || {}),
+    });
+    return data;
   },
 
   sendQuotation: async (requestId: number, payload: SendQuotationPayload): Promise<SendQuotationResponse> => {

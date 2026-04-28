@@ -58,6 +58,7 @@ interface ReceiptData {
   platformFee: number;
   tax: number;
   totalAmount: number;
+  balanceAfter?: number | null;
   paymentStatus: string;
   paymentDate: string;
 }
@@ -73,6 +74,7 @@ export default function ProviderReceiptScreen() {
     serviceDate?: string;
     serviceTime?: string;
     reference?: string;
+    balanceAfter?: string;
   }>();
   const { showError, showSuccess } = useToast();
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
@@ -80,30 +82,6 @@ export default function ProviderReceiptScreen() {
 
   // Load receipt data from API (tolerant: singular quotation endpoint often 404s; use list + request fallback)
   const loadReceiptData = useCallback(async () => {
-    if (!params.requestId) {
-      const fallbackAmount = Number(String(params.amount || '').replace(/[₦,\s]/g, ''));
-      if (params.transactionId || params.amount || params.serviceName || params.providerName) {
-        setReceiptData({
-          receiptNumber: params.reference || params.transactionId || `TXN-${Date.now().toString().slice(-6)}`,
-          jobTitle: params.serviceName || 'Wallet transaction',
-          clientName: params.providerName || 'GHands',
-          serviceDate: params.serviceDate || 'N/A',
-          serviceTime: params.serviceTime || 'N/A',
-          laborCost: Number.isFinite(fallbackAmount) ? fallbackAmount : 0,
-          materials: [],
-          platformFee: 0,
-          tax: 0,
-          totalAmount: Number.isFinite(fallbackAmount) ? fallbackAmount : 0,
-          paymentStatus: 'Completed',
-          paymentDate: params.serviceDate && params.serviceTime
-            ? `${params.serviceDate} at ${params.serviceTime}`
-            : params.serviceDate || 'N/A',
-        });
-      }
-      setIsLoading(false);
-      return;
-    }
-
     const parseMoney = (v: unknown): number => {
       if (v == null) return 0;
       if (typeof v === 'number' && !Number.isNaN(v)) return v;
@@ -113,6 +91,33 @@ export default function ProviderReceiptScreen() {
       }
       return 0;
     };
+
+    const transactionAmount = parseMoney(params.amount);
+    const transactionBalanceAfter = params.balanceAfter ? parseMoney(params.balanceAfter) : null;
+
+    if (!params.requestId) {
+      if (params.transactionId || params.amount || params.serviceName || params.providerName) {
+        setReceiptData({
+          receiptNumber: params.reference || params.transactionId || `TXN-${Date.now().toString().slice(-6)}`,
+          jobTitle: params.serviceName || 'Wallet transaction',
+          clientName: params.providerName || 'GHands',
+          serviceDate: params.serviceDate || 'N/A',
+          serviceTime: params.serviceTime || 'N/A',
+          laborCost: transactionAmount,
+          materials: [],
+          platformFee: 0,
+          tax: 0,
+          totalAmount: transactionAmount,
+          balanceAfter: transactionBalanceAfter,
+          paymentStatus: 'Completed',
+          paymentDate: params.serviceDate && params.serviceTime
+            ? `${params.serviceDate} at ${params.serviceTime}`
+            : params.serviceDate || 'N/A',
+        });
+      }
+      setIsLoading(false);
+      return;
+    }
 
     const isQuotationEmpty = (q: Quotation | null): boolean =>
       !q ||
@@ -266,6 +271,9 @@ export default function ProviderReceiptScreen() {
       if (totalAmount <= 0 && totalFromRequest > 0) {
         totalAmount = totalFromRequest;
       }
+      if (totalAmount <= 0 && transactionAmount > 0) {
+        totalAmount = transactionAmount;
+      }
 
       let paymentStatus = 'Details unavailable';
       if (quotation) {
@@ -294,6 +302,7 @@ export default function ProviderReceiptScreen() {
         platformFee,
         tax,
         totalAmount,
+        balanceAfter: transactionBalanceAfter,
         paymentStatus,
         paymentDate,
       };
@@ -310,6 +319,7 @@ export default function ProviderReceiptScreen() {
     }
   }, [
     params.amount,
+    params.balanceAfter,
     params.providerName,
     params.reference,
     params.requestId,
@@ -558,6 +568,25 @@ export default function ProviderReceiptScreen() {
                 <Text style={{ marginTop: 4, fontSize: 28, lineHeight: 36, fontFamily: 'Poppins-Bold', color: Colors.white, letterSpacing: -0.8 }}>
                   ₦{formatCurrency(receiptData.totalAmount)}
                 </Text>
+                {receiptData.balanceAfter != null && receiptData.balanceAfter > 0 && (
+                  <View
+                    style={{
+                      marginTop: 10,
+                      paddingTop: 10,
+                      borderTopWidth: 1,
+                      borderTopColor: 'rgba(255,255,255,0.14)',
+                      alignSelf: 'stretch',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 10.5, fontFamily: 'Poppins-Medium', color: 'rgba(255,255,255,0.58)' }}>
+                      Wallet balance after transaction
+                    </Text>
+                    <Text style={{ marginTop: 2, fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white }}>
+                      ₦{formatCurrency(receiptData.balanceAfter)}
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
 

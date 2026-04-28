@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 
 import { haptics } from '@/hooks/useHaptics';
@@ -58,6 +58,7 @@ const TimelineStatusCardComponent = ({
   clientIdentity,
 }: TimelineStatusCardProps) => {
   const router = useRouter();
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   const { shouldHide, isQuotationPending } = useMemo(() => {
     const qList = Array.isArray(quotations) ? quotations : [];
@@ -310,30 +311,66 @@ const TimelineStatusCardComponent = ({
           />
 
           <View style={{ position: 'relative' }}>
-            <Text
-              style={{
-                fontSize: 16,
-                fontFamily: 'Poppins-Bold',
-                color: Colors.textPrimary,
-                marginBottom: 5,
-                lineHeight: 21,
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                haptics.selection();
+                setDetailsExpanded((current) => !current);
               }}
+              style={{ flexDirection: 'row', alignItems: 'center' }}
             >
-              {header.title}
-            </Text>
-            {header.subtitle ? (
+              <Text
+                style={{
+                  flex: 1,
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.textPrimary,
+                  lineHeight: 21,
+                }}
+              >
+                {header.title}
+              </Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 999,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: '#6B7280',
+                  }}
+                >
+                  Details
+                </Text>
+                <Ionicons
+                  name={detailsExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color="#6B7280"
+                />
+              </View>
+            </TouchableOpacity>
+            {header.subtitle && detailsExpanded ? (
               <Text
                 style={{
                   fontSize: 12,
                   fontFamily: 'Poppins-Regular',
                   color: '#374151',
                   lineHeight: 18,
+                  marginTop: 7,
                 }}
               >
                 {header.subtitle}
               </Text>
             ) : null}
-            {(header as any).timestamp ? (
+            {(header as any).timestamp && detailsExpanded ? (
               <Text
                 style={{
                   fontSize: 11,
@@ -403,6 +440,42 @@ const TimelineStatusCardComponent = ({
                   </Text>
                 </TouchableOpacity>
               ) : null}
+            </View>
+          )}
+
+          {(header as any).showVisitPayButton && !hasVisitFee && (
+            <View
+              style={{
+                marginTop: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: '#FDE68A',
+                backgroundColor: '#FFFBEB',
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  lineHeight: 18,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: '#92400E',
+                }}
+              >
+                Visit fee not available yet
+              </Text>
+              <Text
+                style={{
+                  marginTop: 2,
+                  fontSize: 11,
+                  lineHeight: 16,
+                  fontFamily: 'Poppins-Regular',
+                  color: '#A16207',
+                }}
+              >
+                Pull down to refresh this page. If it still shows, the server has not returned the provider&apos;s visit fee.
+              </Text>
             </View>
           )}
 

@@ -54,9 +54,10 @@ export default function EntryPoint() {
         if (token && role) {
           // User is authenticated – never redirect to signup/login
           const targetRoute = role === 'provider' ? '/provider/home' : '/(tabs)/home';
-          const isOnTarget = normalizedRoute === targetRoute || 
-            normalizedRoute.includes('(tabs)') || 
-            normalizedRoute.startsWith('/provider');
+          const isOnTarget =
+            role === 'provider'
+              ? normalizedRoute === targetRoute || normalizedRoute.startsWith('/provider')
+              : normalizedRoute === targetRoute || normalizedRoute.includes('(tabs)');
           if (!isOnTarget) {
             hasRedirectedRef.current = true;
             router.replace(targetRoute);

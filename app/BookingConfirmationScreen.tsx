@@ -2,8 +2,7 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import { haptics } from '@/hooks/useHaptics';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { ArrowRight, CalendarDays, CheckCircle, CheckCircle2, Circle, Clock3, FileText, Sparkles, Wrench } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowRight, CalendarDays, CheckCircle, CheckCircle2, Circle, Clock3, FileText, Wrench } from 'lucide-react-native';
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   Animated,
@@ -290,286 +289,168 @@ export default function BookingConfirmationScreen() {
   }
 
   return (
-    <SafeAreaWrapper className="flex-1 bg-[#F7F9F2]">
+    <SafeAreaWrapper className="flex-1 bg-white">
       <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
         <ScrollView
           className="flex-1"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 118, paddingTop: 18 }}
+          contentContainerStyle={{ paddingBottom: 116, paddingTop: 20 }}
           refreshControl={
             params.requestId ? (
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#6A9B00']} />
             ) : undefined
           }
         >
-          <View style={{ paddingHorizontal: 18 }}>
-            <LinearGradient
-              colors={['#111807', '#345F00', '#6A9B00']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+          <View style={{ paddingHorizontal: 20 }}>
+            <View
               style={{
-                borderRadius: 32,
-                paddingTop: 28,
-                paddingHorizontal: 22,
-                paddingBottom: 22,
-                overflow: 'hidden',
-                shadowColor: '#345F00',
-                shadowOffset: { width: 0, height: 14 },
-                shadowOpacity: 0.22,
-                shadowRadius: 24,
-                elevation: 8,
+                backgroundColor: '#FFFFFF',
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: '#E7EBDf',
+                padding: 18,
+                shadowColor: '#111827',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.04,
+                shadowRadius: 18,
+                elevation: 2,
               }}
             >
-              <View
-                style={{
-                  position: 'absolute',
-                  width: 150,
-                  height: 150,
-                  borderRadius: 75,
-                  backgroundColor: 'rgba(255,255,255,0.08)',
-                  top: -45,
-                  right: -30,
-                }}
-              />
-              <View
-                style={{
-                  width: 78,
-                  height: 78,
-                  borderRadius: 39,
-                  backgroundColor: 'rgba(255,255,255,0.16)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  alignSelf: 'center',
-                  marginBottom: 18,
-                  borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.26)',
-                }}
-              >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View
                   style={{
-                    width: 58,
-                    height: 58,
-                    borderRadius: 29,
-                    backgroundColor: '#FFFFFF',
+                    width: 54,
+                    height: 54,
+                    borderRadius: 27,
+                    backgroundColor: '#F2F8EA',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    marginRight: 14,
                   }}
                 >
-                  <CheckCircle2 size={34} color="#6A9B00" />
+                  <CheckCircle2 size={30} color="#6A9B00" />
                 </View>
-              </View>
-
-              <View style={{ alignItems: 'center' }}>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: 'rgba(255,255,255,0.14)',
-                    borderRadius: 999,
-                    paddingHorizontal: 12,
-                    paddingVertical: 7,
-                    marginBottom: 12,
-                  }}
-                >
-                  <Sparkles size={14} color="#E9FFB5" />
-                  <Text
-                    style={{
-                      marginLeft: 6,
-                      color: '#E9FFB5',
-                      fontFamily: 'Poppins-SemiBold',
-                      fontSize: 12,
-                    }}
-                  >
-                    Request sent successfully
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 24, lineHeight: 30, fontFamily: 'Poppins-Bold', color: '#111827', letterSpacing: -0.6 }}>
+                    Booking confirmed
+                  </Text>
+                  <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 20, fontFamily: 'Poppins-Regular', color: '#667085' }}>
+                    We&apos;ll notify you as providers respond.
                   </Text>
                 </View>
-                <Text
-                  style={{
-                    fontSize: 34,
-                    lineHeight: 40,
-                    textAlign: 'center',
-                    color: '#FFFFFF',
-                    fontFamily: 'Poppins-Bold',
-                    letterSpacing: -1,
-                  }}
-                >
-                  Booking Confirmed
-                </Text>
-                <Text
-                  style={{
-                    marginTop: 10,
-                    color: 'rgba(255,255,255,0.82)',
-                    textAlign: 'center',
-                    fontSize: 14,
-                    lineHeight: 21,
-                    fontFamily: 'Poppins-Medium',
-                  }}
-                >
-                  Hi {userName}, we&apos;ll keep this timeline updated as providers respond.
-                </Text>
               </View>
 
-              <View
-                style={{
-                  marginTop: 22,
-                  backgroundColor: 'rgba(255,255,255,0.96)',
-                  borderRadius: 22,
-                  padding: 16,
-                  gap: 12,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: '#EEF7DF',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 12,
-                    }}
-                  >
-                    <Wrench size={19} color="#6A9B00" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: 'Poppins-Medium', color: '#6B7280', fontSize: 12 }}>
-                      Service
-                    </Text>
-                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#111827', fontSize: 15 }} numberOfLines={1}>
-                      {displayService}
-                    </Text>
-                  </View>
-                </View>
+              <View style={{ height: 1, backgroundColor: '#EEF1E8', marginVertical: 16 }} />
 
+              <View style={{ gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Wrench size={17} color="#6A9B00" />
+                  <Text style={{ marginLeft: 9, flex: 1, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 14 }} numberOfLines={1}>
+                    {displayService}
+                  </Text>
+                </View>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <View
-                    style={{
-                      flex: 1,
-                      backgroundColor: '#F7F9F2',
-                      borderRadius: 16,
-                      paddingHorizontal: 12,
-                      paddingVertical: 12,
-                      borderWidth: 1,
-                      borderColor: '#E6EBD8',
-                    }}
-                  >
-                    <CalendarDays size={17} color="#6A9B00" />
-                    <Text style={{ marginTop: 7, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 13 }}>
+                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAF5', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 }}>
+                    <CalendarDays size={16} color="#6A9B00" />
+                    <Text style={{ marginLeft: 8, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 12 }}>
                       {displayDate}
                     </Text>
                   </View>
-                  <View
-                    style={{
-                      flex: 1.25,
-                      backgroundColor: '#F7F9F2',
-                      borderRadius: 16,
-                      paddingHorizontal: 12,
-                      paddingVertical: 12,
-                      borderWidth: 1,
-                      borderColor: '#E6EBD8',
-                    }}
-                  >
-                    <Clock3 size={17} color="#6A9B00" />
-                    <Text style={{ marginTop: 7, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 13 }}>
+                  <View style={{ flex: 1.35, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAF5', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 }}>
+                    <Clock3 size={16} color="#6A9B00" />
+                    <Text style={{ marginLeft: 8, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 12 }} numberOfLines={1}>
                       {providerSummary}
                     </Text>
                   </View>
                 </View>
               </View>
-            </LinearGradient>
+            </View>
           </View>
 
-          <View style={{ paddingHorizontal: 18, marginTop: 24 }}>
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontFamily: 'Poppins-Bold', color: '#111827', fontSize: 22, letterSpacing: -0.4 }}>
-                What happens next
-              </Text>
-              <Text style={{ fontFamily: 'Poppins-Medium', color: '#6B7280', fontSize: 13, marginTop: 4 }}>
-                Pull down to refresh whenever you want the latest status.
-              </Text>
-            </View>
+          <View style={{ paddingHorizontal: 20, marginTop: 26 }}>
+            <Text style={{ fontFamily: 'Poppins-Bold', color: '#111827', fontSize: 20, letterSpacing: -0.3 }}>
+              Next steps
+            </Text>
+            <Text style={{ fontFamily: 'Poppins-Regular', color: '#667085', fontSize: 13, marginTop: 3, marginBottom: 16 }}>
+              Track provider responses and continue from the job details screen.
+            </Text>
 
-            {progressSteps.map((step, index) => {
-              const isAnimated = animatedSteps.includes(index);
-              const stepColor = getStepColor(step.status);
-              const textColor = getStepTextColor(step.status);
-              const isLast = index === progressSteps.length - 1;
-              const IconComponent = step.icon || Circle;
-              const iconSize = step.status === 'completed' ? 20 : step.status === 'in-progress' ? 18 : 16;
+            <View
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 22,
+                borderWidth: 1,
+                borderColor: '#E7EBDf',
+                overflow: 'hidden',
+              }}
+            >
+              {progressSteps.map((step, index) => {
+                const isAnimated = animatedSteps.includes(index);
+                const stepColor = getStepColor(step.status);
+                const textColor = getStepTextColor(step.status);
+                const isLast = index === progressSteps.length - 1;
+                const IconComponent = step.icon || Circle;
 
-              return (
-                <View
-                  key={step.id}
-                  style={{
-                    flexDirection: 'row',
-                    backgroundColor: '#FFFFFF',
-                    borderRadius: 24,
-                    padding: 16,
-                    marginBottom: 12,
-                    borderWidth: 1,
-                    borderColor: step.status === 'pending' ? '#EEF0EA' : 'rgba(106,155,0,0.18)',
-                    shadowColor: '#111827',
-                    shadowOffset: { width: 0, height: 8 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 16,
-                    elevation: 2,
-                  }}
-                >
-                  <View style={{ alignItems: 'center', marginRight: 14 }}>
-                    <Animated.View
+                return (
+                  <View key={step.id}>
+                    <View
                       style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 24,
-                        backgroundColor: isAnimated ? stepColor : '#F3F4F6',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderWidth: isAnimated && step.status !== 'pending' ? 0 : 2,
-                        borderColor: '#E5E7EB',
-                        opacity: isAnimated ? 1 : 0.6,
-                        shadowColor: isAnimated && step.status !== 'pending' ? stepColor : '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: isAnimated && step.status !== 'pending' ? 0.2 : 0.05,
-                        shadowRadius: 4,
-                        elevation: isAnimated && step.status !== 'pending' ? 4 : 1,
+                        flexDirection: 'row',
+                        paddingHorizontal: 15,
+                        paddingVertical: 15,
                       }}
                     >
-                      <IconComponent
-                        size={iconSize}
-                        color={step.status === 'completed' || step.status === 'in-progress' ? '#FFFFFF' : '#9CA3AF'}
-                      />
-                    </Animated.View>
-                    {!isLast && (
-                      <View
-                        style={{
-                          width: 2,
-                          height: 38,
-                          backgroundColor: isAnimated && step.status !== 'pending' ? stepColor : '#E5E7EB',
-                          marginTop: 8,
-                          borderRadius: 2,
-                        }}
-                      />
-                    )}
+                      <View style={{ alignItems: 'center', marginRight: 12 }}>
+                        <Animated.View
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 17,
+                            backgroundColor: isAnimated ? stepColor : '#F3F4F6',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: isAnimated ? 1 : 0.65,
+                          }}
+                        >
+                          <IconComponent
+                            size={16}
+                            color={step.status === 'pending' ? '#9CA3AF' : '#FFFFFF'}
+                          />
+                        </Animated.View>
+                        {!isLast && (
+                          <View
+                            style={{
+                              width: 2,
+                              flex: 1,
+                              minHeight: 22,
+                              backgroundColor: step.status === 'pending' ? '#E5E7EB' : stepColor,
+                              marginTop: 7,
+                              borderRadius: 2,
+                            }}
+                          />
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 14.5 }}>
+                          {step.title}
+                        </Text>
+                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#667085', fontSize: 12.5, lineHeight: 19, marginTop: 3, marginBottom: 8 }}>
+                          {step.description}
+                        </Text>
+                        <AnimatedStatusChip
+                          status={step.statusText}
+                          statusColor={step.statusColor}
+                          textColor={textColor}
+                          size="small"
+                          animated={isAnimated}
+                        />
+                      </View>
+                    </View>
+                    {!isLast && <View style={{ height: 1, backgroundColor: '#EEF1E8', marginLeft: 61 }} />}
                   </View>
-                  <View style={{ flex: 1, paddingTop: 2 }}>
-                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#111827', fontSize: 16, marginBottom: 5 }}>
-                      {step.title}
-                    </Text>
-                    <Text style={{ fontFamily: 'Poppins-Medium', color: '#667085', fontSize: 13, lineHeight: 19, marginBottom: 10 }}>
-                      {step.description}
-                    </Text>
-                    <AnimatedStatusChip
-                      status={step.statusText}
-                      statusColor={step.statusColor}
-                      textColor={textColor}
-                      size="small"
-                      animated={isAnimated}
-                    />
-                  </View>
-                </View>
-              );
-            })}
+                );
+              })}
+            </View>
           </View>
         </ScrollView>
 
@@ -579,12 +460,12 @@ export default function BookingConfirmationScreen() {
             left: 0,
             right: 0,
             bottom: 0,
-            paddingHorizontal: 18,
-            paddingTop: 14,
+            paddingHorizontal: 20,
+            paddingTop: 12,
             paddingBottom: 24,
-            backgroundColor: 'rgba(247,249,242,0.96)',
+            backgroundColor: 'rgba(255,255,255,0.96)',
             borderTopWidth: 1,
-            borderTopColor: 'rgba(17,24,39,0.06)',
+            borderTopColor: '#EEF1E8',
           }}
         >
           <TouchableOpacity
@@ -592,20 +473,15 @@ export default function BookingConfirmationScreen() {
             activeOpacity={0.85}
             style={{
               backgroundColor: '#050505',
-              borderRadius: 18,
-              paddingVertical: 17,
+              borderRadius: 16,
+              paddingVertical: 16,
               alignItems: 'center',
               justifyContent: 'center',
               flexDirection: 'row',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.22,
-              shadowRadius: 14,
-              elevation: 6,
             }}
           >
             <Text style={{ color: '#FFFFFF', fontSize: 15, marginRight: 8, fontFamily: 'Poppins-SemiBold' }}>
-              {params.requestId ? 'View Job Details' : 'Continue'}
+              {params.requestId ? 'View job details' : 'Continue'}
             </Text>
             <ArrowRight size={18} color="#FFFFFF" />
           </TouchableOpacity>

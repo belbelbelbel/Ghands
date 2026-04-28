@@ -19,9 +19,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { shareReferral } from '@/utils/referral';
-import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Shield, TrendingDown, TrendingUp, Users } from 'lucide-react-native';
+import { ArrowRight, Bell, Calendar, ChevronDown, FileText, MapPin, Plus, Send, Shield, TrendingDown, TrendingUp, Users, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Modal, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { formatTimeAgo as formatTimeAgoUtil } from '@/utils/dateFormatting';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -185,6 +185,8 @@ export default function ProviderHomeScreen() {
   }>({ label: '…', trend: 'flat' });
   const [showNoInternet, setShowNoInternet] = useState(false);
   const activeJobsRef = useRef<JobCard[]>([]);
+  const [proceedJob, setProceedJob] = useState<JobCard | null>(null);
+  const [isProceedingJob, setIsProceedingJob] = useState(false);
   const [acceptedJobModal, setAcceptedJobModal] = useState<{
     visible: boolean;
     jobLocation: { address: string; city?: string; latitude: number; longitude: number };
@@ -544,6 +546,79 @@ export default function ProviderHomeScreen() {
     loadProviderLocation,
   ]);
 
+  const openProceedChoice = useCallback((job: JobCard) => {
+    if (!job.requestId) {
+      showError('Invalid request ID');
+      return;
+    }
+    haptics.light();
+    setProceedJob(job);
+  }, [showError, haptics]);
+
+  const closeProceedChoice = useCallback(() => {
+    if (isProceedingJob) return;
+    setProceedJob(null);
+  }, [isProceedingJob]);
+
+  const handleProceedChoice = useCallback(async (type: 'visit' | 'quote') => {
+    if (!proceedJob?.requestId || isProceedingJob) return;
+
+    setIsProceedingJob(true);
+    haptics.light();
+
+    try {
+      try {
+        await providerService.acceptRequest(proceedJob.requestId);
+      } catch (acceptErr: any) {
+        const msg = (acceptErr?.message || acceptErr?.details?.data?.message || '').toLowerCase();
+        const alreadyAccepted =
+          msg.includes('already accepted') ||
+          msg.includes('not available for acceptance') ||
+          msg.includes('already accepted by');
+        if (!alreadyAccepted) {
+          throw acceptErr;
+        }
+      }
+
+      haptics.success();
+      setPendingJobs((prev) => prev.filter((job) => job.requestId !== proceedJob.requestId));
+      await Promise.all([loadAvailableRequests(), loadAcceptedRequests()]);
+
+      const destination =
+        type === 'visit'
+          ? {
+              pathname: '/RequestVisitScreen' as any,
+              params: { requestId: String(proceedJob.requestId), jobTitle: proceedJob.service },
+            }
+          : {
+              pathname: '/SendQuotationScreen' as any,
+              params: {
+                requestId: String(proceedJob.requestId),
+                jobTitle: proceedJob.service,
+                returnToTab: 'Quotations',
+              },
+            };
+
+      setProceedJob(null);
+      showSuccess(type === 'visit' ? 'Request accepted. Schedule a visit next.' : 'Request accepted. Send your quotation next.');
+      router.push(destination as any);
+    } catch (error: any) {
+      haptics.error();
+      showError(getSpecificErrorMessage(error, 'accept_request'));
+    } finally {
+      setIsProceedingJob(false);
+    }
+  }, [
+    proceedJob,
+    isProceedingJob,
+    haptics,
+    loadAvailableRequests,
+    loadAcceptedRequests,
+    router,
+    showError,
+    showSuccess,
+  ]);
+
   const renderJobCard = useCallback((job: JobCard, isActive: boolean) => (
     <View
       key={job.id}
@@ -685,24 +760,18 @@ export default function ProviderHomeScreen() {
               paddingVertical: 12,
               paddingHorizontal: 16,
               borderRadius: BorderRadius.default,
-              borderWidth: 1,
-              borderColor: Colors.border,
-              backgroundColor: Colors.white,
+              backgroundColor: Colors.accent,
               alignItems: 'center',
               justifyContent: 'center',
+              flexDirection: 'row',
             }}
             onPress={() => {
-              haptics.light();
-              router.push({
-                pathname: '/ProviderJobDetailsScreen',
-                params: {
-                  requestId: job.requestId?.toString() || job.id,
-                },
-              } as any);
+              openProceedChoice(job);
             }}
           >
-            <Text style={{ color: Colors.textPrimary, fontFamily: 'Poppins-SemiBold', fontSize: 12 }}>
-              View Details
+            <Send size={14} color={Colors.white} style={{ marginRight: 6 }} />
+            <Text style={{ color: Colors.white, fontFamily: 'Poppins-SemiBold', fontSize: 12 }}>
+              Proceed
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -751,7 +820,7 @@ export default function ProviderHomeScreen() {
         </View>
       )}
     </View>
-  ), [router, loadAvailableRequests, loadAcceptedRequests, showError, showSuccess, haptics, addRejectedRequestId]);
+  ), [router, loadAvailableRequests, showError, haptics, addRejectedRequestId, openProceedChoice]);
 
   // If checking token, show nothing (will redirect if no token)
   if (isChecking) {
@@ -1200,6 +1269,144 @@ export default function ProviderHomeScreen() {
         visible={toast.visible}
         onClose={hideToast}
       />
+
+      <Modal
+        visible={!!proceedJob}
+        transparent
+        animationType="fade"
+        onRequestClose={closeProceedChoice}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.48)',
+            justifyContent: 'center',
+            paddingHorizontal: 20,
+          }}
+          onPress={closeProceedChoice}
+        >
+          <Pressable
+            onPress={(event) => event.stopPropagation()}
+            style={{
+              backgroundColor: Colors.white,
+              borderRadius: 26,
+              padding: 18,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: 0.14,
+              shadowRadius: 22,
+              elevation: 18,
+            }}
+          >
+            <TouchableOpacity
+              onPress={closeProceedChoice}
+              disabled={isProceedingJob}
+              style={{
+                position: 'absolute',
+                top: 14,
+                right: 14,
+                width: 34,
+                height: 34,
+                borderRadius: 17,
+                backgroundColor: '#F7F8FA',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2,
+              }}
+            >
+              <X size={18} color={Colors.textSecondaryDark} />
+            </TouchableOpacity>
+
+            <View style={{ paddingRight: 34, marginBottom: 16 }}>
+              <Text style={{ fontSize: 20, lineHeight: 26, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 6 }}>
+                Choose next step
+              </Text>
+              <Text style={{ fontSize: 13, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, lineHeight: 20 }}>
+                Accept the request, then continue with a visit or a quotation.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => handleProceedChoice('visit')}
+              disabled={isProceedingJob}
+              activeOpacity={0.85}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: Colors.white,
+                borderWidth: 1,
+                borderColor: 'rgba(106, 155, 0, 0.28)',
+                borderRadius: 18,
+                padding: 15,
+                marginBottom: 10,
+                opacity: isProceedingJob ? 0.65 : 1,
+              }}
+            >
+              <View
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 15,
+                  backgroundColor: '#F2F8EA',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}
+              >
+                <MapPin size={20} color={Colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, lineHeight: 20 }}>
+                  Request visit
+                </Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 3, lineHeight: 17 }}>
+                  Visit the client before pricing.
+                </Text>
+              </View>
+              {isProceedingJob ? <ActivityIndicator size="small" color={Colors.accent} /> : <ArrowRight size={18} color={Colors.accent} />}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleProceedChoice('quote')}
+              disabled={isProceedingJob}
+              activeOpacity={0.85}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: Colors.white,
+                borderWidth: 1,
+                borderColor: '#E5E7EB',
+                borderRadius: 18,
+                padding: 15,
+                opacity: isProceedingJob ? 0.65 : 1,
+              }}
+            >
+              <View
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 15,
+                  backgroundColor: '#F7F8FA',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}
+              >
+                <FileText size={20} color={Colors.textPrimary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, lineHeight: 20 }}>
+                  Send quotation
+                </Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 3, lineHeight: 17 }}>
+                  Send price now if details are clear.
+                </Text>
+              </View>
+              {isProceedingJob ? <ActivityIndicator size="small" color={Colors.accent} /> : <ArrowRight size={18} color={Colors.textSecondaryDark} />}
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Job Accepted Modal */}
       <JobAcceptedModal

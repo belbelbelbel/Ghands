@@ -353,10 +353,12 @@ export default function ProviderJobsScreen() {
         // Ongoing jobs: single primary button to check updates
         <TouchableOpacity
           style={{
-            backgroundColor: Colors.black,
+            backgroundColor: Colors.white,
             paddingVertical: 12,
             paddingHorizontal: 16,
             borderRadius: BorderRadius.default,
+            borderWidth: 1,
+            borderColor: '#DDE5D2',
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
@@ -380,10 +382,10 @@ export default function ProviderJobsScreen() {
             } as any);
           }}
         >
-          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: Spacing.xs }}>
+          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginRight: Spacing.xs }}>
             Check Updates
           </Text>
-          <ArrowRight size={14} color={Colors.white} />
+          <ArrowRight size={14} color={Colors.textPrimary} />
         </TouchableOpacity>
       ) : job.status === 'Pending' ? (
         // Pending jobs: Show "View Details" and "Decline" buttons
@@ -470,7 +472,9 @@ export default function ProviderJobsScreen() {
             paddingVertical: 12,
             paddingHorizontal: 16,
             borderRadius: BorderRadius.default,
-            backgroundColor: Colors.black,
+            backgroundColor: Colors.white,
+            borderWidth: 1,
+            borderColor: '#DDE5D2',
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
@@ -492,10 +496,10 @@ export default function ProviderJobsScreen() {
             } as any);
           }}
         >
-          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: Spacing.xs }}>
+          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginRight: Spacing.xs }}>
             Check Updates
           </Text>
-          <ArrowRight size={14} color={Colors.white} />
+          <ArrowRight size={14} color={Colors.textPrimary} />
         </TouchableOpacity>
       )}
 

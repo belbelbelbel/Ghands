@@ -202,7 +202,9 @@ export default function DateTimeScreen() {
     const h = Math.floor(totalM / 60);
     const m = totalM % 60;
     const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0, 0);
-    return slotStart.getTime() <= Date.now();
+    const slotEnd = new Date(slotStart);
+    slotEnd.setHours(slotEnd.getHours() + 1);
+    return slotEnd.getTime() <= Date.now();
   }, []);
 
   const handleNext = useCallback(async () => {

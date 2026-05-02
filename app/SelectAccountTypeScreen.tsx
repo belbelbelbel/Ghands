@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 0.76,
   },
   clientButtonText: {
     fontSize: 15,
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 0.76,
   },
   providerButtonText: {
     fontSize: 15,

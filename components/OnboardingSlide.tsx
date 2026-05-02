@@ -37,7 +37,7 @@ export default function OnboardingSlide({
         height: windowHeight,
       },
       heroZone: {
-        height: windowHeight * 0.58,
+        height: windowHeight * 0.61,
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
@@ -49,8 +49,9 @@ export default function OnboardingSlide({
         zIndex: 1,
       },
       contentZone: {
-        height: windowHeight * 0.42,
+        height: windowHeight * 0.39,
         paddingHorizontal: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
+        paddingTop: windowHeight < 760 ? 22 * scale : 28 * scale,
         paddingBottom: windowHeight < 700 ? 20 * scale : 32 * scale,
         justifyContent: 'flex-start',
         alignItems: 'flex-start',
@@ -137,10 +138,10 @@ export default function OnboardingSlide({
             <Stop offset="23%" stopColor="#C8D0C0" />
             <Stop offset="30%" stopColor="#B8C8A0" />
             <Stop offset="40%" stopColor="#A5C070" />
-            <Stop offset="50%" stopColor="#8AB050" />
-            <Stop offset="60%" stopColor="#6A9B00" />
-            <Stop offset="75%" stopColor="#1A1F00" />
-            <Stop offset="85%" stopColor="#0A0F00" />
+            <Stop offset="48%" stopColor="#8AB050" />
+            <Stop offset="54%" stopColor="#4F7600" />
+            <Stop offset="58%" stopColor="#172000" />
+            <Stop offset="72%" stopColor="#070B00" />
             <Stop offset="100%" stopColor="#000000" />
           </SvgLinearGradient>
         </Defs>

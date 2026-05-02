@@ -333,7 +333,7 @@ export default function ConfirmWalletPaymentScreen() {
             shadowOffset: { width: 0, height: 10 },
             shadowOpacity: 0.16,
             shadowRadius: 18,
-            elevation: 7,
+            elevation: 0.76,
           }}
         >
           <View

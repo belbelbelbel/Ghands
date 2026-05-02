@@ -290,7 +290,7 @@ export default function ProviderWalletScreen() {
             shadowOffset: { width: 0, height: 10 },
             shadowOpacity: 0.18,
             shadowRadius: 18,
-            elevation: 8,
+            elevation: 0.76,
           }}
         >
           <View
@@ -545,7 +545,7 @@ export default function ProviderWalletScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 1,
-              borderColor: 'rgba(17, 24, 39, 0.08)',
+              borderColor: 'rgba(17, 24, 39, 0.045)',
             }}
           >
             <Receipt size={48} color={Colors.textSecondaryDark} style={{ marginBottom: 16 }} />
@@ -580,12 +580,12 @@ export default function ProviderWalletScreen() {
               padding: 15,
               marginBottom: 12,
               borderWidth: 1,
-              borderColor: 'rgba(17, 24, 39, 0.08)',
+              borderColor: 'rgba(17, 24, 39, 0.045)',
               shadowColor: '#101828',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.035,
               shadowRadius: 10,
-              elevation: 2,
+              elevation: 0.76,
             }}
           >
             {/* Top Row */}

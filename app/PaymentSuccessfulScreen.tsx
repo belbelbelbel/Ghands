@@ -53,6 +53,17 @@ interface TransactionData {
   paymentDate: string;
 }
 
+const parseMoneyValue = (value: unknown): number => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[^\d.-]/g, '');
+    if (!cleaned) return 0;
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
 export default function PaymentSuccessfulScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -71,16 +82,17 @@ export default function PaymentSuccessfulScreen() {
   const loadTransactionData = useCallback(async () => {
     if (!params.requestId) {
       // Use params if available, otherwise use defaults
+      const routeAmount = parseMoneyValue(params.amount);
       const data: TransactionData = {
         transactionId: params.transactionId || `TXN-${Date.now()}`,
         jobTitle: params.serviceName || 'Service',
         providerName: params.providerName || 'Provider',
         serviceDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
         serviceTime: 'N/A',
-        serviceFee: params.amount || '0.00',
+        serviceFee: routeAmount.toFixed(2),
         platformFee: '0.00',
         tax: '10.00',
-        totalAmount: params.amount || '0.00',
+        totalAmount: routeAmount.toFixed(2),
         paymentMethod: 'Wallet',
         paymentDate: formatDate(new Date(), 'MMM dd, yyyy \'at\' h:mm a'),
       };
@@ -112,13 +124,14 @@ export default function PaymentSuccessfulScreen() {
           0
         ) || 0;
       const lineServiceFee = laborCost + logisticsCost + materialsCost;
+      const routeAmount = parseMoneyValue(params.amount);
       const serviceFeeNum =
-        lineServiceFee > 0 ? lineServiceFee : parseFloat(params.amount || '0') || 0;
+        lineServiceFee > 0 ? lineServiceFee : routeAmount;
       const platformFee = quotation?.serviceCharge || 0;
       const tax = quotation?.tax ?? 10;
       const qTotal = quotation?.total;
       const totalAmountNum =
-        qTotal != null && !Number.isNaN(Number(qTotal)) ? Number(qTotal) : parseFloat(params.amount || '0') || 0;
+        qTotal != null && parseMoneyValue(qTotal) > 0 ? parseMoneyValue(qTotal) : routeAmount;
 
       let serviceDate: string;
       let serviceTime: string;
@@ -171,16 +184,17 @@ export default function PaymentSuccessfulScreen() {
       if (__DEV__) {
         console.warn('[PaymentSuccessful] Unexpected error, using route params only', error);
       }
+      const routeAmount = parseMoneyValue(params.amount);
       const data: TransactionData = {
         transactionId: params.transactionId || `TXN-${Date.now()}`,
         jobTitle: params.serviceName || 'Service',
         providerName: params.providerName || 'Provider',
         serviceDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
         serviceTime: 'N/A',
-        serviceFee: params.amount || '0.00',
+        serviceFee: routeAmount.toFixed(2),
         platformFee: '0.00',
         tax: '10.00',
-        totalAmount: params.amount || '0.00',
+        totalAmount: routeAmount.toFixed(2),
         paymentMethod: 'Wallet',
         paymentDate: formatDate(new Date(), 'MMM dd, yyyy \'at\' h:mm a'),
       };
@@ -324,13 +338,6 @@ export default function PaymentSuccessfulScreen() {
             borderRadius: 24,
             padding: 20,
             marginBottom: 20,
-            borderWidth: 1,
-            borderColor: 'rgba(17, 24, 39, 0.08)',
-            shadowColor: '#101828',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.04,
-            shadowRadius: 16,
-            elevation: 2,
           }}
         >
           <View
@@ -398,7 +405,7 @@ export default function PaymentSuccessfulScreen() {
             style={{
               paddingTop: 20,
               borderTopWidth: 1,
-              borderTopColor: Colors.border,
+              borderTopColor: 'rgba(17, 24, 39, 0.05)',
             }}
           >
             <View style={{ marginBottom: 12 }}>
@@ -495,8 +502,6 @@ export default function PaymentSuccessfulScreen() {
             borderRadius: 20,
             padding: 20,
             marginBottom: 20,
-            borderWidth: 1,
-            borderColor: 'rgba(17, 24, 39, 0.08)',
           }}
         >
           <Text
@@ -629,8 +634,6 @@ export default function PaymentSuccessfulScreen() {
             borderRadius: 20,
             padding: 20,
             marginBottom: 24,
-            borderWidth: 1,
-            borderColor: 'rgba(17, 24, 39, 0.08)',
           }}
         >
           <Text

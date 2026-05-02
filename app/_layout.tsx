@@ -20,7 +20,6 @@ import { authService } from '@/services/authService';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { UserLocationProvider } from '@/hooks/useUserLocation';
-import * as Notifications from 'expo-notifications';
 import { Platform, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -311,7 +310,6 @@ export default function RootLayout() {
         <Stack.Screen name="LoginScreen" options={{ headerShown: false }} />
         <Stack.Screen name="ResetPassword" options={{ headerShown: false }} />
         <Stack.Screen name="OtpScreen" options={{ headerShown: false }} />
-        <Stack.Screen name='categories' options={{headerShown: false}}/>
         <Stack.Screen name="request-service" options={{ headerShown: false }} />
         {/* <Stack.Screen name='chat' options={{headerShown: false}}/> */}
         <Stack.Screen name="PasswordConfirmation" options={{ headerShown: false }} />

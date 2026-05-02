@@ -271,7 +271,7 @@ export default function ServicesGridScreen() {
                     },
                     shadowOpacity: 0.1,
                     shadowRadius: 4,
-                    elevation: 3,
+                    elevation: 0.76,
                   }}
                   activeOpacity={0.8}
                 >

@@ -1444,10 +1444,10 @@ export default function OngoingJobDetails() {
                       outputRange: [0.5, 0.6],
                     }),
                     shadowColor: step.isCompleted || step.isActive ? step.dotColor : '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: step.isCompleted || step.isActive ? 0.16 : 0.04,
-                    shadowRadius: 5,
-                    elevation: step.isCompleted || step.isActive ? 3 : 1,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0,
+                    shadowRadius: 0,
+                    elevation: 0,
                   }}
                 >
                   <IconComponent 
@@ -1502,10 +1502,10 @@ export default function OngoingJobDetails() {
                   padding: 13,
                   marginRight: 4,
                   shadowColor: '#101828',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.02,
-                  shadowRadius: 6,
-                  elevation: 1,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0,
+                  shadowRadius: 0,
+                  elevation: 0,
                 }}
               >
                 <View style={{ marginBottom: 8 }}>
@@ -2001,21 +2001,43 @@ export default function OngoingJobDetails() {
               </>
             ) : (
               <View className="flex-1">
-                {/* Info Banner */}
-                <View className="rounded-2xl bg-[#E0F2FE] px-4 py-3 mb-4 flex-row items-start">
-                  <View className="w-5 h-5 rounded-full bg-[#0EA5E9] items-center justify-center mr-3 mt-0.5">
-                    <Text className="text-white text-xs" style={{ fontFamily: 'Poppins-Bold' }}>
-                      i
+                {/* Quote status banner */}
+                <View
+                  style={{
+                    backgroundColor: Colors.white,
+                    borderRadius: 18,
+                    paddingVertical: 12,
+                    paddingHorizontal: 13,
+                    marginBottom: 14,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderWidth: 0.6,
+                    borderColor: 'rgba(17, 24, 39, 0.04)',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 15,
+                      backgroundColor: '#F2F8EA',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 10,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: 'Poppins-Bold', color: Colors.accent }}>
+                      {quotations.length > 0 ? quotations.length : '•'}
                     </Text>
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-sm text-gray-900 mb-1" style={{ fontFamily: 'Poppins-Bold' }}>
-                      {quotations.length > 0 ? 'All quotations received' : 'No quotations yet'}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 2 }}>
+                      {quotations.length > 0 ? 'Quotations ready' : 'Waiting for quotations'}
                     </Text>
-                    <Text className="text-xs text-[#0C4A6E]" style={{ fontFamily: 'Poppins-Regular' }}>
+                    <Text style={{ fontSize: 11, lineHeight: 16, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
                       {quotations.length > 0
-                        ? 'Review and select your preferred service provider'
-                        : 'Quotations will appear here once providers submit them.'}
+                        ? 'Compare costs and choose the provider that works best for you.'
+                        : 'Provider quotations will appear here once submitted.'}
                     </Text>
                   </View>
                 </View>

@@ -189,7 +189,7 @@ const ServiceMap: React.FC<ServiceMapProps> = ({
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.1,
             shadowRadius: 8,
-            elevation: 4,
+            elevation: 0.76,
           }}
         >
           <Search size={20} color={Colors.textSecondaryDark} style={{ marginRight: 12 }} />

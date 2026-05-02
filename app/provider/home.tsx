@@ -934,7 +934,7 @@ export default function ProviderHomeScreen() {
               shadowOffset: { width: 0, height: 16 },
               shadowOpacity: 0.18,
               shadowRadius: 26,
-              elevation: 10,
+              elevation: 0.76,
             }}
           >
             <LinearGradient
@@ -1114,7 +1114,7 @@ export default function ProviderHomeScreen() {
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 0.1,
                 shadowRadius: 2,
-                elevation: 2,
+                elevation: 0.76,
               }}
               onPress={() => {
                 haptics.light();
@@ -1142,7 +1142,7 @@ export default function ProviderHomeScreen() {
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 0.1,
                 shadowRadius: 2,
-                elevation: 2,
+                elevation: 0.76,
               }}
               onPress={() => {
                 haptics.light();
@@ -1344,7 +1344,7 @@ export default function ProviderHomeScreen() {
               shadowOffset: { width: 0, height: 12 },
               shadowOpacity: 0.14,
               shadowRadius: 22,
-              elevation: 18,
+              elevation: 0.76,
             }}
           >
             <TouchableOpacity

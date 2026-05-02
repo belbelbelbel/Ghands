@@ -21,7 +21,7 @@ export const SocialButton: React.FC<SocialButtonProps> = ({ title, icon, onPress
         },
         shadowOpacity: 0.05,
         shadowRadius: 2,
-        elevation: 1,
+        elevation: 0.76,
       }}
     >
       <View className="mr-3">

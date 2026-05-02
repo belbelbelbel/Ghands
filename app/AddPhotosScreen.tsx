@@ -411,7 +411,7 @@ export default function AddPhotosScreen() {
                 borderRadius: 20,
                 padding: 16,
                 borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.08)',
+                borderColor: 'rgba(17, 24, 39, 0.045)',
               }}
             >
               <Text className="text-black mb-3" style={{ fontFamily: 'Poppins-Bold', fontSize: 15 }}>

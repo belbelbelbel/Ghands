@@ -266,7 +266,7 @@ const ProfileScreen = () => {
             shadowOffset: { width: 0, height: 8 },
             shadowOpacity: 0.12,
             shadowRadius: 18,
-            elevation: 6,
+            elevation: 0,
           }}
         >
           <View
@@ -402,14 +402,12 @@ const ProfileScreen = () => {
             style={{
               backgroundColor: Colors.white,
               borderRadius: 22,
-              borderWidth: 1,
-              borderColor: 'rgba(17, 24, 39, 0.08)',
               overflow: 'hidden',
               shadowColor: '#101828',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.035,
               shadowRadius: 10,
-              elevation: 2,
+              elevation: 0,
             }}
           >
             {accountSettings.map((setting, index) => {
@@ -479,8 +477,6 @@ const ProfileScreen = () => {
             marginBottom: 24,
             position: 'relative',
             overflow: 'hidden',
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.08)',
           }}
         >
           <View
@@ -617,13 +613,11 @@ const ProfileScreen = () => {
               backgroundColor: Colors.white,
               borderRadius: 20,
               padding: 16,
-              borderWidth: 1,
-              borderColor: 'rgba(17, 24, 39, 0.08)',
               shadowColor: '#101828',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.035,
               shadowRadius: 10,
-              elevation: 2,
+              elevation: 0,
             }}
           >
             <View style={{ flex: 1, marginRight: 12 }}>
@@ -700,14 +694,12 @@ const ProfileScreen = () => {
             style={{
               backgroundColor: Colors.white,
               borderRadius: 22,
-              borderWidth: 1,
-              borderColor: '#E7EBDf',
               overflow: 'hidden',
               shadowColor: '#111827',
               shadowOffset: { width: 0, height: 8 },
               shadowOpacity: 0.04,
               shadowRadius: 18,
-              elevation: 2,
+              elevation: 0,
             }}
           >
             <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10 }}>

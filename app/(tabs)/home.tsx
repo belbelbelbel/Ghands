@@ -46,13 +46,11 @@ const CategoryItem = React.memo(({
       style={{
         width: 98,
         marginRight: 10,
-        borderWidth: 1,
-        borderColor: '#EEF1E8',
-        shadowColor: '#101828',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.035,
-        shadowRadius: 10,
-        elevation: 1,
+        shadowColor: 'rgba(106, 155, 0, 0.32)',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+        elevation: 0.76,
       }}
       activeOpacity={0.8}
     >
@@ -412,7 +410,7 @@ const HomeScreen = React.memo(() => {
   }, [router]);
 
   const handleViewAllCategories = useCallback(() => {
-    router.push('/categories' as any);
+    router.push('/(tabs)/categories' as any);
   }, [router]);
 
   const handleSearchQueryChange = useCallback((text: string) => {
@@ -714,13 +712,11 @@ const HomeScreen = React.memo(() => {
                       paddingHorizontal: 10,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderWidth: 1,
-                      borderColor: '#EEF1E8',
                       shadowColor: '#101828',
                       shadowOffset: { width: 0, height: 5 },
-                      shadowOpacity: 0.035,
+                      shadowOpacity: 0.025,
                       shadowRadius: 10,
-                      elevation: 1,
+                      elevation: 0.76,
                     }}
                   >
                     <View
@@ -770,7 +766,7 @@ const HomeScreen = React.memo(() => {
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: 0.04,
                 shadowRadius: 3,
-                elevation: 1,
+                elevation: 0.76,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>

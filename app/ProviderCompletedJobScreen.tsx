@@ -549,7 +549,7 @@ export default function ProviderCompletedJobScreen() {
                         },
                         shadowOpacity: step.isCompleted || step.isActive ? 0.2 : 0.05,
                         shadowRadius: 4,
-                        elevation: step.isCompleted || step.isActive ? 4 : 1,
+                        elevation: 0.76,
                         transform: [{
                           scale: animation.interpolate({
                             inputRange: [0, 1],

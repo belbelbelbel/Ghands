@@ -324,12 +324,12 @@ export default function JobsScreen() {
                   backgroundColor: '#FFFFFF',
                   borderRadius: 24,
                   borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.08)',
+                  borderColor: 'rgba(17, 24, 39, 0.045)',
                   shadowColor: '#101828',
                   shadowOffset: { width: 0, height: 6 },
                   shadowOpacity: 0.04,
                   shadowRadius: 14,
-                  elevation: 2,
+                  elevation: 0.76,
                 }}
               >
                 <View
@@ -548,7 +548,7 @@ export default function JobsScreen() {
               },
               shadowOpacity: 0.25,
               shadowRadius: 12,
-              elevation: 16,
+              elevation: 0.76,
             }}
           >
             <Text

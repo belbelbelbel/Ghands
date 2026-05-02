@@ -498,12 +498,12 @@ export default function RequestVisitScreen() {
                 padding: 16,
                 marginBottom: Spacing.lg,
                 borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.08)',
+                borderColor: 'rgba(17, 24, 39, 0.045)',
                 shadowColor: '#101828',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.035,
                 shadowRadius: 10,
-                elevation: 2,
+                elevation: 0.76,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
@@ -534,7 +534,7 @@ export default function RequestVisitScreen() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.08)',
+                  borderColor: 'rgba(17, 24, 39, 0.045)',
                   borderRadius: 14,
                   paddingHorizontal: Spacing.md,
                   backgroundColor: '#F7F8FA',
@@ -585,12 +585,12 @@ export default function RequestVisitScreen() {
                   borderRadius: 20,
                   padding: Spacing.md,
                   borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.08)',
+                  borderColor: 'rgba(17, 24, 39, 0.045)',
                   shadowColor: '#101828',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.035,
                   shadowRadius: 10,
-                  elevation: 2,
+                  elevation: 0.76,
                 }}
               >
                 {/* Month Navigation */}
@@ -722,12 +722,12 @@ export default function RequestVisitScreen() {
                 padding: 16,
                 marginBottom: Spacing.xl,
                 borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.08)',
+                borderColor: 'rgba(17, 24, 39, 0.045)',
                 shadowColor: '#101828',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.035,
                 shadowRadius: 10,
-                elevation: 2,
+                elevation: 0.76,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
@@ -905,7 +905,7 @@ export default function RequestVisitScreen() {
             shadowOffset: { width: 0, height: -4 },
             shadowOpacity: 0.06,
             shadowRadius: 14,
-            elevation: 8,
+            elevation: 0.76,
           }}
         >
           <TouchableOpacity

@@ -161,10 +161,10 @@ const TimelineStatusCardComponent = ({
         borderWidth: 1,
         borderColor: '#E5E7EB',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.045,
-        shadowRadius: 10,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0,
+        shadowRadius: 0,
+        elevation: 0,
         overflow: 'hidden',
       }}
     >

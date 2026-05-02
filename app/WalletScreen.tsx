@@ -172,6 +172,7 @@ export default function WalletScreen() {
         transactionId: transaction.id,
         providerName: transaction.serviceName,
         serviceName: transaction.serviceDescription,
+        amount: transaction.amount.toString(),
       },
     } as any);
   }, [router]);
@@ -233,7 +234,7 @@ export default function WalletScreen() {
             shadowOffset: { width: 0, height: 10 },
             shadowOpacity: 0.18,
             shadowRadius: 18,
-            elevation: 8,
+            elevation: 0.76,
             borderWidth: 1,
             borderColor: 'rgba(255, 255, 255, 0.08)',
           }}
@@ -482,7 +483,7 @@ export default function WalletScreen() {
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.18,
               shadowRadius: 8,
-              elevation: 4,
+              elevation: 0.76,
             }}
             activeOpacity={0.85}
           >
@@ -518,7 +519,7 @@ export default function WalletScreen() {
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.12,
               shadowRadius: 8,
-              elevation: 3,
+              elevation: 0.76,
             }}
             activeOpacity={0.85}
           >
@@ -597,7 +598,7 @@ export default function WalletScreen() {
                 borderRadius: BorderRadius.xl,
                 padding: 32,
                 borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.08)',
+                borderColor: 'rgba(17, 24, 39, 0.045)',
               }}
             />
           ) : (
@@ -610,12 +611,12 @@ export default function WalletScreen() {
                 padding: 15,
                 marginBottom: 12,
                 borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.08)',
+                borderColor: 'rgba(17, 24, 39, 0.045)',
                 shadowColor: '#101828',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.035,
                 shadowRadius: 10,
-                elevation: 2,
+                elevation: 0.76,
               }}
             >
               <View

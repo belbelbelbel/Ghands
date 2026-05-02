@@ -7,10 +7,20 @@ interface TagBadgeProps {
 
 export const TagBadge: React.FC<TagBadgeProps> = ({ text }) => {
   return (
-    <View className="bg-gray-100 px-2 py-1 rounded-full mr-2">
-      <Text className="text-xs text-gray-600 font-medium" style={{
-           fontFamily: 'Poppins-Regular',
-      }}>{text}</Text>
+    <View
+      className="bg-gray-100 rounded-full"
+      style={{ paddingHorizontal: 8, paddingVertical: 4, marginRight: 7, marginBottom: 2 }}
+    >
+      <Text
+        className="text-gray-600 font-medium"
+        style={{
+          fontFamily: 'Poppins-Regular',
+          fontSize: 10,
+          lineHeight: 13,
+        }}
+      >
+        {text}
+      </Text>
     </View>
   );
 };

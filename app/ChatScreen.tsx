@@ -962,12 +962,12 @@ export default function ChatScreen() {
               paddingHorizontal: 15,
               paddingVertical: 10,
               borderWidth: isFromCurrentUser ? 0 : 1,
-              borderColor: '#E7EBDf',
+              borderColor: 'rgba(17, 24, 39, 0.045)',
               shadowColor: '#111827',
               shadowOffset: { width: 0, height: 3 },
               shadowOpacity: isFromCurrentUser ? 0.06 : 0.04,
               shadowRadius: 8,
-              elevation: isFromCurrentUser ? 1 : 2,
+              elevation: 0.76,
             }}
           >
             <Text
@@ -1067,7 +1067,7 @@ export default function ChatScreen() {
                 marginRight: 10,
                 overflow: 'hidden',
                 borderWidth: 1,
-                borderColor: '#E7EBDf',
+                borderColor: 'rgba(17, 24, 39, 0.045)',
               }}
             >
               <Image
@@ -1217,7 +1217,7 @@ export default function ChatScreen() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderWidth: 1,
-                borderColor: '#E7EBDf',
+                borderColor: 'rgba(17, 24, 39, 0.045)',
                 marginBottom: 14,
               }}
             >
@@ -1281,7 +1281,7 @@ export default function ChatScreen() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderWidth: 1,
-                    borderColor: '#E7EBDf',
+                    borderColor: 'rgba(17, 24, 39, 0.045)',
                     marginBottom: 16,
                   }}
                 >
@@ -1333,7 +1333,7 @@ export default function ChatScreen() {
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.05,
                 shadowRadius: 12,
-                elevation: 2,
+                elevation: 0.76,
               }}
               activeOpacity={0.8}
             >

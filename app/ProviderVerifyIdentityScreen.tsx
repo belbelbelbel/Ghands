@@ -122,7 +122,7 @@ export default function ProviderVerifyIdentityScreen() {
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: 0.05,
                 shadowRadius: 2,
-                elevation: 2,
+                elevation: 0.76,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>

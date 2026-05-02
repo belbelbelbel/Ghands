@@ -590,7 +590,7 @@ export default function ProviderProfileSetupScreen() {
               shadowOffset: { width: 0, height: -4 },
               shadowOpacity: 0.1,
               shadowRadius: 12,
-              elevation: 16,
+              elevation: 0.76,
             }}
           >
             {/* Header */}
@@ -699,7 +699,7 @@ export default function ProviderProfileSetupScreen() {
                           shadowOffset: { width: 0, height: 1 },
                           shadowOpacity: isSelected ? 0.08 : 0.04,
                           shadowRadius: 3,
-                          elevation: isSelected ? 3 : 1,
+                          elevation: 0.76,
                         }}
                       >
                         <View
@@ -822,7 +822,7 @@ export default function ProviderProfileSetupScreen() {
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.3,
                     shadowRadius: 8,
-                    elevation: 6,
+                    elevation: 0.76,
                   }}
                   activeOpacity={0.8}
                 >

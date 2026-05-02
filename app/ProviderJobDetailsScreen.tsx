@@ -1484,7 +1484,7 @@ export default function ProviderJobDetailsScreen() {
               padding: 12,
               marginBottom: 12,
               borderWidth: 1,
-              borderColor: '#E7EBDf',
+              borderColor: 'rgba(17, 24, 39, 0.045)',
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1604,10 +1604,10 @@ export default function ProviderJobDetailsScreen() {
                   justifyContent: 'center',
                   flexDirection: 'row',
                   shadowColor: Colors.accent,
-                  shadowOffset: { width: 0, height: 6 },
-                  shadowOpacity: 0.18,
-                  shadowRadius: 10,
-                  elevation: 4,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0,
+                shadowRadius: 0,
+                elevation: 0,
                 }}
               >
                 <Send size={17} color={Colors.white} style={{ marginRight: 8 }} />
@@ -1634,10 +1634,10 @@ export default function ProviderJobDetailsScreen() {
                 borderWidth: 1,
                 borderColor: '#E5E7EB',
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.045,
-                shadowRadius: 10,
-                elevation: 2,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0,
+                shadowRadius: 0,
+                elevation: 0,
                 overflow: 'hidden',
                 padding: 14,
               }}
@@ -1783,12 +1783,12 @@ export default function ProviderJobDetailsScreen() {
                 padding: 16,
                 marginBottom: 16,
                 borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.08)',
+                borderColor: 'rgba(17, 24, 39, 0.045)',
                 shadowColor: '#101828',
-                shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.035,
-                shadowRadius: 12,
-                elevation: 2,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0,
+                shadowRadius: 0,
+                elevation: 0,
               }}
             >
               <Text
@@ -1839,10 +1839,10 @@ export default function ProviderJobDetailsScreen() {
                           borderWidth: step.isCompleted || step.isActive ? 0 : 2,
                           borderColor: '#E5E7EB',
                           shadowColor: step.isCompleted || step.isActive ? step.dotColor : '#000',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: step.isCompleted || step.isActive ? 0.16 : 0.04,
-                          shadowRadius: 5,
-                          elevation: step.isCompleted || step.isActive ? 3 : 1,
+                          shadowOffset: { width: 0, height: 0 },
+                          shadowOpacity: 0,
+                          shadowRadius: 0,
+                          elevation: 0,
                           transform: [{
                             scale: animation.interpolate({
                               inputRange: [0, 1],
@@ -1901,10 +1901,10 @@ export default function ProviderJobDetailsScreen() {
                             : '#EDF0F2',
                         padding: 12,
                         shadowColor: '#101828',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.02,
-                        shadowRadius: 6,
-                        elevation: 1,
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0,
+                        shadowRadius: 0,
+                        elevation: 0,
                       }}
                     >
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -3160,10 +3160,10 @@ export default function ProviderJobDetailsScreen() {
             borderTopWidth: 1,
             borderTopColor: Colors.border,
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.05,
-            shadowRadius: 8,
-            elevation: 8,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0,
+            shadowRadius: 0,
+            elevation: 0,
           }}
         >
           {/* Job Status Icon - Small icon in top right of bottom section */}
@@ -3746,7 +3746,7 @@ export default function ProviderJobDetailsScreen() {
               shadowOffset: { width: 0, height: 18 },
               shadowOpacity: 0.28,
               shadowRadius: 30,
-              elevation: 18,
+              elevation: 0.76,
             }}
           >
             <View
@@ -3828,7 +3828,7 @@ export default function ProviderJobDetailsScreen() {
                   shadowOffset: { width: 0, height: 8 },
                   shadowOpacity: 0.07,
                   shadowRadius: 14,
-                  elevation: 3,
+                  elevation: 0.76,
                 }}
                 activeOpacity={0.85}
                 onPress={() => {

@@ -1,36 +1,74 @@
 import { useEffect, useRef, useState } from 'react';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { notificationService } from '@/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Configure how notifications are handled when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
-
 const PUSH_TOKEN_STORAGE_KEY = '@ghands:push_token';
+type NotificationsModule = typeof import('expo-notifications');
+
+let notificationsModule: NotificationsModule | null | undefined;
+let notificationHandlerConfigured = false;
+
+function getNotificationsModule(): NotificationsModule | null {
+  if (Constants.appOwnership === 'expo') {
+    return null;
+  }
+
+  if (notificationsModule !== undefined) {
+    return notificationsModule;
+  }
+
+  try {
+    // Remote push notifications are not available in Expo Go on Android SDK 53+.
+    // Load lazily so Expo Go can still run the rest of the app.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    notificationsModule = require('expo-notifications') as NotificationsModule;
+  } catch {
+    notificationsModule = null;
+  }
+
+  return notificationsModule;
+}
+
+function configureNotificationHandler(Notifications: NotificationsModule) {
+  if (notificationHandlerConfigured) return;
+  notificationHandlerConfigured = true;
+
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 export function useNotifications() {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
-  const notificationListener = useRef<Notifications.Subscription | null>(null);
-  const responseListener = useRef<Notifications.Subscription | null>(null);
+  const [notification, setNotification] = useState<any | null>(null);
+  const notificationListener = useRef<{ remove: () => void } | null>(null);
+  const responseListener = useRef<{ remove: () => void } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
+    const Notifications = getNotificationsModule();
+
+    if (!Notifications) {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    configureNotificationHandler(Notifications);
 
     const initializeNotifications = async () => {
       try {
         const storedToken = await AsyncStorage.getItem(PUSH_TOKEN_STORAGE_KEY);
-        const token = await registerForPushNotificationsAsync();
+        const token = await registerForPushNotificationsAsync(Notifications);
 
         if (token && isMounted) {
           setExpoPushToken(token);
@@ -76,7 +114,7 @@ export function useNotifications() {
   };
 }
 
-async function registerForPushNotificationsAsync(): Promise<string | null> {
+async function registerForPushNotificationsAsync(Notifications: NotificationsModule): Promise<string | null> {
   let token: string | null = null;
 
   if (!Device.isDevice) {

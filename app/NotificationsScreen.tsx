@@ -35,6 +35,18 @@ const ARCHIVED_IDS_KEY = '@ghands:notification_archived_ids';
 
 type FilterPill = 'all' | 'unread' | 'read' | 'archive';
 
+const logNotificationDebug = (event: string, data?: Record<string, unknown>) => {
+  if (__DEV__) {
+    console.log('[GHands Notifications]', event, data ?? '');
+  }
+};
+
+const logNotificationError = (event: string, error?: unknown) => {
+  if (__DEV__) {
+    console.error('[GHands Notifications]', event, error ?? '');
+  }
+};
+
 export default function NotificationsScreen() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -310,17 +322,44 @@ export default function NotificationsScreen() {
     return groups;
   }, [filteredNotifications]);
 
+  useEffect(() => {
+    logNotificationDebug('filter: updated visible list', {
+      activeFilter: filterPill,
+      totalBackendNotifications: notifications.length,
+      unreadCount,
+      archivedCount: archivedIds.size,
+      visibleCount: filteredNotifications.length,
+      recentCount: groupedNotifications.Recent.length,
+      yesterdayCount: groupedNotifications.Yesterday.length,
+      lastWeekCount: groupedNotifications['Last week'].length,
+    });
+  }, [filterPill, notifications.length, unreadCount, archivedIds.size, filteredNotifications.length, groupedNotifications]);
+
   const loadNotifications = async () => {
     setIsLoading(true);
     try {
       // Fetch all notifications (both read and unread) to show full history
       // Increase limit to get more notifications
+      logNotificationDebug('loadNotifications: starting', { limit: 100, offset: 0 });
       const result = await notificationService.getNotifications({ limit: 100, offset: 0 });
-      setNotifications(result.notifications || []);
+      const nextNotifications = result.notifications || [];
+      logNotificationDebug('loadNotifications: success', {
+        count: nextNotifications.length,
+        unreadCount: nextNotifications.filter((notification) => notification.status !== 'read').length,
+        firstNotification: nextNotifications[0]
+          ? {
+              id: nextNotifications[0].id,
+              type: nextNotifications[0].type,
+              status: nextNotifications[0].status,
+              requestId: nextNotifications[0].requestId,
+              providerId: nextNotifications[0].providerId,
+              createdAt: nextNotifications[0].createdAt,
+            }
+          : null,
+      });
+      setNotifications(nextNotifications);
     } catch (error) {
-      if (__DEV__) {
-        console.error('Error loading notifications:', error);
-      }
+      logNotificationError('loadNotifications: failed', error);
     } finally {
       setIsLoading(false);
     }
@@ -337,9 +376,10 @@ export default function NotificationsScreen() {
         if (stored) {
           const ids = JSON.parse(stored) as number[];
           setArchivedIds(new Set(ids));
+        logNotificationDebug('archive: loaded ids', { count: ids.length, ids });
         }
       } catch (e) {
-        if (__DEV__) console.error('Error loading archived IDs:', e);
+      logNotificationError('archive: failed to load ids', e);
       }
     };
     loadArchivedIds();
@@ -348,21 +388,22 @@ export default function NotificationsScreen() {
   const persistArchivedIds = useCallback(async (ids: Set<number>) => {
     try {
       await AsyncStorage.setItem(ARCHIVED_IDS_KEY, JSON.stringify([...ids]));
+      logNotificationDebug('archive: persisted ids', { count: ids.size, ids: [...ids] });
     } catch (e) {
-      if (__DEV__) console.error('Error persisting archived IDs:', e);
+      logNotificationError('archive: failed to persist ids', e);
     }
   }, []);
 
   const handleClearAll = async () => {
     if (!hasNotifications || isClearing) return;
+    logNotificationDebug('clearAll: starting', { count: notifications.length });
     setIsClearing(true);
     try {
       await notificationService.deleteAllNotifications();
       setNotifications([]);
+      logNotificationDebug('clearAll: success');
     } catch (error) {
-      if (__DEV__) {
-        console.error('Error clearing notifications:', error);
-      }
+      logNotificationError('clearAll: failed', error);
     } finally {
       setIsClearing(false);
     }
@@ -376,21 +417,22 @@ export default function NotificationsScreen() {
   };
 
   const handleMarkAsRead = async (id: number) => {
+    logNotificationDebug('markAsRead: starting', { id });
     try {
       await notificationService.markAsRead(id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, status: 'read' } : n))
       );
+      logNotificationDebug('markAsRead: success', { id });
     } catch (error) {
-      if (__DEV__) {
-        console.error('Error marking notification as read:', error);
-      }
+      logNotificationError('markAsRead: failed', error);
     }
   };
 
   const handleArchive = useCallback(
     (id: number) => {
       haptics.light();
+      logNotificationDebug('archive: add', { id });
       swipeableRefs.current.get(id)?.close();
       setArchivedIds((prev) => {
         const next = new Set(prev).add(id);
@@ -404,6 +446,7 @@ export default function NotificationsScreen() {
   const handleUnarchive = useCallback(
     (id: number) => {
       haptics.light();
+      logNotificationDebug('archive: remove', { id });
       swipeableRefs.current.get(id)?.close();
       setArchivedIds((prev) => {
         const next = new Set(prev);
@@ -417,6 +460,7 @@ export default function NotificationsScreen() {
 
   const handleDelete = useCallback(async (id: number) => {
     haptics.light();
+    logNotificationDebug('delete: starting', { id });
     swipeableRefs.current.get(id)?.close();
     try {
       await notificationService.deleteNotification(id);
@@ -427,8 +471,9 @@ export default function NotificationsScreen() {
         persistArchivedIds(next);
         return next;
       });
+      logNotificationDebug('delete: success', { id });
     } catch (error) {
-      if (__DEV__) console.error('Error deleting notification:', error);
+      logNotificationError('delete: failed', error);
     }
   }, [persistArchivedIds]);
 
@@ -438,6 +483,16 @@ export default function NotificationsScreen() {
 
     // Extract raw notification if it's a UINotification
     const rawNotification = 'raw' in notification ? notification.raw : notification;
+    logNotificationDebug('navigate: pressed notification', {
+      id: rawNotification.id,
+      type: rawNotification.type,
+      status: rawNotification.status,
+      requestId: rawNotification.requestId,
+      providerId: rawNotification.providerId,
+      quotationId: rawNotification.quotationId,
+      transactionId: rawNotification.transactionId,
+      userRole,
+    });
 
     switch (rawNotification.type) {
       case 'message':
@@ -710,7 +765,7 @@ export default function NotificationsScreen() {
                     padding: 12,
                     opacity: 0.6,
                     borderWidth: 1,
-                    borderColor: '#EEF1E8',
+                    borderColor: 'rgba(17, 24, 39, 0.04)',
                   }}
                 >
                   <View
@@ -772,7 +827,7 @@ export default function NotificationsScreen() {
                 paddingHorizontal: 20,
                 borderRadius: 24,
                 borderWidth: 1,
-                borderColor: '#EEF1E8',
+                borderColor: 'rgba(17, 24, 39, 0.04)',
                 backgroundColor: '#F8FAF7',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -905,7 +960,7 @@ export default function NotificationsScreen() {
                         shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: notification.isRead ? 0.018 : 0.04,
                         shadowRadius: 10,
-                        elevation: notification.isRead ? 1 : 2,
+                        elevation: 0.76,
                       }}
                     >
                       <View
@@ -1078,7 +1133,7 @@ export default function NotificationsScreen() {
                   shadowOffset: { width: 0, height: 18 },
                   shadowOpacity: 0.18,
                   shadowRadius: 28,
-                  elevation: 8,
+                  elevation: 0.76,
                 }}
               >
                 {/* Header */}

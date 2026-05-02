@@ -134,7 +134,7 @@ export default function ProviderQuotationsScreen() {
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.05,
           shadowRadius: 2,
-          elevation: 2,
+          elevation: 0.76,
         }}
       >
         {/* Header: Request Info & Status */}

@@ -402,7 +402,7 @@ export default function ProviderReceiptScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 1,
-              borderColor: 'rgba(17, 24, 39, 0.08)',
+              borderColor: 'rgba(17, 24, 39, 0.045)',
               marginBottom: 16,
             }}
           >
@@ -509,12 +509,12 @@ export default function ProviderReceiptScreen() {
               padding: 16,
               marginBottom: 14,
               borderWidth: 1,
-              borderColor: 'rgba(17, 24, 39, 0.08)',
+              borderColor: 'rgba(17, 24, 39, 0.045)',
               shadowColor: '#101828',
               shadowOffset: { width: 0, height: 8 },
               shadowOpacity: 0.04,
               shadowRadius: 16,
-              elevation: 2,
+              elevation: 0.76,
             }}
           >
             {/* Receipt Header */}

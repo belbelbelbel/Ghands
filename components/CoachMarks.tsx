@@ -369,7 +369,7 @@ const CoachMarks: React.FC<CoachMarksProps> = ({
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.5,
               shadowRadius: 20,
-              elevation: 20,
+              elevation: 0.76,
             }}
           />
         </Animated.View>
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 24,
-    elevation: 16,
+    elevation: 0.76,
   },
   progressContainer: {
     alignItems: 'flex-end',

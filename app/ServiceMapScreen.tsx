@@ -702,7 +702,7 @@ const ServiceMapScreen = () => {
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.12,
                 shadowRadius: 6,
-                elevation: 6,
+                elevation: 0.76,
               }}
               activeOpacity={0.85}
             >

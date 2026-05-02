@@ -445,7 +445,7 @@ export default function CompletedJobDetail() {
                   },
                   shadowOpacity: 0.2,
                   shadowRadius: 4,
-                  elevation: 4,
+                  elevation: 0.76,
                 }}
               >
                 <IconComponent size={14} color={Colors.white} />

@@ -490,7 +490,7 @@ export default function PaymentMethodsScreen() {
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.035,
                   shadowRadius: 10,
-                  elevation: 2,
+                  elevation: 0.76,
                 }}
               >
                 <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#F2F8EA', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
@@ -618,7 +618,7 @@ export default function PaymentMethodsScreen() {
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.1,
               shadowRadius: 4,
-              elevation: 3,
+              elevation: 0.76,
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: paymentError.isInsufficientBalance ? 12 : 0 }}>
@@ -704,7 +704,7 @@ export default function PaymentMethodsScreen() {
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.3,
                   shadowRadius: 4,
-                  elevation: 4,
+                  elevation: 0.76,
                 }}
                 activeOpacity={0.85}
               >

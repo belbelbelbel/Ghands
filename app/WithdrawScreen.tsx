@@ -201,7 +201,7 @@ export default function WithdrawScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 1,
-              borderColor: 'rgba(17, 24, 39, 0.08)',
+              borderColor: 'rgba(17, 24, 39, 0.045)',
               marginBottom: 18,
             }}
           >
@@ -280,7 +280,7 @@ export default function WithdrawScreen() {
             borderRadius: 18,
             padding: 16,
             borderWidth: 1,
-            borderColor: 'rgba(17, 24, 39, 0.08)',
+            borderColor: 'rgba(17, 24, 39, 0.045)',
           }}
         >
           <Building2 size={20} color={Colors.textSecondaryDark} style={{ marginRight: 12 }} />
@@ -334,7 +334,7 @@ export default function WithdrawScreen() {
             borderRadius: 18,
             padding: 16,
             borderWidth: 1,
-            borderColor: 'rgba(17, 24, 39, 0.08)',
+            borderColor: 'rgba(17, 24, 39, 0.045)',
             fontSize: 16,
             fontFamily: 'Poppins-Medium',
             color: Colors.textPrimary,

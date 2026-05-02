@@ -64,13 +64,13 @@ const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
       activeOpacity={0.7}
       onPress={handlePress}
       style={{
-        borderWidth: 1,
-        borderColor: '#EEF1E8',
+        borderWidth: 0.5,
+        borderColor: 'rgba(16, 24, 40, 0.045)',
         shadowColor: '#101828',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.045,
+        shadowOpacity: 0.03,
         shadowRadius: 16,
-        elevation: 2,
+        elevation: 0.76,
       }}
     >
       <View className="flex-row items-center justify-between mb-3">
@@ -124,8 +124,6 @@ const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
         <View
           style={{
             backgroundColor: isAwaitingQuote ? '#F9FAFB' : '#F2F7EC',
-            borderWidth: 1,
-            borderColor: isAwaitingQuote ? '#EEF1E8' : '#E3EED4',
             borderRadius: 13,
             paddingHorizontal: 10,
             paddingVertical: 7,

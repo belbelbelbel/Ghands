@@ -191,11 +191,11 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 0,
     },
-    shadowOpacity: 0.5, // Increased shadow for better visibility
-    shadowRadius: 12, // Increased shadow radius
-    elevation: 12, // Increased elevation for Android
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
     overflow: 'visible', // Allow shadow to be visible
     padding: 8, // Add padding to ensure logo doesn't touch edges
   },

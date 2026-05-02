@@ -304,12 +304,12 @@ export default function CallScreen() {
         marginHorizontal: Spacing.lg,
         marginTop: Spacing.lg,
         borderWidth: 1,
-        borderColor: 'rgba(17, 24, 39, 0.08)',
+        borderColor: 'rgba(17, 24, 39, 0.045)',
         shadowColor: '#101828',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.035,
         shadowRadius: 10,
-        elevation: 2,
+        elevation: 0.76,
       }}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md }}>
@@ -492,12 +492,12 @@ export default function CallScreen() {
             paddingVertical: 26,
             paddingHorizontal: 18,
             borderWidth: 1,
-            borderColor: 'rgba(17, 24, 39, 0.08)',
+            borderColor: 'rgba(17, 24, 39, 0.045)',
             shadowColor: '#101828',
             shadowOffset: { width: 0, height: 8 },
             shadowOpacity: 0.045,
             shadowRadius: 18,
-            elevation: 3,
+            elevation: 0.76,
           }}
         >
           <View
@@ -699,7 +699,7 @@ export default function CallScreen() {
                   backgroundColor: Colors.white,
                   borderRadius: 14,
                   borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.08)',
+                  borderColor: 'rgba(17, 24, 39, 0.045)',
                   paddingVertical: 10,
                   paddingHorizontal: 18,
                 }}

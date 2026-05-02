@@ -320,12 +320,12 @@ export default function SendQuotationScreen() {
                   padding: 16,
                   marginBottom: SPACING.lg,
                   borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.08)',
+                  borderColor: 'rgba(17, 24, 39, 0.045)',
                   shadowColor: '#101828',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.035,
                   shadowRadius: 10,
-                  elevation: 2,
+                  elevation: 0.76,
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
@@ -371,7 +371,7 @@ export default function SendQuotationScreen() {
                     backgroundColor: Colors.white,
                     borderRadius: 14,
                     borderWidth: 1,
-                    borderColor: 'rgba(17, 24, 39, 0.08)',
+                    borderColor: 'rgba(17, 24, 39, 0.045)',
                     paddingHorizontal: SPACING.md,
                     height: 48,
                   }}
@@ -421,7 +421,7 @@ export default function SendQuotationScreen() {
                     backgroundColor: Colors.white,
                     borderRadius: 14,
                     borderWidth: 1,
-                    borderColor: 'rgba(17, 24, 39, 0.08)',
+                    borderColor: 'rgba(17, 24, 39, 0.045)',
                     paddingHorizontal: SPACING.md,
                     height: 48,
                   }}
@@ -461,12 +461,12 @@ export default function SendQuotationScreen() {
                   padding: 16,
                   marginBottom: SPACING.lg,
                   borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.08)',
+                  borderColor: 'rgba(17, 24, 39, 0.045)',
                   shadowColor: '#101828',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.035,
                   shadowRadius: 10,
-                  elevation: 2,
+                  elevation: 0.76,
                 }}
               >
                 <View
@@ -535,7 +535,7 @@ export default function SendQuotationScreen() {
                         backgroundColor: Colors.white,
                         borderRadius: 12,
                         borderWidth: 1,
-                        borderColor: 'rgba(17, 24, 39, 0.08)',
+                        borderColor: 'rgba(17, 24, 39, 0.045)',
                         paddingHorizontal: SPACING.md,
                         height: 48,
                         flexDirection: 'row',
@@ -564,7 +564,7 @@ export default function SendQuotationScreen() {
                         backgroundColor: Colors.white,
                         borderRadius: 12,
                         borderWidth: 1,
-                        borderColor: 'rgba(17, 24, 39, 0.08)',
+                        borderColor: 'rgba(17, 24, 39, 0.045)',
                         height: 48,
                         flexDirection: 'row',
                         alignItems: 'center',
@@ -606,7 +606,7 @@ export default function SendQuotationScreen() {
                         backgroundColor: Colors.white,
                         borderRadius: 12,
                         borderWidth: 1,
-                        borderColor: 'rgba(17, 24, 39, 0.08)',
+                        borderColor: 'rgba(17, 24, 39, 0.045)',
                         paddingHorizontal: SPACING.md,
                         height: 48,
                       }}
@@ -693,12 +693,12 @@ export default function SendQuotationScreen() {
                   padding: 16,
                   marginBottom: SPACING.lg,
                   borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.08)',
+                  borderColor: 'rgba(17, 24, 39, 0.045)',
                   shadowColor: '#101828',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.035,
                   shadowRadius: 10,
-                  elevation: 2,
+                  elevation: 0.76,
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
@@ -729,7 +729,7 @@ export default function SendQuotationScreen() {
                     backgroundColor: '#F7F8FA',
                     borderRadius: 14,
                     borderWidth: 1,
-                    borderColor: 'rgba(17, 24, 39, 0.08)',
+                    borderColor: 'rgba(17, 24, 39, 0.045)',
                     paddingHorizontal: SPACING.md,
                     paddingVertical: SPACING.md,
                     minHeight: 100,
@@ -759,12 +759,12 @@ export default function SendQuotationScreen() {
                   overflow: 'hidden',
                   marginBottom: SPACING.xxl,
                   borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.08)',
+                  borderColor: 'rgba(17, 24, 39, 0.045)',
                   shadowColor: '#101828',
                   shadowOffset: { width: 0, height: 8 },
                   shadowOpacity: 0.05,
                   shadowRadius: 16,
-                  elevation: 3,
+                  elevation: 0.76,
                 }}
               >
                 {/* Green Header */}
@@ -988,7 +988,7 @@ export default function SendQuotationScreen() {
             shadowOffset: { width: 0, height: -4 },
             shadowOpacity: 0.06,
             shadowRadius: 14,
-            elevation: 8,
+            elevation: 0.76,
           }}
         >
           <TouchableOpacity

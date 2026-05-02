@@ -14,16 +14,14 @@ const LiveSupportScreen = () => {
     <View className='px-4 mb-6'>
       <View
         style={{
-          backgroundColor: '#FFFFFF',
-          borderWidth: 1,
-          borderColor: '#EEF1E8',
+          backgroundColor: '#FAFCF7',
           borderRadius: 22,
           padding: 16,
           shadowColor: '#101828',
           shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.04,
+          shadowOpacity: 0.025,
           shadowRadius: 16,
-          elevation: 2,
+          elevation: 0.76,
         }}
       >
         <View className='flex-row items-center mb-3'>

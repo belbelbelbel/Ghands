@@ -20,47 +20,57 @@ export const AccountTypeCard: React.FC<AccountTypeCardProps> = ({
 }) => {
   return (
     <TouchableOpacity
-    
       onPress={onPress}
       activeOpacity={0.7}
-      className=" border-2 border-[#6A9B00] rounded-2xl p-6 mx-4 my-2 relative"
+      className="border border-[#6A9B00] rounded-2xl mx-2 my-1 relative"
       style={{
+        paddingHorizontal: 18,
+        paddingVertical: 16,
         shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        backgroundColor: '#f5f9eeff'
-        
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 0.76,
+        backgroundColor: '#F8FBF2',
       }}
     >
       {/* Right Arrow */}
-      <View className="absolute top-16 right-6">
-        <ChevronRight size={24} color="black" />
+      <View className="absolute right-5" style={{ top: 42 }}>
+        <ChevronRight size={21} color="black" />
       </View>
 
-      <View className='flex items-start '>
-        <View className='flex flex-row gap-4 items-center mb-4'>
-          <View className="w-16 h-16 bg-[#6A9B00] rounded-2xl items-center justify-center mb-4 mx-auto">
+      <View className="items-start">
+        <View className="flex-row items-center" style={{ marginBottom: 12, paddingRight: 28 }}>
+          <View
+            className="bg-[#6A9B00] rounded-2xl items-center justify-center"
+            style={{ width: 52, height: 52, marginRight: 14 }}
+          >
             {icon}
           </View>
-          <View className='flex flex-col items-start '>
-            <Text className="text-lg font-bold text-black text-center mb-1" style={{
-                 fontFamily: 'Poppins-Medium',
-            }}>
+          <View className="flex-1 items-start">
+            <Text
+              className="font-bold text-black mb-1"
+              style={{
+                fontFamily: 'Poppins-SemiBold',
+                fontSize: 16,
+                lineHeight: 21,
+              }}
+            >
               {title}
             </Text>
-            <Text className="text-sm text-gray-600 text-center mb-4 " style={{
-               fontFamily: 'Poppins-Regular',
-            }}>
+            <Text
+              className="text-gray-600"
+              style={{
+                fontFamily: 'Poppins-Regular',
+                fontSize: 12,
+                lineHeight: 17,
+              }}
+            >
               {subtitle}
             </Text>
           </View>
         </View>
-        <View className="flex-row justify-center flex-wrap">
+        <View className="flex-row flex-wrap">
           {tags.map((tag, index) => (
             <TagBadge key={index} text={tag} />
           ))}

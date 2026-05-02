@@ -307,13 +307,13 @@ export default function BookingConfirmationScreen() {
                 backgroundColor: '#FFFFFF',
                 borderRadius: 24,
                 borderWidth: 1,
-                borderColor: '#E7EBDf',
+                borderColor: 'rgba(17, 24, 39, 0.045)',
                 padding: 18,
                 shadowColor: '#111827',
                 shadowOffset: { width: 0, height: 8 },
                 shadowOpacity: 0.04,
                 shadowRadius: 18,
-                elevation: 2,
+                elevation: 0.76,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -380,7 +380,7 @@ export default function BookingConfirmationScreen() {
                 backgroundColor: '#FFFFFF',
                 borderRadius: 22,
                 borderWidth: 1,
-                borderColor: '#E7EBDf',
+                borderColor: 'rgba(17, 24, 39, 0.045)',
                 overflow: 'hidden',
               }}
             >

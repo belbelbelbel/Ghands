@@ -86,28 +86,28 @@ export default function ProviderTypeSelectionScreen() {
             style={[
               {
                 alignItems: 'center',
-                marginTop: 24,
-                marginBottom: 32,
+                marginTop: 18,
+                marginBottom: 28,
               },
               animatedStyle,
             ]}
           >
             <View
               style={{
-                width: 160,
-                height: 160,
+                width: 132,
+                height: 132,
                 backgroundColor: Colors.accent,
-                borderRadius: 80,
+                borderRadius: 66,
                 alignItems: 'center',
                 justifyContent: 'center',
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.15,
                 shadowRadius: 12,
-                elevation: 8,
+                elevation: 0.76,
               }}
             >
-              <Briefcase size={60} color={Colors.white} />
+              <Briefcase size={50} color={Colors.white} />
             </View>
           </Animated.View>
 
@@ -117,7 +117,7 @@ export default function ProviderTypeSelectionScreen() {
                 flex: 0,
                 justifyContent: 'center',
                 paddingHorizontal: 20,
-                paddingBottom: 32,
+                paddingBottom: 28,
               },
               animatedStyle,
             ]}
@@ -126,7 +126,7 @@ export default function ProviderTypeSelectionScreen() {
               style={{
                 ...Fonts.h3,
                 textAlign: 'left',
-                marginBottom: 24,
+                marginBottom: 18,
                 color: Colors.textPrimary,
                 fontFamily: 'Poppins-Bold',
               }}
@@ -137,7 +137,7 @@ export default function ProviderTypeSelectionScreen() {
             {/* Individual Provider Card - Using AccountTypeCard with Coming Soon badge */}
             <View style={{ position: 'relative', marginBottom: 16 }}>
               <AccountTypeCard
-                icon={<User size={32} color="white" />}
+                icon={<User size={27} color="white" />}
                 title="Individual Provider"
                 subtitle="You work alone"
                 tags={["Established", "Licensed", "Certified"]}
@@ -147,7 +147,7 @@ export default function ProviderTypeSelectionScreen() {
 
             {/* Corporate Provider Card */}
             <AccountTypeCard
-              icon={<Building2 size={32} color="white" />}
+              icon={<Building2 size={27} color="white" />}
               title="Corporate Provider"
               subtitle="Provider service solutions"
               tags={["Established", "Licensed", "Certified"]}

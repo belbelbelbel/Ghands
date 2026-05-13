@@ -1,6 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
 import { BorderRadius, Colors } from '@/lib/designSystem';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 import { providerService, serviceRequestService } from '@/services/api';
 import { formatDateShort } from '@/utils/dateFormatting';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -164,7 +165,7 @@ export default function ProviderCompletedJobScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: 20,
+            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
             paddingTop: 16,
             paddingBottom: 12,
             backgroundColor: Colors.white,
@@ -188,7 +189,7 @@ export default function ProviderCompletedJobScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: 20,
+            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
             paddingTop: 12,
             paddingBottom: 100,
           }}

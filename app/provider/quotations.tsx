@@ -42,7 +42,7 @@ const getStatusConfig = (status: string) => {
     case 'accepted':
       return {
         color: '#16A34A',
-        bgColor: '#DCFCE7',
+        bgColor: 'rgba(79, 103, 57, 0.14)',
         icon: CheckCircle2,
         label: 'Accepted',
       };

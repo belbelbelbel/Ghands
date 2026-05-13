@@ -194,7 +194,7 @@ export default function EditProfileScreen() {
           Edit your profile
         </Text>
         {showHeaderLoader ? (
-          <ActivityIndicator size="small" color="#6A9B00" style={{ marginRight: 4 }} />
+          <ActivityIndicator size="small" color="#4F6739" style={{ marginRight: 4 }} />
         ) : (
           <View style={{ width: 28 }} />
         )}
@@ -207,7 +207,7 @@ export default function EditProfileScreen() {
             <View className="relative">
               <View className="w-32 h-32 bg-white rounded-full items-center justify-center border-2 border-black overflow-hidden">
                 {isUploadingImage ? (
-                  <ActivityIndicator size="large" color="#6A9B00" />
+                  <ActivityIndicator size="large" color="#4F6739" />
                 ) : profileImageUri ? (
                   <Image
                     source={{ uri: profileImageUri }}
@@ -215,7 +215,7 @@ export default function EditProfileScreen() {
                     resizeMode="cover"
                   />
                 ) : (
-                  <User size={60} color="#6A9B00" />
+                  <User size={60} color="#4F6739" />
                 )}
               </View>
               <TouchableOpacity

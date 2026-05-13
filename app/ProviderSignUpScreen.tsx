@@ -154,7 +154,7 @@ export default function ProviderSignUpScreen() {
 
         {/* Company Fax */}
         <View className="bg-gray-100 border-0 rounded-xl mb-4 px-4 py-3 flex-row items-center">
-          <View className="w-12 h-12 mr-4 bg-[#6A9B00] border-black rounded-xl items-center justify-center">
+          <View className="w-12 h-12 mr-4 bg-[#4F6739] border-black rounded-xl items-center justify-center">
             <Text className="text-white text-sm font-bold" style={{ fontFamily: 'Poppins-Bold' }}>+234</Text>
           </View>
           <TextInput
@@ -170,7 +170,7 @@ export default function ProviderSignUpScreen() {
             placeholderTextColor="#666666"
             style={{ fontFamily: 'Poppins-Medium' }}
           />
-          <View className="w-12 h-12 ml-4 bg-[#6A9B00] border-black rounded-xl items-center justify-center">
+          <View className="w-12 h-12 ml-4 bg-[#4F6739] border-black rounded-xl items-center justify-center">
             <Phone size={18} color="white" />
           </View>
         </View>
@@ -208,7 +208,7 @@ export default function ProviderSignUpScreen() {
           <TouchableOpacity onPress={handleLogin} activeOpacity={0.7}>
             <Text className="text-base" style={{ fontFamily: 'Poppins-Medium' }}>
               Already have an account?{' '}
-              <Text className="text-[#6A9B00] font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Login</Text>
+              <Text className="text-[#4F6739] font-bold" style={{ fontFamily: 'Poppins-Bold' }}>Login</Text>
             </Text>
           </TouchableOpacity>
         </View>

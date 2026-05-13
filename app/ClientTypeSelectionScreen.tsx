@@ -107,7 +107,7 @@ export default function ClientTypeSelectionScreen() {
             {/* Individual Client Card */}
             <View style={{ marginBottom: 16 }}>
               <AccountTypeCard
-                icon={<User size={32} color="white" />}
+                icon={<User size={32} color={Colors.accent} />}
                 title="Individual Client"
                 subtitle="Personal service requests"
                 tags={["Personal", "Quick", "Easy"]}
@@ -117,7 +117,7 @@ export default function ClientTypeSelectionScreen() {
 
             {/* Company Client Card */}
             <AccountTypeCard
-              icon={<Building2 size={32} color="white" />}
+              icon={<Building2 size={32} color={Colors.accent} />}
               title="Company Client"
               subtitle="Business service solutions"
               tags={["Business", "Professional", "Managed"]}

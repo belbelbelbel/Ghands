@@ -1,9 +1,12 @@
 import { useAuthRole } from '@/hooks/useAuth';
+import { Colors } from '@/lib/designSystem';
+import { PROVIDER_TAB_BAR_BASE_HEIGHT, PROVIDER_TAB_BAR_PADDING_BOTTOM } from '@/lib/tabletLayout';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Platform } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 const ROLE_SWITCHING_KEY = '@ghands:role_switching';
@@ -52,7 +55,29 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color:
 
 export default function ProviderLayout() {
   const { role, isLoading } = useAuthRole();
+  const insets = useSafeAreaInsets();
   const [isSwitchingRole, setIsSwitchingRole] = useState(false);
+
+  const tabBarStyle = useMemo(
+    () => ({
+      backgroundColor: '#ffffff',
+      borderTopWidth: 0,
+      height: PROVIDER_TAB_BAR_BASE_HEIGHT + insets.bottom,
+      paddingBottom: PROVIDER_TAB_BAR_PADDING_BOTTOM + insets.bottom,
+      paddingTop: 6,
+      marginHorizontal: 0,
+      marginBottom: 0,
+      position: 'absolute' as const,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      shadowOffset: { width: 0, height: 0 },
+      elevation: 0,
+    }),
+    [insets.bottom]
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -82,25 +107,10 @@ export default function ProviderLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 0,
-          height: Platform.OS === 'ios' ? 75 : 65,
-          paddingBottom: Platform.OS === 'ios' ? 8 : 6,
-          paddingTop: 6,
-          marginHorizontal: 0,
-          marginBottom: 0,
-          position: 'absolute',
-          bottom: 0,
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 6,
-          elevation: 0.76,
-        },
+        tabBarStyle,
         tabBarHideOnKeyboard: true,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: '#6A9B00',
+        tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarLabelStyle: {
           fontSize: 11,

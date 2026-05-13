@@ -80,7 +80,7 @@ export default function HelpSupportScreen() {
                     {option.title}
                   </Text>
                   <Text
-                    className={`text-sm ${option.id === '2' ? 'text-[#6A9B00]' : 'text-gray-500'}`}
+                    className={`text-sm ${option.id === '2' ? 'text-[#4F6739]' : 'text-gray-500'}`}
                     style={{ fontFamily: 'Poppins-Medium' }}
                   >
                     {option.subtitle}

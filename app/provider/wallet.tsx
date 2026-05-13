@@ -1,12 +1,14 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Spacing, useTabScrollContentPaddingTop } from '@/lib/designSystem';
-import { useRouter } from 'expo-router';
-import { ArrowRight, Bell, Check, Clock, Receipt, TrendingUp, Wallet } from 'lucide-react-native';
+import { BorderRadius, Colors, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { surfaceElevation } from '@/lib/surfaceStyles';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { ArrowLeft, ArrowRight, Bell, Check, Clock, Receipt, TrendingUp, Wallet } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { walletService, providerService, authService } from '@/services/api';
-import { useFocusEffect } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { walletService } from '@/services/api';
+
+const WALLET_CTA_BLACK = '#0A0A0A';
 
 interface ActivityItem {
   id: string;
@@ -29,7 +31,6 @@ export default function ProviderWalletScreen() {
   const [isLoadingActivities, setIsLoadingActivities] = useState<boolean>(true);
   const [walletId, setWalletId] = useState<number | null>(null);
   const [pendingEarnings, setPendingEarnings] = useState<number>(0);
-  const [providerInitials, setProviderInitials] = useState<string>('PR');
 
   // Helper function to format date
   const formatDate = useCallback((dateString: string): { date: string; time: string } => {
@@ -151,95 +152,47 @@ export default function ProviderWalletScreen() {
     }
   }, []);
 
-  // Load provider name for initials
-  const loadProviderName = useCallback(async () => {
-    try {
-      const providerId = await authService.getCompanyId();
-      if (providerId) {
-        const provider = await providerService.getProvider(providerId);
-        if (provider?.name) {
-          const initials = provider.name
-            .split(' ')
-            .map((word: string) => word[0])
-            .join('')
-            .toUpperCase()
-            .slice(0, 2);
-          setProviderInitials(initials || 'PR');
-          return;
-        }
-      }
-      
-      // Fallback to business name from storage
-      const businessName = await AsyncStorage.getItem('@ghands:business_name');
-      if (businessName) {
-        const initials = businessName
-          .split(' ')
-          .map((word: string) => word[0])
-          .join('')
-          .toUpperCase()
-          .slice(0, 2);
-        setProviderInitials(initials || 'PR');
-        return;
-      }
-      
-      setProviderInitials('PR');
-    } catch (error) {
-      if (__DEV__) {
-        console.error('Error loading provider name:', error);
-      }
-      setProviderInitials('PR');
-    }
-  }, []);
-
-  // Load balance, activities, and provider name on mount
+  // Load balance, activities on mount
   useEffect(() => {
     loadWalletBalance();
     loadActivities();
-    loadProviderName();
-  }, [loadWalletBalance, loadActivities, loadProviderName]);
+  }, [loadWalletBalance, loadActivities]);
 
   // Refresh balance and activities when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadWalletBalance();
       loadActivities();
-      loadProviderName();
-    }, [loadWalletBalance, loadActivities, loadProviderName])
+    }, [loadWalletBalance, loadActivities])
   );
 
   return (
-    <SafeAreaWrapper backgroundColor={Colors.white} tabletShellTop>
+    <SafeAreaWrapper backgroundColor={Colors.backgroundLight} tabletShellTop>
       {/* Header */}
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          paddingHorizontal: 20,
+          paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
           paddingTop: headerTopPad,
           paddingBottom: 12,
         }}
       >
-        <View
+        <TouchableOpacity
+          onPress={() => router.back()}
           style={{
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: Colors.border,
+            backgroundColor: Colors.white,
             alignItems: 'center',
             justifyContent: 'center',
           }}
+          activeOpacity={0.7}
         >
-          <Text
-            style={{
-              fontSize: 16,
-              fontFamily: 'Poppins-Bold',
-              color: Colors.textSecondaryDark,
-            }}
-          >
-            {providerInitials}
-          </Text>
-        </View>
+          <ArrowLeft size={22} color={Colors.textPrimary} />
+        </TouchableOpacity>
         <Text
           style={{
             fontSize: 20,
@@ -251,46 +204,53 @@ export default function ProviderWalletScreen() {
         >
           Wallet
         </Text>
-        <View style={{ position: 'relative', width: 40, alignItems: 'flex-end' }}>
-          <Bell size={24} color={Colors.textPrimary} />
-          <View
-            style={{
-              position: 'absolute',
-              top: -2,
-              right: -2,
-              width: 10,
-              height: 10,
-              borderRadius: 5,
-              backgroundColor: Colors.accent,
-            }}
-          />
+        <View style={{ position: 'relative', width: 44, alignItems: 'flex-end' }}>
+          <TouchableOpacity
+            onPress={() => router.push('/NotificationsScreen' as any)}
+            style={{ padding: 8 }}
+            activeOpacity={0.7}
+            accessibilityLabel="Notifications"
+          >
+            <Bell size={24} color={Colors.textPrimary} />
+            <View
+              style={{
+                position: 'absolute',
+                top: 4,
+                right: 4,
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: Colors.accent,
+              }}
+            />
+          </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: 20,
+          paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
           paddingBottom: 100,
         }}
       >
-        {/* Wallet Balance Card */}
+        {/* Wallet balance — sage panel (client / app primary) */}
         <View
           style={{
-            backgroundColor: '#0a0a0a',
+            backgroundColor: Colors.accent,
             borderRadius: 24,
-            padding: 20,
-            marginTop: 16,
+            padding: 22,
+            marginTop: 12,
             marginBottom: 20,
             position: 'relative',
             overflow: 'hidden',
             borderWidth: 1,
-            borderColor: 'rgba(255, 255, 255, 0.08)',
-            shadowColor: '#101828',
-            shadowOffset: { width: 0, height: 10 },
-            shadowOpacity: 0.18,
-            shadowRadius: 18,
-            elevation: 0.76,
+            borderColor: Colors.sagePanelBorder,
+            elevation: surfaceElevation(2),
+            shadowColor: '#1a2414',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 10,
           }}
         >
           <View
@@ -301,8 +261,8 @@ export default function ProviderWalletScreen() {
               width: 170,
               height: 170,
               borderRadius: 85,
-              backgroundColor: Colors.accent,
-              opacity: 0.14,
+              backgroundColor: '#FFFFFF',
+              opacity: 0.1,
             }}
           />
           <View
@@ -313,11 +273,10 @@ export default function ProviderWalletScreen() {
               width: 150,
               height: 150,
               borderRadius: 75,
-              backgroundColor: Colors.accent,
-              opacity: 0.1,
+              backgroundColor: '#FFFFFF',
+              opacity: 0.07,
             }}
           />
-          {/* Wallet Icon */}
           <View
             style={{
               position: 'absolute',
@@ -326,14 +285,14 @@ export default function ProviderWalletScreen() {
               width: 48,
               height: 48,
               borderRadius: 24,
-              backgroundColor: 'rgba(202, 255, 51, 0.18)',
+              backgroundColor: 'rgba(255,255,255,0.22)',
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 1,
-              borderColor: 'rgba(202, 255, 51, 0.28)',
+              borderColor: 'rgba(255,255,255,0.28)',
             }}
           >
-            <Wallet size={24} color={Colors.accent} />
+            <Wallet size={24} color={Colors.white} />
           </View>
 
           {/* Wallet ID */}
@@ -442,15 +401,17 @@ export default function ProviderWalletScreen() {
           <TouchableOpacity
             style={{
               flex: 1,
-              backgroundColor: Colors.accent,
+              backgroundColor: WALLET_CTA_BLACK,
               borderRadius: 14,
               paddingVertical: 14,
               paddingHorizontal: 16,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.08)',
             }}
-            activeOpacity={0.7}
+            activeOpacity={0.85}
             onPress={() => router.push('/WithdrawScreen' as any)}
           >
             <TrendingUp size={18} color={Colors.white} style={{ marginRight: 8 }} />
@@ -467,15 +428,17 @@ export default function ProviderWalletScreen() {
           <TouchableOpacity
             style={{
               flex: 1,
-              backgroundColor: '#111111',
+              backgroundColor: WALLET_CTA_BLACK,
               borderRadius: 14,
               paddingVertical: 14,
               paddingHorizontal: 16,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.08)',
             }}
-            activeOpacity={0.7}
+            activeOpacity={0.85}
             onPress={() => router.push('/ProviderActivityScreen' as any)}
           >
             <Clock size={18} color={Colors.white} style={{ marginRight: 8 }} />
@@ -596,13 +559,13 @@ export default function ProviderWalletScreen() {
                   width: 40,
                   height: 40,
                   borderRadius: 20,
-                  backgroundColor: activity.status === 'pending' ? '#FFF7DF' : '#ECFDF3',
+                  backgroundColor: activity.status === 'pending' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(79, 103, 57, 0.14)',
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: 12,
                 }}
               >
-                <Check size={20} color={activity.status === 'pending' ? '#92400E' : '#047857'} />
+                <Check size={20} color={activity.status === 'pending' ? '#92400E' : '#2A3B1F'} />
               </View>
 
               {/* Content */}
@@ -648,14 +611,14 @@ export default function ProviderWalletScreen() {
                   paddingHorizontal: 10,
                   paddingVertical: 4,
                   borderRadius: 12,
-                  backgroundColor: activity.status === 'pending' ? '#FFF7DF' : '#ECFDF3',
+                  backgroundColor: activity.status === 'pending' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(79, 103, 57, 0.14)',
                 }}
               >
                 <Text
                   style={{
                     fontSize: 11,
                     fontFamily: 'Poppins-SemiBold',
-                    color: activity.status === 'pending' ? '#92400E' : '#047857',
+                    color: activity.status === 'pending' ? '#92400E' : '#2A3B1F',
                   }}
                 >
                   {activity.status === 'pending' ? 'Pending' : 'Completed'}
@@ -680,13 +643,13 @@ export default function ProviderWalletScreen() {
             {activity.status === 'pending' ? (
               <TouchableOpacity
                 style={{
-                  backgroundColor: Colors.accent,
+                  backgroundColor: WALLET_CTA_BLACK,
                 borderRadius: 12,
                   paddingVertical: 12,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
-                activeOpacity={0.7}
+                activeOpacity={0.85}
                 onPress={() => router.push('/PaymentPendingScreen' as any)}
               >
                 <Text
@@ -708,10 +671,10 @@ export default function ProviderWalletScreen() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderWidth: 1,
-                  borderColor: Colors.accent,
+                  borderColor: WALLET_CTA_BLACK,
                   flexDirection: 'row',
                 }}
-                activeOpacity={0.7}
+                activeOpacity={0.85}
                 onPress={() => router.push({
                   pathname: '/ProviderReceiptScreen' as any,
                   params: {
@@ -726,12 +689,12 @@ export default function ProviderWalletScreen() {
                   },
                 } as any)}
               >
-                <Receipt size={16} color={Colors.accent} style={{ marginRight: 6 }} />
+                <Receipt size={16} color={WALLET_CTA_BLACK} style={{ marginRight: 6 }} />
                 <Text
                   style={{
                     fontSize: 14,
                     fontFamily: 'Poppins-SemiBold',
-                    color: Colors.accent,
+                    color: WALLET_CTA_BLACK,
                   }}
                 >
                   View Receipt

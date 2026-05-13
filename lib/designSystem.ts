@@ -5,6 +5,8 @@ import { DESIGN_TOKENS } from './assets';
  * Use these constants throughout the app for consistency
  */
 
+export { SURFACE_STYLES } from './surfaceStyles';
+
 export const Colors = DESIGN_TOKENS.colors;
 
 /** Tablet “phone lane” constants and hooks (single import surface with theme). */
@@ -12,10 +14,14 @@ export {
   TABLET_MIN_SHORT_EDGE,
   PHONE_LANE_OUTER_TOP,
   TAB_SCROLL_TOP,
+  CLIENT_TAB_BAR_BASE_HEIGHT,
   useIsTablet,
   useIsCompactPhone,
   useNarrowOverlayMaxWidth,
   useTabScrollContentPaddingTop,
+  useBottomTabBarHeight,
+  useTabScreenScrollBottomPadding,
+  useTabScreenBottomSpacerHeight,
 } from './tabletLayout';
 export const Spacing = DESIGN_TOKENS.spacing;
 export const Fonts = DESIGN_TOKENS.fonts;
@@ -72,36 +78,36 @@ export const REFRESH_CONTROL = {
 } as const;
 
 /**
- * Standardized shadow styles
+ * Legacy scale — kept at zero; use SURFACE_STYLES for UI depth.
  */
 export const SHADOWS = {
   sm: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 0.76,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   md: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 0.76,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   lg: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 0.76,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   xl: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 0.76,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 } as const;
 

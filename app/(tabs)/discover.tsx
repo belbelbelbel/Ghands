@@ -1,14 +1,20 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
 import { getCategoryIcon } from '@/utils/categoryIcons';
-import { Colors, BorderRadius, Spacing, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import {
+  Colors,
+  BorderRadius,
+  useTabScreenBottomSpacerHeight,
+  useTabScrollContentPaddingTop,
+} from '@/lib/designSystem';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { MapPin, TrendingUp } from 'lucide-react-native';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import ServiceMap, { ServiceProvider } from '@/components/ServiceMap';
+import ServiceMap from '@/components/ServiceMap';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface TrendingService {
   id: string;
@@ -35,6 +41,9 @@ interface ServiceTip {
   category: string;
   readTime: string;
 }
+
+/** Saved location is a string (address); map always needs lat/lng (see useUserLocation). */
+const DISCOVER_MAP_CENTER = { latitude: 6.5244, longitude: 3.3794 };
 
 // Removed colorful service icons and colors - using neutral design
 
@@ -123,6 +132,13 @@ export default function DiscoverScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const { location } = useUserLocation();
 
+  const noopMapCategory = useCallback((_category: string) => {}, []);
+  const noopProviderSelect = useCallback(() => {}, []);
+  const noopToggleList = useCallback(() => {}, []);
+  const noopServiceLocationChange = useCallback(() => {}, []);
+
+  const bottomSpacerHeight = useTabScreenBottomSpacerHeight(14);
+
   React.useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -185,8 +201,10 @@ export default function DiscoverScreen() {
                 backgroundColor: Colors.white,
                 borderRadius: BorderRadius.xl,
                 padding: 18,
-                borderWidth: 1,
-                borderColor: Colors.border,
+                elevation: 0,
+                shadowOpacity: 0,
+                shadowRadius: 0,
+                shadowOffset: { width: 0, height: 0 },
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
@@ -283,6 +301,10 @@ export default function DiscoverScreen() {
                     backgroundColor: Colors.white,
                     borderWidth: 1,
                     borderColor: Colors.border,
+                    elevation: 0,
+                    shadowOpacity: 0,
+                    shadowRadius: 0,
+                    shadowOffset: { width: 0, height: 0 },
                   }}
                 >
                   <View
@@ -466,8 +488,10 @@ export default function DiscoverScreen() {
                   borderRadius: BorderRadius.xl,
                   padding: 16,
                   marginBottom: index < serviceTips.length - 1 ? 12 : 0,
-                  borderWidth: 1,
-                  borderColor: Colors.border,
+                  elevation: 0,
+                  shadowOpacity: 0,
+                  shadowRadius: 0,
+                  shadowOffset: { width: 0, height: 0 },
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -503,8 +527,7 @@ export default function DiscoverScreen() {
                           paddingHorizontal: 9,
                           paddingVertical: 4,
                           marginRight: 10,
-                          borderWidth: 1,
-                          borderColor: Colors.border,
+                          borderWidth: 0,
                         }}
                       >
                         <Text
@@ -555,36 +578,54 @@ export default function DiscoverScreen() {
                 backgroundColor: Colors.backgroundGray,
                 borderRadius: BorderRadius.xl,
                 overflow: 'hidden',
-                borderWidth: 1,
-                borderColor: Colors.border,
               }}
             >
               <View style={{ height: 260 }}>
-                <ServiceMap
-                  providers={[]}
-                  selectedCategory="All"
-                  onCategoryChange={() => {}}
-                  selectedProviders={[]}
-                  onProviderSelect={() => {}}
-                  showList={false}
-                  onToggleList={() => {}}
-                  userLocation={
-                    location
-                      ? {
-                          latitude: Number((location as any).latitude) || 6.5244,
-                          longitude: Number((location as any).longitude) || 3.3794,
-                        }
-                      : undefined
+                <ErrorBoundary
+                  fallback={
+                    <View
+                      style={{
+                        flex: 1,
+                        backgroundColor: Colors.backgroundGray,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 16,
+                      }}
+                    >
+                      <MapPin size={28} color={Colors.textSecondaryDark} />
+                      <Text
+                        style={{
+                          marginTop: 8,
+                          fontSize: 13,
+                          fontFamily: 'Poppins-Medium',
+                          color: Colors.textSecondaryDark,
+                          textAlign: 'center',
+                        }}
+                      >
+                        Map preview unavailable. Check Google Maps API key, network, and try again.
+                      </Text>
+                    </View>
                   }
-                  categories={['All']}
-                  serviceLocation={location || 'Your current area'}
-                  onServiceLocationChange={() => {}}
-                />
+                >
+                  <ServiceMap
+                    providers={[]}
+                    selectedCategory="All"
+                    onCategoryChange={noopMapCategory}
+                    selectedProviders={[]}
+                    onProviderSelect={noopProviderSelect}
+                    showList={false}
+                    onToggleList={noopToggleList}
+                    userLocation={DISCOVER_MAP_CENTER}
+                    categories={['All']}
+                    serviceLocation={location || 'Your current area'}
+                    onServiceLocationChange={noopServiceLocationChange}
+                  />
+                </ErrorBoundary>
               </View>
             </View>
           </View>
 
-          <View style={{ height: 90 }} />
+          <View style={{ height: bottomSpacerHeight }} />
         </Animated.View>
       </ScrollView>
     </SafeAreaWrapper>

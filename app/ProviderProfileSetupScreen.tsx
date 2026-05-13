@@ -402,7 +402,7 @@ export default function ProviderProfileSetupScreen() {
         }}>Setup your Profile</Text>
 
         <View className="bg-gray-100 rounded-xl mb-4 px-4 py-3 flex-row items-center">
-          <View className="w-12 h-12 mr-4 bg-[#6A9B00] border border-[#6A9B00] rounded-xl items-center justify-center">
+          <View className="w-12 h-12 mr-4 bg-[#4F6739] border border-[#4F6739] rounded-xl items-center justify-center">
             <User size={20} color="white" />
           </View>
           <TextInput
@@ -426,7 +426,7 @@ export default function ProviderProfileSetupScreen() {
             activeOpacity={0.7}
           >
             <View className="flex-1 flex-row items-center">
-              <MapPin size={20} color="#6A9B00" style={{ marginRight: 12 }} />
+              <MapPin size={20} color="#4F6739" style={{ marginRight: 12 }} />
               <Text 
                 className="text-black text-base flex-1" 
                 style={{ fontFamily: 'Poppins-Medium' }}
@@ -507,7 +507,7 @@ export default function ProviderProfileSetupScreen() {
           {/* Document Upload Section */}
           {licenseDocument ? (
             <View className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex-row items-center">
-              <FileText size={20} color="#6A9B00" />
+              <FileText size={20} color="#4F6739" />
               <View className="flex-1 ml-3">
                 <Image 
                   source={{ uri: licenseDocument }} 
@@ -540,7 +540,7 @@ export default function ProviderProfileSetupScreen() {
           onPress={handleContinue}
           disabled={!isFormValid || isSaving}
           className={`rounded-xl py-4 px-6 ${
-            isFormValid && !isSaving ? 'bg-[#6A9B00]' : 'bg-gray-300'
+            isFormValid && !isSaving ? 'bg-[#4F6739]' : 'bg-gray-300'
           }`}
           activeOpacity={0.8}
         >
@@ -653,7 +653,7 @@ export default function ProviderProfileSetupScreen() {
             >
               {isLoadingCategories ? (
                 <View style={{ paddingVertical: 48, alignItems: 'center' }}>
-                  <ActivityIndicator size="large" color="#6A9B00" />
+                  <ActivityIndicator size="large" color="#4F6739" />
                   <Text
                     style={{
                       marginTop: 16,
@@ -692,7 +692,7 @@ export default function ProviderProfileSetupScreen() {
                           marginBottom: 12,
                           borderRadius: 16,
                           borderWidth: isSelected ? 2 : 1.5,
-                          borderColor: isSelected ? '#6A9B00' : '#E5E7EB',
+                          borderColor: isSelected ? '#4F6739' : '#E5E7EB',
                           backgroundColor: isSelected ? '#F0F9FF' : '#FFFFFF',
                           padding: 16,
                           shadowColor: '#000',
@@ -722,7 +722,7 @@ export default function ProviderProfileSetupScreen() {
                                 width: 52,
                                 height: 52,
                                 borderRadius: 14,
-                                backgroundColor: isSelected ? '#6A9B00' : '#F3F4F6',
+                                backgroundColor: isSelected ? '#4F6739' : '#F3F4F6',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 marginRight: 14,
@@ -737,7 +737,7 @@ export default function ProviderProfileSetupScreen() {
                                 style={{
                                   fontSize: 15,
                                   fontFamily: 'Poppins-SemiBold',
-                                  color: isSelected ? '#6A9B00' : '#111827',
+                                  color: isSelected ? '#4F6739' : '#111827',
                                   marginBottom: 4,
                                 }}
                               >
@@ -767,7 +767,7 @@ export default function ProviderProfileSetupScreen() {
                                   width: 28,
                                   height: 28,
                                   borderRadius: 14,
-                                  backgroundColor: '#6A9B00',
+                                  backgroundColor: '#4F6739',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                 }}
@@ -813,12 +813,12 @@ export default function ProviderProfileSetupScreen() {
                     setShowServiceDropdown(false);
                   }}
                   style={{
-                    backgroundColor: '#6A9B00',
+                    backgroundColor: '#4F6739',
                     borderRadius: 12,
                     paddingVertical: 16,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    shadowColor: '#6A9B00',
+                    shadowColor: '#4F6739',
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.3,
                     shadowRadius: 8,

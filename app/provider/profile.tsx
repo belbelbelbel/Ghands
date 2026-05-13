@@ -1,5 +1,7 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, Spacing, useIsTablet, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { surfaceElevation } from '@/lib/surfaceStyles';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 import { useAuthRole } from '@/hooks/useAuth';
 import { haptics } from '@/hooks/useHaptics';
 import { AuthError } from '@/utils/errors';
@@ -20,6 +22,7 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
+  Wallet,
   CheckCircle2,
   Clock,
   XCircle,
@@ -40,6 +43,9 @@ import {
 import { providerService, Provider, serviceRequestService, ServiceCategory, ProviderQuotationListItem, authService, walletService } from '@/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shareReferral } from '@/utils/referral';
+
+const PROFILE_SAGE_BG = '#4F6739';
+const PROFILE_SAGE_BORDER = 'rgba(45, 65, 24, 0.75)';
 
 // Helper function to format category name (camelCase to readable)
 const formatCategoryName = (categoryName: string, allCategories: ServiceCategory[] = []): string => {
@@ -403,7 +409,7 @@ export default function ProviderProfileScreen() {
         case 'accepted':
           return {
             color: '#16A34A',
-            bgColor: '#DCFCE7',
+            bgColor: 'rgba(79, 103, 57, 0.14)',
             icon: CheckCircle2,
             label: 'Accepted',
           };
@@ -597,7 +603,7 @@ export default function ProviderProfileScreen() {
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingHorizontal: 20,
+            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
             paddingTop: headerTopPad,
             paddingBottom: 12,
           backgroundColor: Colors.backgroundLight,
@@ -657,7 +663,7 @@ export default function ProviderProfileScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: 20,
+            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
             paddingTop: scrollBodyTopPad,
             paddingBottom: 100,
           }}
@@ -668,15 +674,18 @@ export default function ProviderProfileScreen() {
               flexDirection: 'row',
               alignItems: 'center',
               marginBottom: 24,
-              backgroundColor: '#0a0a0a',
+              backgroundColor: PROFILE_SAGE_BG,
               borderRadius: 26,
-              padding: 18,
+              paddingVertical: 22,
+              paddingHorizontal: 22,
+              borderWidth: 1,
+              borderColor: PROFILE_SAGE_BORDER,
               overflow: 'hidden',
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.12,
-              shadowRadius: 18,
-              elevation: 0,
+              elevation: surfaceElevation(2),
+              shadowColor: '#1a2414',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 10,
             }}
           >
             <View
@@ -687,8 +696,8 @@ export default function ProviderProfileScreen() {
                 width: 160,
                 height: 160,
                 borderRadius: 80,
-                backgroundColor: Colors.accent,
-                opacity: 0.14,
+                backgroundColor: '#FFFFFF',
+                opacity: 0.1,
               }}
             />
             <View style={{ position: 'relative', marginRight: 16 }}>
@@ -699,7 +708,7 @@ export default function ProviderProfileScreen() {
                   height: 80,
                   borderRadius: 40,
                   borderWidth: 3,
-                  borderColor: 'rgba(255,255,255,0.18)',
+                  borderColor: 'rgba(255,255,255,0.38)',
                 }}
                 resizeMode="cover"
               />
@@ -713,13 +722,13 @@ export default function ProviderProfileScreen() {
                   borderRadius: 10,
                   backgroundColor: Colors.accent,
                   borderWidth: 3,
-                  borderColor: '#0a0a0a',
+                  borderColor: PROFILE_SAGE_BG,
                 }}
               />
             </View>
             <View style={{ flex: 1 }}>
               {isLoading ? (
-                <ActivityIndicator size="small" color={Colors.accent} style={{ marginBottom: 4 }} />
+                <ActivityIndicator size="small" color={Colors.white} style={{ marginBottom: 4 }} />
               ) : (
                 <Text
                   style={{
@@ -771,7 +780,7 @@ export default function ProviderProfileScreen() {
                 {isOnline ? (
                   <ToggleRight size={32} color={Colors.accent} />
                 ) : (
-                  <ToggleLeft size={32} color={Colors.textTertiary} />
+                  <ToggleLeft size={32} color="rgba(255,255,255,0.45)" />
                 )}
                 <Text
                   style={{
@@ -788,47 +797,120 @@ export default function ProviderProfileScreen() {
           </View>
 
           {/* Wallet balance – live from API, Naira */}
-          <TouchableOpacity
-            onPress={() => {
-              haptics.light();
-              router.push('/provider/wallet' as any);
-            }}
-            activeOpacity={0.7}
+          <View
             style={{
-              backgroundColor: '#0a0a0a',
+              backgroundColor: PROFILE_SAGE_BG,
               borderRadius: 24,
-              padding: 16,
+              paddingVertical: 22,
+              paddingHorizontal: 22,
               marginBottom: 16,
+              position: 'relative',
               overflow: 'hidden',
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.12,
-              shadowRadius: 18,
-              elevation: 0,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              borderWidth: 1,
+              borderColor: PROFILE_SAGE_BORDER,
+              elevation: surfaceElevation(2),
+              shadowColor: '#1a2414',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 10,
             }}
           >
-            <View>
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: 'rgba(255,255,255,0.65)', marginBottom: 4, letterSpacing: 0.7, textTransform: 'uppercase' }}>
-                Wallet balance
-              </Text>
-              {isLoadingWallet ? (
-                <ActivityIndicator size="small" color={Colors.accent} />
-              ) : (
-                <Text style={{ fontSize: 24, fontFamily: 'Poppins-Bold', color: Colors.white, letterSpacing: -0.5 }}>
-                  ₦{walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <View
+              style={{
+                position: 'absolute',
+                bottom: -48,
+                right: -48,
+                width: 150,
+                height: 150,
+                borderRadius: 75,
+                backgroundColor: '#FFFFFF',
+                opacity: 0.09,
+              }}
+            />
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: 16,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.white,
+                    opacity: 0.95,
+                    marginBottom: 8,
+                  }}
+                >
+                  Wallet balance
                 </Text>
-              )}
+                {isLoadingWallet ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={Colors.white} style={{ marginRight: 8 }} />
+                    <Text
+                      style={{
+                        fontSize: 24,
+                        fontFamily: 'Poppins-Bold',
+                        color: Colors.white,
+                        opacity: 0.7,
+                      }}
+                    >
+                      Loading...
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={{ fontSize: 24, fontFamily: 'Poppins-Bold', color: Colors.white, letterSpacing: -0.5 }}>
+                    ₦{walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
+                )}
+              </View>
+              <View
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 23,
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.28)',
+                }}
+              >
+                <Wallet size={24} color={Colors.white} />
+              </View>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.white, marginRight: 4 }}>
-                View
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                router.push('/provider/wallet' as any);
+              }}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: 14,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.textPrimary,
+                  marginRight: 6,
+                }}
+              >
+                View Wallet
               </Text>
-              <ArrowRight size={16} color={Colors.white} />
-            </View>
-          </TouchableOpacity>
+              <ArrowRight size={16} color={Colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
 
           {/* About Section */}
           <View
@@ -1008,8 +1090,10 @@ export default function ProviderProfileScreen() {
                 style={{
                   width: 40,
                   height: 40,
-                  backgroundColor: '#0a0a0a',
+                  backgroundColor: PROFILE_SAGE_BG,
                   borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: PROFILE_SAGE_BORDER,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -1296,22 +1380,31 @@ export default function ProviderProfileScreen() {
             </View>
             <View
               style={{
-                backgroundColor: '#0a0a0a',
+                backgroundColor: PROFILE_SAGE_BG,
                 borderRadius: BorderRadius.xl,
                 paddingVertical: insightsPaddingV,
                 paddingHorizontal: insightsPaddingH,
                 position: 'relative',
                 overflow: 'hidden',
+                borderWidth: 1,
+                borderColor: PROFILE_SAGE_BORDER,
+                elevation: surfaceElevation(2),
+                shadowColor: '#1a2414',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 10,
               }}
             >
               <View
                 style={{
                   position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                  top: -40,
+                  right: -28,
+                  width: 120,
+                  height: 120,
+                  borderRadius: 60,
+                  backgroundColor: '#FFFFFF',
+                  opacity: 0.08,
                 }}
               />
               <Text

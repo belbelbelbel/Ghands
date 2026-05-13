@@ -45,7 +45,7 @@ export default function ProviderResetPasswordScreen() {
           />
           <TouchableOpacity
             onPress={() => setShowNewPassword(!showNewPassword)}
-            className="w-12 h-12 bg-[#6A9B00] border border-[#6A9B00] rounded-xl items-center justify-center ml-4"
+            className="w-12 h-12 bg-[#4F6739] border border-[#4F6739] rounded-xl items-center justify-center ml-4"
           >
             {showNewPassword ? <EyeOff size={20} color="white" /> : <Eye size={20} color="white" />}
           </TouchableOpacity>
@@ -63,7 +63,7 @@ export default function ProviderResetPasswordScreen() {
           />
           <TouchableOpacity
             onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-            className="w-12 h-12 bg-[#6A9B00] border border-[#6A9B00] rounded-xl items-center justify-center ml-4"
+            className="w-12 h-12 bg-[#4F6739] border border-[#4F6739] rounded-xl items-center justify-center ml-4"
           >
             {showConfirmPassword ? <EyeOff size={20} color="white" /> : <Eye size={20} color="white" />}
           </TouchableOpacity>
@@ -73,7 +73,7 @@ export default function ProviderResetPasswordScreen() {
           onPress={handleConfirm}
           disabled={!isFormValid}
           className={`rounded-xl py-4 px-6 ${
-            isFormValid ? 'bg-[#6A9B00]' : 'bg-gray-300'
+            isFormValid ? 'bg-[#4F6739]' : 'bg-gray-300'
           }`}
           activeOpacity={0.8}
         >

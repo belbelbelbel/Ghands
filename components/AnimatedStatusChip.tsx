@@ -9,6 +9,8 @@ interface AnimatedStatusChipProps {
   size?: 'small' | 'medium' | 'large';
   animated?: boolean;
   variant?: 'chip' | 'text';
+  /** Fully rounded pill (timeline badges, etc.) */
+  pill?: boolean;
 }
 
 /**
@@ -22,6 +24,7 @@ export default function AnimatedStatusChip({
   size = 'medium',
   animated = true,
   variant = 'chip',
+  pill = false,
 }: AnimatedStatusChipProps) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const colorAnim = useRef(new Animated.Value(0)).current;
@@ -82,7 +85,9 @@ export default function AnimatedStatusChip({
         {
           backgroundColor: isTextOnly ? 'transparent' : statusColor,
           transform: [{ scale }],
-          borderRadius: isTextOnly ? 0 : BorderRadius.default,
+          borderRadius: isTextOnly ? 0 : pill ? BorderRadius.full : BorderRadius.default,
+          borderWidth: pill && !isTextOnly ? StyleSheet.hairlineWidth * 2 : 0,
+          borderColor: pill && !isTextOnly ? 'rgba(45, 65, 24, 0.12)' : 'transparent',
         },
         currentSize,
         isTextOnly

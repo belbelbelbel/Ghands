@@ -19,7 +19,7 @@ const accountCards = [
     title: 'Address Book',
     subtitle: 'Manage your saved addresses',
     icon: MapPin,
-    iconColor: '#6A9B00',
+    iconColor: '#4F6739',
     iconBgColor: '#EEFFD9',
   }
 ];

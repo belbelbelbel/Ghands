@@ -1,9 +1,16 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { Redirect, Tabs, useRouter } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
-import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Animated, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthRole } from '@/hooks/useAuth';
+import {
+  CLIENT_TAB_BAR_BASE_HEIGHT,
+  CLIENT_TAB_BAR_PADDING_BOTTOM,
+} from '@/lib/tabletLayout';
+import { Colors } from '@/lib/designSystem';
+import { surfaceElevation } from '@/lib/surfaceStyles';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -68,14 +75,14 @@ const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
             paddingTop: 13,
             borderRadius: 31,
             display: 'flex',
-            backgroundColor: '#6A9B00',
+            backgroundColor: Colors.accent,
             justifyContent: 'center',
             alignItems: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.15,
-            shadowRadius: 8,
-            elevation: 0.76,
+            shadowColor: '#101828',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.08,
+            shadowRadius: 3,
+            elevation: surfaceElevation(4),
             borderWidth: 3,
             borderColor: '#FFFFFF',
           }}
@@ -87,7 +94,7 @@ const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
         style={{
           fontSize: 11,
           fontFamily: 'Poppins-Medium',
-          color: '#6A9B00',
+          color: Colors.accent,
           marginTop: -8,
           position: 'absolute',
           bottom: 0,
@@ -102,7 +109,30 @@ const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
 
 export default function TabLayout() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { role, isLoading } = useAuthRole();
+
+  const tabBarStyle = useMemo(
+    () => ({
+      backgroundColor: '#ffffff',
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: 'rgba(17, 24, 39, 0.1)',
+      height: CLIENT_TAB_BAR_BASE_HEIGHT + insets.bottom,
+      paddingBottom: CLIENT_TAB_BAR_PADDING_BOTTOM + insets.bottom,
+      paddingTop: 6,
+      marginHorizontal: 0,
+      marginBottom: 0,
+      position: 'absolute' as const,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      shadowOffset: { width: 0, height: 0 },
+      elevation: 0,
+    }),
+    [insets.bottom]
+  );
   if (isLoading) {
     return null;
   }
@@ -120,25 +150,10 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 0,
-          height: Platform.OS === 'ios' ? 75 : 65,
-          paddingBottom: Platform.OS === 'ios' ? 8 : 6,
-          paddingTop: 6,
-          marginHorizontal: 0,
-          marginBottom: 0,
-          position: 'absolute',
-          bottom: 0,
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 6,
-          elevation: 0.76,
-        },
+        tabBarStyle,
         tabBarHideOnKeyboard: true,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: '#6A9B00',
+        tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarLabelStyle: {
           fontSize: 11,

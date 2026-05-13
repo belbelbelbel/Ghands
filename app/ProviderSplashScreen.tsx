@@ -5,7 +5,7 @@ import { Animated, Dimensions, Image, StyleSheet, Text, View } from 'react-nativ
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Normal green color used throughout the app
-const APP_GREEN = '#6A9B00';
+const APP_GREEN = '#4F6739';
 
 // Responsive scaling factors based on screen size
 const isSmallScreen = SCREEN_WIDTH < 375;
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontFamily: 'Poppins-SemiBold',
-    color: '#000000',
+    color: '#FFFFFF',
     textAlign: 'center',
     marginTop: 8,
     letterSpacing: 0.3,

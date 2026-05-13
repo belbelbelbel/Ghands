@@ -539,7 +539,7 @@ export default function DateTimeScreen() {
                       <View
                         className={`flex-1 items-center justify-center rounded-full ${
                           selected
-                            ? 'bg-[#6A9B00]'
+                            ? 'bg-[#4F6739]'
                             : today && !isPastDay
                               ? 'bg-gray-100 border border-gray-300'
                               : 'bg-transparent'
@@ -594,7 +594,7 @@ export default function DateTimeScreen() {
                       activeOpacity={disabled ? 1 : 0.7}
                       className={`rounded-xl px-4 py-3 border ${
                         isSelected
-                          ? 'bg-[#6A9B00] border-[#6A9B00]'
+                          ? 'bg-[#4F6739] border-[#4F6739]'
                           : disabled
                             ? 'bg-gray-50 border-gray-100'
                             : 'bg-white border-gray-200'
@@ -603,7 +603,7 @@ export default function DateTimeScreen() {
                     >
                       <Text
                         className={`text-sm ${
-                          isSelected ? 'text-white' : disabled ? 'text-gray-400' : 'text-[#6A9B00]'
+                          isSelected ? 'text-white' : disabled ? 'text-gray-400' : 'text-[#4F6739]'
                         }`}
                         style={{ fontFamily: 'Poppins-SemiBold' }}
                       >
@@ -633,7 +633,7 @@ export default function DateTimeScreen() {
                       activeOpacity={disabled ? 1 : 0.7}
                       className={`rounded-xl px-4 py-3 border ${
                         isSelected
-                          ? 'bg-[#6A9B00] border-[#6A9B00]'
+                          ? 'bg-[#4F6739] border-[#4F6739]'
                           : disabled
                             ? 'bg-gray-50 border-gray-100'
                             : 'bg-white border-gray-200'
@@ -642,7 +642,7 @@ export default function DateTimeScreen() {
                     >
                       <Text
                         className={`text-sm ${
-                          isSelected ? 'text-white' : disabled ? 'text-gray-400' : 'text-[#6A9B00]'
+                          isSelected ? 'text-white' : disabled ? 'text-gray-400' : 'text-[#4F6739]'
                         }`}
                         style={{ fontFamily: 'Poppins-SemiBold' }}
                       >

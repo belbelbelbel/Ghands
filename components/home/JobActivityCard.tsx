@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { SURFACE_STYLES } from '@/lib/surfaceStyles';
+import { Colors } from '@/lib/designSystem';
 
 export type JobActivityStatus = 'Completed' | 'In Progress' | 'Pending';
 
@@ -17,8 +19,8 @@ export type JobActivity = {
 
 const jobStatusTheme: Record<JobActivityStatus, { badgeBg: string; badgeText: string }> = {
   Completed: {
-    badgeBg: '#E7F6E5',
-    badgeText: '#2F6B1D'
+    badgeBg: 'rgba(79, 103, 57, 0.14)',
+    badgeText: '#2A3B1F',
   },
   'In Progress': {
     badgeBg: '#E4ECFF',
@@ -60,23 +62,18 @@ const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
 
   return (
     <TouchableOpacity
-      className="bg-white rounded-2xl px-4 py-4 shadow-[0px_6px_18px_rgba(16,24,40,0.04)]"
+      className="bg-white rounded-2xl px-5 py-5"
       activeOpacity={0.7}
       onPress={handlePress}
-      style={{
-        borderWidth: 0.5,
-        borderColor: 'rgba(16, 24, 40, 0.045)',
-        shadowColor: '#101828',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.03,
-        shadowRadius: 16,
-        elevation: 0.76,
-      }}
+      style={SURFACE_STYLES.homeCard}
     >
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center flex-1 pr-3">
-          <View className="w-9 h-9 rounded-full bg-[#F2F7EC] items-center justify-center mr-3">
-            <Ionicons name="construct" size={17} color="#6A9B00" />
+          <View
+            className="w-9 h-9 rounded-full items-center justify-center mr-3"
+            style={{ backgroundColor: 'rgba(79, 103, 57, 0.1)' }}
+          >
+            <Ionicons name="construct" size={17} color={Colors.accent} />
           </View>
           <View style={{ flex: 1 }}>
             <Text
@@ -106,45 +103,44 @@ const JobActivityCardComponent = ({ activity }: JobActivityCardProps) => {
           </Text>
         </View>
       </View>
+      {/* One short footer line — avoid repeating quote count + “pending” + long helper copy */}
       <View className="flex-row items-center justify-between pt-2">
-        <View style={{ flex: 1, paddingRight: 12 }}>
+        {isAwaitingQuote ? (
           <Text
-            className="text-xs text-gray-500"
-            style={{ fontFamily: 'Poppins-Medium', marginBottom: 3 }}
-          >
-            {activity.quotes} {activity.quotes === 1 ? 'quote' : 'quotes'} received
-          </Text>
-          <Text
-            className="text-xs text-gray-400"
-            style={{ fontFamily: 'Poppins-Regular' }}
-          >
-            {isAwaitingQuote ? 'Price will appear after a provider sends a quote' : 'Estimated total'}
-          </Text>
-        </View>
-        <View
-          style={{
-            backgroundColor: isAwaitingQuote ? '#F9FAFB' : '#F2F7EC',
-            borderRadius: 13,
-            paddingHorizontal: 10,
-            paddingVertical: 7,
-            alignItems: 'flex-end',
-            minWidth: isAwaitingQuote ? 82 : 74,
-          }}
-        >
-          <Text
-            className="text-[10px] text-gray-500"
-            style={{ fontFamily: 'Poppins-Medium', marginBottom: 1 }}
-          >
-            {isAwaitingQuote ? 'Pending' : 'Price'}
-          </Text>
-          <Text
-            className="text-xs text-black"
-            style={{ fontFamily: 'Poppins-SemiBold' }}
+            className="text-xs text-gray-500 flex-1"
+            style={{ fontFamily: 'Poppins-Medium' }}
             numberOfLines={1}
           >
-            {isAwaitingQuote ? 'No quote yet' : activity.priceRange}
+            No quotes yet
           </Text>
-        </View>
+        ) : (
+          <>
+            <Text
+              className="text-xs text-gray-600"
+              style={{ fontFamily: 'Poppins-Medium' }}
+              numberOfLines={1}
+            >
+              {activity.quotes} {activity.quotes === 1 ? 'quote' : 'quotes'}
+            </Text>
+            <View
+              style={{
+                backgroundColor: 'rgba(79, 103, 57, 0.1)',
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                maxWidth: '58%',
+              }}
+            >
+              <Text
+                className="text-xs text-gray-900"
+                style={{ fontFamily: 'Poppins-SemiBold' }}
+                numberOfLines={1}
+              >
+                {activity.priceRange}
+              </Text>
+            </View>
+          </>
+        )}
       </View>
     </TouchableOpacity>
   );

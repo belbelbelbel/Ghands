@@ -209,7 +209,7 @@ export default function ProfileSetupScreen() {
             >
               {isUploading ? (
                 <View className="items-center justify-center" style={{ width: screenWidth * 0.3, height: screenWidth * 0.3 }}>
-                  <ActivityIndicator size="large" color="#6A9B00" />
+                  <ActivityIndicator size="large" color="#4F6739" />
                 </View>
               ) : profileImage ? (
                 <Image 
@@ -226,7 +226,7 @@ export default function ProfileSetupScreen() {
                   resizeMode="cover"
                 />
               ) : (
-                <Camera size={32} color="#6A9B00" />
+                <Camera size={32} color="#4F6739" />
               )}
               <View className="absolute -bottom-1 -right-1 w-8 h-8 bg-black rounded-full items-center justify-center">
                 <Plus size={16} color="white" />
@@ -250,7 +250,7 @@ export default function ProfileSetupScreen() {
             style={{ minHeight: screenHeight * 0.06 }}
           >
             <View 
-              className="bg-[#6A9B00] border-[0.5px] border-black rounded-xl items-center justify-center mr-4"
+              className="bg-[#4F6739] border-[0.5px] border-black rounded-xl items-center justify-center mr-4"
               style={{ 
                 width: screenWidth * 0.12, 
                 height: screenWidth * 0.08,
@@ -283,7 +283,7 @@ export default function ProfileSetupScreen() {
             style={{ minHeight: screenHeight * 0.06 }}
           >
             <View 
-              className="bg-[#6A9B00] border-[0.5px] border-black rounded-xl items-center justify-center mr-4"
+              className="bg-[#4F6739] border-[0.5px] border-black rounded-xl items-center justify-center mr-4"
               style={{ 
                 width: screenWidth * 0.12, 
                 height: screenWidth * 0.12,
@@ -417,7 +417,7 @@ export default function ProfileSetupScreen() {
             onPress={handleSave}
             disabled={!isFormValid}
             className={`rounded-xl py-4 px-6 ${
-              isFormValid ? 'bg-[#6A9B00]' : 'bg-gray-300'
+              isFormValid ? 'bg-[#4F6739]' : 'bg-gray-300'
             }`}
             activeOpacity={0.8}
             style={{ minHeight: 52 }}

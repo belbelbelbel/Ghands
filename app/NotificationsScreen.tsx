@@ -121,7 +121,7 @@ export default function NotificationsScreen() {
             : 'Your deposit has been successfully completed and added to your wallet balance.');
         barColor = '#16A34A';
         IconComponent = Wallet;
-        iconBgColor = '#DCFCE7';
+        iconBgColor = 'rgba(79, 103, 57, 0.14)';
         iconColor = '#15803D'; // rich green
         break;
       }
@@ -158,7 +158,7 @@ export default function NotificationsScreen() {
             : 'You have accepted a quotation. Proceed to payment to start the job.');
         barColor = '#16A34A';
         IconComponent = Handshake;
-        iconBgColor = '#DCFCE7';
+        iconBgColor = 'rgba(79, 103, 57, 0.14)';
         iconColor = '#15803D'; // rich green
         break;
       }
@@ -198,7 +198,7 @@ export default function NotificationsScreen() {
           'A work order has been issued for this job. Check the schedule and get ready to start.';
         barColor = Colors.accent;
         IconComponent = Calendar;
-        iconBgColor = '#DCFCE7';
+        iconBgColor = 'rgba(79, 103, 57, 0.14)';
         iconColor = '#15803D';
         break;
       }
@@ -218,7 +218,7 @@ export default function NotificationsScreen() {
             : 'Payment has been released for this job. Funds will be available in your wallet shortly.');
         barColor = '#3B82F6';
         IconComponent = Wallet;
-        iconBgColor = '#DCFCE7';
+        iconBgColor = 'rgba(79, 103, 57, 0.14)';
         iconColor = '#15803D';
         break;
       }
@@ -911,7 +911,7 @@ export default function NotificationsScreen() {
                             onPress={() => (isArchiveTab ? handleUnarchive(notification.id) : handleArchive(notification.id))}
                             style={{
                               width: 72,
-                              backgroundColor: isArchiveTab ? '#6A9B00' : '#6B7280',
+                              backgroundColor: isArchiveTab ? '#4F6739' : '#6B7280',
                               borderTopRightRadius: 0,
                               borderBottomRightRadius: 0,
                               borderRadius: BorderRadius.xl,
@@ -955,12 +955,11 @@ export default function NotificationsScreen() {
                         paddingVertical: 10,
                         paddingHorizontal: 12,
                         borderWidth: 1,
-                        borderColor: notification.isRead ? '#EEF1E8' : 'rgba(106, 155, 0, 0.22)',
-                        shadowColor: '#101828',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: notification.isRead ? 0.018 : 0.04,
-                        shadowRadius: 10,
-                        elevation: 0.76,
+                        borderColor: notification.isRead ? '#EEF1E8' : 'rgba(79, 103, 57, 0.22)',
+                        elevation: 0,
+                        shadowOpacity: 0,
+                        shadowRadius: 0,
+                        shadowOffset: { width: 0, height: 0 },
                       }}
                     >
                       <View
@@ -1129,11 +1128,12 @@ export default function NotificationsScreen() {
                   padding: 22,
                   width: '100%',
                   maxWidth: 400,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 18 },
-                  shadowOpacity: 0.18,
-                  shadowRadius: 28,
-                  elevation: 0.76,
+                  borderWidth: 1,
+                  borderColor: '#E8EBE5',
+                  elevation: 0,
+                  shadowOpacity: 0,
+                  shadowRadius: 0,
+                  shadowOffset: { width: 0, height: 0 },
                 }}
               >
                 {/* Header */}

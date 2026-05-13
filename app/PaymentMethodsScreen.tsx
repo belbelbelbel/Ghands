@@ -821,7 +821,7 @@ export default function PaymentMethodsScreen() {
                   width: 80,
                   height: 80,
                   borderRadius: 40,
-                  backgroundColor: '#DCFCE7',
+                  backgroundColor: 'rgba(79, 103, 57, 0.14)',
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginBottom: 20,

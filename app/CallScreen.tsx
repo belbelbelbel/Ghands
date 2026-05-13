@@ -775,7 +775,7 @@ export default function CallScreen() {
                 borderRadius: 30,
                 backgroundColor: isSpeakerOn ? '#F2F8EA' : Colors.white,
                 borderWidth: 1,
-                borderColor: isSpeakerOn ? 'rgba(106, 155, 0, 0.16)' : 'rgba(17, 24, 39, 0.08)',
+                borderColor: isSpeakerOn ? 'rgba(79, 103, 57, 0.16)' : 'rgba(17, 24, 39, 0.08)',
                 alignItems: 'center',
                 justifyContent: 'center',
                 ...SHADOWS.sm,

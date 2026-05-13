@@ -92,7 +92,7 @@ export default function ProviderOtpScreen() {
             <View 
               key={index} 
               className={`w-14 h-14 rounded-xl border items-center justify-center ${
-                digit ? 'bg-[#6A9B00] border-[#6A9B00]' : 'bg-white border-gray-300'
+                digit ? 'bg-[#4F6739] border-[#4F6739]' : 'bg-white border-gray-300'
               }`}
             >
               <TextInput
@@ -128,7 +128,7 @@ export default function ProviderOtpScreen() {
           Didn&apos;t get the code?
         </Text>
         <TouchableOpacity onPress={handleResendCode} disabled={!canResend} activeOpacity={0.7}>
-          <Text className="text-[#6A9B00] text-base font-bold text-center mb-8" style={{ fontFamily: 'Poppins-Bold' }}>
+          <Text className="text-[#4F6739] text-base font-bold text-center mb-8" style={{ fontFamily: 'Poppins-Bold' }}>
             Resend OTP
           </Text>
         </TouchableOpacity>
@@ -137,7 +137,7 @@ export default function ProviderOtpScreen() {
           onPress={handleConfirm}
           disabled={!isCodeComplete}
           className={`rounded-xl py-4 px-6 ${
-            isCodeComplete ? 'bg-[#6A9B00]' : 'bg-gray-300'
+            isCodeComplete ? 'bg-[#4F6739]' : 'bg-gray-300'
           }`}
           activeOpacity={0.8}
         >

@@ -12,7 +12,9 @@ import useCoachMarks from '@/hooks/useCoachMarks';
 import { haptics } from '@/hooks/useHaptics';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { Colors, REFRESH_CONTROL, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { Colors, useTabScrollContentPaddingTop, useTabScreenBottomSpacerHeight } from '@/lib/designSystem';
+import { SURFACE_STYLES, surfaceElevation } from '@/lib/surfaceStyles';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 import { ServiceRequest, authService, serviceRequestService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getCategoryIcon, resolveCategoryImageSource } from '@/utils/categoryIcons';
@@ -24,6 +26,18 @@ import { Bell, ChevronDown, MapPin, Search } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ServiceCategory } from '../../data/serviceCategories';
+
+/** Deep olive: Quick actions panel + matching CTAs (pin, search, badges) on home. */
+const HOME_QUICK_ACTIONS_PANEL_BG = '#4F6739';
+const HOME_QUICK_ACTIONS_PANEL_BORDER = 'rgba(45, 65, 24, 0.72)';
+/** Inner quick-action tiles: frosted on sage (pure white felt too loud). */
+const HOME_QUICK_ACTION_TILE_BG = 'rgba(255, 255, 255, 0.16)';
+const HOME_QUICK_ACTION_TILE_BORDER = 'rgba(255, 255, 255, 0.34)';
+const HOME_QUICK_ACTION_LABEL = 'rgba(255, 255, 255, 0.96)';
+/** Vertical gap between major home sections (Popular · Quick actions · Job activity). */
+const HOME_SECTION_VERTICAL_GAP = 24;
+/** Softer mint well for category icons (lighter than accent-tinted gray). */
+const HOME_CATEGORY_ICON_WELL = '#F4F8EF';
 
 const CategoryItem = React.memo(({
   category,
@@ -42,25 +56,46 @@ const CategoryItem = React.memo(({
     <TouchableOpacity
       key={category.id}
       onPress={handlePress}
-      className="rounded-2xl bg-white px-3 py-3 items-center"
+      activeOpacity={0.8}
       style={{
         width: 98,
-        marginRight: 10,
-        shadowColor: 'rgba(106, 155, 0, 0.32)',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-        elevation: 0.76,
+        marginRight: 12,
+        zIndex: 2,
+        backgroundColor: Colors.white,
+        borderRadius: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 10,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(17, 24, 39, 0.055)',
+        elevation: 0,
+        shadowColor: 'transparent',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0,
+        shadowRadius: 0,
       }}
-      activeOpacity={0.8}
     >
-      <View className="w-12 h-12 rounded-2xl items-center justify-center mb-2 bg-[#F4F8EF]">
+      <View
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 14,
+          backgroundColor: HOME_CATEGORY_ICON_WELL,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 8,
+        }}
+      >
         <IconComponent />
       </View>
       <Text
-        className="text-xs font-medium text-black text-center"
-        style={{ fontFamily: 'Poppins-SemiBold' }}
         numberOfLines={1}
+        style={{
+          fontSize: 11,
+          fontFamily: 'Poppins-SemiBold',
+          color: Colors.textPrimary,
+          textAlign: 'center',
+        }}
       >
         {category.title}
       </Text>
@@ -463,9 +498,9 @@ const HomeScreen = React.memo(() => {
     transform: [{ translateY: slideAnim }]
   }), [fadeAnim, slideAnim]);
 
-  const searchBarStyle = useMemo(() => ({ height: 50 }), []);
+  const searchBarStyle = useMemo(() => ({ height: 52 }), []);
 
-  const bottomSpacerStyle = useMemo(() => ({ height: 90 }), []);
+  const bottomSpacerHeight = useTabScreenBottomSpacerHeight(16);
   const tabScrollTop = useTabScrollContentPaddingTop(10);
 
   // If checking token, show nothing (will redirect if no token)
@@ -477,23 +512,27 @@ const HomeScreen = React.memo(() => {
     <SafeAreaWrapper tabletShellTop>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={REFRESH_CONTROL.tintColor}
-            colors={REFRESH_CONTROL.colors as unknown as string[]}
+            tintColor={HOME_QUICK_ACTIONS_PANEL_BG}
+            colors={[HOME_QUICK_ACTIONS_PANEL_BG] as unknown as string[]}
           />
         }
       >
         <Animated.View
-          style={[animatedStyles, { flex: 1, paddingTop: tabScrollTop }]}
+          style={[animatedStyles, { flex: 1, paddingTop: tabScrollTop, overflow: 'visible' }]}
         >
-          <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 0 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+          <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, paddingTop: 0, paddingBottom: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
               <CoachMarkTarget name="location-selector" style={{ flex: 1, marginRight: 8 }}>
                 <TouchableOpacity
                   onPress={handleLocationPress}
+                  activeOpacity={0.8}
+                  accessibilityLabel={location ? `Location: ${location}` : 'Enter your location'}
+                  accessibilityHint="Opens location search"
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -504,12 +543,24 @@ const HomeScreen = React.memo(() => {
                     paddingHorizontal: 12,
                     minHeight: 52,
                   }}
-                  activeOpacity={0.8}
-                  accessibilityLabel={location ? `Location: ${location}` : 'Enter your location'}
-                  accessibilityHint="Opens location search"
                 >
-                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                    <MapPin size={18} color={Colors.accent} />
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: HOME_QUICK_ACTIONS_PANEL_BG,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 10,
+                      shadowColor: '#0a1207',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.22,
+                      shadowRadius: 4,
+                      elevation: surfaceElevation(3),
+                    }}
+                  >
+                    <MapPin size={18} color="#FFFFFF" />
                   </View>
                   <Text
                     style={{
@@ -541,7 +592,7 @@ const HomeScreen = React.memo(() => {
                     width: 8,
                     height: 8,
                     borderRadius: 4,
-                    backgroundColor: Colors.accent,
+                    backgroundColor: HOME_QUICK_ACTIONS_PANEL_BG,
                   }}
                 />
               </TouchableOpacity>
@@ -550,7 +601,7 @@ const HomeScreen = React.memo(() => {
             <CoachMarkTarget name="search-bar">
               <View
                 className="bg-gray-100 rounded-xl px-4 py-0 flex-row items-center"
-                style={searchBarStyle}
+                style={[searchBarStyle, SURFACE_STYLES.searchField]}
               >
                 <TextInput
                   placeholder="Search for services"
@@ -572,21 +623,22 @@ const HomeScreen = React.memo(() => {
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  className="w-10 h-10 bg-black rounded-lg items-center justify-center ml-2"
+                  className="w-10 h-10 rounded-lg items-center justify-center ml-2"
+                  style={{ backgroundColor: HOME_QUICK_ACTIONS_PANEL_BG }}
                   onPress={handleSearch}
                   activeOpacity={0.8}
                 >
-                  <Search size={18} color="#9bd719ff" />
+                  <Search size={18} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
             </CoachMarkTarget>
           </View>
-            <CoachMarkTarget name="categories-section">
-            <View className="px-4 pt-6 mb-0">
-              <View className="flex-row pb-1 items-center justify-between mb-3">
+            <CoachMarkTarget name="categories-section" style={{ overflow: 'visible' }}>
+            <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, paddingTop: 16, marginBottom: HOME_SECTION_VERTICAL_GAP, overflow: 'visible' }}>
+              <View style={{ flexDirection: 'row', paddingBottom: 0, alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <Text
                   className="text-lg font-bold text-black"
-                  style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
+                  style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.2 }}
                 >
                   Popular services
                 </Text>
@@ -604,38 +656,45 @@ const HomeScreen = React.memo(() => {
                 </TouchableOpacity>
               </View>
 
-              <Animated.View style={{ opacity: categoriesFadeAnim }}>
+              <Animated.View style={{ opacity: categoriesFadeAnim, overflow: 'visible' }}>
                 {filteredCategories.length === 0 ? (
                   // Skeleton line for categories when nothing is loaded yet - matches actual CategoryItem size
-                  <View style={{ flexDirection: 'row', marginTop: 2, marginBottom: 18 }}>
+                  <View style={{ flexDirection: 'row', marginTop: 0, marginBottom: 0, paddingVertical: 6, overflow: 'visible' }}>
                     {[1, 2, 3, 4].map((i) => (
-                      <View key={i} style={{ width: 100, marginRight: 12 }}>
+                      <View key={i} style={{ width: 98, marginRight: 12 }}>
                         <View
                           style={{
                             borderRadius: 16,
-                            backgroundColor: '#F3F4F6',
-                            paddingVertical: 8,
-                            paddingHorizontal: 12,
+                            backgroundColor: Colors.white,
+                            paddingVertical: 12,
+                            paddingHorizontal: 10,
                             alignItems: 'center',
-                            borderWidth: 0,
+                            borderWidth: 1,
+                            borderColor: 'rgba(17, 24, 39, 0.055)',
+                            zIndex: 2,
+                            elevation: 0,
+                            shadowColor: 'transparent',
+                            shadowOffset: { width: 0, height: 0 },
+                            shadowOpacity: 0,
+                            shadowRadius: 0,
                           }}
                         >
                           {/* Icon skeleton */}
                           <View
                             style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: 8,
-                              backgroundColor: '#E5E7EB',
+                              width: 48,
+                              height: 48,
+                              borderRadius: 14,
+                              backgroundColor: HOME_CATEGORY_ICON_WELL,
                               marginBottom: 8,
                             }}
                           />
                           {/* Text skeleton */}
                           <View
                             style={{
-                              width: 60,
-                              height: 12,
-                              borderRadius: 6,
+                              width: 56,
+                              height: 11,
+                              borderRadius: 5,
                               backgroundColor: '#E5E7EB',
                             }}
                           />
@@ -647,8 +706,17 @@ const HomeScreen = React.memo(() => {
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingRight: 16 }}
-                    style={{ marginTop: 2, marginBottom: 18 }}
+                    removeClippedSubviews={false}
+                    contentContainerStyle={{
+                      paddingRight: 16,
+                      paddingVertical: 6,
+                      paddingLeft: 2,
+                    }}
+                    style={{
+                      marginTop: 0,
+                      marginBottom: 0,
+                      overflow: 'visible',
+                    }}
                   >
                     {filteredCategories.map((category) => (
                       <CategoryItem
@@ -665,91 +733,112 @@ const HomeScreen = React.memo(() => {
 
           {/* Quick Actions */}
           <CoachMarkTarget name="quick-actions">
-            <View className="px-4 mt-2 mb-7">
-              <View className="flex-row items-end justify-between mb-3">
-                <View>
-                  <Text
-                    className="text-lg font-bold text-black"
-                    style={{ fontFamily: 'Poppins-Bold', letterSpacing: -0.3 }}
-                  >
-                    Quick actions
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontFamily: 'Poppins-Regular',
-                      color: Colors.textSecondaryDark,
-                      marginTop: 2,
-                    }}
-                  >
-                    Start common tasks in one tap.
-                  </Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                {(quickActions || []).map((action: QuickAction) => (
-                  <TouchableOpacity
-                    key={action.id}
-                    onPress={() => {
-                      haptics.light();
-                      if (action.id === 'emergency') {
-                        router.push({
-                          pathname: '/(tabs)/categories',
-                          params: { emergency: 'true' },
-                        });
-                      } else if (action.id === 'book-again') {
-                        router.push('/(tabs)/jobs' as any);
-                      } else if (action.id === 'wallet') {
-                        router.push('/WalletScreen' as any);
-                      }
-                    }}
-                    activeOpacity={0.8}
-                    style={{
-                      flex: 1,
-                      backgroundColor: Colors.white,
-                      borderRadius: 18,
-                      paddingVertical: 14,
-                      paddingHorizontal: 10,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      shadowColor: '#101828',
-                      shadowOffset: { width: 0, height: 5 },
-                      shadowOpacity: 0.025,
-                      shadowRadius: 10,
-                      elevation: 0.76,
-                    }}
-                  >
-                    <View
+            <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: HOME_SECTION_VERTICAL_GAP }}>
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: HOME_QUICK_ACTIONS_PANEL_BORDER,
+                  borderRadius: 22,
+                  backgroundColor: HOME_QUICK_ACTIONS_PANEL_BG,
+                  paddingHorizontal: 16,
+                  paddingTop: 20,
+                  paddingBottom: 20,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <View>
+                    <Text
+                      className="text-lg font-bold"
                       style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 21,
-                        backgroundColor: action.id === 'emergency' ? '#FEF2F2' : '#F4F8EF',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: 9,
+                        fontFamily: 'Poppins-Bold',
+                        letterSpacing: -0.2,
+                        color: '#FFFFFF',
                       }}
                     >
-                      <Ionicons
-                        name={action.iconName as any}
-                        size={21}
-                        color={action.id === 'emergency' ? '#DC2626' : Colors.textPrimary}
-                      />
-                    </View>
+                      Quick actions
+                    </Text>
                     <Text
                       style={{
                         fontSize: 12,
-                        fontFamily: 'Poppins-SemiBold',
-                        color: '#000000',
-                        textAlign: 'center',
-                        lineHeight: 16,
+                        fontFamily: 'Poppins-Regular',
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        marginTop: 5,
+                        lineHeight: 18,
                       }}
-                      numberOfLines={2}
                     >
-                      {action.id === 'emergency' ? 'Urgent help' : action.title}
+                      Start common tasks in one tap.
                     </Text>
-                  </TouchableOpacity>
-                ))}
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  {(quickActions || []).map((action: QuickAction) => (
+                    <TouchableOpacity
+                      key={action.id}
+                      onPress={() => {
+                        haptics.light();
+                        if (action.id === 'emergency') {
+                          router.push({
+                            pathname: '/(tabs)/categories',
+                            params: { emergency: 'true' },
+                          });
+                        } else if (action.id === 'book-again') {
+                          router.push('/(tabs)/jobs' as any);
+                        } else if (action.id === 'wallet') {
+                          router.push('/WalletScreen' as any);
+                        }
+                      }}
+                      activeOpacity={0.88}
+                      style={{
+                        flex: 1,
+                        backgroundColor: HOME_QUICK_ACTION_TILE_BG,
+                        borderRadius: 18,
+                        paddingVertical: 13,
+                        paddingHorizontal: 6,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: 1,
+                        borderColor: HOME_QUICK_ACTION_TILE_BORDER,
+                        shadowColor: 'transparent',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0,
+                        shadowRadius: 0,
+                        elevation: 0,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 18,
+                          backgroundColor: action.backgroundColor,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: 8,
+                          borderWidth: 1,
+                          borderColor: 'rgba(255, 255, 255, 0.45)',
+                        }}
+                      >
+                        <Ionicons
+                          name={action.iconName as any}
+                          size={20}
+                          color={action.color}
+                        />
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontFamily: 'Poppins-SemiBold',
+                          color: HOME_QUICK_ACTION_LABEL,
+                          textAlign: 'center',
+                          lineHeight: 16,
+                        }}
+                        numberOfLines={2}
+                      >
+                        {action.id === 'emergency' ? 'Urgent help' : action.title}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             </View>
           </CoachMarkTarget>
@@ -758,7 +847,7 @@ const HomeScreen = React.memo(() => {
           <View style={{ paddingHorizontal: 16, marginBottom: 28 }}>
             <View
               style={{
-                backgroundColor: '#6A9B00',
+                backgroundColor: '#4F6739',
                 borderRadius: 16,
                 paddingVertical: 24,
                 paddingHorizontal: 18,
@@ -766,7 +855,7 @@ const HomeScreen = React.memo(() => {
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: 0.04,
                 shadowRadius: 3,
-                elevation: 0.76,
+                elevation: surfaceElevation(1),
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -844,8 +933,8 @@ const HomeScreen = React.memo(() => {
             </ScrollView>
           </View>
           <CoachMarkTarget name="job-activity">
-            <View className="px-4 mb-8">
-              <View className="flex-row items-end justify-between mb-3">
+            <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: HOME_SECTION_VERTICAL_GAP }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 }}>
                 <View>
                   <Text
                     className="text-lg font-bold text-black"
@@ -858,7 +947,8 @@ const HomeScreen = React.memo(() => {
                       fontSize: 12,
                       fontFamily: 'Poppins-Regular',
                       color: Colors.textSecondaryDark,
-                      marginTop: 2,
+                      marginTop: 4,
+                      lineHeight: 18,
                     }}
                   >
                     Track recent requests and quotations.
@@ -873,17 +963,16 @@ const HomeScreen = React.memo(() => {
                     paddingHorizontal: 11,
                     paddingVertical: 7,
                     borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: '#E8ECE3',
+                    ...SURFACE_STYLES.chipOutline,
                   }}
                 >
                   <Text
-                    className="text-xs text-black"
-                    style={{ fontFamily: 'Poppins-SemiBold' }}
+                    className="text-xs"
+                    style={{ fontFamily: 'Poppins-SemiBold', color: HOME_QUICK_ACTIONS_PANEL_BG }}
                   >
                     View all
                   </Text>
-                  <Ionicons name="chevron-forward" size={14} color="black" />
+                  <Ionicons name="chevron-forward" size={14} color={HOME_QUICK_ACTIONS_PANEL_BG} />
                 </TouchableOpacity>
               </View>
               {isLoadingJobs ? (
@@ -893,7 +982,7 @@ const HomeScreen = React.memo(() => {
                 </>
               ) : jobActivities.length > 0 ? (
                 jobActivities.map((activity, index) => (
-                  <View key={activity.id} style={{ marginBottom: index < jobActivities.length - 1 ? 16 : 0 }}>
+                  <View key={activity.id} style={{ marginBottom: index < jobActivities.length - 1 ? 12 : 0 }}>
                     <JobActivityCard activity={activity} />
                   </View>
                 ))
@@ -905,8 +994,7 @@ const HomeScreen = React.memo(() => {
                     padding: 32,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderWidth: 1,
-                    borderColor: Colors.border,
+                    ...SURFACE_STYLES.homeCard,
                   }}
                 >
                   <View
@@ -920,7 +1008,7 @@ const HomeScreen = React.memo(() => {
                       marginBottom: 16,
                     }}
                   >
-                    <Ionicons name="briefcase-outline" size={32} color="#6A9B00" />
+                    <Ionicons name="briefcase-outline" size={32} color={HOME_QUICK_ACTIONS_PANEL_BG} />
                   </View>
                   <Text
                     style={{
@@ -973,7 +1061,7 @@ const HomeScreen = React.memo(() => {
           */}
 
           <LiveSupportScreen />
-          <View style={bottomSpacerStyle} />
+          <View style={{ height: bottomSpacerHeight }} />
         </Animated.View>
       </ScrollView>
 

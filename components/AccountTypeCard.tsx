@@ -1,3 +1,4 @@
+import { Colors } from '@/lib/designSystem';
 import { ChevronRight } from 'lucide-react-native';
 import React, { ReactNode } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
@@ -22,7 +23,7 @@ export const AccountTypeCard: React.FC<AccountTypeCardProps> = ({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
-      className="border border-[#6A9B00] rounded-2xl mx-2 my-1 relative"
+      className="rounded-2xl mx-2 my-1 relative"
       style={{
         paddingHorizontal: 18,
         paddingVertical: 16,
@@ -30,8 +31,10 @@ export const AccountTypeCard: React.FC<AccountTypeCardProps> = ({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 3,
-        elevation: 0.76,
-        backgroundColor: '#F8FBF2',
+        elevation: 0,
+        backgroundColor: '#FAFBF9',
+        borderWidth: 1,
+        borderColor: 'rgba(79, 103, 57, 0.35)',
       }}
     >
       {/* Right Arrow */}
@@ -42,8 +45,15 @@ export const AccountTypeCard: React.FC<AccountTypeCardProps> = ({
       <View className="items-start">
         <View className="flex-row items-center" style={{ marginBottom: 12, paddingRight: 28 }}>
           <View
-            className="bg-[#6A9B00] rounded-2xl items-center justify-center"
-            style={{ width: 52, height: 52, marginRight: 14 }}
+            className="rounded-2xl items-center justify-center"
+            style={{
+              width: 52,
+              height: 52,
+              marginRight: 14,
+              backgroundColor: Colors.white,
+              borderWidth: 1.5,
+              borderColor: 'rgba(79, 103, 57, 0.45)',
+            }}
           >
             {icon}
           </View>

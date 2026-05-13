@@ -795,7 +795,7 @@ export default function RequestVisitScreen() {
                             ? Colors.accent
                             : disabled
                             ? 'rgba(17, 24, 39, 0.08)'
-                            : 'rgba(106, 155, 0, 0.16)',
+                            : 'rgba(79, 103, 57, 0.16)',
                           opacity: disabled && !isSelected ? 0.45 : 1,
                         }}
                         disabled={disabled}
@@ -861,7 +861,7 @@ export default function RequestVisitScreen() {
                             ? Colors.accent
                             : disabled
                             ? 'rgba(17, 24, 39, 0.08)'
-                            : 'rgba(106, 155, 0, 0.16)',
+                            : 'rgba(79, 103, 57, 0.16)',
                           opacity: disabled && !isSelected ? 0.45 : 1,
                         }}
                         disabled={disabled}

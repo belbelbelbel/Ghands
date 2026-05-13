@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 
 const LiveSupportScreen = () => {
   const router = useRouter();
@@ -11,12 +12,12 @@ const LiveSupportScreen = () => {
   };
 
   return (
-    <View className='px-4 mb-6'>
+    <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginTop: 4, marginBottom: 14 }}>
       <View
         style={{
           backgroundColor: '#FAFCF7',
           borderRadius: 22,
-          padding: 16,
+          padding: 18,
           shadowColor: '#101828',
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: 0.025,
@@ -36,7 +37,7 @@ const LiveSupportScreen = () => {
               marginRight: 10,
             }}
           >
-            <Ionicons name='chatbubble' size={18} color="#6A9B00" />
+            <Ionicons name='chatbubble' size={18} color="#4F6739" />
           </View>
           <View style={{ flex: 1 }}>
             <Text 

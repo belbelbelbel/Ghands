@@ -92,7 +92,7 @@ export default function ProviderUploadDocumentsScreen() {
               width: 150,
               height: 150,
               borderRadius: 75,
-              backgroundColor: '#6A9B00',
+              backgroundColor: '#4F6739',
               opacity: 0.14,
             }}
           />
@@ -117,7 +117,7 @@ export default function ProviderUploadDocumentsScreen() {
               className="bg-white border-2 border-dashed border-gray-200 rounded-2xl py-12 items-center justify-center"
               activeOpacity={0.7}
             >
-              <Upload size={32} color="#6A9B00" />
+              <Upload size={32} color="#4F6739" />
               <Text className="text-gray-900 text-base mt-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
                 Upload business license
               </Text>
@@ -165,7 +165,7 @@ export default function ProviderUploadDocumentsScreen() {
               className="bg-white border-2 border-dashed border-gray-200 rounded-2xl py-12 items-center justify-center"
               activeOpacity={0.7}
             >
-              <Upload size={32} color="#6A9B00" />
+              <Upload size={32} color="#4F6739" />
               <Text className="text-gray-900 text-base mt-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
                 Upload tax document
               </Text>
@@ -225,7 +225,7 @@ export default function ProviderUploadDocumentsScreen() {
 
         <TouchableOpacity
           onPress={handleContinue}
-          className="bg-[#6A9B00] rounded-2xl py-4 px-6 flex-row items-center justify-center"
+          className="bg-[#4F6739] rounded-2xl py-4 px-6 flex-row items-center justify-center"
           activeOpacity={0.8}
         >
           <Text className="text-white text-lg font-semibold mr-2" style={{ fontFamily: 'Poppins-SemiBold' }}>

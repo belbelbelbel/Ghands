@@ -137,7 +137,7 @@ export default function ProviderTypeSelectionScreen() {
             {/* Individual Provider Card - Using AccountTypeCard with Coming Soon badge */}
             <View style={{ position: 'relative', marginBottom: 16 }}>
               <AccountTypeCard
-                icon={<User size={27} color="white" />}
+                icon={<User size={27} color={Colors.accent} />}
                 title="Individual Provider"
                 subtitle="You work alone"
                 tags={["Established", "Licensed", "Certified"]}
@@ -147,7 +147,7 @@ export default function ProviderTypeSelectionScreen() {
 
             {/* Corporate Provider Card */}
             <AccountTypeCard
-              icon={<Building2 size={27} color="white" />}
+              icon={<Building2 size={27} color={Colors.accent} />}
               title="Corporate Provider"
               subtitle="Provider service solutions"
               tags={["Established", "Licensed", "Certified"]}

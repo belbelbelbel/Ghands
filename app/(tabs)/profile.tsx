@@ -1,7 +1,9 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useAuthRole } from '@/hooks/useAuth';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { BorderRadius, Colors, REFRESH_CONTROL, Spacing, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { BorderRadius, Colors, REFRESH_CONTROL, Spacing, useTabScrollContentPaddingTop, useTabScreenScrollBottomPadding } from '@/lib/designSystem';
+import { surfaceElevation } from '@/lib/surfaceStyles';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowRight, Bell, ChevronRight, CreditCard, HelpCircle, LogOut, MapPin, Settings, Share2, Star, Trash2, User, Wallet } from 'lucide-react-native';
 import React, { useState, useCallback } from 'react';
@@ -9,9 +11,14 @@ import { Alert, Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOp
 import { shareReferral } from '@/utils/referral';
 import { profileService, walletService } from '@/services/api';
 
+/** Matches home Quick actions panel — sage, not black. */
+const PROFILE_SAGE_BG = '#4F6739';
+const PROFILE_SAGE_BORDER = 'rgba(45, 65, 24, 0.75)';
+
 const ProfileScreen = () => {
   const headerTopPad = useTabScrollContentPaddingTop(16);
   const scrollBodyTopPad = useTabScrollContentPaddingTop(20);
+  const scrollBottomPad = useTabScreenScrollBottomPadding(16);
   const router = useRouter();
   const { logout, switchRole } = useAuthRole();
   const { location } = useUserLocation();
@@ -181,7 +188,7 @@ const ProfileScreen = () => {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          paddingHorizontal: 20,
+          paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
           paddingTop: headerTopPad,
           paddingBottom: 16,
           backgroundColor: Colors.backgroundLight,
@@ -247,8 +254,8 @@ const ProfileScreen = () => {
           />
         }
         contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingBottom: 100,
+          paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
+          paddingBottom: scrollBottomPad,
         }}
       >
         {/* User Profile Section */}
@@ -258,15 +265,18 @@ const ProfileScreen = () => {
             alignItems: 'center',
             marginTop: scrollBodyTopPad,
             marginBottom: 24,
-            backgroundColor: '#0a0a0a',
+            backgroundColor: PROFILE_SAGE_BG,
             borderRadius: 26,
-            padding: 18,
+            paddingVertical: 22,
+            paddingHorizontal: 22,
+            borderWidth: 1,
+            borderColor: PROFILE_SAGE_BORDER,
             overflow: 'hidden',
-            shadowColor: '#101828',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.12,
-            shadowRadius: 18,
-            elevation: 0,
+            elevation: surfaceElevation(2),
+            shadowColor: '#1a2414',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 10,
           }}
         >
           <View
@@ -277,12 +287,12 @@ const ProfileScreen = () => {
               width: 160,
               height: 160,
               borderRadius: 80,
-              backgroundColor: Colors.accent,
-              opacity: 0.14,
+              backgroundColor: '#FFFFFF',
+              opacity: 0.1,
             }}
           />
           {/* Profile Picture */}
-          <View style={{ marginRight: 16 }}>
+          <View style={{ marginRight: 18 }}>
             <Image
               source={require('../../assets/images/userimg.jpg')}
               style={{
@@ -290,14 +300,14 @@ const ProfileScreen = () => {
                 height: 80,
                 borderRadius: 40,
                 borderWidth: 3,
-                borderColor: 'rgba(255,255,255,0.18)',
+                borderColor: 'rgba(255,255,255,0.38)',
               }}
               resizeMode="cover"
             />
           </View>
 
           {/* User Info */}
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, minWidth: 0, paddingRight: 4 }}>
             {/* Name */}
             <View
               style={{
@@ -308,10 +318,11 @@ const ProfileScreen = () => {
               }}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color={Colors.accent} />
+                <ActivityIndicator size="small" color={Colors.white} />
               ) : (
                 <Text
                   style={{
+                    flexShrink: 1,
                     fontSize: 20,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.white,
@@ -333,14 +344,16 @@ const ProfileScreen = () => {
                 marginBottom: 6,
               }}
             >
-              <MapPin size={14} color="rgba(255,255,255,0.62)" />
+              <MapPin size={14} color="rgba(255,255,255,0.62)" style={{ flexShrink: 0 }} />
               <Text
                 style={{
+                  flex: 1,
                   fontSize: 13,
                   fontFamily: 'Poppins-Regular',
                   color: 'rgba(255,255,255,0.68)',
-                  marginLeft: 4,
+                  marginLeft: 6,
                 }}
+                numberOfLines={2}
               >
                 {userData.location}
               </Text>
@@ -403,11 +416,10 @@ const ProfileScreen = () => {
               backgroundColor: Colors.white,
               borderRadius: 22,
               overflow: 'hidden',
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.035,
-              shadowRadius: 10,
               elevation: 0,
+              shadowOpacity: 0,
+              shadowRadius: 0,
+              shadowOffset: { width: 0, height: 0 },
             }}
           >
             {accountSettings.map((setting, index) => {
@@ -471,12 +483,20 @@ const ProfileScreen = () => {
         {/* Current Balance Section */}
         <View
           style={{
-            backgroundColor: '#0a0a0a',
+            backgroundColor: PROFILE_SAGE_BG,
             borderRadius: 24,
-            padding: 20,
+            paddingVertical: 22,
+            paddingHorizontal: 22,
             marginBottom: 24,
             position: 'relative',
             overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: PROFILE_SAGE_BORDER,
+            elevation: surfaceElevation(2),
+            shadowColor: '#1a2414',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 10,
           }}
         >
           <View
@@ -487,8 +507,8 @@ const ProfileScreen = () => {
               width: 150,
               height: 150,
               borderRadius: 75,
-              backgroundColor: Colors.accent,
-              opacity: 0.13,
+              backgroundColor: '#FFFFFF',
+              opacity: 0.09,
             }}
           />
           <View
@@ -545,14 +565,14 @@ const ProfileScreen = () => {
                 width: 46,
                 height: 46,
                 borderRadius: 23,
-                backgroundColor: 'rgba(202,255,51,0.18)',
+                backgroundColor: 'rgba(255,255,255,0.2)',
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderWidth: 1,
-                borderColor: 'rgba(202,255,51,0.28)',
+                borderColor: 'rgba(255,255,255,0.28)',
               }}
             >
-              <Wallet size={24} color={Colors.accent} />
+              <Wallet size={24} color={Colors.white} />
             </View>
           </View>
 
@@ -613,11 +633,10 @@ const ProfileScreen = () => {
               backgroundColor: Colors.white,
               borderRadius: 20,
               padding: 16,
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.035,
-              shadowRadius: 10,
               elevation: 0,
+              shadowOpacity: 0,
+              shadowRadius: 0,
+              shadowOffset: { width: 0, height: 0 },
             }}
           >
             <View style={{ flex: 1, marginRight: 12 }}>
@@ -695,11 +714,10 @@ const ProfileScreen = () => {
               backgroundColor: Colors.white,
               borderRadius: 22,
               overflow: 'hidden',
-              shadowColor: '#111827',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.04,
-              shadowRadius: 18,
               elevation: 0,
+              shadowOpacity: 0,
+              shadowRadius: 0,
+              shadowOffset: { width: 0, height: 0 },
             }}
           >
             <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10 }}>

@@ -1,10 +1,14 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import { ProviderJobLoadingState, ProviderJobNotFoundState } from '@/components/ProviderJobFallbackStates';
 import ProviderNoQuotationState from '@/components/ProviderNoQuotationState';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { BorderRadius, Colors } from '@/lib/designSystem';
+import { JOB_TIMELINE, timelineChipText } from '@/lib/jobTimelineTheme';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
+import { surfaceElevation } from '@/lib/surfaceStyles';
 import { Quotation, QuotationWithProvider, ServiceRequest, authService, providerService, serviceRequestService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { makeCall } from '@/utils/callUtils';
@@ -646,9 +650,9 @@ export default function ProviderJobDetailsScreen() {
       title: 'Request received',
       description: 'Review the job.',
       status: formatTimeAgo(request.createdAt || request.updatedAt),
-      accent: '#DCFCE7',
-      dotColor: '#6A9B00',
-      lineColor: '#6A9B00',
+      accent: JOB_TIMELINE.completeSoft,
+      dotColor: JOB_TIMELINE.sage,
+      lineColor: '#4F6739',
       isActive: false,
       isCompleted: true,
       icon: CheckCircle2,
@@ -665,9 +669,9 @@ export default function ProviderJobDetailsScreen() {
           title: 'Selected',
           description: 'You accepted the job.',
           status: formatTimeAgo(request.updatedAt || request.selectedAt || ''),
-          accent: '#DCFCE7',
-          dotColor: '#6A9B00',
-          lineColor: '#6A9B00',
+          accent: JOB_TIMELINE.completeSoft,
+          dotColor: JOB_TIMELINE.sage,
+          lineColor: '#4F6739',
           isActive: false,
           isCompleted: true,
           icon: CheckCircle2,
@@ -736,9 +740,9 @@ export default function ProviderJobDetailsScreen() {
           title: 'Inspection',
           description: hasVisitRequested ? 'Visit handled.' : 'Quoted directly.',
           status: 'Done',
-          accent: '#DCFCE7',
-          dotColor: '#6A9B00',
-          lineColor: '#6A9B00',
+          accent: JOB_TIMELINE.completeSoft,
+          dotColor: JOB_TIMELINE.sage,
+          lineColor: '#4F6739',
           isActive: false,
           isCompleted: true,
           icon: MapPinned,
@@ -766,9 +770,9 @@ export default function ProviderJobDetailsScreen() {
             ? `Visit confirmed for ${visitScheduleText}.`
             : `Visit requested for ${visitScheduleText}.`,
           status: visitPaid ? 'Done' : 'Waiting',
-          accent: visitPaid ? '#DCFCE7' : '#FEF9C3',
-          dotColor: visitPaid ? '#6A9B00' : '#F59E0B',
-          lineColor: visitPaid ? '#6A9B00' : '#F59E0B',
+          accent: visitPaid ? 'rgba(79, 103, 57, 0.14)' : '#FEF9C3',
+          dotColor: visitPaid ? '#4F6739' : '#F59E0B',
+          lineColor: visitPaid ? '#4F6739' : '#F59E0B',
           isActive: !visitPaid,
           isCompleted: visitPaid,
           icon: MapPinned,
@@ -813,9 +817,9 @@ export default function ProviderJobDetailsScreen() {
           title: 'Quotation',
           description: 'Waiting for client review.',
           status: formatTimeAgo(quotationWithProvider?.sentAt || quotation?.sentAt || request.updatedAt || ''),
-          accent: '#DCFCE7',
-          dotColor: '#6A9B00',
-          lineColor: '#6A9B00',
+          accent: JOB_TIMELINE.completeSoft,
+          dotColor: JOB_TIMELINE.sage,
+          lineColor: '#4F6739',
           isActive: false,
           isCompleted: true,
           icon: FileText,
@@ -866,9 +870,9 @@ export default function ProviderJobDetailsScreen() {
         title: 'Quote accepted',
         description: 'Waiting for payment.',
         status: formatTimeAgo(quotationWithProvider?.sentAt || quotation?.sentAt || request.updatedAt || ''),
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
-        lineColor: '#6A9B00',
+        accent: JOB_TIMELINE.completeSoft,
+        dotColor: JOB_TIMELINE.sage,
+        lineColor: '#4F6739',
         isActive: false,
         isCompleted: true,
         icon: CheckCircle,
@@ -923,9 +927,9 @@ export default function ProviderJobDetailsScreen() {
         title: 'Work order',
         description: 'Job started.',
         status: formatTimeAgo(request.updatedAt || ''),
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
-        lineColor: '#6A9B00',
+        accent: JOB_TIMELINE.completeSoft,
+        dotColor: JOB_TIMELINE.sage,
+        lineColor: '#4F6739',
         isActive: false,
         isCompleted: true,
         icon: CheckCircle2,
@@ -990,9 +994,9 @@ export default function ProviderJobDetailsScreen() {
         title: 'Work started',
         description: 'Client will review when done.',
         status: 'Done',
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
-        lineColor: '#6A9B00',
+        accent: JOB_TIMELINE.completeSoft,
+        dotColor: JOB_TIMELINE.sage,
+        lineColor: '#4F6739',
         isActive: false,
         isCompleted: true,
         icon: Wrench,
@@ -1003,9 +1007,9 @@ export default function ProviderJobDetailsScreen() {
         title: 'Ready for review',
         description: 'Waiting for client confirmation.',
         status: 'Review',
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
-        lineColor: '#6A9B00',
+        accent: JOB_TIMELINE.completeSoft,
+        dotColor: JOB_TIMELINE.sage,
+        lineColor: '#4F6739',
         isActive: false,
         isCompleted: true,
         icon: Wrench,
@@ -1045,9 +1049,9 @@ export default function ProviderJobDetailsScreen() {
         title: 'Complete',
         description: 'Payment released.',
         status: formatTimeAgo(request.updatedAt || request.createdAt),
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
-        lineColor: '#6A9B00',
+        accent: JOB_TIMELINE.completeSoft,
+        dotColor: JOB_TIMELINE.sage,
+        lineColor: '#4F6739',
         isActive: false,
         isCompleted: true,
         icon: CheckCircle,
@@ -1309,7 +1313,7 @@ export default function ProviderJobDetailsScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: 20,
+            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
             paddingTop: 16,
             paddingBottom: 12,
             marginBottom: 8,
@@ -1432,7 +1436,7 @@ export default function ProviderJobDetailsScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: 20,
+            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
             // Increase padding when in Quotations tab with buttons at bottom
             paddingBottom: showTopProviderActions
               ? 28
@@ -1562,7 +1566,7 @@ export default function ProviderJobDetailsScreen() {
                   borderRadius: 20,
                   backgroundColor: '#F7FAF0',
                   borderWidth: 1,
-                  borderColor: 'rgba(106, 155, 0, 0.18)',
+                  borderColor: 'rgba(79, 103, 57, 0.18)',
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginLeft: 8,
@@ -1924,7 +1928,7 @@ export default function ProviderJobDetailsScreen() {
                         {(step.isActive || step.isCompleted) && (
                           <View
                             style={{
-                              backgroundColor: step.isCompleted ? '#DCFCE7' : '#FEF9C3',
+                              backgroundColor: step.isCompleted ? 'rgba(79, 103, 57, 0.14)' : '#FEF9C3',
                               paddingHorizontal: 9,
                               paddingVertical: 4,
                               borderRadius: 12,
@@ -1976,7 +1980,7 @@ export default function ProviderJobDetailsScreen() {
                                 backgroundColor: '#F2F8EA',
                                 borderRadius: 12,
                                 borderWidth: 1,
-                                borderColor: 'rgba(106, 155, 0, 0.16)',
+                                borderColor: 'rgba(79, 103, 57, 0.16)',
                               }}
                               activeOpacity={0.7}
                             >
@@ -3153,7 +3157,7 @@ export default function ProviderJobDetailsScreen() {
             bottom: 0,
             left: 0,
             right: 0,
-            paddingHorizontal: 20,
+            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
             paddingTop: 16,
             paddingBottom: 32,
             backgroundColor: Colors.white,
@@ -3172,7 +3176,7 @@ export default function ProviderJobDetailsScreen() {
               style={{
                 position: 'absolute',
                 top: 16,
-                right: 20,
+                right: CLIENT_HOME_SCROLL_GUTTER,
                 width: 36,
                 height: 36,
                 borderRadius: 18,
@@ -3580,7 +3584,7 @@ export default function ProviderJobDetailsScreen() {
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
             justifyContent: 'center',
             alignItems: 'center',
-            paddingHorizontal: 20,
+            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
           }}
         >
           <View
@@ -3726,7 +3730,7 @@ export default function ProviderJobDetailsScreen() {
             flex: 1,
             backgroundColor: 'rgba(17, 24, 39, 0.62)',
             justifyContent: 'center',
-            paddingHorizontal: 20,
+            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
           }}
         >
           <TouchableOpacity

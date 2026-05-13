@@ -15,7 +15,7 @@ interface ToastProps {
 
 const TOAST_CONFIG = {
   success: {
-    bgColor: '#DCFCE7',
+    bgColor: 'rgba(79, 103, 57, 0.14)',
     textColor: '#166534',
     icon: 'checkmark-circle' as const,
     iconColor: '#22C55E',

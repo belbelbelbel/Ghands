@@ -11,7 +11,8 @@ import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View, Modal, Pressable, StyleSheet } from 'react-native';
 import { JobHistoryCardSkeleton } from '@/components/LoadingSkeleton';
-import { Colors, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { Colors, useTabScrollContentPaddingTop, useTabScreenScrollBottomPadding } from '@/lib/designSystem';
+import { SURFACE_STYLES } from '@/lib/surfaceStyles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { extractMyRatingFromRequest, reviewRatingStorageKey } from '@/utils/reviewSync';
 
@@ -95,6 +96,7 @@ const mapRequestToJobItem = (
 
 export default function JobsScreen() {
   const tabScrollTop = useTabScrollContentPaddingTop(20);
+  const scrollBottomPad = useTabScreenScrollBottomPadding(16);
   const params = useLocalSearchParams<{ initialTab?: string; requestId?: string }>();
   const [activeTab, setActiveTab] = useState<JobStatus>(
     params.initialTab === 'Completed' ? 'Completed' : params.initialTab === 'Cancelled' ? 'Cancelled' : 'Ongoing'
@@ -264,12 +266,12 @@ export default function JobsScreen() {
 
   return (
     <SafeAreaWrapper tabletShellTop>
-      <View className="flex-1 px-4" style={{ paddingTop: tabScrollTop }}>
-        <Text className="text-2xl text-black mb-6 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
+      <View style={{ flex: 1, paddingHorizontal: 12, paddingTop: tabScrollTop }}>
+        <Text className="text-2xl text-black mb-5 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
           Jobs
         </Text>
 
-        <View className="flex flex-row justify-around mb-4">
+        <View className="flex flex-row justify-around mb-5">
           {(['Ongoing', 'Completed', 'Cancelled'] as JobStatus[]).map((status) => {
             const isActive = activeTab === status;
             return (
@@ -288,7 +290,7 @@ export default function JobsScreen() {
                   {status}
                 </Text>
                 <View
-                  className={`mt-2 h-0.5 rounded-full ${isActive ? 'bg-[#6A9B00]' : 'bg-transparent'}`}
+                  className={`mt-2 h-0.5 rounded-full ${isActive ? 'bg-[#4F6739]' : 'bg-transparent'}`}
                   style={{ width: 68 }}
                 />
               </TouchableOpacity>
@@ -299,7 +301,7 @@ export default function JobsScreen() {
         {isLoading && allJobs.length === 0 ? (
           <ScrollView 
             showsVerticalScrollIndicator={false} 
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: scrollBottomPad }}
           >
             {[1, 2, 3].map((index) => (
               <JobHistoryCardSkeleton key={index} />
@@ -308,9 +310,9 @@ export default function JobsScreen() {
         ) : (
           <ScrollView 
             showsVerticalScrollIndicator={false} 
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: scrollBottomPad }}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6A9B00" />
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F6739" />
             }
           >
             {jobs.length === 0 ? (
@@ -318,18 +320,13 @@ export default function JobsScreen() {
                 style={{
                   alignItems: 'center',
                   justifyContent: 'center',
-                  paddingVertical: 44,
-                  paddingHorizontal: 22,
-                  marginTop: 18,
+                  paddingVertical: 40,
+                  paddingHorizontal: 16,
+                  marginTop: 12,
                   backgroundColor: '#FFFFFF',
-                  borderRadius: 24,
-                  borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.045)',
-                  shadowColor: '#101828',
-                  shadowOffset: { width: 0, height: 6 },
-                  shadowOpacity: 0.04,
-                  shadowRadius: 14,
-                  elevation: 0.76,
+                  borderRadius: 22,
+                  ...SURFACE_STYLES.homeCard,
+                  borderColor: 'rgba(17, 24, 39, 0.18)',
                 }}
               >
                 <View
@@ -346,7 +343,7 @@ export default function JobsScreen() {
                   <Ionicons
                     name={activeTab === 'Ongoing' ? 'briefcase-outline' : activeTab === 'Completed' ? 'checkmark-circle-outline' : 'close-circle-outline'}
                     size={34}
-                    color={activeTab === 'Completed' ? '#047857' : activeTab === 'Cancelled' ? '#DC2626' : '#6A9B00'}
+                    color={activeTab === 'Completed' ? '#047857' : activeTab === 'Cancelled' ? '#DC2626' : '#4F6739'}
                   />
                 </View>
                 <Text className="text-gray-900 text-center" style={{ fontFamily: 'Poppins-Bold', fontSize: 17 }}>
@@ -364,7 +361,15 @@ export default function JobsScreen() {
               jobs.map((job) => (
             <View
               key={`${activeTab}-${job.id}`}
-              className="border border-gray-200 mb-6 px-5 py-5 rounded-2xl shadow-[0px_6px_18px_rgba(15,23,42,0.04)]"
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: 18,
+                paddingHorizontal: 16,
+                paddingVertical: 20,
+                marginBottom: 18,
+                ...SURFACE_STYLES.homeCard,
+                borderColor: 'rgba(17, 24, 39, 0.18)',
+              }}
             >
               <View className="flex-row justify-between mb-3">
                 <View className="flex-1 pr-3">
@@ -384,7 +389,7 @@ export default function JobsScreen() {
                       job.status === 'In Progress'
                         ? '#E4ECFF' // blue background
                         : job.status === 'Completed'
-                          ? '#DCFCE7' // green background
+                          ? 'rgba(79, 103, 57, 0.14)' // green background
                           : activeTab === 'Cancelled'
                             ? '#F3F4F6' // gray background
                             : '#FEF9C3' // yellow for pending
@@ -404,7 +409,7 @@ export default function JobsScreen() {
                   {/* Cancel Request button in header - only show while job is still pending AND no providers have accepted */}
                   {activeTab === 'Ongoing' && job.status === 'Pending' && (job.acceptedProvidersCount ?? 0) === 0 && (
                     <TouchableOpacity
-                      className="bg-red-50 border border-red-500 py-1.5 px-3 rounded-lg"
+                      className="bg-red-50 py-1.5 px-3 rounded-lg"
                       activeOpacity={0.85}
                       onPress={() => {
                         haptics.warning();
@@ -430,8 +435,8 @@ export default function JobsScreen() {
                   <Ionicons name="document-text-outline" size={16} color="#4B5563" />
                   <Text className="text-sm text-gray-600" style={{ fontFamily: 'Poppins-Regular' }}>
                     {job.quotationsCount === 0
-                      ? '0 quotes received'
-                      : `${job.quotationsCount} quote${job.quotationsCount === 1 ? '' : 's'} received`}
+                      ? 'Awaiting quotes'
+                      : `${job.quotationsCount} quote${job.quotationsCount === 1 ? '' : 's'}`}
                   </Text>
                 </View>
               )}
@@ -465,7 +470,7 @@ export default function JobsScreen() {
                         key={`r-${job.id}-${i}`}
                         name={i < job.myRating! ? 'star' : 'star-outline'}
                         size={14}
-                        color={i < job.myRating! ? '#6A9B00' : '#E5E7EB'}
+                        color={i < job.myRating! ? '#4F6739' : '#E5E7EB'}
                       />
                     ))}
                   </View>
@@ -481,7 +486,7 @@ export default function JobsScreen() {
                     activeTab === 'Ongoing'
                       ? 'bg-gray-100 w-full'
                       : activeTab === 'Completed'
-                        ? 'bg-[#6A9B00] w-full'
+                        ? 'bg-[#4F6739] w-full'
                         : 'bg-black w-full'
                   }`}
                   activeOpacity={0.85}

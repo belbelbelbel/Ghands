@@ -162,7 +162,7 @@ export default function OtpScreen() {
             <View 
               key={index} 
               className={`w-12 h-14 rounded-xl border-[0.5px] items-center justify-center ${
-                digit ? 'bg-[#6A9B00] border-[#6A9B00]' : 'bg-gray-100 border-gray-300'
+                digit ? 'bg-[#4F6739] border-[#4F6739]' : 'bg-gray-100 border-gray-300'
               }`}
             >
               <TextInput

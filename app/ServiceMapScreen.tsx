@@ -425,14 +425,14 @@ const ServiceMapScreen = () => {
       <View className="flex-1">
         {isLoadingProviders ? (
           <View className="flex-1 items-center justify-center bg-white">
-            <ActivityIndicator size="large" color="#6A9B00" />
+            <ActivityIndicator size="large" color="#4F6739" />
             <Text className="mt-4 text-gray-600" style={{ fontFamily: 'Poppins-Medium' }}>
               Finding nearby providers...
             </Text>
           </View>
         ) : !serviceLocationCoords ? (
           <View className="flex-1 items-center justify-center bg-white">
-            <ActivityIndicator size="large" color="#6A9B00" />
+            <ActivityIndicator size="large" color="#4F6739" />
             <Text className="mt-4 text-gray-600" style={{ fontFamily: 'Poppins-Medium' }}>
               Getting your location...
             </Text>

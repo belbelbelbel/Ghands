@@ -479,7 +479,7 @@ export default function ConfirmWalletPaymentScreen() {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <View style={{ backgroundColor: Colors.white, borderRadius: 20, padding: 32, alignItems: 'center', minWidth: 300 }}>
             {paymentStep === 'success' ? (
-              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#DCFCE7', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(79, 103, 57, 0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
                 <CheckCircle size={48} color={Colors.accent} />
               </View>
             ) : (

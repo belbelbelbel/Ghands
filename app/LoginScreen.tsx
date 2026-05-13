@@ -178,7 +178,7 @@ export default function LoginScreen() {
               style={{
                 fontSize: 16,
                 fontFamily: 'Poppins-SemiBold',
-                color: '#6A9B00',
+                color: '#4F6739',
               }}
             >
               Forgot password?
@@ -200,7 +200,7 @@ export default function LoginScreen() {
         <View style={{ alignItems: 'center', marginBottom: 8 }}>
           <TouchableOpacity onPress={handleProviderLogin} activeOpacity={0.7}>
             <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: '#6B7280' }}>
-              Provider? <Text style={{ fontFamily: 'Poppins-SemiBold', color: '#6A9B00' }}>Sign in here</Text>
+              Provider? <Text style={{ fontFamily: 'Poppins-SemiBold', color: '#4F6739' }}>Sign in here</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -219,7 +219,7 @@ export default function LoginScreen() {
               <Text
                 style={{
                   fontFamily: 'Poppins-Bold',
-                  color: '#6A9B00',
+                  color: '#4F6739',
                 }}
               >
                 Sign Up

@@ -3,7 +3,12 @@ import { TransactionCardSkeleton } from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { BorderRadius, Colors } from '@/lib/designSystem';
+import { surfaceElevation } from '@/lib/surfaceStyles';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 import { walletService } from '@/services/api';
+
+/** Primary wallet actions — black CTAs for strong contrast on the sage panel. */
+const WALLET_CTA_BLACK = '#0A0A0A';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, Bell, CheckCircle, Clock, Plus, Receipt, Wallet } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -217,26 +222,27 @@ export default function WalletScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: 20,
+          paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
           paddingBottom: 100,
         }}
       >
         {/* Current Balance Card */}
+        {/* Balance — sage panel (matches profile / app primary) */}
         <View
           style={{
-            backgroundColor: '#0a0a0a',
+            backgroundColor: Colors.accent,
             borderRadius: 24,
             marginTop: 12,
             marginBottom: 20,
             position: 'relative',
             overflow: 'hidden',
-            shadowColor: '#101828',
-            shadowOffset: { width: 0, height: 10 },
-            shadowOpacity: 0.18,
-            shadowRadius: 18,
-            elevation: 0.76,
             borderWidth: 1,
-            borderColor: 'rgba(255, 255, 255, 0.08)',
+            borderColor: Colors.sagePanelBorder,
+            elevation: surfaceElevation(2),
+            shadowColor: '#1a2414',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 10,
           }}
         >
           <View
@@ -247,8 +253,8 @@ export default function WalletScreen() {
               width: 180,
               height: 180,
               borderRadius: 90,
-              backgroundColor: Colors.accent,
-              opacity: 0.15,
+              backgroundColor: '#FFFFFF',
+              opacity: 0.1,
             }}
           />
           <View
@@ -259,8 +265,8 @@ export default function WalletScreen() {
               width: 160,
               height: 160,
               borderRadius: 80,
-              backgroundColor: Colors.accent,
-              opacity: 0.12,
+              backgroundColor: '#FFFFFF',
+              opacity: 0.08,
             }}
           />
           <View
@@ -271,8 +277,8 @@ export default function WalletScreen() {
               width: 100,
               height: 100,
               borderRadius: 50,
-              backgroundColor: Colors.accent,
-              opacity: 0.08,
+              backgroundColor: '#FFFFFF',
+              opacity: 0.06,
             }}
           />
 
@@ -284,17 +290,17 @@ export default function WalletScreen() {
               width: 48,
               height: 48,
               borderRadius: 24,
-              backgroundColor: 'rgba(202, 255, 51, 0.18)',
+              backgroundColor: 'rgba(255,255,255,0.22)',
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 1,
-              borderColor: 'rgba(202, 255, 51, 0.28)',
+              borderColor: 'rgba(255,255,255,0.28)',
             }}
           >
-            <Wallet size={24} color={Colors.accent} />
+            <Wallet size={24} color={Colors.white} />
           </View>
 
-          <View style={{ padding: 20 }}>
+          <View style={{ padding: 22 }}>
             {/* Wallet ID - only show when available from API */}
             {walletId != null && (
               <Text
@@ -440,7 +446,7 @@ export default function WalletScreen() {
                       width: 8,
                       height: 8,
                       borderRadius: 4,
-                      backgroundColor: Colors.accent,
+                      backgroundColor: 'rgba(255,255,255,0.35)',
                       marginRight: 8,
                     }}
                   />
@@ -472,18 +478,15 @@ export default function WalletScreen() {
             onPress={handleAddFunds}
             style={{
               flex: 1,
-              backgroundColor: Colors.accent,
+              backgroundColor: WALLET_CTA_BLACK,
               borderRadius: 14,
-              paddingVertical: 12,
-              paddingHorizontal: 10,
+              paddingVertical: 14,
+              paddingHorizontal: 12,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              shadowColor: Colors.accent,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.18,
-              shadowRadius: 8,
-              elevation: 0.76,
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.08)',
             }}
             activeOpacity={0.85}
           >
@@ -494,32 +497,26 @@ export default function WalletScreen() {
                 fontFamily: 'Poppins-SemiBold',
                 color: Colors.white,
                 marginLeft: 8,
-                letterSpacing: 0.3,
+                letterSpacing: 0.2,
               }}
             >
               Add Funds
             </Text>
           </TouchableOpacity>
 
-          {/* Pay - Enhanced Premium Button */}
           <TouchableOpacity
             onPress={handlePay}
             style={{
               flex: 1,
-              backgroundColor: '#1a1a1a',
+              backgroundColor: WALLET_CTA_BLACK,
               borderRadius: 14,
-              paddingVertical: 12,
-              paddingHorizontal: 10,
+              paddingVertical: 14,
+              paddingHorizontal: 12,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 1,
-              borderColor: 'rgba(255, 255, 255, 0.08)',
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.12,
-              shadowRadius: 8,
-              elevation: 0.76,
+              borderColor: 'rgba(255,255,255,0.08)',
             }}
             activeOpacity={0.85}
           >
@@ -529,7 +526,7 @@ export default function WalletScreen() {
                 fontFamily: 'Poppins-SemiBold',
                 color: Colors.white,
                 marginRight: 8,
-                letterSpacing: 0.3,
+                letterSpacing: 0.2,
               }}
             >
               Pay
@@ -689,7 +686,7 @@ export default function WalletScreen() {
                       paddingHorizontal: 8,
                       paddingVertical: 4,
                       borderRadius: 12,
-                      backgroundColor: transaction.status === 'pending' ? '#FFF7DF' : '#ECFDF3',
+                      backgroundColor: transaction.status === 'pending' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(79, 103, 57, 0.14)',
                       marginBottom: 6,
                     }}
                   >
@@ -697,7 +694,7 @@ export default function WalletScreen() {
                       style={{
                         fontSize: 11,
                         fontFamily: 'Poppins-SemiBold',
-                        color: transaction.status === 'pending' ? '#92400E' : '#047857',
+                        color: transaction.status === 'pending' ? '#92400E' : '#2A3B1F',
                       }}
                     >
                       {transaction.status === 'pending' ? 'Pending' : 'Completed'}
@@ -721,9 +718,9 @@ export default function WalletScreen() {
                 <TouchableOpacity
                   onPress={() => handleViewDetails(transaction)}
                   style={{
-                    backgroundColor: Colors.accent,
-                    borderRadius: 8,
-                    paddingVertical: 8,
+                    backgroundColor: WALLET_CTA_BLACK,
+                    borderRadius: 10,
+                    paddingVertical: 10,
                     paddingHorizontal: 16,
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -752,16 +749,16 @@ export default function WalletScreen() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderWidth: 1.5,
-                    borderColor: Colors.accent,
+                    borderColor: WALLET_CTA_BLACK,
                   }}
                   activeOpacity={0.7}
                 >
-                  <Receipt size={16} color={Colors.accent} style={{ marginRight: 6 }} />
+                  <Receipt size={16} color={WALLET_CTA_BLACK} style={{ marginRight: 6 }} />
                   <Text
                     style={{
                       fontSize: 14,
                       fontFamily: 'Poppins-SemiBold',
-                      color: Colors.accent,
+                      color: WALLET_CTA_BLACK,
                     }}
                   >
                     View Receipt

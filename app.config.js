@@ -9,7 +9,7 @@ export default {
     icon: './assets/images/icon.png',
     scheme: 'ghands',
     userInterfaceStyle: 'automatic',
-    backgroundColor: '#6A9B00', 
+    backgroundColor: '#4F6739', 
     newArchEnabled: true,
     extra: {
       eas: {
@@ -34,7 +34,7 @@ export default {
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/images/icon.png',
-        backgroundColor: '#6A9B00', // Normal green color
+        backgroundColor: '#4F6739', // Normal green color
       },
       edgeToEdgeEnabled: false,
       predictiveBackGestureEnabled: false,
@@ -56,14 +56,14 @@ export default {
       },
     },
     androidStatusBar: {
-      backgroundColor: '#6A9B00', // Normal green color
-      barStyle: 'dark-content', // Dark text on light green background
+      backgroundColor: '#4F6739',
+      barStyle: 'light-content',
       translucent: false,
       hidden: false,
     },
     androidNavigationBar: {
-      barStyle: 'dark-content', // Dark icons on light green background
-      backgroundColor: '#6A9B00', // Normal green color
+      barStyle: 'light-content',
+      backgroundColor: '#4F6739',
     },
     web: {
       bundler: 'metro',
@@ -75,7 +75,7 @@ export default {
         'expo-notifications',
         {
           icon: './assets/images/icon.png',
-          color: '#6A9B00',
+          color: '#4F6739',
           sounds: [],
           mode: 'production',
         },
@@ -86,7 +86,7 @@ export default {
           position: 'relative',
           visibility: 'visible',
           behavior: 'inset-swipe',
-          backgroundColor: '#6A9B00', // Normal green color
+          backgroundColor: '#4F6739', // Normal green color
         },
       ],
       [
@@ -95,9 +95,9 @@ export default {
           image: './assets/images/icon.png',
           imageWidth: 140, // 70% of 200px icon container
           resizeMode: 'contain',
-          backgroundColor: '#6A9B00', // Normal green color
+          backgroundColor: '#4F6739', // Normal green color
           dark: {
-            backgroundColor: '#6A9B00', // Keep green in dark mode too
+            backgroundColor: '#4F6739', // Keep green in dark mode too
           },
         },
       ],

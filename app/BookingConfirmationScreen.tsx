@@ -18,6 +18,7 @@ import { serviceRequestService, profileService, authService } from '@/services/a
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { formatTimeAgo } from '@/utils/dateFormatting';
+import { JOB_TIMELINE } from '@/lib/jobTimelineTheme';
 
 type ProgressStepStatus = 'completed' | 'in-progress' | 'pending';
 
@@ -147,7 +148,7 @@ export default function BookingConfirmationScreen() {
         description: sentText,
         status: 'completed',
         statusText: `Completed - ${formatTimeAgo(request?.createdAt || new Date().toISOString())}`,
-        statusColor: '#DCFCE7',
+        statusColor: JOB_TIMELINE.completeSoft,
         icon: CheckCircle2,
       },
       {
@@ -168,7 +169,7 @@ export default function BookingConfirmationScreen() {
             : hasAccepted
               ? 'In Progress'
               : 'Pending',
-        statusColor: quotationAccepted ? '#DCFCE7' : (hasAccepted || hasQuotationSent) ? '#DBEAFE' : '#F3F4F6',
+        statusColor: quotationAccepted ? JOB_TIMELINE.completeSoft : (hasAccepted || hasQuotationSent) ? JOB_TIMELINE.infoSoft : JOB_TIMELINE.pendingSoft,
         icon: FileText,
       },
       {
@@ -181,7 +182,7 @@ export default function BookingConfirmationScreen() {
             : 'Provider will start after you accept quotation and complete payment.',
         status: ['in_progress', 'reviewing'].includes(status) ? 'in-progress' : ['scheduled', 'completed'].includes(status) ? 'completed' : 'pending',
         statusText: status === 'in_progress' || status === 'reviewing' ? 'In Progress' : status === 'completed' ? 'Completed' : 'Pending',
-        statusColor: ['in_progress', 'reviewing', 'scheduled', 'completed'].includes(status) ? '#DCFCE7' : '#DBEAFE',
+        statusColor: ['in_progress', 'reviewing', 'scheduled', 'completed'].includes(status) ? JOB_TIMELINE.completeSoft : JOB_TIMELINE.infoSoft,
         icon: Wrench,
       },
       {
@@ -194,7 +195,7 @@ export default function BookingConfirmationScreen() {
             : 'Provider will complete the work. You will confirm to release payment.',
         status: status === 'completed' ? 'completed' : status === 'reviewing' ? 'in-progress' : 'pending',
         statusText: status === 'completed' ? `Completed - ${formatTimeAgo(request?.updatedAt || '')}` : status === 'reviewing' ? 'Awaiting your confirmation' : 'Pending',
-        statusColor: status === 'completed' ? '#DCFCE7' : status === 'reviewing' ? '#DBEAFE' : '#F3F4F6',
+        statusColor: status === 'completed' ? JOB_TIMELINE.completeSoft : status === 'reviewing' ? JOB_TIMELINE.infoSoft : JOB_TIMELINE.pendingSoft,
         icon: CheckCircle,
       },
     ];
@@ -236,17 +237,20 @@ export default function BookingConfirmationScreen() {
 
   const getStepColor = (status: ProgressStepStatus) => {
     switch (status) {
-      case 'completed': return '#6A9B00';
-      case 'in-progress': return '#F59E0B';
-      default: return '#D1D5DB';
+      case 'completed': return JOB_TIMELINE.sage;
+      case 'in-progress': return JOB_TIMELINE.activeDot;
+      default: return JOB_TIMELINE.pendingDot;
     }
   };
 
-  const getStepTextColor = (status: ProgressStepStatus) => {
-    switch (status) {
-      case 'completed': return '#166534';
-      case 'in-progress': return '#92400E';
-      default: return '#6B7280';
+  const getStepTextColor = (step: ProgressStep) => {
+    switch (step.status) {
+      case 'completed':
+        return JOB_TIMELINE.sageChipText;
+      case 'in-progress':
+        return step.statusColor === JOB_TIMELINE.infoSoft ? JOB_TIMELINE.infoChipText : JOB_TIMELINE.activeChipText;
+      default:
+        return JOB_TIMELINE.pendingChipText;
     }
   };
 
@@ -281,7 +285,7 @@ export default function BookingConfirmationScreen() {
     return (
       <SafeAreaWrapper className="flex-1 bg-white">
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#6A9B00" />
+          <ActivityIndicator size="large" color="#4F6739" />
           <Text className="text-gray-500 mt-4" style={{ fontFamily: 'Poppins-Medium' }}>Loading timeline...</Text>
         </View>
       </SafeAreaWrapper>
@@ -297,7 +301,7 @@ export default function BookingConfirmationScreen() {
           contentContainerStyle={{ paddingBottom: 116, paddingTop: 20 }}
           refreshControl={
             params.requestId ? (
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#6A9B00']} />
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4F6739']} />
             ) : undefined
           }
         >
@@ -328,7 +332,7 @@ export default function BookingConfirmationScreen() {
                     marginRight: 14,
                   }}
                 >
-                  <CheckCircle2 size={30} color="#6A9B00" />
+                  <CheckCircle2 size={30} color="#4F6739" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 24, lineHeight: 30, fontFamily: 'Poppins-Bold', color: '#111827', letterSpacing: -0.6 }}>
@@ -344,20 +348,20 @@ export default function BookingConfirmationScreen() {
 
               <View style={{ gap: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Wrench size={17} color="#6A9B00" />
+                  <Wrench size={17} color="#4F6739" />
                   <Text style={{ marginLeft: 9, flex: 1, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 14 }} numberOfLines={1}>
                     {displayService}
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAF5', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 }}>
-                    <CalendarDays size={16} color="#6A9B00" />
+                    <CalendarDays size={16} color="#4F6739" />
                     <Text style={{ marginLeft: 8, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 12 }}>
                       {displayDate}
                     </Text>
                   </View>
                   <View style={{ flex: 1.35, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAF5', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 }}>
-                    <Clock3 size={16} color="#6A9B00" />
+                    <Clock3 size={16} color="#4F6739" />
                     <Text style={{ marginLeft: 8, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 12 }} numberOfLines={1}>
                       {providerSummary}
                     </Text>
@@ -377,17 +381,17 @@ export default function BookingConfirmationScreen() {
 
             <View
               style={{
-                backgroundColor: '#FFFFFF',
+                backgroundColor: JOB_TIMELINE.rowBg,
                 borderRadius: 22,
                 borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.045)',
+                borderColor: JOB_TIMELINE.rowBorder,
                 overflow: 'hidden',
               }}
             >
               {progressSteps.map((step, index) => {
                 const isAnimated = animatedSteps.includes(index);
                 const stepColor = getStepColor(step.status);
-                const textColor = getStepTextColor(step.status);
+                const textColor = getStepTextColor(step);
                 const isLast = index === progressSteps.length - 1;
                 const IconComponent = step.icon || Circle;
 
@@ -400,41 +404,49 @@ export default function BookingConfirmationScreen() {
                         paddingVertical: 15,
                       }}
                     >
-                      <View style={{ alignItems: 'center', marginRight: 12 }}>
+                      <View style={{ alignItems: 'center', marginRight: 14 }}>
                         <Animated.View
                           style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 17,
-                            backgroundColor: isAnimated ? stepColor : '#F3F4F6',
+                            width: 36,
+                            height: 36,
+                            borderRadius: 18,
+                            backgroundColor: isAnimated ? stepColor : JOB_TIMELINE.dotInactiveFill,
                             alignItems: 'center',
                             justifyContent: 'center',
-                            opacity: isAnimated ? 1 : 0.65,
+                            opacity: isAnimated ? 1 : 0.72,
+                            borderWidth: isAnimated && step.status !== 'pending' ? 2.5 : 0,
+                            borderColor: '#FFFFFF',
+                            shadowColor: JOB_TIMELINE.dotShadow,
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: isAnimated ? 0.14 : 0,
+                            shadowRadius: 4,
+                            elevation: isAnimated ? 2 : 0,
                           }}
                         >
                           <IconComponent
-                            size={16}
-                            color={step.status === 'pending' ? '#9CA3AF' : '#FFFFFF'}
+                            size={17}
+                            color={step.status === 'pending' ? JOB_TIMELINE.pendingChipText : '#FFFFFF'}
                           />
                         </Animated.View>
                         {!isLast && (
                           <View
                             style={{
-                              width: 2,
+                              width: 3,
                               flex: 1,
                               minHeight: 22,
-                              backgroundColor: step.status === 'pending' ? '#E5E7EB' : stepColor,
-                              marginTop: 7,
+                              backgroundColor: step.status === 'pending' ? JOB_TIMELINE.railMuted : stepColor,
+                              marginTop: 8,
                               borderRadius: 2,
+                              opacity: step.status === 'pending' ? 0.45 : 0.55,
                             }}
                           />
                         )}
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 14.5 }}>
+                        <Text style={{ fontFamily: 'Poppins-SemiBold', color: '#1A1F16', fontSize: 15, letterSpacing: -0.3 }}>
                           {step.title}
                         </Text>
-                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#667085', fontSize: 12.5, lineHeight: 19, marginTop: 3, marginBottom: 8 }}>
+                        <Text style={{ fontFamily: 'Poppins-Regular', color: 'rgba(71, 85, 75, 0.9)', fontSize: 13, lineHeight: 20, marginTop: 5, marginBottom: 10 }}>
                           {step.description}
                         </Text>
                         <AnimatedStatusChip
@@ -443,10 +455,11 @@ export default function BookingConfirmationScreen() {
                           textColor={textColor}
                           size="small"
                           animated={isAnimated}
+                          pill
                         />
                       </View>
                     </View>
-                    {!isLast && <View style={{ height: 1, backgroundColor: '#EEF1E8', marginLeft: 61 }} />}
+                    {!isLast && <View style={{ height: 1, backgroundColor: 'rgba(79, 103, 57, 0.08)', marginLeft: 69 }} />}
                   </View>
                 );
               })}

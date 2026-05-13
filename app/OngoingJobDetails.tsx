@@ -6,6 +6,9 @@ import { haptics } from '@/hooks/useHaptics';
 import { useCurrentUserProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/useToast';
 import { Colors } from '@/lib/designSystem';
+import { JOB_TIMELINE, timelineChipText } from '@/lib/jobTimelineTheme';
+import { surfaceElevation } from '@/lib/surfaceStyles';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 import { analytics } from '@/services/analytics';
 import { QuotationWithProvider, ServiceRequest, serviceRequestService, walletService } from '@/services/api';
 import { formatDateShort, formatTimeAgo } from '@/utils/dateFormatting';
@@ -215,8 +218,8 @@ export default function OngoingJobDetails() {
         ? `${totalProvidersSentTo} nearby ${totalProvidersSentTo === 1 ? 'provider' : 'providers'} notified.`
         : 'Nearby providers have been notified.',
       status: formatTimeAgo(request.createdAt || request.updatedAt),
-      accent: '#DCFCE7',
-      dotColor: '#6A9B00',
+      accent: JOB_TIMELINE.completeSoft,
+      dotColor: JOB_TIMELINE.sage,
       isActive: false,
       isCompleted: true,
       icon: CheckCircle2,
@@ -231,8 +234,8 @@ export default function OngoingJobDetails() {
           title: 'Provider selected',
           description: `${request.selectedProvider.name} accepted.`,
           status: formatTimeAgo(request.updatedAt || request.selectedAt || ''),
-          accent: '#DCFCE7',
-          dotColor: '#6A9B00',
+          accent: JOB_TIMELINE.completeSoft,
+          dotColor: JOB_TIMELINE.sage,
           isActive: false,
           isCompleted: true,
           icon: CheckCircle2,
@@ -246,8 +249,8 @@ export default function OngoingJobDetails() {
           title: 'Provider selected',
           description: `Waiting for acceptance. ${mins}:${secs.toString().padStart(2, '0')} left.`,
           status: 'Waiting',
-          accent: '#FEF9C3',
-        dotColor: '#F59E0B',
+          accent: JOB_TIMELINE.activeSoft,
+        dotColor: JOB_TIMELINE.activeDot,
           isActive: true,
           isCompleted: false,
           icon: Clock,
@@ -258,8 +261,8 @@ export default function OngoingJobDetails() {
           title: 'Provider selected',
           description: 'Waiting for acceptance.',
           status: 'Waiting',
-          accent: '#FEF9C3',
-          dotColor: '#F59E0B',
+          accent: JOB_TIMELINE.activeSoft,
+          dotColor: JOB_TIMELINE.activeDot,
           isActive: true,
           isCompleted: false,
           icon: Clock,
@@ -307,8 +310,8 @@ export default function OngoingJobDetails() {
           ? `${providerCount} ${providerCount === 1 ? 'provider has' : 'providers have'} accepted.`
           : 'Provider accepted the job.',
         status: formatTimeAgo(acceptanceTime),
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
+        accent: JOB_TIMELINE.completeSoft,
+        dotColor: JOB_TIMELINE.sage,
         isActive: false,
         isCompleted: true,
         icon: CheckCircle2,
@@ -321,8 +324,8 @@ export default function OngoingJobDetails() {
         title: 'Provider response',
         description: 'Waiting for a provider.',
         status: 'Pending',
-        accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
+        accent: JOB_TIMELINE.pendingSoft,
+        dotColor: JOB_TIMELINE.pendingDot,
         isActive: false,
         isCompleted: false,
         icon: Clock,
@@ -360,8 +363,8 @@ export default function OngoingJobDetails() {
           title: 'Inspection',
           description: hasVisitRequested ? 'Visit handled.' : 'Quotation sent directly.',
           status: 'Done',
-          accent: '#DCFCE7',
-          dotColor: '#6A9B00',
+          accent: JOB_TIMELINE.completeSoft,
+          dotColor: JOB_TIMELINE.sage,
           isActive: false,
           isCompleted: true,
           icon: MapPinned,
@@ -372,8 +375,8 @@ export default function OngoingJobDetails() {
           title: 'Inspection',
           description: 'Visit declined. Waiting for quotation.',
           status: 'Active',
-          accent: '#FEF9C3',
-          dotColor: '#F59E0B',
+          accent: JOB_TIMELINE.activeSoft,
+          dotColor: JOB_TIMELINE.activeDot,
           isActive: true,
           isCompleted: false,
           icon: MapPinned,
@@ -388,8 +391,8 @@ export default function OngoingJobDetails() {
               ? `Visit requested for ${visitScheduleText}. Fee: ${visitFeeText}.`
               : `Visit requested for ${visitScheduleText}.`,
           status: visitPaid ? 'Done' : 'Active',
-          accent: visitPaid ? '#DCFCE7' : '#FEF9C3',
-          dotColor: visitPaid ? '#6A9B00' : '#F59E0B',
+          accent: visitPaid ? JOB_TIMELINE.completeSoft : JOB_TIMELINE.activeSoft,
+          dotColor: visitPaid ? JOB_TIMELINE.sage : JOB_TIMELINE.activeDot,
           isActive: !visitPaid,
           isCompleted: visitPaid,
           icon: MapPinned,
@@ -405,8 +408,8 @@ export default function OngoingJobDetails() {
           title: 'Inspection',
           description: 'Waiting for inspection or quotation.',
           status: 'Active',
-          accent: '#FEF9C3',
-          dotColor: '#F59E0B',
+          accent: JOB_TIMELINE.activeSoft,
+          dotColor: JOB_TIMELINE.activeDot,
           isActive: true,
           isCompleted: false,
           icon: MapPinned,
@@ -418,8 +421,8 @@ export default function OngoingJobDetails() {
         title: 'Inspection',
         description: 'Waiting for a provider.',
         status: 'Pending',
-        accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
+        accent: JOB_TIMELINE.pendingSoft,
+        dotColor: JOB_TIMELINE.pendingDot,
         isActive: false,
         isCompleted: false,
         icon: MapPinned,
@@ -435,8 +438,8 @@ export default function OngoingJobDetails() {
           title: 'Quotation',
           description: 'Review the quote when ready.',
           status: formatTimeAgo(quotation?.sentAt || (quotation as any)?.submittedAt || request.updatedAt || ''),
-          accent: '#DCFCE7',
-          dotColor: '#6A9B00',
+          accent: JOB_TIMELINE.completeSoft,
+          dotColor: JOB_TIMELINE.sage,
           isActive: false,
           isCompleted: true,
           icon: FileText,
@@ -451,8 +454,8 @@ export default function OngoingJobDetails() {
             ? 'Visit payment comes first.'
             : 'Provider is preparing the quote.',
           status: hasVisitRequested && !visitPaid ? 'Pending' : 'Active',
-          accent: hasVisitRequested && !visitPaid ? '#F3F4F6' : '#FEF9C3',
-          dotColor: hasVisitRequested && !visitPaid ? '#9CA3AF' : '#F59E0B',
+          accent: hasVisitRequested && !visitPaid ? JOB_TIMELINE.pendingSoft : JOB_TIMELINE.activeSoft,
+          dotColor: hasVisitRequested && !visitPaid ? JOB_TIMELINE.pendingDot : JOB_TIMELINE.activeDot,
           isActive: !(hasVisitRequested && !visitPaid),
           isCompleted: false,
           icon: FileText,
@@ -464,8 +467,8 @@ export default function OngoingJobDetails() {
         title: 'Quotation',
         description: 'No quote yet.',
         status: 'Pending',
-        accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
+        accent: JOB_TIMELINE.pendingSoft,
+        dotColor: JOB_TIMELINE.pendingDot,
         isActive: false,
         isCompleted: false,
         icon: FileText,
@@ -483,8 +486,8 @@ export default function OngoingJobDetails() {
         title: 'Quote accepted',
         description: 'Complete payment to start.',
         status: formatTimeAgo((acceptedQuotation as any)?.acceptedAt || acceptedQuotation?.sentAt || request.updatedAt || ''),
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
+        accent: JOB_TIMELINE.completeSoft,
+        dotColor: JOB_TIMELINE.sage,
         isActive: false,
         isCompleted: true,
         icon: CheckCircle,
@@ -496,8 +499,8 @@ export default function OngoingJobDetails() {
         title: 'Quote accepted',
         description: 'Review and accept the quote.',
         status: 'Active',
-        accent: '#FEF9C3',
-        dotColor: '#F59E0B',
+        accent: JOB_TIMELINE.activeSoft,
+        dotColor: JOB_TIMELINE.activeDot,
         isActive: true,
         isCompleted: false,
         icon: Clock,
@@ -509,8 +512,8 @@ export default function OngoingJobDetails() {
         title: 'Quote accepted',
         description: 'Waiting for quote.',
         status: 'Pending',
-        accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
+        accent: JOB_TIMELINE.pendingSoft,
+        dotColor: JOB_TIMELINE.pendingDot,
         isActive: false,
         isCompleted: false,
         icon: FileText,
@@ -530,8 +533,8 @@ export default function OngoingJobDetails() {
         title: 'Work started',
         description: 'Provider is working.',
         status: 'Active',
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
+        accent: JOB_TIMELINE.completeSoft,
+        dotColor: JOB_TIMELINE.sage,
         isActive: true,
         isCompleted: false,
         icon: Wrench,
@@ -543,8 +546,8 @@ export default function OngoingJobDetails() {
         title: 'Ready to review',
         description: 'Check the work before releasing payment.',
         status: 'Review',
-        accent: '#FEF9C3',
-        dotColor: '#F59E0B',
+        accent: JOB_TIMELINE.activeSoft,
+        dotColor: JOB_TIMELINE.activeDot,
         isActive: true,
         isCompleted: false,
         icon: Wrench,
@@ -555,8 +558,8 @@ export default function OngoingJobDetails() {
         title: 'Work completed',
         description: 'Payment released.',
         status: 'Done',
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
+        accent: JOB_TIMELINE.completeSoft,
+        dotColor: JOB_TIMELINE.sage,
         isActive: false,
         isCompleted: true,
         icon: Wrench,
@@ -568,8 +571,8 @@ export default function OngoingJobDetails() {
         title: 'Work scheduled',
         description: 'Waiting for provider to start.',
         status: 'Waiting',
-        accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
+        accent: JOB_TIMELINE.pendingSoft,
+        dotColor: JOB_TIMELINE.pendingDot,
         isActive: false,
         isCompleted: false,
         icon: Wrench,
@@ -583,8 +586,8 @@ export default function OngoingJobDetails() {
           ? 'Complete payment to start.'
           : 'Accept a quote first.',
         status: 'Pending',
-        accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
+        accent: JOB_TIMELINE.pendingSoft,
+        dotColor: JOB_TIMELINE.pendingDot,
         isActive: false,
         isCompleted: false,
         icon: Wrench,
@@ -598,8 +601,8 @@ export default function OngoingJobDetails() {
         title: 'Complete',
         description: 'Job closed. You can leave a review.',
         status: formatTimeAgo(request.updatedAt || request.createdAt),
-        accent: '#DCFCE7',
-        dotColor: '#6A9B00',
+        accent: JOB_TIMELINE.completeSoft,
+        dotColor: JOB_TIMELINE.sage,
         isActive: false,
         isCompleted: true,
         icon: CheckCircle,
@@ -610,8 +613,8 @@ export default function OngoingJobDetails() {
         title: 'Complete',
         description: 'Confirm when you are satisfied.',
         status: 'Review',
-        accent: '#FEF9C3',
-        dotColor: '#F59E0B',
+        accent: JOB_TIMELINE.activeSoft,
+        dotColor: JOB_TIMELINE.activeDot,
         isActive: true,
         isCompleted: false,
         icon: CheckCircle,
@@ -623,8 +626,8 @@ export default function OngoingJobDetails() {
         title: 'Complete',
         description: 'Final step after the work is done.',
         status: 'Pending',
-        accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
+        accent: JOB_TIMELINE.pendingSoft,
+        dotColor: JOB_TIMELINE.pendingDot,
         isActive: false,
         isCompleted: false,
         icon: CheckCircle,
@@ -644,9 +647,9 @@ export default function OngoingJobDetails() {
     const formatCurrency = (v: number | undefined | null) => (typeof v === 'number' ? v : 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const headerProvider = acceptedQuotation?.provider ?? acceptedProviders?.[0]?.provider ?? null;
 
-    if (request.status === 'completed') return { title: 'Job completed', subtitle: 'Job complete. Funds released to provider. Thank you.', statusPill: 'Completed', pillBg: '#DCFCE7', pillText: '#166534', timestamp: request.updatedAt ? formatTimeAgo(request.updatedAt) : null, provider: headerProvider };
-    if (request.status === 'in_progress') return { title: 'Job in progress', subtitle: 'Provider is on site. Mark complete when satisfied.', statusPill: 'In progress', pillBg: '#FEF9C3', pillText: '#92400E', timestamp: request.updatedAt ? formatTimeAgo(request.updatedAt) : null, provider: headerProvider };
-    if (request.status === 'reviewing') return { title: 'Provider has finished', subtitle: 'Verify the work is satisfactory, then tap Mark as complete to release payment.', statusPill: 'Awaiting your confirmation', pillBg: '#FEF9C3', pillText: '#92400E', timestamp: request.updatedAt ? formatTimeAgo(request.updatedAt) : null, provider: headerProvider };
+    if (request.status === 'completed') return { title: 'Job completed', subtitle: 'Job complete. Funds released to provider. Thank you.', statusPill: 'Completed', pillBg: JOB_TIMELINE.completeSoft, pillText: JOB_TIMELINE.sageChipText, timestamp: request.updatedAt ? formatTimeAgo(request.updatedAt) : null, provider: headerProvider };
+    if (request.status === 'in_progress') return { title: 'Job in progress', subtitle: 'Provider is on site. Mark complete when satisfied.', statusPill: 'In progress', pillBg: JOB_TIMELINE.activeSoft, pillText: JOB_TIMELINE.activeChipText, timestamp: request.updatedAt ? formatTimeAgo(request.updatedAt) : null, provider: headerProvider };
+    if (request.status === 'reviewing') return { title: 'Provider has finished', subtitle: 'Verify the work is satisfactory, then tap Mark as complete to release payment.', statusPill: 'Awaiting your confirmation', pillBg: JOB_TIMELINE.activeSoft, pillText: JOB_TIMELINE.activeChipText, timestamp: request.updatedAt ? formatTimeAgo(request.updatedAt) : null, provider: headerProvider };
 
     const statusLower = typeof (request.status as any) === 'string' ? (request.status as any).toLowerCase() : (request.status as any);
     const isPaidByStatus = statusLower === 'scheduled' || statusLower === 'in_progress' || statusLower === 'reviewing' || statusLower === 'completed';
@@ -654,13 +657,13 @@ export default function OngoingJobDetails() {
 
     if (isPaymentConfirmed) {
       const amt = acceptedQuotation ? `₦${formatCurrency(acceptedQuotation.total)}` : '';
-      return { title: 'Payment secured', subtitle: amt ? `Payment of ${amt} secured in escrow.` : 'Payment secured. Waiting for provider to start.', statusPill: 'Payment confirmed', pillBg: '#DCFCE7', pillText: '#166534', timestamp: null, provider: headerProvider };
+      return { title: 'Payment secured', subtitle: amt ? `Payment of ${amt} secured in escrow.` : 'Payment secured. Waiting for provider to start.', statusPill: 'Payment confirmed', pillBg: JOB_TIMELINE.completeSoft, pillText: JOB_TIMELINE.sageChipText, timestamp: null, provider: headerProvider };
     }
     if (quotationAccepted && !isPaymentConfirmed) {
       const amt = acceptedQuotation ? `₦${formatCurrency(acceptedQuotation.total)}` : '';
-      return { title: 'Quotation accepted – payment required', subtitle: amt ? `Accepted ${amt}. Complete payment to secure the job.` : 'Complete payment to secure the job.', variant: 'action' as const, showPayButton: true, payAmount: acceptedQuotation?.total ?? 0, acceptedQuotation, statusPill: 'Payment required', pillBg: '#FEF9C3', pillText: '#92400E', timestamp: null, provider: headerProvider };
+      return { title: 'Quotation accepted – payment required', subtitle: amt ? `Accepted ${amt}. Complete payment to secure the job.` : 'Complete payment to secure the job.', variant: 'action' as const, showPayButton: true, payAmount: acceptedQuotation?.total ?? 0, acceptedQuotation, statusPill: 'Payment required', pillBg: JOB_TIMELINE.activeSoft, pillText: JOB_TIMELINE.activeChipText, timestamp: null, provider: headerProvider };
     }
-    if (hasQuotationSent) return { title: 'Quotation received', subtitle: 'Review cost and details, then accept or decline.', statusPill: 'Quote submitted', pillBg: '#DBEAFE', pillText: '#1E40AF', timestamp: null, provider: headerProvider };
+    if (hasQuotationSent) return { title: 'Quotation received', subtitle: 'Review cost and details, then accept or decline.', statusPill: 'Quote submitted', pillBg: JOB_TIMELINE.infoSoft, pillText: JOB_TIMELINE.infoChipText, timestamp: null, provider: headerProvider };
     if (hasAcceptedProviders) {
       const firstAccept = acceptedProviders?.[0];
       const acceptedAt = firstAccept?.acceptance?.acceptedAt ?? request.updatedAt ?? request.selectedAt;
@@ -714,8 +717,8 @@ export default function OngoingJobDetails() {
           ? 'Visit was declined. Provider should send quotation directly.'
           : 'Provider has accepted your request. Waiting for inspection and quotation.',
         statusPill: 'Provider accepted',
-        pillBg: '#FEF9C3',
-        pillText: '#92400E',
+        pillBg: JOB_TIMELINE.activeSoft,
+        pillText: JOB_TIMELINE.activeChipText,
         timestamp: acceptedAt ? formatTimeAgo(acceptedAt) : null,
         provider: headerProvider,
         showVisitPayButton: hasVR && !vPaid && !visitDeclined,
@@ -769,7 +772,7 @@ export default function OngoingJobDetails() {
         },
       };
     }
-    return { title: 'Waiting for providers', subtitle: 'Nearby providers are being notified. Updates will appear here.', statusPill: 'Pending', pillBg: '#F3F4F6', pillText: '#6B7280', timestamp: null, provider: null };
+    return { title: 'Waiting for providers', subtitle: 'Nearby providers are being notified. Updates will appear here.', statusPill: 'Pending', pillBg: JOB_TIMELINE.pendingSoft, pillText: JOB_TIMELINE.pendingChipText, timestamp: null, provider: null };
   }, [request, acceptedProviders, quotations, cameFromPaymentSuccess, paymentTransaction]);
 
   // Load quotations from API (6.3 endpoint)
@@ -1030,8 +1033,8 @@ export default function OngoingJobDetails() {
       
       // Determine status based on selection flow
       let status = 'Provider accepted';
-      let statusColor = '#FEF9C3';
-      let statusTextColor = '#92400E';
+      let statusColor: string = JOB_TIMELINE.activeSoft;
+      let statusTextColor: string = JOB_TIMELINE.activeChipText;
       let quoteDetails = 'Provider has accepted your request. Waiting for inspection and quotation.';
       let inspectionStatus = `Accepted ${formatTimeAgo(item.acceptance.acceptedAt)}`;
       // Provider selection now happens in ServiceMapScreen during booking confirmation
@@ -1041,8 +1044,8 @@ export default function OngoingJobDetails() {
       // Priority 1: Selection accepted
       if (isSelectionAccepted) {
         status = 'Provider accepted selection';
-        statusColor = '#DCFCE7';
-        statusTextColor = '#166534';
+        statusColor = JOB_TIMELINE.completeSoft;
+        statusTextColor = JOB_TIMELINE.sageChipText;
         quoteDetails = 'Provider has accepted your selection. They can now send quotation.';
         inspectionStatus = `Selection accepted ${formatTimeAgo(request.updatedAt || request.selectedAt || '')}`;
         canSelect = false;
@@ -1050,8 +1053,8 @@ export default function OngoingJobDetails() {
       // Priority 2: Selection pending with countdown
       else if (isSelected && selectionCountdown !== null && selectionCountdown > 0) {
         status = 'Selected - waiting for response';
-        statusColor = '#DBEAFE';
-        statusTextColor = '#1E40AF';
+        statusColor = JOB_TIMELINE.infoSoft;
+        statusTextColor = JOB_TIMELINE.infoChipText;
         quoteDetails = `Provider selected. Waiting for their response. ${formatCountdown(selectionCountdown)} remaining.`;
         inspectionStatus = `Selected ${formatTimeAgo(request?.selectedAt || '')}`;
         canSelect = false;
@@ -1059,8 +1062,8 @@ export default function OngoingJobDetails() {
       // Priority 3: Selection pending (no countdown)
       else if (isSelected && request?.selectedAt) {
         status = 'Selected - waiting for response';
-        statusColor = '#DBEAFE';
-        statusTextColor = '#1E40AF';
+        statusColor = JOB_TIMELINE.infoSoft;
+        statusTextColor = JOB_TIMELINE.infoChipText;
         quoteDetails = 'Provider selected. Waiting for their response (5 minutes).';
         inspectionStatus = `Selected ${formatTimeAgo(request.selectedAt)}`;
         canSelect = false;
@@ -1068,8 +1071,8 @@ export default function OngoingJobDetails() {
       // Priority 4: Quotation accepted
       else if (quotationAccepted) {
         status = 'Quote accepted';
-        statusColor = '#DCFCE7';
-        statusTextColor = '#166534';
+        statusColor = JOB_TIMELINE.completeSoft;
+        statusTextColor = JOB_TIMELINE.sageChipText;
         quoteDetails = 'Quotation accepted. Provider will proceed with the job.';
         inspectionStatus = `Quote accepted ${formatTimeAgo(request?.updatedAt || providerQuotation.sentAt || '')}`;
         canSelect = false;
@@ -1077,8 +1080,8 @@ export default function OngoingJobDetails() {
       // Priority 5: Quotation sent
       else if (hasQuotationSent) {
         status = 'Quote submitted';
-        statusColor = '#DBEAFE';
-        statusTextColor = '#1E40AF';
+        statusColor = JOB_TIMELINE.infoSoft;
+        statusTextColor = JOB_TIMELINE.infoChipText;
         quoteDetails = providerQuotation.findingsAndWorkRequired || 'Professional service with high-quality materials. Includes parts and labor with warranty.';
         inspectionStatus = `Quote submitted ${formatTimeAgo(providerQuotation.sentAt || '')}`;
         canSelect = false;
@@ -1086,8 +1089,8 @@ export default function OngoingJobDetails() {
       // Priority 6: Another provider is selected
       else if (hasActiveSelection && !isSelected) {
         status = 'Provider accepted';
-        statusColor = '#F3F4F6';
-        statusTextColor = '#6B7280';
+        statusColor = JOB_TIMELINE.pendingSoft;
+        statusTextColor = JOB_TIMELINE.pendingChipText;
         quoteDetails = 'Another provider has been selected. Waiting for their response.';
         inspectionStatus = `Accepted ${formatTimeAgo(item.acceptance.acceptedAt)}`;
         canSelect = false;
@@ -1416,43 +1419,42 @@ export default function OngoingJobDetails() {
           const lineAnim = !isLast ? lineAnimations[index] : null;
 
           const IconComponent = step.icon || Circle;
-          const iconSize = step.isCompleted || step.isActive ? 14 : 12;
 
           return (
-            <View key={step.id} className="flex-row" style={{ marginBottom: isLast ? 0 : 14 }}>
-              <View className="items-center" style={{ marginRight: 12 }}>
+            <View key={step.id} className="flex-row" style={{ marginBottom: isLast ? 0 : 18 }}>
+              <View className="items-center" style={{ marginRight: 16, paddingTop: 4 }}>
                 <Animated.View
                   style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: 15,
-                    backgroundColor: step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#F3F4F6',
+                    width: 34,
+                    height: 34,
+                    borderRadius: 17,
+                    backgroundColor: step.isCompleted || step.isActive ? step.dotColor : JOB_TIMELINE.dotInactiveFill,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderWidth: step.isCompleted || step.isActive ? 0 : 2,
-                    borderColor: '#E5E7EB',
+                    borderWidth: step.isCompleted || step.isActive ? 2.5 : 0,
+                    borderColor: '#FFFFFF',
                     transform: [
                       {
                         scale: animation.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [0.8, 1],
+                          outputRange: [0.82, 1],
                         }),
                       },
                     ],
                     opacity: step.isCompleted || step.isActive ? animation : animation.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [0.5, 0.6],
+                      outputRange: [0.5, 0.78],
                     }),
-                    shadowColor: step.isCompleted || step.isActive ? step.dotColor : '#000',
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: 0,
-                    shadowRadius: 0,
-                    elevation: 0,
+                    shadowColor: step.isCompleted || step.isActive ? JOB_TIMELINE.dotShadow : 'transparent',
+                    shadowOffset: { width: 0, height: step.isCompleted || step.isActive ? 3 : 0 },
+                    shadowOpacity: step.isCompleted || step.isActive ? 0.18 : 0,
+                    shadowRadius: step.isCompleted || step.isActive ? 5 : 0,
+                    elevation: step.isCompleted || step.isActive ? surfaceElevation(3) : 0,
                   }}
                 >
-                  <IconComponent 
-                    size={iconSize} 
-                    color={step.isCompleted || step.isActive ? Colors.white : '#9CA3AF'} 
+                  <IconComponent
+                    size={step.isCompleted || step.isActive ? 15 : 13}
+                    color={step.isCompleted || step.isActive ? Colors.white : JOB_TIMELINE.pendingChipText}
                   />
                 </Animated.View>
                 {!isLast && (
@@ -1462,19 +1464,19 @@ export default function OngoingJobDetails() {
                       flex: 1,
                       backgroundColor: lineAnim
                         ? lineAnim.interpolate({
-                          inputRange: [0, 1],
-                            outputRange: ['#E5E7EB', step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#E5E7EB'],
-                        })
-                        : '#E5E7EB',
+                            inputRange: [0, 1],
+                            outputRange: [JOB_TIMELINE.railIdle, step.isCompleted ? JOB_TIMELINE.sage : step.isActive ? step.dotColor : JOB_TIMELINE.railMuted],
+                          })
+                        : JOB_TIMELINE.railMuted,
                       marginTop: 6,
                       borderRadius: 1,
-                      minHeight: 30,
+                      minHeight: 40,
                       height: lineAnim
                         ? lineAnim.interpolate({
-                          inputRange: [0, 1],
-                            outputRange: [0, 30],
-                        })
-                        : 30,
+                            inputRange: [0, 1],
+                            outputRange: [0, 40],
+                          })
+                        : 40,
                     }}
                   />
                 )}
@@ -1491,54 +1493,53 @@ export default function OngoingJobDetails() {
                       }),
                     },
                   ],
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: step.isActive
-                    ? '#EADFC2'
-                    : step.isCompleted
-                      ? '#E3ECD9'
-                      : '#EDF0F2',
-                  padding: 13,
-                  marginRight: 4,
-                  shadowColor: '#101828',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 0,
-                  shadowRadius: 0,
-                  elevation: 0,
+                  paddingTop: 0,
+                  paddingBottom: 2,
+                  paddingRight: 2,
                 }}
               >
-                <View style={{ marginBottom: 8 }}>
+                <View
+                  style={{
+                    borderRadius: 18,
+                    borderWidth: 1,
+                    borderColor: JOB_TIMELINE.rowBorder,
+                    backgroundColor: JOB_TIMELINE.rowBg,
+                    paddingVertical: 14,
+                    paddingHorizontal: 16,
+                  }}
+                >
+                <View style={{ marginBottom: 6 }}>
                   <Text
                     style={{
-                      fontSize: 14,
+                      fontSize: 15,
                       fontFamily: 'Poppins-Bold',
-                      color: step.isCompleted || step.isActive ? Colors.textPrimary : Colors.textSecondaryDark,
-                      marginBottom: 4,
-                      lineHeight: 19,
+                      color: step.isCompleted || step.isActive ? '#1A1F16' : JOB_TIMELINE.pendingChipText,
+                      marginBottom: 6,
+                      lineHeight: 21,
+                      letterSpacing: -0.35,
                     }}
                   >
                     {step.title}
                   </Text>
                   <Text
                     style={{
-                      fontSize: 12,
+                      fontSize: 13,
                       fontFamily: 'Poppins-Regular',
-                      color: step.isCompleted || step.isActive ? Colors.textSecondaryDark : Colors.textTertiary,
-                      lineHeight: 18,
+                      color: 'rgba(71, 85, 75, 0.88)',
+                      lineHeight: 19,
                     }}
                   >
                     {step.description}
                   </Text>
                 </View>
-                <View style={{ marginTop: 2 }}>
+                <View style={{ marginTop: 4 }}>
                   <AnimatedStatusChip
                     status={step.status}
                     statusColor={step.accent}
-                    textColor={step.isCompleted ? '#166534' : step.isActive ? '#92400E' : '#6B7280'}
+                    textColor={timelineChipText(step)}
                     size="small"
-                    animated={true}
-                    variant="text"
+                    animated
+                    pill
                   />
                 </View>
                 {((step as any).showPayLogistics || (step as any).showRejectVisit || (step as any).showPayService) && (
@@ -1657,6 +1658,7 @@ export default function OngoingJobDetails() {
                     )}
                   </View>
                 )}
+                </View>
               </Animated.View>
             </View>
           );
@@ -1684,9 +1686,9 @@ export default function OngoingJobDetails() {
             },
           ],
         }}
-        className={`${compactBottom ? 'mb-2' : 'mb-8'} rounded-2xl bg-white border border-gray-100 shadow-[0px_12px_32px_rgba(15,23,42,0.08)]`}
+        className={`${compactBottom ? 'mb-2' : 'mb-8'} rounded-2xl bg-white border border-gray-100`}
       >
-        <View className="flex-row items-start px-5 pt-5 pb-2">
+        <View className="flex-row items-start px-3 pt-5 pb-2">
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => {
@@ -1749,7 +1751,7 @@ export default function OngoingJobDetails() {
         </View>
 
         {provider.quote ? (
-          <View className="px-5 mt-3 mb-4">
+          <View className="px-3 mt-3 mb-4">
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => {
@@ -1768,7 +1770,7 @@ export default function OngoingJobDetails() {
                   </Text>
                 </View>
                 <View className="flex-row items-center">
-                <Text className="text-lg text-[#6A9B00]" style={{ fontFamily: 'Poppins-Bold' }}>
+                <Text className="text-lg text-[#4F6739]" style={{ fontFamily: 'Poppins-Bold' }}>
                   {provider.quote}
                 </Text>
                   <Ionicons
@@ -1810,7 +1812,7 @@ export default function OngoingJobDetails() {
                 }}
               >
                 <Text
-                  className="text-sm text-[#6A9B00]"
+                  className="text-sm text-[#4F6739]"
                   style={{ fontFamily: 'Poppins-SemiBold' }}
                 >
                   {provider.cta}
@@ -1832,7 +1834,7 @@ export default function OngoingJobDetails() {
 
   return (
     <SafeAreaWrapper edges={['bottom']}>
-      <View className="flex-1 px-4" style={{ paddingTop: insets.top + 20 }}>
+      <View className="flex-1" style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, paddingTop: insets.top + 20 }}>
         <View className="flex-row items-center mb-6">
           <TouchableOpacity
             onPress={() => {
@@ -1885,7 +1887,7 @@ export default function OngoingJobDetails() {
                     height: 2,
                     width: '100%',
                     marginTop: 8,
-                    backgroundColor: isActive ? '#6A9B00' : 'transparent',
+                    backgroundColor: isActive ? '#4F6739' : 'transparent',
                     borderRadius: 1,
                   }}
                 />
@@ -1896,7 +1898,7 @@ export default function OngoingJobDetails() {
 
         {isLoading ? (
           <View className="flex-1 items-center justify-center py-20 px-6" style={{ minHeight: 200 }}>
-            <ActivityIndicator size="large" color="#6A9B00" />
+            <ActivityIndicator size="large" color="#4F6739" />
             <Text className="text-gray-600 mt-4 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
               Loading job details...
             </Text>
@@ -1910,7 +1912,7 @@ export default function OngoingJobDetails() {
             {params.requestId ? (
               <TouchableOpacity
                 onPress={() => loadRequestData()}
-                className="mt-6 px-6 py-3 bg-[#6A9B00] rounded-xl"
+                className="mt-6 px-6 py-3 bg-[#4F6739] rounded-xl"
                 activeOpacity={0.85}
               >
                 <Text className="text-white" style={{ fontFamily: 'Poppins-SemiBold' }}>
@@ -1932,7 +1934,7 @@ export default function OngoingJobDetails() {
                   await loadRequestData(true);
                   setRefreshing(false);
                 }}
-                tintColor="#6A9B00"
+                tintColor="#4F6739"
               />
             }
           >
@@ -1981,7 +1983,7 @@ export default function OngoingJobDetails() {
                   return (
                 <TouchableOpacity
                   disabled={!canMarkComplete}
-                  className={`rounded-xl py-4 items-center justify-center mb-8 ${canMarkComplete ? 'bg-[#6A9B00]' : 'bg-gray-200'}`}
+                  className={`rounded-xl py-4 items-center justify-center mb-8 ${canMarkComplete ? 'bg-[#4F6739]' : 'bg-gray-200'}`}
                   activeOpacity={canMarkComplete ? 0.85 : 1}
                   onPress={handleCompleteJob}
                 >
@@ -2087,7 +2089,7 @@ export default function OngoingJobDetails() {
                                 {quotations[currentQuoteIndex].provider.name}
                             </Text>
                               {quotations[currentQuoteIndex].provider.verified && (
-                                <Ionicons name="checkmark-circle" size={16} color="#6A9B00" style={{ marginLeft: 6 }} />
+                                <Ionicons name="checkmark-circle" size={16} color="#4F6739" style={{ marginLeft: 6 }} />
                               )}
                             </View>
                               <Text className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'Poppins-Regular' }}>
@@ -2182,7 +2184,7 @@ export default function OngoingJobDetails() {
                           <Text className="text-base text-black" style={{ fontFamily: 'Poppins-Bold' }}>
                             Total
                           </Text>
-                          <Text className="text-lg text-[#6A9B00]" style={{ fontFamily: 'Poppins-Bold' }}>
+                          <Text className="text-lg text-[#4F6739]" style={{ fontFamily: 'Poppins-Bold' }}>
                             ₦{new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(quotations[currentQuoteIndex].total)}
                           </Text>
                         </View>
@@ -2287,7 +2289,7 @@ export default function OngoingJobDetails() {
                       {/* Status Badge - Show if quotation is accepted */}
                       {quotations[currentQuoteIndex]?.status === 'accepted' && (
                         <>
-                          <View className="bg-[#DCFCE7] rounded-xl py-3 px-4 items-center justify-center mt-2">
+                          <View className="bg-[rgba(79, 103, 57, 0.14)] rounded-xl py-3 px-4 items-center justify-center mt-2">
                             <View className="flex-row items-center">
                               <Ionicons name="checkmark-circle" size={20} color="#16A34A" style={{ marginRight: 8 }} />
                               <Text className="text-[#16A34A] text-sm" style={{ fontFamily: 'Poppins-SemiBold' }}>
@@ -2303,7 +2305,7 @@ export default function OngoingJobDetails() {
                           {request?.status === 'accepted' && (
                             <TouchableOpacity
                               activeOpacity={0.85}
-                              className="bg-[#6A9B00] rounded-xl py-4 items-center justify-center mt-3"
+                              className="bg-[#4F6739] rounded-xl py-4 items-center justify-center mt-3"
                               onPress={async () => {
                                 const currentQuote = quotations[currentQuoteIndex];
                                 if (currentQuote && currentQuote.id) {
@@ -2363,13 +2365,13 @@ export default function OngoingJobDetails() {
                         <Ionicons
                           name="chevron-back"
                           size={20}
-                          color={currentQuoteIndex === 0 ? '#9CA3AF' : '#6A9B00'}
+                          color={currentQuoteIndex === 0 ? '#9CA3AF' : '#4F6739'}
                         />
                         <Text
                           className="text-sm ml-1"
                           style={{
                             fontFamily: 'Poppins-SemiBold',
-                            color: currentQuoteIndex === 0 ? '#9CA3AF' : '#6A9B00',
+                            color: currentQuoteIndex === 0 ? '#9CA3AF' : '#4F6739',
                           }}
                         >
                           Previous
@@ -2395,7 +2397,7 @@ export default function OngoingJobDetails() {
                           className="text-sm mr-1"
                           style={{
                             fontFamily: 'Poppins-SemiBold',
-                            color: currentQuoteIndex === quotations.length - 1 ? '#9CA3AF' : '#6A9B00',
+                            color: currentQuoteIndex === quotations.length - 1 ? '#9CA3AF' : '#4F6739',
                           }}
                         >
                           Next
@@ -2403,7 +2405,7 @@ export default function OngoingJobDetails() {
                         <Ionicons
                           name="chevron-forward"
                           size={20}
-                          color={currentQuoteIndex === quotations.length - 1 ? '#9CA3AF' : '#6A9B00'}
+                          color={currentQuoteIndex === quotations.length - 1 ? '#9CA3AF' : '#4F6739'}
                         />
                       </TouchableOpacity>
                     </View>

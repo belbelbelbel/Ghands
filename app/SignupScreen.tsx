@@ -381,7 +381,7 @@ export default function SignupScreen() {
               <Text
                 style={{
                   fontFamily: 'Poppins-Bold',
-                  color: '#6A9B00',
+                  color: '#4F6739',
                 }}
               >
                 Login

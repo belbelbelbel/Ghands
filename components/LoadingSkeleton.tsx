@@ -1,5 +1,6 @@
 import React from 'react';
 import { Animated, View } from 'react-native';
+import { SURFACE_STYLES } from '@/lib/surfaceStyles';
 
 interface SkeletonProps {
   width?: number | string;
@@ -330,9 +331,8 @@ export const JobCardSkeleton = () => {
         borderRadius: 16,
         padding: 12,
         marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#e5e5e5',
         opacity: shimmerOpacity,
+        ...SURFACE_STYLES.homeCard,
       }}
     >
       {/* Header with user info and images */}
@@ -397,13 +397,12 @@ export const JobHistoryCardSkeleton = () => {
     <Animated.View
       style={{
         backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderRadius: 18,
+        padding: 20,
+        marginBottom: 18,
         position: 'relative',
         opacity: shimmerOpacity,
+        ...SURFACE_STYLES.homeCard,
       }}
     >
       {/* Time badge (top left) */}

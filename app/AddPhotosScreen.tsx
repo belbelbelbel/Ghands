@@ -347,7 +347,7 @@ export default function AddPhotosScreen() {
           <TouchableOpacity
             onPress={handleUploadPhotos}
             activeOpacity={0.85}
-            className="bg-[#6A9B00] rounded-2xl py-4 px-6 items-center justify-center flex-row mb-6"
+            className="bg-[#4F6739] rounded-2xl py-4 px-6 items-center justify-center flex-row mb-6"
           >
             <Plus size={20} color="#FFFFFF" />
             <Text className="text-white text-base ml-2" style={{ fontFamily: 'Poppins-SemiBold' }}>
@@ -378,11 +378,11 @@ export default function AddPhotosScreen() {
                       />
                       <View
                         className={`absolute inset-0 rounded-xl border-2 ${
-                          isSelected ? 'border-[#6A9B00] bg-[#6A9B00]/20' : 'border-transparent'
+                          isSelected ? 'border-[#4F6739] bg-[#4F6739]/20' : 'border-transparent'
                         }`}
                       >
                         {isSelected && (
-                          <View className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#6A9B00] items-center justify-center">
+                          <View className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#4F6739] items-center justify-center">
                             <View className="w-3 h-3 rounded-full bg-white" />
                           </View>
                         )}

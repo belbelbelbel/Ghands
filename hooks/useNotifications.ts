@@ -145,7 +145,7 @@ async function registerForPushNotificationsAsync(Notifications: NotificationsMod
       name: 'Default',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#6A9B00',
+      lightColor: '#4F6739',
       sound: 'default',
       enableVibrate: true,
       showBadge: true,

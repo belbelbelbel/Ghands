@@ -378,7 +378,7 @@ export default function JobDetailsScreen() {
 
             <View className="flex-row items-center">
               <View className="flex-row items-center mr-4">
-                <MapPin size={14} color="#6A9B00" />
+                <MapPin size={14} color="#4F6739" />
                 <Text className="text-xs text-gray-600 ml-1" style={{ fontFamily: 'Poppins-Medium' }}>
                   GPS Verified
                 </Text>

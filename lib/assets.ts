@@ -58,9 +58,11 @@ export const PROVIDER_ONBOARDING_SLIDES: SlideData[] = [
 
 export const DESIGN_TOKENS = {
   colors: {
-    // Primary colors
+    // Primary colors — sage olive (panels, brand actions, tabs)
     background: '#0b0b07',
-    accent: '#6A9B00',
+    accent: '#4F6739',
+    /** Border / depth for sage hero cards (profile, wallet, dashboard) */
+    sagePanelBorder: 'rgba(45, 65, 24, 0.75)',
     softWarm: '#F5F0E8',
     white: '#FFFFFF',
     black: '#000000',
@@ -88,7 +90,7 @@ export const DESIGN_TOKENS = {
     errorBorder: '#FEE2E2',
     
     // Tab colors
-    tabActive: '#6A9B00',
+    tabActive: '#4F6739',
     tabInactive: '#9CA3AF',
     
     // Shadow

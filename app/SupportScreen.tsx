@@ -128,7 +128,7 @@ export default function SupportScreen() {
                 placeholderTextColor="#666"
                 style={{ fontFamily: 'Poppins-Regular' }}
               />
-              <TouchableOpacity className="bg-[#6A9B00] rounded-lg p-2 ml-2">
+              <TouchableOpacity className="bg-[#4F6739] rounded-lg p-2 ml-2">
                 <Search size={18} color="white" />
               </TouchableOpacity>
             </View>
@@ -237,7 +237,7 @@ export default function SupportScreen() {
               <TouchableOpacity
                 onPress={handleStartLiveChat}
                 activeOpacity={0.85}
-                className="bg-[#6A9B00] rounded-xl py-4 items-center justify-center mt-2"
+                className="bg-[#4F6739] rounded-xl py-4 items-center justify-center mt-2"
               >
                 <Text className="text-white text-base font-semibold" style={{ fontFamily: 'Poppins-SemiBold' }}>
                   Start live chat
@@ -257,7 +257,7 @@ export default function SupportScreen() {
                 activeOpacity={0.85}
                 className="flex-row items-center bg-white rounded-xl px-4 py-4 border border-gray-200"
               >
-                <View className="w-10 h-10 rounded-full bg-[#6A9B00] items-center justify-center mr-3">
+                <View className="w-10 h-10 rounded-full bg-[#4F6739] items-center justify-center mr-3">
                   <Mail size={20} color="white" />
                 </View>
                 <Text className="text-base text-black" style={{ fontFamily: 'Poppins-Medium' }}>
@@ -269,7 +269,7 @@ export default function SupportScreen() {
                 activeOpacity={0.85}
                 className="flex-row items-center bg-white rounded-xl px-4 py-4 border border-gray-200"
               >
-                <View className="w-10 h-10 rounded-full bg-[#6A9B00] items-center justify-center mr-3">
+                <View className="w-10 h-10 rounded-full bg-[#4F6739] items-center justify-center mr-3">
                   <Phone size={20} color="white" />
                 </View>
                 <Text className="text-base text-black" style={{ fontFamily: 'Poppins-Medium' }}>
@@ -281,7 +281,7 @@ export default function SupportScreen() {
                 activeOpacity={0.85}
                 className="flex-row items-center bg-white rounded-xl px-4 py-4 border border-gray-200"
               >
-                <View className="w-10 h-10 rounded-full bg-[#6A9B00] items-center justify-center mr-3">
+                <View className="w-10 h-10 rounded-full bg-[#4F6739] items-center justify-center mr-3">
                   <Ionicons name="logo-whatsapp" size={20} color="white" />
                 </View>
                 <Text className="text-base text-black" style={{ fontFamily: 'Poppins-Medium' }}>

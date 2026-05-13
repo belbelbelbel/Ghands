@@ -12,7 +12,7 @@ import { getCategoryIcon } from '@/utils/categoryIcons';
 import { haptics } from '@/hooks/useHaptics';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { extractUserIdFromToken } from '@/utils/tokenUtils';
-import { Colors, Spacing, SHADOWS, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { Colors, Spacing, SHADOWS, useTabScrollContentPaddingTop, useTabScreenScrollBottomPadding } from '@/lib/designSystem';
 
 interface CategoryData extends ServiceCategory {
   IconComponent: React.ComponentType;
@@ -47,6 +47,7 @@ export default function CategoryPage() {
   const [isCreatingRequest, setIsCreatingRequest] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const tabScrollTop = useTabScrollContentPaddingTop(20);
+  const categoriesScrollBottomPad = useTabScreenScrollBottomPadding(28);
   const searchInputRef = useRef<TextInput>(null);
   const categoryRefs = useRef<{ [key: string]: number }>({});
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -503,7 +504,7 @@ export default function CategoryPage() {
           <ScrollView
             ref={scrollViewRef}
             showsVerticalScrollIndicator={true}
-            contentContainerStyle={{ paddingBottom: 40 }}
+            contentContainerStyle={{ paddingBottom: categoriesScrollBottomPad }}
             scrollEnabled={true}
             onContentSizeChange={() => {
               // When content size changes, re-check if we need to scroll to selected category
@@ -655,7 +656,7 @@ export default function CategoryPage() {
                       padding: 12,
                       marginBottom: 16,
                       borderWidth: isToggle === category.name ? 2 : 1,
-                      borderColor: isToggle === category.name ? '#6A9B00' : '#e5e5e5',
+                      borderColor: isToggle === category.name ? '#4F6739' : '#e5e5e5',
                       flexDirection: 'row',
                       alignItems: 'center'
                     }}
@@ -665,7 +666,7 @@ export default function CategoryPage() {
                       backgroundColor: 'transparent',
                       borderRadius: 12,
                       borderWidth: 1,
-                      borderColor: isToggle === category.name ? '#6A9B00' : '#e5e5e5',
+                      borderColor: isToggle === category.name ? '#4F6739' : '#e5e5e5',
                       padding: 16,
                       marginRight: 16,
                       alignItems: 'center',

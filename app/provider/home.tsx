@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/useToast';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { BorderRadius, Colors, useIsTablet, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { surfaceElevation } from '@/lib/surfaceStyles';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 import { AvailableRequest, ServiceRequest, authService, providerService, serviceRequestService, walletService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
@@ -16,13 +18,16 @@ import { AuthError } from '@/utils/errors';
 import { isConnectivityError } from '@/utils/networkErrors';
 import { calculateDistance, estimateTravelTime } from '@/utils/navigationUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { shareReferral } from '@/utils/referral';
 import { ArrowRight, Bell, Calendar, ChevronDown, FileText, MapPin, Plus, Send, Shield, TrendingDown, TrendingUp, Users, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, Modal, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { formatTimeAgo as formatTimeAgoUtil } from '@/utils/dateFormatting';
+
+/** Sage dashboard / profile panels (matches client profile). */
+const PROFILE_SAGE_BG = '#4F6739';
+const PROFILE_SAGE_BORDER = 'rgba(45, 65, 24, 0.75)';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const scale = SCREEN_WIDTH < 375 ? 0.85 : SCREEN_WIDTH < 414 ? 0.92 : 1.0;
@@ -853,7 +858,7 @@ export default function ProviderHomeScreen() {
           />
         }
       >
-        <View style={{ paddingHorizontal: 16, paddingTop: tabScrollTop, paddingBottom: 12 }}>
+        <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, paddingTop: tabScrollTop, paddingBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <TouchableOpacity
               style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
@@ -865,13 +870,13 @@ export default function ProviderHomeScreen() {
                   width: 32,
                   height: 32,
                   borderRadius: 16,
-                  backgroundColor: Colors.black,
+                  backgroundColor: PROFILE_SAGE_BG,
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: 8,
                 }}
               >
-                <MapPin size={16} color={Colors.accent} />
+                <MapPin size={16} color={Colors.white} />
               </View>
               <Text 
                 style={{ 
@@ -916,7 +921,7 @@ export default function ProviderHomeScreen() {
               <Switch
                 value={isOnline}
                 onValueChange={setIsOnline}
-                trackColor={{ false: '#E5E7EB', true: '#6A9B00' }}
+                trackColor={{ false: '#E5E7EB', true: '#4F6739' }}
                 thumbColor="#FFFFFF"
               />
             </View> */}
@@ -927,25 +932,22 @@ export default function ProviderHomeScreen() {
         <View style={{ marginBottom: hasActiveJobs ? 32 : 24 }}>
           <View
             style={{
-              marginHorizontal: 16,
+              marginHorizontal: CLIENT_HOME_SCROLL_GUTTER,
               borderRadius: 26,
               overflow: 'hidden',
-              shadowColor: '#111827',
-              shadowOffset: { width: 0, height: 16 },
-              shadowOpacity: 0.18,
-              shadowRadius: 26,
-              elevation: 0.76,
+              backgroundColor: PROFILE_SAGE_BG,
+              borderWidth: 1,
+              borderColor: PROFILE_SAGE_BORDER,
+              paddingVertical: earningsPaddingV,
+              paddingHorizontal: earningsPaddingH,
+              position: 'relative',
+              elevation: surfaceElevation(2),
+              shadowColor: '#1a2414',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 10,
             }}
           >
-            <LinearGradient
-              colors={['#101827', '#172033', '#0B1120']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{
-                paddingVertical: earningsPaddingV,
-                paddingHorizontal: earningsPaddingH,
-              }}
-            >
               <View
                 pointerEvents="none"
                 style={{
@@ -955,7 +957,8 @@ export default function ProviderHomeScreen() {
                   width: 128,
                   height: 128,
                   borderRadius: 64,
-                  backgroundColor: 'rgba(106, 155, 0, 0.22)',
+                  backgroundColor: '#FFFFFF',
+                  opacity: 0.1,
                 }}
               />
               <View
@@ -1051,11 +1054,10 @@ export default function ProviderHomeScreen() {
                   {earningsVsLastMonth.label}
                 </Text>
               </View>
-            </LinearGradient>
           </View>
         </View>
 
-        <View style={{ paddingHorizontal: 16 }}>
+        <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER }}>
 
           {!hasActiveJobs && (
             <TouchableOpacity
@@ -1159,7 +1161,7 @@ export default function ProviderHomeScreen() {
           </View>
         </View>
         {isLoadingPending ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
+          <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <View style={{ width: 140, height: 16, backgroundColor: Colors.border, borderRadius: 8 }} />
               <View style={{ width: 60, height: 12, backgroundColor: Colors.border, borderRadius: 6 }} />
@@ -1169,7 +1171,7 @@ export default function ProviderHomeScreen() {
             ))}
           </View>
         ) : Array.isArray(pendingJobs) && pendingJobs.length > 0 ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
+          <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Available Requests</Text>
               {pendingJobs.length > 2 && (
@@ -1185,7 +1187,7 @@ export default function ProviderHomeScreen() {
         ) : null}
 
         {isLoadingActive ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
+          <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <Skeleton width={100} height={16} borderRadius={8} />
               <Skeleton width={60} height={12} borderRadius={6} />
@@ -1195,7 +1197,7 @@ export default function ProviderHomeScreen() {
             ))}
           </View>
         ) : Array.isArray(activeJobs) && activeJobs.length > 0 ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
+          <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Active Jobs</Text>
               <TouchableOpacity 
@@ -1220,7 +1222,7 @@ export default function ProviderHomeScreen() {
         )}
 
 
-        <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
+        <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: 24 }}>
           <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 12 }}>
             Featured Resources
           </Text>
@@ -1330,7 +1332,7 @@ export default function ProviderHomeScreen() {
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.48)',
             justifyContent: 'center',
-            paddingHorizontal: 20,
+            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
           }}
           onPress={closeProceedChoice}
         >
@@ -1384,7 +1386,7 @@ export default function ProviderHomeScreen() {
                 alignItems: 'center',
                 backgroundColor: Colors.white,
                 borderWidth: 1,
-                borderColor: 'rgba(106, 155, 0, 0.28)',
+                borderColor: 'rgba(79, 103, 57, 0.28)',
                 borderRadius: 18,
                 padding: 15,
                 marginBottom: 10,

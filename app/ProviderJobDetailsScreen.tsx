@@ -1453,7 +1453,7 @@ export default function ProviderJobDetailsScreen() {
           }
         >
           {activeTab === 'Updates' ? (
-            showUpdatesSkeleton ? (
+            showUpdatesSkeleton || !request ? (
               <ProviderJobUpdatesTabSkeleton />
             ) : (
             <>
@@ -2588,7 +2588,7 @@ export default function ProviderJobDetailsScreen() {
           </View>
           </>
             )
-          ) : showUpdatesSkeleton ? (
+          ) : showUpdatesSkeleton || !request ? (
             <QuotationListSkeleton count={2} />
           ) : (
             /* Quotations Tab Content */

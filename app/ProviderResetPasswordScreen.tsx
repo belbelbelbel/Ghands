@@ -1,16 +1,16 @@
+import { AuthButton } from '@/components/AuthButton';
+import { InputField } from '@/components/InputField';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Eye, EyeOff, Lock } from 'lucide-react-native';
+import { Lock } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ProviderResetPasswordScreen() {
   const router = useRouter();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleConfirm = () => {
     if (newPassword !== confirmPassword) {
@@ -29,65 +29,41 @@ export default function ProviderResetPasswordScreen() {
         </TouchableOpacity>
       </View>
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-        <Text className="text-3xl font-bold text-black mb-8" style={{
-          fontFamily: 'Poppins-ExtraBold',
-        }}>Reset your password</Text>
-
-        <View className="bg-gray-100 rounded-xl mb-4 px-4 py-3 flex-row items-center">
-          <TextInput
-            placeholder="Enter new password"
-            secureTextEntry={!showNewPassword}
-            value={newPassword}
-            onChangeText={setNewPassword}
-            className="flex-1 text-black text-base"
-            placeholderTextColor="#666666"
-            style={{ fontFamily: 'Poppins-Medium' }}
-          />
-          <TouchableOpacity
-            onPress={() => setShowNewPassword(!showNewPassword)}
-            className="w-12 h-12 bg-[#4F6739] border border-[#4F6739] rounded-xl items-center justify-center ml-4"
-          >
-            {showNewPassword ? <EyeOff size={20} color="white" /> : <Eye size={20} color="white" />}
-          </TouchableOpacity>
-        </View>
-
-        <View className="bg-gray-100 rounded-xl mb-6 px-4 py-3 flex-row items-center">
-          <TextInput
-            placeholder="Confirm password"
-            secureTextEntry={!showConfirmPassword}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            className="flex-1 text-black text-base"
-            placeholderTextColor="#666666"
-            style={{ fontFamily: 'Poppins-Medium' }}
-          />
-          <TouchableOpacity
-            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-            className="w-12 h-12 bg-[#4F6739] border border-[#4F6739] rounded-xl items-center justify-center ml-4"
-          >
-            {showConfirmPassword ? <EyeOff size={20} color="white" /> : <Eye size={20} color="white" />}
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity
-          onPress={handleConfirm}
-          disabled={!isFormValid}
-          className={`rounded-xl py-4 px-6 ${
-            isFormValid ? 'bg-[#4F6739]' : 'bg-gray-300'
-          }`}
-          activeOpacity={0.8}
+        <Text
+          className="text-3xl font-bold text-black mb-8"
+          style={{
+            fontFamily: 'Poppins-ExtraBold',
+          }}
         >
-          <Text 
-            className={`text-center text-lg font-semibold ${
-              isFormValid ? 'text-white' : 'text-gray-500'
-            }`}
-            style={{ fontFamily: 'Poppins-SemiBold' }}
-          >
-            Confirm
-          </Text>
-        </TouchableOpacity>
+          Reset your password
+        </Text>
+
+        <InputField
+          placeholder="Enter new password"
+          icon={<Lock size={18} color="white" />}
+          secureTextEntry
+          value={newPassword}
+          onChangeText={setNewPassword}
+          iconPosition="left"
+        />
+
+        <InputField
+          placeholder="Confirm password"
+          icon={<Lock size={18} color="white" />}
+          secureTextEntry
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          iconPosition="left"
+        />
+
+        <View className="mt-2">
+          <AuthButton
+            title="Confirm"
+            onPress={handleConfirm}
+            disabled={!isFormValid}
+          />
+        </View>
       </ScrollView>
     </SafeAreaWrapper>
   );
 }
-

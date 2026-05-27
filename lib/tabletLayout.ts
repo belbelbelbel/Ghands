@@ -17,8 +17,11 @@ export const PHONE_LANE_HEIGHT_FRACTION = 0.998;
 /** Space from top of lane to content after skipping device top safe inset (tab shell). */
 export const PHONE_LANE_OUTER_TOP = 14;
 
-/** Horizontal padding for client home scroll sections (tighter = wider content). */
-export const CLIENT_HOME_SCROLL_GUTTER = 12;
+/** Horizontal padding for client home scroll sections. */
+export const CLIENT_HOME_SCROLL_GUTTER = 16;
+
+/** Provider tab screens — same gutter as client home for aligned content width. */
+export const PROVIDER_TAB_GUTTER = CLIENT_HOME_SCROLL_GUTTER;
 
 /** Shared top padding for main vertical scroll content on tab screens (tablet). */
 export const TAB_SCROLL_TOP = 32;
@@ -69,11 +72,12 @@ export function useIsCompactPhone(): boolean {
 }
 
 /**
- * Client app bottom tab bar — base row height (icons + labels), before system home/gesture inset.
- * Tab bar uses `position: 'absolute'`, so scroll content must pad by the full visual height + inset.
+ * Bottom tab bar content row height (icons + labels), before the home-indicator inset.
+ * `paddingBottom` on the tab bar should be only `insets.bottom` — no extra band below labels.
  */
-export const CLIENT_TAB_BAR_BASE_HEIGHT = Platform.OS === 'ios' ? 75 : 65;
-export const CLIENT_TAB_BAR_PADDING_BOTTOM = Platform.OS === 'ios' ? 8 : 6;
+export const CLIENT_TAB_BAR_BASE_HEIGHT = Platform.OS === 'ios' ? 50 : 46;
+/** @deprecated Use safe-area inset only for tab bar paddingBottom in layouts */
+export const CLIENT_TAB_BAR_PADDING_BOTTOM = 0;
 
 /** Provider tabs use the same measurements for consistency. */
 export const PROVIDER_TAB_BAR_BASE_HEIGHT = CLIENT_TAB_BAR_BASE_HEIGHT;
@@ -103,4 +107,20 @@ export function useTabScreenScrollBottomPadding(extraGap: number = 12): number {
  */
 export function useTabScreenBottomSpacerHeight(extraGap: number = 12): number {
   return useTabScreenScrollBottomPadding(extraGap);
+}
+
+/** Shared padding + headline size for sage hero panels (home earnings, wallet balance, etc.). */
+export function useSageHeroPanelMetrics() {
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const isTablet = useIsTablet();
+  return useMemo(
+    () => ({
+      paddingV: isTablet ? Math.max(18, Math.round(windowHeight * 0.022)) : 17,
+      paddingH: isTablet ? Math.max(16, Math.round(windowWidth * 0.036)) : 15,
+      amountFontSize: isTablet
+        ? Math.min(34, Math.max(28, Math.round(windowHeight * 0.032)))
+        : 27,
+    }),
+    [isTablet, windowHeight, windowWidth]
+  );
 }

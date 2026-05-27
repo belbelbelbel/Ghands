@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { extractUserIdFromToken } from '../utils/tokenUtils';
+import { getSecureItem, setSecureItem, removeSecureItems } from '../utils/secureStorage';
 
 // ============================================================================
 // STORAGE KEYS
@@ -55,7 +56,7 @@ class AuthService {
    */
   async getAuthToken(): Promise<string | null> {
     try {
-      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+      const token = await getSecureItem(AUTH_TOKEN_KEY);
       if (!token || token === 'null' || token === 'undefined' || (typeof token === 'string' && token.trim() === '')) {
         return null;
       }
@@ -79,7 +80,7 @@ class AuthService {
    */
   async setAuthToken(token: string): Promise<void> {
     try {
-      await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
+      await setSecureItem(AUTH_TOKEN_KEY, token);
     } catch {
       /* storage failure – caller handles missing token */
     }
@@ -90,7 +91,7 @@ class AuthService {
    */
   async getRefreshToken(): Promise<string | null> {
     try {
-      return await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+      return await getSecureItem(REFRESH_TOKEN_KEY);
     } catch {
       return null;
     }
@@ -101,7 +102,7 @@ class AuthService {
    */
   async setRefreshToken(token: string): Promise<void> {
     try {
-      await AsyncStorage.setItem(REFRESH_TOKEN_KEY, token);
+      await setSecureItem(REFRESH_TOKEN_KEY, token);
     } catch {
       /* ignore */
     }
@@ -203,12 +204,8 @@ class AuthService {
    */
   async clearAuthTokens(): Promise<void> {
     try {
-      await AsyncStorage.multiRemove([
-        AUTH_TOKEN_KEY,
-        REFRESH_TOKEN_KEY,
-        USER_ID_KEY,
-        COMPANY_ID_KEY,
-      ]);
+      await removeSecureItems([AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY]);
+      await AsyncStorage.multiRemove([USER_ID_KEY, COMPANY_ID_KEY]);
     } catch {
       /* ignore */
     }

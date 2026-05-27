@@ -1,14 +1,22 @@
-import { QuotationCardSkeleton } from '@/components/LoadingSkeleton';
+import { QuotationListSkeleton } from '@/components/LoadingSkeleton';
+import { useSkeletonGate } from '@/hooks/useSkeletonGate';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { BorderRadius, Colors, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { PROVIDER_TAB_GUTTER } from '@/lib/tabletLayout';
+import {
+  providerListCard,
+  providerUnderlineTabItem,
+  providerUnderlineTabLabel,
+  providerUnderlineTabRow,
+} from '@/lib/providerSurfaceStyles';
 import { ProviderQuotationListItem, providerService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowRight, CheckCircle2, Clock, FileText, XCircle } from 'lucide-react-native';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -69,12 +77,15 @@ export default function ProviderQuotationsScreen() {
   const headerTopPad = useTabScrollContentPaddingTop(16);
   const { toast, showError, hideToast } = useToast();
   const [quotations, setQuotations] = useState<ProviderQuotationListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const quotationsReadyRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
 
   const loadQuotations = useCallback(async () => {
-    setIsLoading(true);
+    if (!quotationsReadyRef.current) {
+      setIsLoading(true);
+    }
     try {
       const data = await providerService.getProviderQuotations();
       setQuotations(data);
@@ -83,13 +94,16 @@ export default function ProviderQuotationsScreen() {
       showError(errorMessage);
       setQuotations([]);
     } finally {
+      quotationsReadyRef.current = true;
       setIsLoading(false);
     }
   }, [showError]);
 
   useFocusEffect(
     useCallback(() => {
-      loadQuotations();
+      if (!quotationsReadyRef.current) {
+        loadQuotations();
+      }
     }, [loadQuotations])
   );
 
@@ -124,17 +138,8 @@ export default function ProviderQuotationsScreen() {
           } as any);
         }}
         style={{
-          backgroundColor: Colors.white,
-          borderRadius: BorderRadius.xl,
-          padding: 16,
+          ...providerListCard,
           marginBottom: 12,
-          borderWidth: 1,
-          borderColor: Colors.border,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.05,
-          shadowRadius: 2,
-          elevation: 0.76,
         }}
       >
         {/* Header: Request Info & Status */}
@@ -320,13 +325,16 @@ export default function ProviderQuotationsScreen() {
     );
   }, [router]);
 
+  const { showSkeleton: showQuotationsSkeleton, isLoadingEmpty: isQuotationsLoadingEmpty } =
+    useSkeletonGate(isLoading, quotations.length === 0);
+
   return (
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight} tabletShellTop>
       <View style={{ flex: 1 }}>
         {/* Header - Title Only (No back arrow or icon since it's a tab) */}
         <View
           style={{
-            paddingHorizontal: 20,
+            paddingHorizontal: PROVIDER_TAB_GUTTER,
             paddingTop: headerTopPad,
             paddingBottom: 12,
             borderBottomWidth: 1,
@@ -345,16 +353,13 @@ export default function ProviderQuotationsScreen() {
           </Text>
         </View>
 
-        {/* Filter Tabs */}
+        {/* Filter Tabs — underline (matches jobs / job details) */}
         <View
           style={{
-            flexDirection: 'row',
-            paddingHorizontal: 20,
-            paddingTop: 16,
-            paddingBottom: 12,
+            ...providerUnderlineTabRow,
+            paddingHorizontal: PROVIDER_TAB_GUTTER,
+            paddingTop: 12,
             backgroundColor: Colors.white,
-            borderBottomWidth: 1,
-            borderBottomColor: Colors.border,
           }}
         >
           {(['all', 'pending', 'accepted', 'rejected'] as const).map((filter) => {
@@ -373,24 +378,10 @@ export default function ProviderQuotationsScreen() {
                   haptics.selection();
                   setActiveFilter(filter);
                 }}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  paddingHorizontal: 12,
-                  borderRadius: BorderRadius.default,
-                  backgroundColor: isActive ? Colors.accent : 'transparent',
-                  alignItems: 'center',
-                  marginRight: filter !== 'rejected' ? 8 : 0,
-                }}
+                style={providerUnderlineTabItem(isActive)}
                 activeOpacity={0.7}
               >
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontFamily: isActive ? 'Poppins-SemiBold' : 'Poppins-Medium',
-                    color: isActive ? Colors.white : Colors.textSecondaryDark,
-                  }}
-                >
+                <Text style={providerUnderlineTabLabel(isActive)}>
                   {filterLabels[filter]}
                 </Text>
               </TouchableOpacity>
@@ -402,7 +393,7 @@ export default function ProviderQuotationsScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: 20,
+            paddingHorizontal: PROVIDER_TAB_GUTTER,
             paddingTop: 16,
             paddingBottom: 100,
           }}
@@ -415,21 +406,14 @@ export default function ProviderQuotationsScreen() {
             />
           }
         >
-          {isLoading && quotations.length === 0 ? (
-            <>
-              <QuotationCardSkeleton />
-              <QuotationCardSkeleton />
-              <QuotationCardSkeleton />
-            </>
+          {(showQuotationsSkeleton || isQuotationsLoadingEmpty) ? (
+            <QuotationListSkeleton count={4} />
           ) : filteredQuotations.length === 0 ? (
             <View
               style={{
+                ...providerListCard,
                 alignItems: 'center',
-                paddingVertical: 60,
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                borderWidth: 1,
-                borderColor: Colors.border,
+                paddingVertical: 32,
                 marginTop: 20,
               }}
             >

@@ -293,10 +293,10 @@ export default function SignupScreen() {
           <InputField
             placeholder="Password (min 6 characters)"
             icon={<Lock size={18} color={'white'}/>}
-            secureTextEntry={true}
+            secureTextEntry
             value={password}
             onChangeText={handlePasswordChange}
-            iconPosition="right"
+            iconPosition="left"
             error={!!passwordError}
             errorMessage={passwordError}
             maxLength={50}
@@ -346,10 +346,10 @@ export default function SignupScreen() {
         <InputField
           placeholder="Confirm password"
           icon={<Lock size={18} color={'white'}/>}
-          secureTextEntry={true}
+          secureTextEntry
           value={confirmPassword}
           onChangeText={handleConfirmPasswordChange}
-          iconPosition="right"
+          iconPosition="left"
           error={!!confirmPasswordError}
           errorMessage={confirmPasswordError}
           returnKeyType="done"

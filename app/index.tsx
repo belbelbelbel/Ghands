@@ -1,32 +1,18 @@
 import { useRouter, usePathname } from 'expo-router';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import useOnboarding from '../hooks/useOnboarding';
 import { authService } from '@/services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isAppEntryRoute } from '@/utils/authPublicRoutes';
+import { ScreenBootLoader } from '@/components/ScreenBootLoader';
 
 const AUTH_ROLE_KEY = '@ghands:user_role';
-
-// Routes that don't require auth – never redirect away from these
-const ALLOWED_UNAUTHENTICATED_ROUTES = [
-  '/LoginScreen',
-  '/ProviderSignInScreen',
-  '/SignupScreen',
-  '/ProviderSignUpScreen',
-  '/ProviderSignupScreen',
-  '/SelectAccountTypeScreen',
-  '/ClientTypeSelectionScreen',
-  '/ResetPassword',
-  '/CreatePINScreen',
-  '/provider-onboarding',
-  '/onboarding',
-];
 
 export default function EntryPoint() {
   const router = useRouter();
   const pathname = usePathname();
-  const { isOnboardingComplete, isLoading: onboardingLoading } = useOnboarding();
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const hasRedirectedRef = useRef(false); // Prevent multiple redirects
+  const { isLoading: onboardingLoading } = useOnboarding();
+  const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
     const checkAuthAndRoute = async () => {
@@ -34,16 +20,9 @@ export default function EntryPoint() {
         // Get current route - normalize it
         const currentRoute = pathname || '/';
         const normalizedRoute = currentRoute.startsWith('/') ? currentRoute : `/${currentRoute}`;
-        
-        // If user is already on a login/signup screen, don't redirect
-        // This prevents redirect loops after logout
-        const isOnAllowedRoute = ALLOWED_UNAUTHENTICATED_ROUTES.some(route => 
-          normalizedRoute.includes(route) || normalizedRoute === route
-        );
-        
-        if (isOnAllowedRoute) {
-          setIsCheckingAuth(false);
-          hasRedirectedRef.current = false; // Reset so we can redirect again if needed
+
+        // Only run entry routing from `/` — never hijack stack/deep-link screens.
+        if (!isAppEntryRoute(normalizedRoute)) {
           return;
         }
 
@@ -52,59 +31,34 @@ export default function EntryPoint() {
         const role = await AsyncStorage.getItem(AUTH_ROLE_KEY);
         
         if (token && role) {
-          // User is authenticated – never redirect to signup/login
-          const targetRoute = role === 'provider' ? '/provider/home' : '/(tabs)/home';
-          const isOnTarget =
-            role === 'provider'
-              ? normalizedRoute === targetRoute || normalizedRoute.startsWith('/provider')
-              : normalizedRoute === targetRoute || normalizedRoute.includes('(tabs)');
-          if (!isOnTarget) {
-            hasRedirectedRef.current = true;
-            router.replace(targetRoute);
-          }
-          setIsCheckingAuth(false);
-          return;
-        }
-
-        // Session cleared (or missing) but we still know client vs provider — go to login, not role selection
-        if (!token && (role === 'client' || role === 'provider')) {
-          if (!isOnAllowedRoute) {
-            hasRedirectedRef.current = true;
-            const loginRoute = role === 'provider' ? '/ProviderSignInScreen' : '/LoginScreen';
-            router.replace(loginRoute as never);
-          }
-          setIsCheckingAuth(false);
-          return;
-        }
-
-        // User is not authenticated - check onboarding status
-        // Only redirect if not already on a login/signup screen
-        if (!onboardingLoading && !isOnAllowedRoute) {
           hasRedirectedRef.current = true;
-          if (isOnboardingComplete) {
-            // Onboarding complete but not authenticated - go to account selection
-            router.replace('/SelectAccountTypeScreen');
-          } else {
-            // First time user - show onboarding/account selection
-            router.replace('/SelectAccountTypeScreen');
-          }
-        } else {
-          setIsCheckingAuth(false);
+          const targetRoute = role === 'provider' ? '/provider/home' : '/(tabs)/home';
+          router.replace(targetRoute);
+          return;
         }
-      } catch {
-        // On error, only redirect if not already on a login/signup screen
-        const currentRoute = pathname || '/';
-        const normalizedRoute = currentRoute.startsWith('/') ? currentRoute : `/${currentRoute}`;
-        const isOnAllowedRoute = ALLOWED_UNAUTHENTICATED_ROUTES.some(route => 
-          normalizedRoute.includes(route) || normalizedRoute === route
-        );
-        
-        if (!isOnAllowedRoute) {
+
+        if (!token && (role === 'client' || role === 'provider')) {
+          hasRedirectedRef.current = true;
+          const loginRoute = role === 'provider' ? '/ProviderSignInScreen' : '/LoginScreen';
+          router.replace(loginRoute as never);
+          return;
+        }
+
+        if (!onboardingLoading) {
           hasRedirectedRef.current = true;
           router.replace('/SelectAccountTypeScreen');
-        } else {
-          setIsCheckingAuth(false);
+          return;
         }
+      } catch {
+        const currentRoute = pathname || '/';
+        const normalizedRoute = currentRoute.startsWith('/') ? currentRoute : `/${currentRoute}`;
+
+        if (!isAppEntryRoute(normalizedRoute)) {
+          return;
+        }
+
+        hasRedirectedRef.current = true;
+        router.replace('/SelectAccountTypeScreen');
       }
     };
 
@@ -114,8 +68,7 @@ export default function EntryPoint() {
     }, 100);
     
     return () => clearTimeout(timer);
-  }, [onboardingLoading, isOnboardingComplete, router, pathname]);
+  }, [onboardingLoading, router, pathname]);
 
-  // Return null - we redirect immediately, no splash screen here
-  return null;
+  return <ScreenBootLoader />;
 }

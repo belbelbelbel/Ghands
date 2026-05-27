@@ -112,6 +112,8 @@ export const DESIGN_TOKENS = {
     default: 12,
     lg: 16,
     xl: 18,
+    /** Sage wallet / earnings / profile hero panels — one consistent corner across the app */
+    sageHero: 16,
     full: 999
   },
   fonts: {

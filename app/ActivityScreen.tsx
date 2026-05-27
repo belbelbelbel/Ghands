@@ -3,6 +3,13 @@ import FilterTransactionsModal from '@/components/FilterTransactionsModal';
 import { TransactionCardSkeleton } from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors, REFRESH_CONTROL } from '@/lib/designSystem';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
+import {
+  providerHomeActionButton,
+  providerHomeActionLabel,
+  providerHomeSurface,
+  providerHomeSurfacePadding,
+} from '@/lib/providerSurfaceStyles';
 import { walletService } from '@/services/api';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, CheckCircle, Clock, Filter, Receipt, Search, XCircle } from 'lucide-react-native';
@@ -233,20 +240,17 @@ export default function ActivityScreen() {
           />
         }
         contentContainerStyle={{
-          paddingHorizontal: 20,
+          paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
           paddingBottom: 100,
         }}
       >
         {/* Monthly Spending Summary Card */}
         <View
           style={{
-            backgroundColor: Colors.white,
-            borderRadius: BorderRadius.xl,
-            padding: 16,
+            ...providerHomeSurface,
+            padding: providerHomeSurfacePadding,
             marginTop: 16,
             marginBottom: 20,
-            borderWidth: 1,
-            borderColor: Colors.border,
           }}
         >
           <Text
@@ -373,7 +377,7 @@ export default function ActivityScreen() {
             style={{
               flex: 1,
               backgroundColor: Colors.backgroundGray,
-              borderRadius: BorderRadius.lg,
+              borderRadius: 12,
               paddingHorizontal: 16,
               paddingVertical: 12,
               borderWidth: 1,
@@ -394,32 +398,28 @@ export default function ActivityScreen() {
           </View>
           <TouchableOpacity
             style={{
-              width: 48,
-              height: 48,
-              backgroundColor: Colors.black,
-              borderRadius: BorderRadius.default,
+              width: 44,
+              height: 44,
+              ...providerHomeSurface,
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            activeOpacity={0.7}
+            activeOpacity={0.85}
           >
-            <Search size={20} color={Colors.white} />
+            <Search size={18} color={Colors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setShowFilterModal(true)}
             style={{
-              width: 48,
-              height: 48,
-              backgroundColor: Colors.white,
-              borderRadius: 24,
+              width: 44,
+              height: 44,
+              ...providerHomeSurface,
               alignItems: 'center',
               justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: Colors.border,
             }}
-            activeOpacity={0.7}
+            activeOpacity={0.85}
           >
-            <Filter size={20} color={Colors.textPrimary} />
+            <Filter size={18} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -474,11 +474,8 @@ export default function ActivityScreen() {
               description={searchQuery ? 'No transactions match your search' : `You don't have any ${selectedTab} transactions yet`}
               style={{
                 flex: 0,
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                padding: 32,
-                borderWidth: 1,
-                borderColor: Colors.border,
+                ...providerHomeSurface,
+                padding: providerHomeSurfacePadding + 18,
               }}
             />
           ) : (
@@ -486,25 +483,22 @@ export default function ActivityScreen() {
             <View
               key={transaction.id}
               style={{
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                padding: 14,
-                borderWidth: 1,
-                borderColor: Colors.border,
+                ...providerHomeSurface,
+                padding: providerHomeSurfacePadding,
               }}
             >
               <View
                 style={{
                   flexDirection: 'row',
-                  marginBottom: 12,
+                  marginBottom: 10,
                 }}
               >
                 {/* Icon */}
                 <View
                   style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
+                    width: 40,
+                    height: 40,
+                    borderRadius: BorderRadius.default,
                     backgroundColor: Colors.backgroundGray,
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -512,7 +506,7 @@ export default function ActivityScreen() {
                   }}
                 >
                   {transaction.status === 'completed' ? (
-                    <CheckCircle size={20} color={Colors.textSecondaryDark} />
+                    <CheckCircle size={20} color={Colors.accent} />
                   ) : transaction.status === 'pending' ? (
                     <Clock size={20} color="#F59E0B" />
                   ) : (
@@ -524,32 +518,36 @@ export default function ActivityScreen() {
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      fontSize: 15,
+                      fontSize: 13,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.textPrimary,
-                      marginBottom: 4,
+                      marginBottom: 2,
+                      lineHeight: 18,
                     }}
+                    numberOfLines={1}
                   >
                     {transaction.serviceName}
                   </Text>
                   <Text
                     style={{
-                      fontSize: 13,
-                      fontFamily: 'Poppins-Regular',
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Medium',
                       color: Colors.textSecondaryDark,
-                      marginBottom: 4,
+                      marginBottom: 2,
+                      lineHeight: 17,
                     }}
+                    numberOfLines={2}
                   >
                     {transaction.serviceDescription}
                   </Text>
                   <Text
                     style={{
-                      fontSize: 12,
+                      fontSize: 11,
                       fontFamily: 'Poppins-Regular',
                       color: Colors.textSecondaryDark,
                     }}
                   >
-                    {transaction.date} • {transaction.time}
+                    {transaction.date} · {transaction.time}
                   </Text>
                 </View>
 
@@ -557,23 +555,28 @@ export default function ActivityScreen() {
                 <View style={{ alignItems: 'flex-end' }}>
                   <View
                     style={{
-                      backgroundColor:
-                        transaction.status === 'completed'
-                          ? Colors.accent
-                          : transaction.status === 'pending'
-                          ? '#F59E0B'
-                          : '#EF4444',
-                      paddingHorizontal: 10,
+                      paddingHorizontal: 8,
                       paddingVertical: 4,
                       borderRadius: 12,
-                      marginBottom: 8,
+                      backgroundColor:
+                        transaction.status === 'completed'
+                          ? 'rgba(79, 103, 57, 0.14)'
+                          : transaction.status === 'pending'
+                          ? 'rgba(245, 158, 11, 0.18)'
+                          : 'rgba(239, 68, 68, 0.14)',
+                      marginBottom: 6,
                     }}
                   >
                     <Text
                       style={{
                         fontSize: 11,
                         fontFamily: 'Poppins-SemiBold',
-                        color: Colors.white,
+                        color:
+                          transaction.status === 'completed'
+                            ? '#2A3B1F'
+                            : transaction.status === 'pending'
+                            ? '#92400E'
+                            : '#991B1B',
                         textTransform: 'capitalize',
                       }}
                     >
@@ -582,9 +585,10 @@ export default function ActivityScreen() {
                   </View>
                   <Text
                     style={{
-                      fontSize: 16,
+                      fontSize: 15,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.textPrimary,
+                      letterSpacing: -0.3,
                     }}
                   >
                     ₦{transaction.amount.toLocaleString('en-US', {
@@ -600,51 +604,24 @@ export default function ActivityScreen() {
                 <TouchableOpacity
                   onPress={() => handleViewDetails(transaction)}
                   style={{
-                    backgroundColor: Colors.white,
-                    borderRadius: 8,
-                    paddingVertical: 8,
-                    paddingHorizontal: 16,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: 1.5,
-                    borderColor: Colors.accent,
+                    ...providerHomeActionButton,
+                    width: '100%',
                   }}
-                  activeOpacity={0.7}
+                  activeOpacity={0.85}
                 >
-                  <Receipt size={16} color={Colors.accent} style={{ marginRight: 6 }} />
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'Poppins-SemiBold',
-                      color: Colors.accent,
-                    }}
-                  >
-                    View Receipt
-                  </Text>
+                  <Receipt size={15} color={Colors.textPrimary} style={{ marginRight: 5 }} />
+                  <Text style={providerHomeActionLabel}>View Receipt</Text>
                 </TouchableOpacity>
               ) : transaction.status === 'pending' ? (
                 <TouchableOpacity
                   onPress={() => handleViewDetails(transaction)}
                   style={{
-                    backgroundColor: Colors.accent,
-                    borderRadius: 8,
-                    paddingVertical: 8,
-                    paddingHorizontal: 16,
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    ...providerHomeActionButton,
+                    width: '100%',
                   }}
-                  activeOpacity={0.7}
+                  activeOpacity={0.85}
                 >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'Poppins-SemiBold',
-                      color: Colors.white,
-                    }}
-                  >
-                    View details
-                  </Text>
+                  <Text style={providerHomeActionLabel}>View details</Text>
                 </TouchableOpacity>
               ) : null}
             </View>

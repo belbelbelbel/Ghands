@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ONBOARDING_STORAGE_KEY } from './useOnboarding';
 import { authService } from '@/services/api';
+import { beginRoleSwitch, endRoleSwitch } from '@/hooks/useRoleSwitching';
 
 export type UserRole = 'client' | 'provider' | null;
 
@@ -16,7 +17,6 @@ interface UseAuthRoleReturn {
 
 const AUTH_ROLE_KEY = '@ghands:user_role';
 const AUTH_TOKEN_KEY = '@ghands:auth_token';
-const ROLE_SWITCHING_KEY = '@ghands:role_switching';
 
 /**
  * Hook for managing user authentication and role
@@ -68,10 +68,8 @@ export function useAuthRole(): UseAuthRoleReturn {
         throw new Error('Role cannot be null');
       }
 
-      // Suppress auth guards while tokens are being cleared and the login route changes.
-      await AsyncStorage.setItem(ROLE_SWITCHING_KEY, 'true');
+      await beginRoleSwitch();
 
-      // Clear all provider-related data if switching from provider
       const providerKeys = [
         '@ghands:business_name',
         '@ghands:company_name',
@@ -84,32 +82,22 @@ export function useAuthRole(): UseAuthRoleReturn {
       ];
       await AsyncStorage.multiRemove(providerKeys);
 
-      // Set new role
       await AsyncStorage.setItem(AUTH_ROLE_KEY, newRole);
-
-      // Mark onboarding as complete so user doesn't see it again
       await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
-
-      // Clear auth tokens when switching roles (user needs to log in with new role)
       await authService.clearAuthTokens();
 
-      // Navigate to appropriate auth screen (not home)
+      setRoleState(newRole);
+
       if (newRole === 'provider') {
         router.replace('/ProviderSignInScreen');
       } else {
         router.replace('/LoginScreen');
       }
-      setRoleState(newRole);
-
-      setTimeout(() => {
-        AsyncStorage.removeItem(ROLE_SWITCHING_KEY).catch(() => {
-          /* best effort cleanup */
-        });
-      }, 1500);
     } catch (error) {
-      await AsyncStorage.removeItem(ROLE_SWITCHING_KEY);
       console.error('Error switching role:', error);
       throw error;
+    } finally {
+      await endRoleSwitch();
     }
   }, [router]);
 

@@ -1,6 +1,6 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
+import { ArrowLeft, Lock } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { AuthButton } from '../components/AuthButton';
@@ -14,8 +14,6 @@ export default function PasswordConfirmationScreen() {
   const { toast, showError, showSuccess, hideToast } = useToast();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleResetPassword = async () => {
@@ -120,15 +118,11 @@ export default function PasswordConfirmationScreen() {
         <View style={{ marginBottom: 16 }}>
           <InputField
             placeholder="New password"
-            icon={
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                {showPassword ? <EyeOff size={20} color={'white'} /> : <Eye size={20} color={'white'} />}
-              </TouchableOpacity>
-            }
-            secureTextEntry={!showPassword}
+            icon={<Lock size={18} color="white" />}
+            secureTextEntry
             value={password}
             onChangeText={setPassword}
-            iconPosition="right"
+            iconPosition="left"
           />
         </View>
 
@@ -136,15 +130,11 @@ export default function PasswordConfirmationScreen() {
         <View style={{ marginBottom: 32 }}>
           <InputField
             placeholder="Confirm new password"
-            icon={
-              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                {showConfirmPassword ? <EyeOff size={20} color={'white'} /> : <Eye size={20} color={'white'} />}
-              </TouchableOpacity>
-            }
-            secureTextEntry={!showConfirmPassword}
+            icon={<Lock size={18} color="white" />}
+            secureTextEntry
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            iconPosition="right"
+            iconPosition="left"
           />
         </View>
 

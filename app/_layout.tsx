@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import TabletRootFrame from '@/components/TabletRootFrame';
+import '@/lib/nativewindSetup';
 import '../global.css';
 import { QueryProvider } from '../providers/QueryProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -21,9 +22,9 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { UserLocationProvider } from '@/hooks/useUserLocation';
 import { Platform, StatusBar } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const ROLE_SWITCHING_KEY = '@ghands:role_switching';
+import { ScreenBootLoader } from '@/components/ScreenBootLoader';
+import { isPublicUnauthenticatedRoute } from '@/utils/authPublicRoutes';
+import { isRoleSwitchInProgress } from '@/hooks/useRoleSwitching';
 
 if (Platform.OS === 'ios' || Platform.OS === 'android') {
   try {
@@ -94,15 +95,11 @@ export default function RootLayout() {
       if (redirecting) return;
       redirecting = true;
       try {
-        const isSwitchingRole = await AsyncStorage.getItem(ROLE_SWITCHING_KEY);
-        if (isSwitchingRole === 'true') return;
+        const isSwitchingRole = await isRoleSwitchInProgress();
+        if (isSwitchingRole) return;
 
         const currentPath = pathname || '';
-        const isOnAuthScreen =
-          currentPath.startsWith('/LoginScreen') ||
-          currentPath.startsWith('/ProviderSignInScreen') ||
-          currentPath.startsWith('/SelectAccountTypeScreen');
-        if (isOnAuthScreen) return;
+        if (isPublicUnauthenticatedRoute(currentPath)) return;
 
         const route = await handleTokenExpiration();
         router.replace((route || '/SelectAccountTypeScreen') as any);
@@ -129,22 +126,12 @@ export default function RootLayout() {
       const globalErrorHandler = async (error: Error, isFatal?: boolean) => {
         // Check if it's an AuthError
         if (error instanceof AuthError || error.name === 'AuthError') {
-          const isSwitchingRole = await AsyncStorage.getItem(ROLE_SWITCHING_KEY);
-          if (isSwitchingRole === 'true') return;
+          if (await isRoleSwitchInProgress()) return;
 
-          // Clear auth tokens immediately
           await authService.clearAuthTokens();
-          
-          // If we're already on an auth / login route, don't spam extra redirects
-          const currentPath = pathname || '';
-          const isOnAuthScreen =
-            currentPath.startsWith('/LoginScreen') ||
-            currentPath.startsWith('/ProviderSignInScreen') ||
-            currentPath.startsWith('/SelectAccountTypeScreen');
 
-          if (isOnAuthScreen) {
-            return;
-          }
+          const currentPath = pathname || '';
+          if (isPublicUnauthenticatedRoute(currentPath)) return;
 
           // Navigate to login immediately (no error message, no delay)
           const route = await handleTokenExpiration();
@@ -177,16 +164,11 @@ export default function RootLayout() {
         
         // Handle auth error immediately
         (async () => {
-          const isSwitchingRole = await AsyncStorage.getItem(ROLE_SWITCHING_KEY);
-          if (isSwitchingRole === 'true') return;
+          if (await isRoleSwitchInProgress()) return;
 
           await authService.clearAuthTokens();
           const currentPath = pathname || '';
-          const isOnAuthScreen =
-            currentPath.startsWith('/LoginScreen') ||
-            currentPath.startsWith('/ProviderSignInScreen') ||
-            currentPath.startsWith('/SelectAccountTypeScreen');
-          if (isOnAuthScreen) return;
+          if (isPublicUnauthenticatedRoute(currentPath)) return;
           const route = await handleTokenExpiration();
           if (route) router.replace(route as any);
           else router.replace('/SelectAccountTypeScreen' as any);
@@ -285,7 +267,7 @@ export default function RootLayout() {
   // ApiClient throws AuthError, AuthErrorBoundary catches it and handles navigation + toast
 
   if (!fontsLoaded) {
-    return null;
+    return <ScreenBootLoader />;
   }
 
   return (

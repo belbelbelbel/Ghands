@@ -112,7 +112,7 @@ export default function FilterTransactionsModal({ visible, onClose, onApply }: F
                   style={{
                     paddingHorizontal: 16,
                     paddingVertical: 10,
-                    borderRadius: 20,
+                    borderRadius: BorderRadius.full,
                     borderWidth: 1,
                     borderColor: filters.dateRange === range ? Colors.accent : Colors.border,
                     backgroundColor: filters.dateRange === range ? Colors.accent : Colors.white,
@@ -160,7 +160,7 @@ export default function FilterTransactionsModal({ visible, onClose, onApply }: F
                   style={{
                     paddingHorizontal: 16,
                     paddingVertical: 10,
-                    borderRadius: 20,
+                    borderRadius: BorderRadius.full,
                     borderWidth: 1,
                     borderColor: filters.status === status ? Colors.accent : Colors.border,
                     backgroundColor: filters.status === status ? Colors.accent : Colors.white,

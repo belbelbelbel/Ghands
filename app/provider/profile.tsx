@@ -1,7 +1,8 @@
+import { SageHeroPanel } from '@/components/provider/SageHeroPanel';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Spacing, useIsTablet, useTabScrollContentPaddingTop } from '@/lib/designSystem';
-import { surfaceElevation } from '@/lib/surfaceStyles';
-import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
+import { BorderRadius, Colors, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { PROVIDER_TAB_GUTTER } from '@/lib/tabletLayout';
+import { providerListCard } from '@/lib/providerSurfaceStyles';
 import { useAuthRole } from '@/hooks/useAuth';
 import { haptics } from '@/hooks/useHaptics';
 import { AuthError } from '@/utils/errors';
@@ -12,7 +13,6 @@ import {
   ArrowRight,
   Bell,
   ChevronRight,
-  Copy,
   Edit,
   Image as ImageIcon,
   Settings,
@@ -22,30 +22,26 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
-  Wallet,
   CheckCircle2,
   Clock,
   XCircle,
   FileText,
   LogOut,
 } from 'lucide-react-native';
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from 'react-native';
-import { providerService, Provider, serviceRequestService, ServiceCategory, ProviderQuotationListItem, authService, walletService } from '@/services/api';
+import { providerService, Provider, serviceRequestService, ServiceCategory, ProviderQuotationListItem, authService } from '@/services/api';
+import Skeleton from '@/components/LoadingSkeleton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { shareReferral } from '@/utils/referral';
 
-const PROFILE_SAGE_BG = '#4F6739';
-const PROFILE_SAGE_BORDER = 'rgba(45, 65, 24, 0.75)';
 
 // Helper function to format category name (camelCase to readable)
 const formatCategoryName = (categoryName: string, allCategories: ServiceCategory[] = []): string => {
@@ -74,107 +70,20 @@ export default function ProviderProfileScreen() {
   const [services, setServices] = useState<{ id: number; categoryName: string }[]>([]);
   const [allCategories, setAllCategories] = useState<ServiceCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [providerName, setProviderName] = useState<string>('Loading...');
+  const [providerName, setProviderName] = useState<string>('');
   const [firstCategory, setFirstCategory] = useState<string>('');
-  const [walletBalance, setWalletBalance] = useState<number>(0);
-  const [isLoadingWallet, setIsLoadingWallet] = useState(false);
-  const [monthlyEarnings, setMonthlyEarnings] = useState<number>(0);
-  const [lastMonthEarnings, setLastMonthEarnings] = useState<number>(0);
-  const [isLoadingMonthlyEarnings, setIsLoadingMonthlyEarnings] = useState(false);
 
-  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
-  const isTabletLayout = useIsTablet();
-  const insightsPaddingV = isTabletLayout
-    ? Math.max(17, Math.round(windowHeight * 0.02))
-    : 17;
-  const insightsPaddingH = isTabletLayout
-    ? Math.max(18, Math.round(windowWidth * 0.04))
-    : 18;
-  const insightsAmountFontSize = isTabletLayout
-    ? Math.min(40, Math.max(30, Math.round(windowHeight * 0.038)))
-    : Math.min(32, windowWidth * 0.08);
+  const profileReadyOnceRef = useRef(false);
 
-  const formatNaira = (value: number) => {
-    return value.toLocaleString('en-NG', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
-
-  const loadWalletBalance = useCallback(async () => {
-    setIsLoadingWallet(true);
-    try {
-      const wallet = await walletService.getWallet();
-      const value = typeof wallet.balance === 'number' ? wallet.balance : parseFloat(String(wallet.balance)) || 0;
-      setWalletBalance(value);
-    } catch {
-      setWalletBalance(0);
-    } finally {
-      setIsLoadingWallet(false);
-    }
-  }, []);
-
-  // Load provider earnings for current month (used in the insights card)
-  const loadMonthlyEarnings = useCallback(async () => {
-    setIsLoadingMonthlyEarnings(true);
-    try {
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-
-      const result = await walletService.getTransactions({ limit: 200, offset: 0 });
-      const transactions = Array.isArray(result?.transactions) ? result.transactions : [];
-
-      const isEarningTx = (tx: any) => {
-        if (!tx) return false;
-        const statusOk = tx.status === 'completed';
-        if (!statusOk) return false;
-
-        const amount = Number(tx.amount ?? 0);
-        if (!isFinite(amount) || amount <= 0) return false;
-
-        const typeLower = String(tx.type ?? '').toLowerCase();
-        const descLower = String(tx.description ?? '').toLowerCase();
-
-        // Earnings are usually typed as `earnings`, but keep a fallback for description-based matching.
-        return typeLower === 'earnings' || descLower.includes('earnings');
-      };
-
-      const getTotalBetween = (start: Date, end: Date) => {
-        return transactions
-          .filter(isEarningTx)
-          .filter((tx: any) => {
-            const ts = tx.createdAt || tx.updatedAt || tx.timestamp;
-            if (!ts) return false;
-            const d = new Date(ts);
-            if (isNaN(d.getTime())) return false;
-            return d >= start && d < end;
-          })
-          .reduce((sum: number, tx: any) => sum + Number(tx.amount ?? 0), 0);
-      };
-
-      const currentTotal = getTotalBetween(monthStart, nextMonthStart);
-      const prevTotal = getTotalBetween(lastMonthStart, monthStart);
-
-      setMonthlyEarnings(currentTotal);
-      setLastMonthEarnings(prevTotal);
-    } catch (error) {
-      if (error instanceof AuthError) {
-        await handleAuthErrorRedirect(router);
-        return;
-      }
-      setMonthlyEarnings(0);
-      setLastMonthEarnings(0);
-    } finally {
-      setIsLoadingMonthlyEarnings(false);
-    }
-  }, [router]);
+  /** Sage header card reveals once profile is ready. */
+  const heroContentLoading = isLoading;
 
   // Load provider data
   const loadProviderData = useCallback(async () => {
-    try {
+    if (!profileReadyOnceRef.current) {
       setIsLoading(true);
+    }
+    try {
       
       // Load all categories first (to get display names)
       let categoriesList: ServiceCategory[] = [];
@@ -192,10 +101,7 @@ export default function ProviderProfileScreen() {
       if (!providerId) {
         // Try to get from business name storage as fallback
         const businessName = await AsyncStorage.getItem('@ghands:business_name');
-        if (businessName) {
-          setProviderName(businessName);
-        }
-        setIsLoading(false);
+        setProviderName(businessName ?? '');
         return;
       }
 
@@ -275,25 +181,22 @@ export default function ProviderProfileScreen() {
       }
     } finally {
       setIsLoading(false);
+      profileReadyOnceRef.current = true;
     }
   }, []);
 
   // Load data on mount and when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      loadProviderData();
-      loadWalletBalance();
-      loadMonthlyEarnings();
-    }, [loadProviderData, loadWalletBalance, loadMonthlyEarnings])
+      if (!profileReadyOnceRef.current) {
+        loadProviderData();
+      }
+    }, [loadProviderData])
   );
 
   const handleShareReferral = async () => {
     const code = (provider as any)?.referralCode ?? (provider as any)?.referral_code ?? null;
     await shareReferral({ role: 'provider', code });
-  };
-
-  const handleCopyLink = () => {
-    Alert.alert('Copied', 'Referral link copied to clipboard');
   };
 
   const handleSignOut = () => {
@@ -355,14 +258,15 @@ export default function ProviderProfileScreen() {
   };
 
   // Quotations Preview Component
-  const QuotationsPreview = () => {
+  const QuotationsPreview = ({ profileLoading }: { profileLoading: boolean }) => {
     const [quotations, setQuotations] = useState<ProviderQuotationListItem[]>([]);
     const [isLoadingQuotations, setIsLoadingQuotations] = useState(false);
     const [quotationsLoadOffline, setQuotationsLoadOffline] = useState(false);
+    const quotationsFetchInFlight = useRef(false);
 
     const loadQuotations = useCallback(async () => {
-      // Avoid re-triggering while already loading
-      if (isLoadingQuotations) return;
+      if (quotationsFetchInFlight.current) return;
+      quotationsFetchInFlight.current = true;
       setIsLoadingQuotations(true);
       try {
         const data = await providerService.getProviderQuotations();
@@ -390,12 +294,14 @@ export default function ProviderProfileScreen() {
         setQuotations([]);
       } finally {
         setIsLoadingQuotations(false);
+        quotationsFetchInFlight.current = false;
       }
-    }, [isLoadingQuotations]);
+    }, [router]);
 
     useEffect(() => {
+      if (profileLoading) return;
       loadQuotations();
-    }, [loadQuotations]);
+    }, [profileLoading, loadQuotations]);
 
     const formatCurrency = (value: number) => {
       return new Intl.NumberFormat('en-NG', {
@@ -431,10 +337,27 @@ export default function ProviderProfileScreen() {
       }
     };
 
-    if (isLoadingQuotations && quotations.length === 0) {
+    const showQuotationsSkeleton = profileLoading || (isLoadingQuotations && quotations.length === 0);
+
+    if (showQuotationsSkeleton) {
       return (
-        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-          <ActivityIndicator size="small" color={Colors.accent} />
+        <View>
+          {[0, 1].map((idx) => (
+            <View
+              key={`q-skel-${idx}`}
+              style={{
+                ...providerListCard,
+                marginBottom: 8,
+              }}
+            >
+              <Skeleton width="68%" height={14} borderRadius={6} style={{ marginBottom: 8 }} />
+              <Skeleton width="44%" height={12} borderRadius={6} style={{ marginBottom: 12 }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Skeleton width={72} height={22} borderRadius={BorderRadius.xl} />
+                <Skeleton width={64} height={14} borderRadius={6} />
+              </View>
+            </View>
+          ))}
         </View>
       );
     }
@@ -443,10 +366,9 @@ export default function ProviderProfileScreen() {
       return (
         <View
           style={{
-            backgroundColor: Colors.backgroundGray,
-            borderRadius: BorderRadius.default,
-            padding: 20,
+            ...providerListCard,
             alignItems: 'center',
+            paddingVertical: 20,
           }}
         >
           <FileText size={32} color={Colors.textTertiary} style={{ marginBottom: 8 }} />
@@ -495,12 +417,8 @@ export default function ProviderProfileScreen() {
                 } as any);
               }}
               style={{
-                backgroundColor: Colors.backgroundGray,
-                borderRadius: BorderRadius.default,
-                padding: 12,
+                ...providerListCard,
                 marginBottom: 8,
-                borderLeftWidth: 3,
-                borderLeftColor: statusConfig.color,
               }}
             >
               <View
@@ -603,7 +521,7 @@ export default function ProviderProfileScreen() {
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
+            paddingHorizontal: PROVIDER_TAB_GUTTER,
             paddingTop: headerTopPad,
             paddingBottom: 12,
           backgroundColor: Colors.backgroundLight,
@@ -663,43 +581,19 @@ export default function ProviderProfileScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
+            paddingHorizontal: PROVIDER_TAB_GUTTER,
             paddingTop: scrollBodyTopPad,
             paddingBottom: 100,
           }}
         >
           {/* Profile Summary */}
-          <View
+          <SageHeroPanel
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               marginBottom: 24,
-              backgroundColor: PROFILE_SAGE_BG,
-              borderRadius: 26,
-              paddingVertical: 22,
-              paddingHorizontal: 22,
-              borderWidth: 1,
-              borderColor: PROFILE_SAGE_BORDER,
-              overflow: 'hidden',
-              elevation: surfaceElevation(2),
-              shadowColor: '#1a2414',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 10,
             }}
           >
-            <View
-              style={{
-                position: 'absolute',
-                top: -54,
-                right: -54,
-                width: 160,
-                height: 160,
-                borderRadius: 80,
-                backgroundColor: '#FFFFFF',
-                opacity: 0.1,
-              }}
-            />
             <View style={{ position: 'relative', marginRight: 16 }}>
               <Image
                 source={require('../../assets/images/userimg.jpg')}
@@ -722,208 +616,115 @@ export default function ProviderProfileScreen() {
                   borderRadius: 10,
                   backgroundColor: Colors.accent,
                   borderWidth: 3,
-                  borderColor: PROFILE_SAGE_BG,
+                  borderColor: Colors.accent,
                 }}
               />
             </View>
             <View style={{ flex: 1 }}>
-              {isLoading ? (
-                <ActivityIndicator size="small" color={Colors.white} style={{ marginBottom: 4 }} />
+              {heroContentLoading ? (
+                <View>
+                  <Skeleton
+                    width="78%"
+                    height={22}
+                    borderRadius={8}
+                    variant="sage"
+                    style={{ marginBottom: 10 }}
+                  />
+                  <Skeleton
+                    width="52%"
+                    height={14}
+                    borderRadius={7}
+                    variant="sage"
+                    style={{ marginBottom: 12 }}
+                  />
+                  <Skeleton
+                    width={110}
+                    height={16}
+                    borderRadius={6}
+                    variant="sage"
+                    style={{ marginBottom: 12 }}
+                  />
+                  <Skeleton
+                    width={140}
+                    height={32}
+                    borderRadius={999}
+                    variant="sage"
+                  />
+                </View>
               ) : (
-                <Text
-                  style={{
-                    fontSize: 20,
-                    fontFamily: 'Poppins-Bold',
-                    color: Colors.white,
-                    marginBottom: 4,
-                    letterSpacing: -0.4,
-                  }}
-                  numberOfLines={1}
-                >
-                  {providerName || 'Provider'}
-                </Text>
-              )}
-              {firstCategory ? (
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-Regular',
-                    color: 'rgba(255,255,255,0.68)',
-                    marginBottom: 6,
-                  }}
-                >
-                  {firstCategory}
-                </Text>
-              ) : null}
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Star size={16} color={Colors.accent} fill={Colors.accent} />
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.white,
-                    marginLeft: 4,
-                  }}
-                >
-                  4.9 (127)
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setIsOnline(!isOnline)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  alignSelf: 'flex-start',
-                }}
-                activeOpacity={0.7}
-              >
-                {isOnline ? (
-                  <ToggleRight size={32} color={Colors.accent} />
-                ) : (
-                  <ToggleLeft size={32} color="rgba(255,255,255,0.45)" />
-                )}
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-Medium',
-                  color: isOnline ? Colors.accent : 'rgba(255,255,255,0.62)',
-                    marginLeft: 8,
-                  }}
-                >
-                  {isOnline ? 'Online' : 'Offline'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Wallet balance – live from API, Naira */}
-          <View
-            style={{
-              backgroundColor: PROFILE_SAGE_BG,
-              borderRadius: 24,
-              paddingVertical: 22,
-              paddingHorizontal: 22,
-              marginBottom: 16,
-              position: 'relative',
-              overflow: 'hidden',
-              borderWidth: 1,
-              borderColor: PROFILE_SAGE_BORDER,
-              elevation: surfaceElevation(2),
-              shadowColor: '#1a2414',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 10,
-            }}
-          >
-            <View
-              style={{
-                position: 'absolute',
-                bottom: -48,
-                right: -48,
-                width: 150,
-                height: 150,
-                borderRadius: 75,
-                backgroundColor: '#FFFFFF',
-                opacity: 0.09,
-              }}
-            />
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: 16,
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontFamily: 'Poppins-Medium',
-                    color: Colors.white,
-                    opacity: 0.95,
-                    marginBottom: 8,
-                  }}
-                >
-                  Wallet balance
-                </Text>
-                {isLoadingWallet ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <ActivityIndicator size="small" color={Colors.white} style={{ marginRight: 8 }} />
+                <>
+                  <Text
+                    style={{
+                      fontSize: 20,
+                      fontFamily: 'Poppins-Bold',
+                      color: Colors.white,
+                      marginBottom: 4,
+                      letterSpacing: -0.4,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {providerName.trim() || 'Provider'}
+                  </Text>
+                  {firstCategory ? (
                     <Text
                       style={{
-                        fontSize: 24,
-                        fontFamily: 'Poppins-Bold',
-                        color: Colors.white,
-                        opacity: 0.7,
+                        fontSize: 14,
+                        fontFamily: 'Poppins-Regular',
+                        color: 'rgba(255,255,255,0.68)',
+                        marginBottom: 6,
                       }}
                     >
-                      Loading...
+                      {firstCategory}
+                    </Text>
+                  ) : null}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <Star size={16} color={Colors.accent} fill={Colors.accent} />
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: Colors.white,
+                        marginLeft: 4,
+                      }}
+                    >
+                      4.9 (127)
                     </Text>
                   </View>
-                ) : (
-                  <Text style={{ fontSize: 24, fontFamily: 'Poppins-Bold', color: Colors.white, letterSpacing: -0.5 }}>
-                    ₦{walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Text>
-                )}
-              </View>
-              <View
-                style={{
-                  width: 46,
-                  height: 46,
-                  borderRadius: 23,
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.28)',
-                }}
-              >
-                <Wallet size={24} color={Colors.white} />
-              </View>
+                  <TouchableOpacity
+                    onPress={() => setIsOnline(!isOnline)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      alignSelf: 'flex-start',
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    {isOnline ? (
+                      <ToggleRight size={32} color={Colors.accent} />
+                    ) : (
+                      <ToggleLeft size={32} color="rgba(255,255,255,0.45)" />
+                    )}
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontFamily: 'Poppins-Medium',
+                        color: isOnline ? Colors.accent : 'rgba(255,255,255,0.62)',
+                        marginLeft: 8,
+                      }}
+                    >
+                      {isOnline ? 'Online' : 'Offline'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
-            <TouchableOpacity
-              onPress={() => {
-                haptics.light();
-                router.push('/provider/wallet' as any);
-              }}
-              activeOpacity={0.8}
-              style={{
-                backgroundColor: Colors.white,
-                borderRadius: 14,
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.textPrimary,
-                  marginRight: 6,
-                }}
-              >
-                View Wallet
-              </Text>
-              <ArrowRight size={16} color={Colors.textPrimary} />
-            </TouchableOpacity>
-          </View>
+          </SageHeroPanel>
 
           {/* About Section */}
           <View
             style={{
-              backgroundColor: Colors.white,
-              borderRadius: 22,
-              padding: 16,
+              ...providerListCard,
               marginBottom: 16,
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.035,
-              shadowRadius: 10,
-              elevation: 0,
             }}
           >
             <View
@@ -963,31 +764,31 @@ export default function ProviderProfileScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-            <Text
-              style={{
-                fontSize: 13,
-                fontFamily: 'Poppins-Regular',
-                color: Colors.textSecondaryDark,
-                lineHeight: 20,
-              }}
-            >
-              {(provider as any)?.about?.trim?.() ||
-                'No profile bio available yet.'}
-            </Text>
+            {isLoading ? (
+              <View>
+                <Skeleton width="94%" height={14} borderRadius={6} style={{ marginBottom: 8 }} />
+                <Skeleton width="88%" height={14} borderRadius={6} style={{ marginBottom: 8 }} />
+                <Skeleton width="72%" height={14} borderRadius={6} />
+              </View>
+            ) : (
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  lineHeight: 20,
+                }}
+              >
+                {(provider as any)?.about?.trim?.() || 'No profile bio available yet.'}
+              </Text>
+            )}
           </View>
 
           {/* Services Offered */}
           <View
             style={{
-              backgroundColor: Colors.white,
-              borderRadius: 22,
-              padding: 16,
+              ...providerListCard,
               marginBottom: 16,
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.035,
-              shadowRadius: 10,
-              elevation: 0,
             }}
           >
             <View
@@ -1029,7 +830,10 @@ export default function ProviderProfileScreen() {
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {isLoading ? (
-                <ActivityIndicator size="small" color={Colors.accent} />
+                <>
+                  <Skeleton width={92} height={36} borderRadius={999} style={{ marginRight: 8 }} />
+                  <Skeleton width={104} height={36} borderRadius={999} style={{ marginRight: 8 }} />
+                </>
               ) : services.length > 0 ? (
                 services.slice(0, 2).map((service) => (
                   <View
@@ -1090,13 +894,15 @@ export default function ProviderProfileScreen() {
                 style={{
                   width: 40,
                   height: 40,
-                  backgroundColor: PROFILE_SAGE_BG,
+                  backgroundColor: Colors.accent,
                   borderRadius: 20,
                   borderWidth: 1,
-                  borderColor: PROFILE_SAGE_BORDER,
+                  borderColor: Colors.sagePanelBorder,
                   alignItems: 'center',
                   justifyContent: 'center',
+                  opacity: isLoading ? 0.45 : 1,
                 }}
+                disabled={isLoading}
                 activeOpacity={0.7}
                 onPress={() => {
                   haptics.light();
@@ -1111,15 +917,8 @@ export default function ProviderProfileScreen() {
           {/* My Quotations Section */}
           <View
             style={{
-              backgroundColor: Colors.white,
-              borderRadius: 22,
-              padding: 16,
+              ...providerListCard,
               marginBottom: 16,
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.035,
-              shadowRadius: 10,
-              elevation: 0,
             }}
           >
             <View
@@ -1163,21 +962,14 @@ export default function ProviderProfileScreen() {
                 <ArrowRight size={14} color={Colors.accent} />
               </TouchableOpacity>
             </View>
-            <QuotationsPreview />
+            <QuotationsPreview profileLoading={isLoading} />
           </View>
 
           {/* Photos Section */}
           <View
             style={{
-              backgroundColor: Colors.white,
-              borderRadius: 22,
-              padding: 16,
+              ...providerListCard,
               marginBottom: 16,
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.035,
-              shadowRadius: 10,
-              elevation: 0,
             }}
           >
             <View
@@ -1243,15 +1035,8 @@ export default function ProviderProfileScreen() {
           {/* License & Certification */}
           <View
             style={{
-              backgroundColor: Colors.white,
-              borderRadius: 22,
-              padding: 16,
+              ...providerListCard,
               marginBottom: 16,
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.035,
-              shadowRadius: 10,
-              elevation: 0,
             }}
           >
             <Text
@@ -1326,128 +1111,6 @@ export default function ProviderProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Insights Section */}
-          <View
-            style={{
-              backgroundColor: Colors.white,
-              borderRadius: 22,
-              padding: 16,
-              marginBottom: 16,
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.035,
-              shadowRadius: 10,
-              elevation: 0,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 12,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.textPrimary,
-                }}
-              >
-                Insights
-              </Text>
-              <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-                activeOpacity={0.7}
-                onPress={() => router.push('/AnalyticsScreen' as any)}
-              >
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.accent,
-                    marginRight: 4,
-                  }}
-                >
-                  View full analytics
-                </Text>
-                <ArrowRight size={14} color={Colors.accent} />
-              </TouchableOpacity>
-            </View>
-            <View
-              style={{
-                backgroundColor: PROFILE_SAGE_BG,
-                borderRadius: BorderRadius.xl,
-                paddingVertical: insightsPaddingV,
-                paddingHorizontal: insightsPaddingH,
-                position: 'relative',
-                overflow: 'hidden',
-                borderWidth: 1,
-                borderColor: PROFILE_SAGE_BORDER,
-                elevation: surfaceElevation(2),
-                shadowColor: '#1a2414',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.08,
-                shadowRadius: 10,
-              }}
-            >
-              <View
-                style={{
-                  position: 'absolute',
-                  top: -40,
-                  right: -28,
-                  width: 120,
-                  height: 120,
-                  borderRadius: 60,
-                  backgroundColor: '#FFFFFF',
-                  opacity: 0.08,
-                }}
-              />
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontFamily: 'Poppins-Regular',
-              color: Colors.white,
-                  marginBottom: 10,
-                }}
-              >
-                Total Earnings This Month
-              </Text>
-              {isLoadingMonthlyEarnings ? (
-                <ActivityIndicator size="small" color={Colors.white} style={{ marginBottom: 6 }} />
-              ) : (
-                <Text
-                  style={{
-                    fontSize: insightsAmountFontSize,
-                    fontFamily: 'Poppins-Bold',
-                    color: Colors.white,
-                    marginBottom: 8,
-                    lineHeight: insightsAmountFontSize * 1.08,
-                  }}
-                >
-                  ₦{formatNaira(monthlyEarnings)}
-                </Text>
-              )}
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.white,
-                }}
-              >
-                {lastMonthEarnings > 0
-                  ? `${monthlyEarnings >= lastMonthEarnings ? '↑' : '↓'} ${Math.abs(
-                      ((monthlyEarnings - lastMonthEarnings) / lastMonthEarnings) * 100
-                    ).toFixed(1)}% vs last month`
-                  : 'Start earning to see trends.'}
-              </Text>
-            </View>
-          </View>
-
           {/* Refer Friends Section */}
           <View
             style={{
@@ -1480,7 +1143,7 @@ export default function ProviderProfileScreen() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
               backgroundColor: Colors.white,
-              borderRadius: 20,
+              borderRadius: BorderRadius.default,
                 padding: 16,
                 shadowColor: '#101828',
               shadowOffset: { width: 0, height: 4 },
@@ -1537,6 +1200,7 @@ export default function ProviderProfileScreen() {
 
           {/* Action Buttons */}
           <View style={{ marginBottom: 24 }}>
+            {__DEV__ ? (
             <TouchableOpacity
               onPress={handleBecomeClient}
               style={{
@@ -1557,20 +1221,16 @@ export default function ProviderProfileScreen() {
                   color: Colors.white,
                 }}
               >
-                Switch to client mode
+                Switch to client mode (dev)
               </Text>
             </TouchableOpacity>
+            ) : null}
 
             <View
               style={{
-                backgroundColor: Colors.white,
-                borderRadius: 22,
+                ...providerListCard,
                 overflow: 'hidden',
-                shadowColor: '#111827',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.04,
-                shadowRadius: 18,
-                elevation: 0,
+                padding: 0,
               }}
             >
               <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10 }}>

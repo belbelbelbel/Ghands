@@ -1,4 +1,5 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { JobDetailsContentSkeleton } from '@/components/LoadingSkeleton';
 import { haptics } from '@/hooks/useHaptics';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
@@ -195,9 +196,7 @@ export default function ProviderCompletedJobScreen() {
           }}
         >
           {isLoading && params.requestId ? (
-            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-              <ActivityIndicator size="large" color={Colors.accent} />
-            </View>
+            <JobDetailsContentSkeleton />
           ) : (
             <>
           {/* Client Information Card */}

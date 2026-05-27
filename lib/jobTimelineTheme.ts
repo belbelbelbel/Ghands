@@ -32,3 +32,21 @@ export function timelineChipText(step: { isCompleted?: boolean; isActive?: boole
   if (step.isActive) return JOB_TIMELINE.activeChipText;
   return JOB_TIMELINE.pendingChipText;
 }
+
+export function timelineDotColor(step: { isCompleted?: boolean; isActive?: boolean; isPending?: boolean }) {
+  if (step.isCompleted) return JOB_TIMELINE.sage;
+  if (step.isActive) return JOB_TIMELINE.activeDot;
+  return JOB_TIMELINE.pendingDot;
+}
+
+export function timelineLineColor(step: { isCompleted?: boolean; isActive?: boolean; isPending?: boolean }) {
+  if (step.isCompleted) return JOB_TIMELINE.sage;
+  if (step.isActive) return JOB_TIMELINE.activeDot;
+  return JOB_TIMELINE.railMuted;
+}
+
+export function timelineAccentBg(step: { isCompleted?: boolean; isActive?: boolean; isPending?: boolean }) {
+  if (step.isCompleted) return JOB_TIMELINE.completeSoft;
+  if (step.isActive) return JOB_TIMELINE.activeSoft;
+  return JOB_TIMELINE.pendingSoft;
+}

@@ -114,6 +114,11 @@ export default function ReportIssueScreen() {
       setIsSubmitting(true);
       haptics.light();
 
+      if (!__DEV__) {
+        showError('Issue reporting is coming soon. Please use Help & Support for urgent issues.');
+        return;
+      }
+
       // TODO: Implement API call to submit report
       // await reportService.submitIssue({
       //   requestId: params.requestId,

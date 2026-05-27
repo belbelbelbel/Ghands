@@ -71,6 +71,11 @@ export default function AddCustomServiceScreen() {
     haptics.light();
 
     try {
+      if (!__DEV__) {
+        showError('Custom service requests are coming soon. Contact support to add a new service.');
+        return;
+      }
+
       // TODO: Implement API call to submit custom service request
       // await providerService.submitCustomService({
       //   email,

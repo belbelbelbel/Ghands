@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { profileService } from '../services/api';
 import { authService } from '../services/authService';
-import { UpdateProfilePayload, UserProfile } from '../types';
+import { ClientProfileView, UpdateProfilePayload, UserProfile } from '../types';
 
 const PROFILE_QUERY_KEY = 'profile';
 
@@ -35,13 +35,52 @@ export function mapApiProfileToUserProfile(raw: unknown): UserProfile {
   };
 }
 
+function readProfileRecord(raw: unknown): Record<string, unknown> {
+  if (!raw || typeof raw !== 'object') return {};
+  const r = raw as Record<string, unknown>;
+  if (r.data && typeof r.data === 'object') return r.data as Record<string, unknown>;
+  return r;
+}
+
+/** Map API profile into client tab view (name, avatar, referral, ratings). */
+export function mapApiProfileToClientView(raw: unknown): ClientProfileView {
+  const base = mapApiProfileToUserProfile(raw);
+  const d = readProfileRecord(raw);
+
+  const idRaw = d.id ?? d.userId ?? d.user_id;
+  const referralRaw = d.referralCode ?? d.referral_code ?? d.referral;
+  const ratingRaw = d.rating ?? d.averageRating ?? d.average_rating;
+  const reviewsRaw = d.reviews ?? d.reviewCount ?? d.totalReviews ?? d.total_reviews;
+
+  const rating = typeof ratingRaw === 'number' && Number.isFinite(ratingRaw) ? ratingRaw : undefined;
+  const reviewCount =
+    typeof reviewsRaw === 'number' && Number.isFinite(reviewsRaw) ? reviewsRaw : undefined;
+
+  let referralCode =
+    typeof referralRaw === 'string' && referralRaw.trim() ? referralRaw.trim() : undefined;
+
+  if (!referralCode && typeof idRaw === 'string' && idRaw.length >= 4) {
+    referralCode = idRaw.slice(0, 8).toUpperCase();
+  } else if (!referralCode && typeof idRaw === 'number') {
+    referralCode = String(idRaw).slice(0, 8).toUpperCase();
+  }
+
+  return {
+    ...base,
+    id: idRaw != null ? String(idRaw) : base.id,
+    referralCode,
+    rating,
+    reviewCount,
+  };
+}
+
 /** Logged-in user profile from `GET /api/user/profile` — avoids fake `/users/:id/profile` slowness. */
 export function useCurrentUserProfile() {
   return useQuery({
     queryKey: [PROFILE_QUERY_KEY, 'current'],
     queryFn: async () => {
       const raw = await profileService.getCurrentUserProfile();
-      return mapApiProfileToUserProfile(raw);
+      return mapApiProfileToClientView(raw);
     },
     staleTime: 2 * 60 * 1000,
     retry: 1,

@@ -1,5 +1,6 @@
 import React, { ReactNode, useState, useEffect, forwardRef } from 'react';
-import { KeyboardTypeOptions, TextInput, View, Text } from 'react-native';
+import { KeyboardTypeOptions, TextInput, TouchableOpacity, View, Text } from 'react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, INPUT_HEIGHTS } from '@/lib/designSystem';
 
 interface InputFieldProps {
@@ -46,6 +47,7 @@ export const InputField = forwardRef<TextInput, InputFieldProps>((props, ref) =>
   } = props;
   const [isFocused, setIsFocused] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   useEffect(() => {
     if (value.length > 0) {
@@ -56,6 +58,9 @@ export const InputField = forwardRef<TextInput, InputFieldProps>((props, ref) =>
   const showError = error && hasInteracted;
   const charCount = maxLength ? value.length : null;
   const remainingChars = maxLength ? maxLength - value.length : null;
+  const isPasswordField = secureTextEntry;
+  const showLeftIcon = !!icon && (iconPosition === 'left' || isPasswordField);
+  const showRightDecorIcon = !!icon && iconPosition === 'right' && !isPasswordField;
 
   const iconSize = 36;
   const inputMinHeight = INPUT_HEIGHTS.small;
@@ -76,7 +81,7 @@ export const InputField = forwardRef<TextInput, InputFieldProps>((props, ref) =>
           opacity: disabled ? 0.6 : 1,
         }}
       >
-      {iconPosition === 'left' && (
+      {showLeftIcon && (
         <View
           style={{
             width: iconSize,
@@ -94,7 +99,7 @@ export const InputField = forwardRef<TextInput, InputFieldProps>((props, ref) =>
       <TextInput
         ref={ref}
         placeholder={placeholder}
-        secureTextEntry={secureTextEntry}
+        secureTextEntry={isPasswordField ? !passwordVisible : false}
         keyboardType={keyboardType}
         value={value}
         onChangeText={(text) => {
@@ -123,7 +128,25 @@ export const InputField = forwardRef<TextInput, InputFieldProps>((props, ref) =>
         }}
         placeholderTextColor={Colors.textSecondaryDark}
       />
-      {iconPosition === 'right' && (
+      {isPasswordField && (
+        <TouchableOpacity
+          onPress={() => setPasswordVisible((visible) => !visible)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{
+            padding: 4,
+            marginLeft: Spacing.sm,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+        >
+          {passwordVisible ? (
+            <EyeOff size={20} color={Colors.textSecondaryDark} />
+          ) : (
+            <Eye size={20} color={Colors.textSecondaryDark} />
+          )}
+        </TouchableOpacity>
+      )}
+      {showRightDecorIcon && (
         <View
           style={{
             width: iconSize,

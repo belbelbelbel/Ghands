@@ -2,12 +2,12 @@ import { MaterialIcons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { Redirect, Tabs, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Animated, Platform, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthRole } from '@/hooks/useAuth';
+import { ScreenBootLoader } from '@/components/ScreenBootLoader';
 import {
   CLIENT_TAB_BAR_BASE_HEIGHT,
-  CLIENT_TAB_BAR_PADDING_BOTTOM,
 } from '@/lib/tabletLayout';
 import { Colors } from '@/lib/designSystem';
 import { surfaceElevation } from '@/lib/surfaceStyles';
@@ -51,7 +51,7 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color:
         opacity: opacityAnim,
       }}
     >
-      <MaterialIcons name={iconName} size={24} color={color} />
+      <MaterialIcons name={iconName} size={Platform.OS === 'android' ? 19 : 20} color={color} />
     </Animated.View>
   );
 };
@@ -118,8 +118,8 @@ export default function TabLayout() {
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: 'rgba(17, 24, 39, 0.1)',
       height: CLIENT_TAB_BAR_BASE_HEIGHT + insets.bottom,
-      paddingBottom: CLIENT_TAB_BAR_PADDING_BOTTOM + insets.bottom,
-      paddingTop: 6,
+      paddingBottom: insets.bottom,
+      paddingTop: 2,
       marginHorizontal: 0,
       marginBottom: 0,
       position: 'absolute' as const,
@@ -134,16 +134,11 @@ export default function TabLayout() {
     [insets.bottom]
   );
   if (isLoading) {
-    return null;
+    return <ScreenBootLoader />;
   }
-
 
   if (role === 'provider') {
     return <Redirect href="/provider/home" />;
-  }
-
-  if (!role) {
-    return <Redirect href="/SelectAccountTypeScreen" />;
   }
 
   return (
@@ -155,10 +150,13 @@ export default function TabLayout() {
         tabBarShowLabel: true,
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: '#9CA3AF',
+        tabBarItemStyle: { paddingVertical: 0, marginTop: 0 },
+        tabBarIconStyle: { marginBottom: 0 },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontFamily: 'Poppins-Medium',
-          marginTop: 2,
+          marginTop: 0,
+          marginBottom: 0,
         },
       }}
     >

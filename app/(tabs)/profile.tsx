@@ -1,19 +1,71 @@
+import Skeleton from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import { SageHeroPanel } from '@/components/provider/SageHeroPanel';
 import { useAuthRole } from '@/hooks/useAuth';
+import { useCurrentUserProfile } from '@/hooks/useProfile';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { BorderRadius, Colors, REFRESH_CONTROL, Spacing, useTabScrollContentPaddingTop, useTabScreenScrollBottomPadding } from '@/lib/designSystem';
-import { surfaceElevation } from '@/lib/surfaceStyles';
+import { useWalletBalance } from '@/hooks/useWalletBalance';
+import {
+  BorderRadius,
+  Colors,
+  REFRESH_CONTROL,
+  useTabScrollContentPaddingTop,
+  useTabScreenScrollBottomPadding,
+} from '@/lib/designSystem';
+import { providerListCard } from '@/lib/providerSurfaceStyles';
 import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { ArrowRight, Bell, ChevronRight, CreditCard, HelpCircle, LogOut, MapPin, Settings, Share2, Star, Trash2, User, Wallet } from 'lucide-react-native';
-import React, { useState, useCallback } from 'react';
-import { Alert, Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { handleAuthErrorRedirect } from '@/utils/authRedirect';
+import { AuthError } from '@/utils/errors';
 import { shareReferral } from '@/utils/referral';
-import { profileService, walletService } from '@/services/api';
+import { useFocusEffect, useRouter } from 'expo-router';
+import {
+  Bell,
+  ChevronRight,
+  CreditCard,
+  HelpCircle,
+  LogOut,
+  MapPin,
+  Settings,
+  Star,
+  Trash2,
+  User,
+  Wallet,
+} from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  Alert,
+  Image,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-/** Matches home Quick actions panel — sage, not black. */
-const PROFILE_SAGE_BG = '#4F6739';
-const PROFILE_SAGE_BORDER = 'rgba(45, 65, 24, 0.75)';
+const DEFAULT_AVATAR = require('../../assets/images/userimg.jpg');
+
+const formatNaira = (amount: number): string =>
+  `₦${amount.toLocaleString('en-NG', { maximumFractionDigits: 0 })}`;
+
+function ClientProfileHeroSkeleton({ marginTop }: { marginTop: number }) {
+  return (
+    <SageHeroPanel
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop,
+        marginBottom: 24,
+      }}
+    >
+      <Skeleton width={80} height={80} borderRadius={40} variant="sage" style={{ marginRight: 18 }} />
+      <View style={{ flex: 1 }}>
+        <Skeleton width="72%" height={20} borderRadius={8} variant="sage" style={{ marginBottom: 8 }} />
+        <Skeleton width="88%" height={14} borderRadius={6} variant="sage" style={{ marginBottom: 6 }} />
+        <Skeleton width="48%" height={14} borderRadius={6} variant="sage" />
+      </View>
+    </SageHeroPanel>
+  );
+}
 
 const ProfileScreen = () => {
   const headerTopPad = useTabScrollContentPaddingTop(16);
@@ -22,127 +74,137 @@ const ProfileScreen = () => {
   const router = useRouter();
   const { logout, switchRole } = useAuthRole();
   const { location } = useUserLocation();
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [userData, setUserData] = useState({
-    name: 'Loading...',
-    location: location || '',
-    rating: 0,
-    reviews: 0,
-    balance: 0,
-    referralCode: 'SARAH2024',
+  const profileReadyRef = useRef(false);
+
+  const {
+    data: profile,
+    isLoading: isProfileLoading,
+    isFetching: isProfileFetching,
+    refetch: refetchProfile,
+    error: profileError,
+  } = useCurrentUserProfile();
+
+  const { balance, isLoading: isWalletLoading, refresh: refreshWallet } = useWalletBalance({
+    refreshOnFocus: true,
   });
 
-  // Load wallet balance
-  const loadWalletBalance = useCallback(async () => {
-    try {
-      setIsLoadingBalance(true);
-      const wallet = await walletService.getWallet();
-      const balanceValue = typeof wallet.balance === 'number' 
-        ? wallet.balance 
-        : parseFloat(String(wallet.balance)) || 0;
-      
-      setUserData(prev => ({
-        ...prev,
-        balance: balanceValue,
-      }));
-    } catch {
-      // Keep current balance on error
-    } finally {
-      setIsLoadingBalance(false);
-    }
-  }, []);
+  const showHeroSkeleton = isProfileLoading && !profileReadyRef.current;
 
-  // Load user profile from API
-  const loadUserProfile = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      
-      // Load profile and wallet balance in parallel
-      await Promise.all([
-        (async () => {
-          try {
-            const profile = await profileService.getCurrentUserProfile();
-            
-            // Extract user data from API response
-            const firstName = profile?.firstName || profile?.data?.firstName || '';
-            const lastName = profile?.lastName || profile?.data?.lastName || '';
-            const fullName = firstName && lastName 
-              ? `${firstName} ${lastName}`.trim()
-              : firstName || lastName || 'User';
-            
-            setUserData(prev => ({
-              ...prev,
-              name: fullName,
-              location: location || prev.location,
-            }));
-          } catch {
-            // Profile optional; keep cached UI
-          }
-        })(),
-        loadWalletBalance(), // Also load wallet balance
-      ]);
-    } catch {
-      // Still try to load wallet balance even if profile fails
-      await loadWalletBalance();
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (!isProfileLoading && profile) {
+      profileReadyRef.current = true;
     }
-  }, [location, loadWalletBalance]);
+  }, [isProfileLoading, profile]);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadUserProfile();
-    setRefreshing(false);
-  }, [loadUserProfile]);
+  useEffect(() => {
+    if (profileError instanceof AuthError) {
+      void handleAuthErrorRedirect(router);
+    }
+  }, [profileError, router]);
 
   useFocusEffect(
     useCallback(() => {
-      loadUserProfile();
-    }, [loadUserProfile])
+      void refetchProfile();
+      void refreshWallet({ silent: true });
+    }, [refetchProfile, refreshWallet])
   );
 
-  const handleOptionPress = (id: string) => {
-    if (id === 'account') {
-      router.push('../AccountInformationScreen' as any);
-    } else if (id === 'billing') {
-      router.push('../PaymentMethodsScreen' as any);
-    } else if (id === 'support') {
-      router.push('../HelpSupportScreen' as any);
-    }
-  };
+  const displayName = profile?.name?.trim() || 'Your profile';
+  const displayLocation = location?.trim() || 'Add your location';
+  const hasRating = (profile?.rating ?? 0) > 0 || (profile?.reviewCount ?? 0) > 0;
+  const avatarSource = profile?.profileImageUri
+    ? { uri: profile.profileImageUri }
+    : DEFAULT_AVATAR;
 
-  const handleViewWallet = () => {
-    router.push('../WalletScreen' as any);
-  };
+  const accountSettings = useMemo(
+    () => [
+      {
+        id: 'account',
+        title: 'Account & Preferences',
+        subtitle: 'Personal info, notifications, and privacy',
+        icon: User,
+        bg: '#F2F8EA',
+        color: Colors.accent,
+      },
+      {
+        id: 'wallet',
+        title: 'Wallet',
+        subtitle:
+          balance != null && !isWalletLoading
+            ? `Balance: ${formatNaira(balance)}`
+            : 'Balance, top-ups, and activity',
+        icon: Wallet,
+        bg: '#FAF4E8',
+        color: '#8F5C12',
+      },
+      {
+        id: 'billing',
+        title: 'Payment methods',
+        subtitle: 'Cards, banks & receipts',
+        icon: CreditCard,
+        bg: '#F7F8FA',
+        color: Colors.textPrimary,
+      },
+      {
+        id: 'support',
+        title: 'Support & Information',
+        subtitle: 'Help center, safety, and app information',
+        icon: HelpCircle,
+        bg: '#FFF7DF',
+        color: '#92400E',
+      },
+    ],
+    [balance, isWalletLoading]
+  );
 
-  const handleShareReferral = async () => {
-    await shareReferral({ role: 'client', code: userData.referralCode });
-  };
+  const onRefresh = useCallback(async () => {
+    await Promise.all([refetchProfile(), refreshWallet({ silent: true })]);
+  }, [refetchProfile, refreshWallet]);
 
-  const handleSignOut = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
-            }
-          },
+  const handleOptionPress = useCallback(
+    (id: string) => {
+      switch (id) {
+        case 'account':
+          router.push('/AccountInformationScreen' as never);
+          break;
+        case 'wallet':
+          router.push('/WalletScreen' as never);
+          break;
+        case 'billing':
+          router.push('/PaymentMethodsScreen' as never);
+          break;
+        case 'support':
+          router.push('/HelpSupportScreen' as never);
+          break;
+        default:
+          break;
+      }
+    },
+    [router]
+  );
+
+  const handleShareReferral = useCallback(async () => {
+    await shareReferral({ role: 'client', code: profile?.referralCode ?? null });
+  }, [profile?.referralCode]);
+
+  const handleSignOut = useCallback(() => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await logout();
+          } catch {
+            Alert.alert('Error', 'Failed to sign out. Please try again.');
+          }
         },
-      ]
-    );
-  };
+      },
+    ]);
+  }, [logout]);
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = useCallback(() => {
     Alert.alert(
       'Delete Account',
       'Are you sure you want to delete your account? This action cannot be undone.',
@@ -152,37 +214,39 @@ const ProfileScreen = () => {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            // Handle account deletion
             Alert.alert('Account Deletion', 'Account deletion feature coming soon.');
           },
         },
       ]
     );
-  };
+  }, []);
 
-  const handleBecomeProvider = () => {
-    Alert.alert(
-      'Switch to Provider',
-      'Switch to provider mode for demo and testing?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Switch',
-          onPress: async () => {
-            try {
-              await switchRole('provider');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to switch role. Please try again.');
-            }
-          },
+  const handleBecomeProvider = useCallback(() => {
+    Alert.alert('Switch to Provider', 'Switch to provider mode for demo and testing?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Switch',
+        onPress: async () => {
+          try {
+            await switchRole('provider');
+          } catch {
+            Alert.alert('Error', 'Failed to switch role. Please try again.');
+          }
         },
-      ]
-    );
-  };
+      },
+    ]);
+  }, [switchRole]);
+
+  const openEditProfile = useCallback(() => {
+    router.push('/EditProfileScreen' as never);
+  }, [router]);
+
+  const openLocation = useCallback(() => {
+    router.push('/LocationSearchScreen' as never);
+  }, [router]);
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight} tabletShellTop>
-      {/* Header */}
       <View
         style={{
           flexDirection: 'row',
@@ -196,7 +260,7 @@ const ProfileScreen = () => {
       >
         <View style={{ flex: 1, alignItems: 'flex-start' }}>
           <TouchableOpacity
-            onPress={() => router.push('../SettingsScreen' as any)}
+            onPress={() => router.push('/SettingsScreen' as never)}
             style={{
               width: 40,
               height: 40,
@@ -223,7 +287,7 @@ const ProfileScreen = () => {
         </Text>
         <View style={{ flex: 1, alignItems: 'flex-end' }}>
           <TouchableOpacity
-            onPress={() => router.push('../NotificationsScreen' as any)}
+            onPress={() => router.push('/NotificationsScreen' as never)}
             style={{ position: 'relative', padding: 4, borderRadius: 20, backgroundColor: Colors.white }}
             activeOpacity={0.7}
           >
@@ -247,7 +311,7 @@ const ProfileScreen = () => {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={isProfileFetching && profileReadyRef.current}
             onRefresh={onRefresh}
             tintColor={REFRESH_CONTROL.tintColor}
             colors={REFRESH_CONTROL.colors as unknown as string[]}
@@ -258,148 +322,105 @@ const ProfileScreen = () => {
           paddingBottom: scrollBottomPad,
         }}
       >
-        {/* User Profile Section */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            marginTop: scrollBodyTopPad,
-            marginBottom: 24,
-            backgroundColor: PROFILE_SAGE_BG,
-            borderRadius: 26,
-            paddingVertical: 22,
-            paddingHorizontal: 22,
-            borderWidth: 1,
-            borderColor: PROFILE_SAGE_BORDER,
-            overflow: 'hidden',
-            elevation: surfaceElevation(2),
-            shadowColor: '#1a2414',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 10,
-          }}
-        >
-          <View
+        {showHeroSkeleton ? (
+          <ClientProfileHeroSkeleton marginTop={scrollBodyTopPad} />
+        ) : (
+          <SageHeroPanel
             style={{
-              position: 'absolute',
-              top: -54,
-              right: -54,
-              width: 160,
-              height: 160,
-              borderRadius: 80,
-              backgroundColor: '#FFFFFF',
-              opacity: 0.1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: scrollBodyTopPad,
+              marginBottom: 24,
             }}
-          />
-          {/* Profile Picture */}
-          <View style={{ marginRight: 18 }}>
-            <Image
-              source={require('../../assets/images/userimg.jpg')}
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: 40,
-                borderWidth: 3,
-                borderColor: 'rgba(255,255,255,0.38)',
-              }}
-              resizeMode="cover"
-            />
-          </View>
+          >
+            <TouchableOpacity onPress={openEditProfile} activeOpacity={0.85} style={{ marginRight: 18 }}>
+              <Image
+                source={avatarSource}
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  borderWidth: 3,
+                  borderColor: 'rgba(255,255,255,0.38)',
+                }}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
 
-          {/* User Info */}
-          <View style={{ flex: 1, minWidth: 0, paddingRight: 4 }}>
-            {/* Name */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 8,
-                flexWrap: 'wrap',
-              }}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color={Colors.white} />
-              ) : (
+            <View style={{ flex: 1, minWidth: 0, paddingRight: 4 }}>
+              <TouchableOpacity onPress={openEditProfile} activeOpacity={0.85}>
                 <Text
                   style={{
-                    flexShrink: 1,
                     fontSize: 20,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.white,
-                    marginRight: 8,
+                    marginBottom: 8,
                     letterSpacing: -0.4,
                   }}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
-                  {userData.name}
+                  {displayName}
                 </Text>
-              )}
-            </View>
+              </TouchableOpacity>
 
-            {/* Location */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: 6,
-              }}
-            >
-              <MapPin size={14} color="rgba(255,255,255,0.62)" style={{ flexShrink: 0 }} />
-              <Text
-                style={{
-                  flex: 1,
-                  fontSize: 13,
-                  fontFamily: 'Poppins-Regular',
-                  color: 'rgba(255,255,255,0.68)',
-                  marginLeft: 6,
-                }}
-                numberOfLines={2}
+              <TouchableOpacity
+                onPress={openLocation}
+                activeOpacity={0.8}
+                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: hasRating ? 6 : 0 }}
               >
-                {userData.location}
-              </Text>
-            </View>
+                  <MapPin size={14} color="rgba(255,255,255,0.62)" style={{ flexShrink: 0 }} />
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      fontFamily: 'Poppins-Regular',
+                      color: location ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.92)',
+                      marginLeft: 6,
+                    }}
+                    numberOfLines={2}
+                  >
+                    {displayLocation}
+                  </Text>
+                  <ChevronRight size={14} color="rgba(255,255,255,0.5)" />
+                </TouchableOpacity>
 
-            {/* Rating */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-              }}
-            >
-              <Star size={14} color={Colors.accent} fill={Colors.accent} />
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontFamily: 'Poppins-Medium',
-                  color: Colors.white,
-                  marginLeft: 4,
-                }}
-              >
-                {userData.rating}
-              </Text>
-              <View
-                style={{
-                  width: 3,
-                  height: 3,
-                  borderRadius: 1.5,
-                  backgroundColor: 'rgba(255,255,255,0.35)',
-                  marginHorizontal: 6,
-                }}
-              />
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontFamily: 'Poppins-Regular',
-                  color: 'rgba(255,255,255,0.68)',
-                }}
-              >
-                {userData.reviews} reviews
-              </Text>
-            </View>
-          </View>
-        </View>
+                {hasRating ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Star size={14} color="#FDE68A" fill="#FDE68A" />
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'Poppins-Medium',
+                        color: Colors.white,
+                        marginLeft: 4,
+                      }}
+                    >
+                      {(profile?.rating ?? 0).toFixed(1)}
+                    </Text>
+                    <View
+                      style={{
+                        width: 3,
+                        height: 3,
+                        borderRadius: 1.5,
+                        backgroundColor: 'rgba(255,255,255,0.35)',
+                        marginHorizontal: 6,
+                      }}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'Poppins-Regular',
+                        color: 'rgba(255,255,255,0.68)',
+                      }}
+                    >
+                      {profile?.reviewCount ?? 0} reviews
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </SageHeroPanel>
+        )}
 
-        {/* Account Settings Section */}
         <View style={{ marginBottom: 24 }}>
           <Text
             style={{
@@ -411,17 +432,7 @@ const ProfileScreen = () => {
           >
             Account settings
           </Text>
-          <View
-            style={{
-              backgroundColor: Colors.white,
-              borderRadius: 22,
-              overflow: 'hidden',
-              elevation: 0,
-              shadowOpacity: 0,
-              shadowRadius: 0,
-              shadowOffset: { width: 0, height: 0 },
-            }}
-          >
+          <View style={{ ...providerListCard, padding: 0, overflow: 'hidden' }}>
             {accountSettings.map((setting, index) => {
               const IconComponent = setting.icon;
               return (
@@ -437,173 +448,49 @@ const ProfileScreen = () => {
                   }}
                   activeOpacity={0.7}
                 >
-                <View 
-                  style={{ 
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: setting.bg,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 12,
-                  }}
-                >
-                  <IconComponent size={20} color={setting.color} />
-                </View>
-                
-                <View style={{ flex: 1 }}>
-                  <Text 
+                  <View
                     style={{
-                      fontSize: 15,
-                      fontFamily: 'Poppins-SemiBold',
-                      color: Colors.textPrimary,
-                      marginBottom: 2,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: setting.bg,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 12,
                     }}
                   >
-                    {setting.title}
-                  </Text>
-                  <Text 
-                    style={{
-                      fontSize: 12,
-                      fontFamily: 'Poppins-Regular',
-                      color: Colors.textSecondaryDark,
-                    }}
-                  >
-                    {setting.subtitle}
-                  </Text>
-                </View>
+                    <IconComponent size={20} color={setting.color} />
+                  </View>
 
-                <ChevronRight size={18} color={Colors.textSecondaryDark} />
-              </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontFamily: 'Poppins-SemiBold',
+                        color: Colors.textPrimary,
+                        marginBottom: 2,
+                      }}
+                    >
+                      {setting.title}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontFamily: 'Poppins-Regular',
+                        color: Colors.textSecondaryDark,
+                      }}
+                    >
+                      {setting.subtitle}
+                    </Text>
+                  </View>
+
+                  <ChevronRight size={18} color={Colors.textSecondaryDark} />
+                </TouchableOpacity>
               );
             })}
           </View>
         </View>
 
-        {/* Current Balance Section */}
-        <View
-          style={{
-            backgroundColor: PROFILE_SAGE_BG,
-            borderRadius: 24,
-            paddingVertical: 22,
-            paddingHorizontal: 22,
-            marginBottom: 24,
-            position: 'relative',
-            overflow: 'hidden',
-            borderWidth: 1,
-            borderColor: PROFILE_SAGE_BORDER,
-            elevation: surfaceElevation(2),
-            shadowColor: '#1a2414',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 10,
-          }}
-        >
-          <View
-            style={{
-              position: 'absolute',
-              bottom: -48,
-              right: -48,
-              width: 150,
-              height: 150,
-              borderRadius: 75,
-              backgroundColor: '#FFFFFF',
-              opacity: 0.09,
-            }}
-          />
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: 16,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontFamily: 'Poppins-Medium',
-                  color: Colors.white,
-                  opacity: 0.95,
-                  marginBottom: 8,
-                }}
-              >
-                Current balance
-              </Text>
-              {isLoadingBalance ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <ActivityIndicator size="small" color={Colors.white} style={{ marginRight: 8 }} />
-                  <Text
-                    style={{
-                      fontSize: Math.min(36, Dimensions.get('window').width * 0.09),
-                      fontFamily: 'Poppins-Bold',
-                      color: Colors.white,
-                      opacity: 0.7,
-                    }}
-                  >
-                    Loading...
-                  </Text>
-                </View>
-              ) : (
-                <Text
-                  style={{
-                    fontSize: Math.min(36, Dimensions.get('window').width * 0.09),
-                    fontFamily: 'Poppins-Bold',
-                    color: Colors.white,
-                  }}
-                >
-                  ₦{userData.balance.toLocaleString('en-NG', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </Text>
-              )}
-            </View>
-            <View
-              style={{
-                width: 46,
-                height: 46,
-                borderRadius: 23,
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.28)',
-              }}
-            >
-              <Wallet size={24} color={Colors.white} />
-            </View>
-          </View>
-
-          <TouchableOpacity
-            onPress={handleViewWallet}
-            style={{
-              backgroundColor: Colors.white,
-              borderRadius: 14,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            activeOpacity={0.8}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.textPrimary,
-                marginRight: 6,
-              }}
-            >
-              View Wallet
-            </Text>
-            <ArrowRight size={16} color={Colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Refer Friends Section */}
         <View style={{ marginBottom: 24 }}>
           <Text
             style={{
@@ -623,20 +510,14 @@ const ProfileScreen = () => {
               marginBottom: 12,
             }}
           >
-          Get rewards for each referral
+            Get rewards for each referral
           </Text>
           <View
             style={{
+              ...providerListCard,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              backgroundColor: Colors.white,
-              borderRadius: 20,
-              padding: 16,
-              elevation: 0,
-              shadowOpacity: 0,
-              shadowRadius: 0,
-              shadowOffset: { width: 0, height: 0 },
             }}
           >
             <View style={{ flex: 1, marginRight: 12 }}>
@@ -657,14 +538,14 @@ const ProfileScreen = () => {
                   color: Colors.textPrimary,
                 }}
               >
-                {userData.referralCode}
+                {profile?.referralCode ?? '—'}
               </Text>
             </View>
             <TouchableOpacity
               onPress={handleShareReferral}
               style={{
                 backgroundColor: Colors.accent,
-                borderRadius: 12,
+                borderRadius: BorderRadius.default,
                 paddingVertical: 8,
                 paddingHorizontal: 16,
               }}
@@ -683,43 +564,34 @@ const ProfileScreen = () => {
           </View>
         </View>
 
-        {/* Action Buttons */}
         <View style={{ marginBottom: 24 }}>
-          <TouchableOpacity
-            onPress={handleBecomeProvider}
-            style={{
-              backgroundColor: Colors.accent,
-              borderRadius: 16,
-              padding: 16,
-              marginBottom: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            activeOpacity={0.7}
-          >
-            <Text 
+          {__DEV__ ? (
+            <TouchableOpacity
+              onPress={handleBecomeProvider}
               style={{
-                fontSize: 15,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.white,
+                backgroundColor: Colors.accent,
+                borderRadius: BorderRadius.lg,
+                padding: 16,
+                marginBottom: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
+              activeOpacity={0.7}
             >
-              Switch to provider mode
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontFamily: 'Poppins-SemiBold',
+                  color: Colors.white,
+                }}
+              >
+                Switch to provider mode (dev)
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
-          <View
-            style={{
-              backgroundColor: Colors.white,
-              borderRadius: 22,
-              overflow: 'hidden',
-              elevation: 0,
-              shadowOpacity: 0,
-              shadowRadius: 0,
-              shadowOffset: { width: 0, height: 0 },
-            }}
-          >
+          <View style={{ ...providerListCard, padding: 0, overflow: 'hidden' }}>
             <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10 }}>
               <Text
                 style={{
@@ -848,32 +720,5 @@ const ProfileScreen = () => {
     </SafeAreaWrapper>
   );
 };
-
-const accountSettings = [
-  {
-    id: 'account',
-    title: 'Account & Preferences',
-    subtitle: 'Personal info, notifications, and privacy',
-    icon: User,
-    bg: '#F2F8EA',
-    color: Colors.accent,
-  },
-  {
-    id: 'billing',
-    title: 'Billing and payment',
-    subtitle: 'Payment methods and billing history',
-    icon: CreditCard,
-    bg: '#F7F8FA',
-    color: Colors.textPrimary,
-  },
-  {
-    id: 'support',
-    title: 'Support & Information',
-    subtitle: 'Help center, safety, and app information',
-    icon: HelpCircle,
-    bg: '#FFF7DF',
-    color: '#92400E',
-  },
-];
 
 export default ProfileScreen;

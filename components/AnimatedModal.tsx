@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, View } from 'react-native';
-import { Colors, Spacing } from '@/lib/designSystem';
+import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 
 interface AnimatedModalProps {
   visible: boolean;
@@ -131,8 +131,8 @@ const styles = StyleSheet.create({
   },
   content: {
     backgroundColor: Colors.backgroundLight,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: BorderRadius.default,
+    borderTopRightRadius: BorderRadius.default,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
     paddingHorizontal: Spacing.lg,

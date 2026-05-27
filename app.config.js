@@ -102,6 +102,7 @@ export default {
         },
       ],
       'expo-asset',
+      'expo-secure-store',
     ],
     experiments: {
       typedRoutes: true,

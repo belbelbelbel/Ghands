@@ -477,7 +477,7 @@ export default function ConfirmWalletPaymentScreen() {
       {/* Processing Modal */}
       <Modal visible={showProcessingModal} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-          <View style={{ backgroundColor: Colors.white, borderRadius: 20, padding: 32, alignItems: 'center', minWidth: 300 }}>
+          <View style={{ backgroundColor: Colors.white, borderRadius: BorderRadius.default, padding: 32, alignItems: 'center', minWidth: 300, borderWidth: 1, borderColor: Colors.border }}>
             {paymentStep === 'success' ? (
               <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(79, 103, 57, 0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
                 <CheckCircle size={48} color={Colors.accent} />
@@ -496,7 +496,7 @@ export default function ConfirmWalletPaymentScreen() {
       {/* PIN Modal */}
       <Modal visible={showPinModal} transparent animationType="slide" onRequestClose={handleCancelPin}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: Colors.white, borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl, paddingTop: 24, paddingBottom: 40, paddingHorizontal: 20 }}>
+          <View style={{ backgroundColor: Colors.white, borderTopLeftRadius: BorderRadius.default, borderTopRightRadius: BorderRadius.default, paddingTop: 24, paddingBottom: 40, paddingHorizontal: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
               <Text style={{ fontSize: 18, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>Enter Wallet PIN</Text>
               <TouchableOpacity onPress={handleCancelPin} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>

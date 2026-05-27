@@ -1,5 +1,6 @@
 
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
+import { JobDetailsContentSkeleton } from '@/components/LoadingSkeleton';
 import TimelineStatusCard from '@/components/TimelineStatusCard';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { haptics } from '@/hooks/useHaptics';
@@ -18,6 +19,7 @@ import { isConnectivityOrNetworkError } from '@/utils/isNetworkFailure';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { formatProviderProximitySubtitle } from '@/utils/navigationUtils';
 import { mergeCachedVisitRequest } from '@/utils/visitRequestCache';
+import { navigateBack, NAV_FALLBACK } from '@/utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { CheckCircle, CheckCircle2, Circle, Clock, FileText, MapPinned, Wrench } from 'lucide-react-native';
@@ -1841,9 +1843,9 @@ export default function OngoingJobDetails() {
               haptics.light();
               if (params.fromBooking === '1') {
                 router.replace('/(tabs)/jobs' as any);
-              } else {
-                router.back();
+                return;
               }
+              navigateBack(router, NAV_FALLBACK.clientJobs);
             }}
             style={{ marginRight: 12, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
             activeOpacity={0.85}
@@ -1897,12 +1899,7 @@ export default function OngoingJobDetails() {
         </View>
 
         {isLoading ? (
-          <View className="flex-1 items-center justify-center py-20 px-6" style={{ minHeight: 200 }}>
-            <ActivityIndicator size="large" color="#4F6739" />
-            <Text className="text-gray-600 mt-4 text-center" style={{ fontFamily: 'Poppins-Medium' }}>
-              Loading job details...
-            </Text>
-          </View>
+          <JobDetailsContentSkeleton />
         ) : !request && (hasAttemptedLoad || !params.requestId) ? (
           <View className="flex-1 items-center justify-center py-20 px-6" style={{ minHeight: 200 }}>
             <Ionicons name="alert-circle-outline" size={64} color="#9CA3AF" />

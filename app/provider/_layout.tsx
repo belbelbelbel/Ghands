@@ -1,17 +1,17 @@
 import { useAuthRole } from '@/hooks/useAuth';
+import { ScreenBootLoader } from '@/components/ScreenBootLoader';
 import { Colors } from '@/lib/designSystem';
-import { PROVIDER_TAB_BAR_BASE_HEIGHT, PROVIDER_TAB_BAR_PADDING_BOTTOM } from '@/lib/tabletLayout';
+import { PROVIDER_TAB_BAR_BASE_HEIGHT } from '@/lib/tabletLayout';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Animated, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
-const ROLE_SWITCHING_KEY = '@ghands:role_switching';
 
 const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color: string; focused: boolean }) => {
+  const lift = Platform.OS === 'android' ? -1 : -2;
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(focused ? 1 : 0.7)).current;
   const translateYAnim = useRef(new Animated.Value(0)).current;
@@ -30,7 +30,7 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color:
         useNativeDriver: true,
       }),
       Animated.spring(translateYAnim, {
-        toValue: focused ? -2 : 0,
+        toValue: focused ? lift : 0,
         tension: 400,
         friction: 8,
         useNativeDriver: true,
@@ -48,7 +48,7 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color:
         opacity: opacityAnim,
       }}
     >
-      <MaterialIcons name={iconName} size={22} color={color} />
+      <MaterialIcons name={iconName} size={Platform.OS === 'android' ? 19 : 20} color={color} />
     </Animated.View>
   );
 };
@@ -56,15 +56,15 @@ const AnimatedIcon = ({ iconName, color, focused }: { iconName: IconName; color:
 export default function ProviderLayout() {
   const { role, isLoading } = useAuthRole();
   const insets = useSafeAreaInsets();
-  const [isSwitchingRole, setIsSwitchingRole] = useState(false);
 
   const tabBarStyle = useMemo(
     () => ({
       backgroundColor: '#ffffff',
-      borderTopWidth: 0,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: 'rgba(17, 24, 39, 0.1)',
       height: PROVIDER_TAB_BAR_BASE_HEIGHT + insets.bottom,
-      paddingBottom: PROVIDER_TAB_BAR_PADDING_BOTTOM + insets.bottom,
-      paddingTop: 6,
+      paddingBottom: insets.bottom,
+      paddingTop: 2,
       marginHorizontal: 0,
       marginBottom: 0,
       position: 'absolute' as const,
@@ -79,26 +79,14 @@ export default function ProviderLayout() {
     [insets.bottom]
   );
 
-  useEffect(() => {
-    let mounted = true;
-    AsyncStorage.getItem(ROLE_SWITCHING_KEY)
-      .then((value) => {
-        if (mounted) setIsSwitchingRole(value === 'true');
-      })
-      .catch(() => {
-        if (mounted) setIsSwitchingRole(false);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [role]);
-
-  // While loading role, avoid showing wrong layout
-  if (isLoading || isSwitchingRole) {
-    return null;
+  if (isLoading) {
+    return <ScreenBootLoader />;
   }
 
-  // Only providers can access provider tabs
+  if (role === 'client') {
+    return <Redirect href="/(tabs)/home" />;
+  }
+
   if (role !== 'provider') {
     return <Redirect href="/ProviderSignInScreen" />;
   }
@@ -112,10 +100,13 @@ export default function ProviderLayout() {
         tabBarShowLabel: true,
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: '#9CA3AF',
+        tabBarItemStyle: { paddingVertical: 0, marginTop: 0 },
+        tabBarIconStyle: { marginBottom: 0 },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontFamily: 'Poppins-Medium',
-          marginTop: 2,
+          marginTop: 0,
+          marginBottom: 0,
         },
       }}
     >

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ViewStyle } from 'react-native';
+import { ViewStyle, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PHONE_LANE_OUTER_TOP, useIsTablet } from '@/lib/tabletLayout';
 
@@ -35,19 +35,14 @@ export default function SafeAreaWrapper({
   const tabletTopPad = isTablet && tabletShellTop ? PHONE_LANE_OUTER_TOP : 0;
 
   return (
-    <SafeAreaView
-      style={[
-        {
-          flex: 1,
-          backgroundColor,
-          paddingTop: tabletTopPad,
-        },
-        style,
-      ]}
-      className={className}
-      edges={resolvedEdges}
-    >
-      {children}
+    <SafeAreaView style={[{ flex: 1, backgroundColor, paddingTop: tabletTopPad }, style]} edges={resolvedEdges}>
+      {className ? (
+        <View className={className} style={{ flex: 1 }}>
+          {children}
+        </View>
+      ) : (
+        children
+      )}
     </SafeAreaView>
   );
 }

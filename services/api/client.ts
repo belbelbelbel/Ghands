@@ -1,8 +1,7 @@
 import { AuthError } from '../../utils/errors';
 import { authService as authServiceInstance } from '../authService';
 import { notifySessionExpired } from '../../utils/sessionExpiredEvents';
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://bamibuildit-backend-v1.onrender.com';
+import { API_BASE_URL } from '../../lib/apiConfig';
 
 interface RequestConfig extends RequestInit {
   retries?: number;
@@ -52,16 +51,6 @@ class ApiClient {
         } as HeadersInit;
       }
       return config;
-    });
-
-    this.addResponseInterceptor(async (response) => {
-      if (response.status === 401) {
-        const refreshed = await this.refreshAuthToken();
-        if (!refreshed) {
-          await authServiceInstance.clearAuthTokens();
-        }
-      }
-      return response;
     });
   }
 
@@ -143,10 +132,33 @@ class ApiClient {
       (errorMessage.includes('typeerror') && errorMessage.includes('fetch'));
   }
 
-  private async retryRequest<T>(url: string, config: RequestConfig & { skipAuth?: boolean }, retries: number, retryDelay: number): Promise<T> {
+  private async retryRequest<T>(
+    url: string,
+    config: RequestConfig,
+    retries: number,
+    retryDelay: number,
+    retriedAfterRefresh = false,
+  ): Promise<T> {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        const response = await fetch(url, config);
+        const fetchConfig = await this.applyRequestInterceptors({ ...config });
+        const { retries: _r, retryDelay: _d, skipAuth, ...rawFetchOptions } = fetchConfig;
+        const response = await fetch(url, rawFetchOptions);
+
+        if (
+          response.status === 401 &&
+          !skipAuth &&
+          !retriedAfterRefresh
+        ) {
+          const refreshed = await this.refreshAuthToken();
+          if (refreshed) {
+            return this.retryRequest<T>(url, config, retries, retryDelay, true);
+          }
+          await authServiceInstance.clearAuthTokens();
+          notifySessionExpired();
+          throw new AuthError('Your session has expired. Please sign in again.');
+        }
+
         if (!response.ok) {
           const statusCode = response.status;
           const isRetryable = DEFAULT_RETRY_OPTIONS.retryableStatusCodes?.includes(statusCode);
@@ -214,7 +226,7 @@ class ApiClient {
           if (
             !isNetworkErr &&
             !config.skipAuth &&
-            (statusCode === 401 || statusCode === 403)
+            ((statusCode === 401 && retriedAfterRefresh) || statusCode === 403)
           ) {
             await authServiceInstance.clearAuthTokens();
             notifySessionExpired();
@@ -248,10 +260,9 @@ class ApiClient {
       retryDelay: DEFAULT_RETRY_OPTIONS.retryDelay,
       ...options,
     };
-    const config = await this.applyRequestInterceptors(defaultConfig);
-    const { retries = 0, retryDelay = 1000, ...fetchOptions } = config;
+    const { retries = 0, retryDelay = 1000 } = defaultConfig;
     const effectiveRetries = retries > 0 ? retries : DEFAULT_RETRY_OPTIONS.maxRetries || 2;
-    return this.retryRequest<T>(url, fetchOptions as RequestInit, effectiveRetries, retryDelay);
+    return this.retryRequest<T>(url, defaultConfig, effectiveRetries, retryDelay);
   }
 
   async get<T>(endpoint: string, config?: RequestConfig): Promise<T> {

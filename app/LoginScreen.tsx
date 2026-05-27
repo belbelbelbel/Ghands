@@ -161,10 +161,10 @@ export default function LoginScreen() {
           ref={passwordInputRef}
           placeholder="Password"
           icon={<Lock size={18} color={'white'}/>}
-          secureTextEntry={true}
+          secureTextEntry
           value={password}
           onChangeText={handlePasswordChange}
-          iconPosition="right"
+          iconPosition="left"
           error={!!passwordError}
           errorMessage={passwordError}
           returnKeyType="done"

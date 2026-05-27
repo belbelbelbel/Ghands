@@ -179,20 +179,20 @@ export default function ProviderSignUpScreen() {
         <InputField
           placeholder="Create password"
           icon={<Lock size={18} color={'white'}/>}
-          secureTextEntry={true}
+          secureTextEntry
           value={companyPassword}
           onChangeText={setCompanyPassword}
-          iconPosition="right"
+          iconPosition="left"
         />
 
         {/* Confirm Password */}
         <InputField
-          placeholder="Create password"
+          placeholder="Confirm password"
           icon={<Lock size={18} color={'white'}/>}
-          secureTextEntry={true}
+          secureTextEntry
           value={confirmPassword}
           onChangeText={setConfirmPassword}
-          iconPosition="right"
+          iconPosition="left"
         />
 
         <View className="mt-4">

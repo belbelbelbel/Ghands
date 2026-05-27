@@ -11,8 +11,10 @@ import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View, Modal, Pressable, StyleSheet } from 'react-native';
 import { JobHistoryCardSkeleton } from '@/components/LoadingSkeleton';
-import { Colors, useTabScrollContentPaddingTop, useTabScreenScrollBottomPadding } from '@/lib/designSystem';
-import { SURFACE_STYLES } from '@/lib/surfaceStyles';
+import { JobsTabEmptyState } from '@/components/JobsTabEmptyState';
+import { useSkeletonGate } from '@/hooks/useSkeletonGate';
+import { BorderRadius, Colors, useTabScrollContentPaddingTop, useTabScreenScrollBottomPadding } from '@/lib/designSystem';
+import { providerListCard } from '@/lib/providerSurfaceStyles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { extractMyRatingFromRequest, reviewRatingStorageKey } from '@/utils/reviewSync';
 
@@ -103,7 +105,7 @@ export default function JobsScreen() {
   );
   const [pendingCancelJob, setPendingCancelJob] = useState<JobItem | null>(null);
   const [allJobs, setAllJobs] = useState<JobItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const { showError, showSuccess } = useToast();
@@ -236,6 +238,9 @@ export default function JobsScreen() {
     return filtered;
   }, [activeTab, allJobs]);
 
+  const { showSkeleton: showJobsSkeleton, isLoadingEmpty: isJobsLoadingEmpty } =
+    useSkeletonGate(isLoading, jobs.length === 0);
+
   const handlePrimaryAction = (status: JobStatus, job?: JobItem) => {
     haptics.selection();
     if (status === 'Ongoing' && job) {
@@ -298,77 +303,37 @@ export default function JobsScreen() {
           })}
         </View>
 
-        {isLoading && allJobs.length === 0 ? (
+        {showJobsSkeleton || isJobsLoadingEmpty ? (
           <ScrollView 
             showsVerticalScrollIndicator={false} 
             contentContainerStyle={{ paddingBottom: scrollBottomPad }}
           >
             {[1, 2, 3].map((index) => (
-              <JobHistoryCardSkeleton key={index} />
+              <JobHistoryCardSkeleton key={`${activeTab}-skel-${index}`} />
             ))}
           </ScrollView>
         ) : (
           <ScrollView 
+            style={{ flex: 1 }}
             showsVerticalScrollIndicator={false} 
-            contentContainerStyle={{ paddingBottom: scrollBottomPad }}
+            contentContainerStyle={
+              jobs.length === 0
+                ? { flexGrow: 1, justifyContent: 'center', paddingBottom: scrollBottomPad }
+                : { paddingBottom: scrollBottomPad }
+            }
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F6739" />
             }
           >
             {jobs.length === 0 ? (
-              <View
-                style={{
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingVertical: 40,
-                  paddingHorizontal: 16,
-                  marginTop: 12,
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 22,
-                  ...SURFACE_STYLES.homeCard,
-                  borderColor: 'rgba(17, 24, 39, 0.18)',
-                }}
-              >
-                <View
-                  style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: 36,
-                    backgroundColor: activeTab === 'Completed' ? '#ECFDF3' : activeTab === 'Cancelled' ? '#FEF2F2' : '#F2F8EA',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: 16,
-                  }}
-                >
-                  <Ionicons
-                    name={activeTab === 'Ongoing' ? 'briefcase-outline' : activeTab === 'Completed' ? 'checkmark-circle-outline' : 'close-circle-outline'}
-                    size={34}
-                    color={activeTab === 'Completed' ? '#047857' : activeTab === 'Cancelled' ? '#DC2626' : '#4F6739'}
-                  />
-                </View>
-                <Text className="text-gray-900 text-center" style={{ fontFamily: 'Poppins-Bold', fontSize: 17 }}>
-                  No {activeTab.toLowerCase()} jobs yet
-                </Text>
-                <Text className="text-gray-500 mt-2 text-center text-sm" style={{ fontFamily: 'Poppins-Regular', lineHeight: 20 }}>
-                  {activeTab === 'Ongoing' 
-                    ? 'Your active bookings and pending provider updates will appear here.'
-                    : activeTab === 'Completed'
-                    ? 'Completed jobs and receipts will appear here once work is finished.'
-                    : 'Cancelled requests will stay here for your records.'}
-                </Text>
-              </View>
+              <JobsTabEmptyState audience="client" activeTab={activeTab} />
             ) : (
               jobs.map((job) => (
             <View
               key={`${activeTab}-${job.id}`}
               style={{
-                backgroundColor: Colors.white,
-                borderRadius: 18,
-                paddingHorizontal: 16,
-                paddingVertical: 20,
-                marginBottom: 18,
-                ...SURFACE_STYLES.homeCard,
-                borderColor: 'rgba(17, 24, 39, 0.18)',
+                ...providerListCard,
+                marginBottom: 12,
               }}
             >
               <View className="flex-row justify-between mb-3">
@@ -542,18 +507,12 @@ export default function JobsScreen() {
           <View
             style={{
               backgroundColor: Colors.white,
-              borderRadius: 20,
+              borderRadius: BorderRadius.default,
               padding: 24,
               width: '100%',
               maxWidth: 400,
-              shadowColor: '#000',
-              shadowOffset: {
-                width: 0,
-                height: 4,
-              },
-              shadowOpacity: 0.25,
-              shadowRadius: 12,
-              elevation: 0.76,
+              borderWidth: 1,
+              borderColor: Colors.border,
             }}
           >
             <Text

@@ -1,10 +1,22 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, Fonts, Spacing, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { BorderRadius, Colors, Fonts, useTabScrollContentPaddingTop } from '@/lib/designSystem';
+import { PROVIDER_TAB_GUTTER } from '@/lib/tabletLayout';
+import {
+  providerDeclineButton,
+  providerHomeActionButton,
+  providerHomeActionLabel,
+  providerListCard,
+  providerUnderlineTabItem,
+  providerUnderlineTabLabel,
+  providerUnderlineTabRow,
+} from '@/lib/providerSurfaceStyles';
 import { useRouter } from 'expo-router';
-import { ArrowRight, BriefcaseBusiness, Calendar, CheckCircle2, Clock, MapPin } from 'lucide-react-native';
-import React, { useState, useEffect, useCallback } from 'react';
+import { ArrowRight, Calendar, MapPin } from 'lucide-react-native';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View, RefreshControl } from 'react-native';
 import { JobHistoryCardSkeleton } from '@/components/LoadingSkeleton';
+import { JobsTabEmptyState } from '@/components/JobsTabEmptyState';
+import { useSkeletonGate } from '@/hooks/useSkeletonGate';
 import { providerService, ServiceRequest } from '@/services/api';
 import { useToast } from '@/hooks/useToast';
 import Toast from '@/components/Toast';
@@ -163,11 +175,11 @@ const REJECTED_IDS_KEY = '@ghands:provider_rejected_request_ids';
 
 export default function ProviderJobsScreen() {
   const router = useRouter();
-  const tabScrollTop = useTabScrollContentPaddingTop(Spacing.lg);
+  const tabScrollTop = useTabScrollContentPaddingTop(16);
   const { toast, showError, hideToast, showSuccess } = useToast();
   const [activeTab, setActiveTab] = useState<JobStatus>('Ongoing');
   const [allJobs, setAllJobs] = useState<JobItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const addRejectedRequestId = useCallback(async (requestId: number) => {
@@ -259,10 +271,15 @@ export default function ProviderJobsScreen() {
     }
   }, [showError, getRejectedRequestIds]);
 
-  // Load data on mount and when screen comes into focus
+  const jobsReadyRef = useRef(false);
+
   useFocusEffect(
     useCallback(() => {
-      loadAcceptedRequests();
+      if (!jobsReadyRef.current) {
+        loadAcceptedRequests().finally(() => {
+          jobsReadyRef.current = true;
+        });
+      }
     }, [loadAcceptedRequests])
   );
 
@@ -275,35 +292,30 @@ export default function ProviderJobsScreen() {
     haptics.success();
   }, [loadAcceptedRequests]);
 
-  const getJobsForTab = () => {
-    // Ensure allJobs is always an array
+  const tabJobs = useMemo(() => {
     const jobsArray = Array.isArray(allJobs) ? allJobs : [];
-    
-    // Filter by active tab AND explicitly exclude completed jobs from Ongoing tab
     return jobsArray.filter((job) => {
-      // If activeTab is 'Ongoing', explicitly exclude 'Completed' jobs
       if (activeTab === 'Ongoing') {
         return job.status === 'Ongoing';
       }
       return job.status === activeTab;
     });
-  };
+  }, [activeTab, allJobs]);
+
+  const { showSkeleton: showJobsSkeleton, isLoadingEmpty: isJobsLoadingEmpty } =
+    useSkeletonGate(isLoading, tabJobs.length === 0);
 
   const renderJobCard = (job: JobItem) => (
     <View
       key={job.id}
       style={{
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.xl,
-        padding: 16,
+        ...providerListCard,
         marginBottom: 12,
-        borderWidth: 1,
-        borderColor: Colors.border,
         position: 'relative',
       }}
     >
       {(job.matchedTime || job.completedTime) && (
-        <Text style={{ ...Fonts.bodyTiny, color: Colors.textTertiary, marginBottom: Spacing.xs + 2 }}>
+        <Text style={{ ...Fonts.bodyTiny, color: Colors.textTertiary, marginBottom: 4 }}>
           {job.completedTime ? `completed ${job.completedTime}` : `matched ${job.matchedTime}`}
         </Text>
       )}
@@ -315,7 +327,7 @@ export default function ProviderJobsScreen() {
             alignSelf: 'flex-start',
             paddingHorizontal: 8,
             paddingVertical: 4,
-            borderRadius: BorderRadius.xl,
+            borderRadius: BorderRadius.default,
             marginBottom: 8,
           }}
         >
@@ -323,8 +335,8 @@ export default function ProviderJobsScreen() {
         </View>
       )}
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm, paddingRight: 50 }}>
-        <Image source={require('../../assets/images/userimg.jpg')} style={{ width: 36, height: 36, borderRadius: 18, marginRight: Spacing.sm + 2 }} resizeMode='cover' />
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingRight: 50 }}>
+        <Image source={require('../../assets/images/userimg.jpg')} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} resizeMode='cover' />
         <View style={{ flex: 1 }}>
           <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
             {job.clientName}
@@ -335,16 +347,16 @@ export default function ProviderJobsScreen() {
         </View>
       </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.xs }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
         <Calendar size={12} color={Colors.textSecondaryDark} />
-        <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium', marginLeft: Spacing.xs + 2 }}>
+        <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium', marginLeft: 6 }}>
           {job.date} - {job.time}
         </Text>
       </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm + 2 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
         <MapPin size={12} color={Colors.textSecondaryDark} />
-        <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium', marginLeft: Spacing.xs + 2 }}>
+        <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium', marginLeft: 6 }}>
           {job.location}
         </Text>
       </View>
@@ -353,15 +365,7 @@ export default function ProviderJobsScreen() {
         // Ongoing jobs: single primary button to check updates
         <TouchableOpacity
           style={{
-            backgroundColor: Colors.white,
-            paddingVertical: 12,
-            paddingHorizontal: 16,
-            borderRadius: BorderRadius.default,
-            borderWidth: 1,
-            borderColor: '#DDE5D2',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
+            ...providerHomeActionButton,
             width: '100%',
           }}
           onPress={() => {
@@ -382,7 +386,7 @@ export default function ProviderJobsScreen() {
             } as any);
           }}
         >
-          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginRight: Spacing.xs }}>
+          <Text style={{ ...providerHomeActionLabel, marginRight: 4 }}>
             Check Updates
           </Text>
           <ArrowRight size={14} color={Colors.textPrimary} />
@@ -392,16 +396,8 @@ export default function ProviderJobsScreen() {
         <View style={{ flexDirection: 'column', gap: 8, width: '100%' }}>
           <TouchableOpacity
             style={{
+              ...providerHomeActionButton,
               width: '100%',
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              borderRadius: BorderRadius.default,
-              borderWidth: 1,
-              borderColor: Colors.border,
-              backgroundColor: Colors.white,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
             }}
             onPress={() => {
               haptics.light();
@@ -418,21 +414,14 @@ export default function ProviderJobsScreen() {
               } as any);
             }}
           >
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
+            <Text style={providerHomeActionLabel}>
               View Details
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={{
+              ...providerDeclineButton,
               width: '100%',
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              borderRadius: BorderRadius.default,
-              borderWidth: 1,
-              borderColor: Colors.errorBorder,
-              backgroundColor: Colors.errorLight,
-              alignItems: 'center',
-              justifyContent: 'center',
             }}
             onPress={async () => {
               haptics.warning();
@@ -468,16 +457,8 @@ export default function ProviderJobsScreen() {
         // Completed or any other status: simple "Check Updates" / details button
         <TouchableOpacity
           style={{
+            ...providerHomeActionButton,
             width: '100%',
-            paddingVertical: 12,
-            paddingHorizontal: 16,
-            borderRadius: BorderRadius.default,
-            backgroundColor: Colors.white,
-            borderWidth: 1,
-            borderColor: '#DDE5D2',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
           }}
           onPress={() => {
             haptics.light();
@@ -496,14 +477,14 @@ export default function ProviderJobsScreen() {
             } as any);
           }}
         >
-          <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginRight: Spacing.xs }}>
+          <Text style={{ ...providerHomeActionLabel, marginRight: 4 }}>
             Check Updates
           </Text>
           <ArrowRight size={14} color={Colors.textPrimary} />
         </TouchableOpacity>
       )}
 
-      <View style={{ position: 'absolute', right: Spacing.md, top: 60 }}>
+      <View style={{ position: 'absolute', right: 12, top: 60 }}>
         <View style={{ flexDirection: 'row', gap: -6 }}>
           {job.images.slice(0, 3).map((imgSource, index) => (
             <Image
@@ -530,53 +511,48 @@ export default function ProviderJobsScreen() {
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight} tabletShellTop>
       <View style={{ flex: 1 }}>
         
-        <View style={{ paddingHorizontal: Spacing.lg, paddingTop: tabScrollTop, paddingBottom: Spacing.md }}>
+        <View style={{ paddingHorizontal: PROVIDER_TAB_GUTTER, paddingTop: tabScrollTop, paddingBottom: 12 }}>
           <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, textAlign: 'center' }}>
             Job History
           </Text>
         </View>
 
-        
         <View
           style={{
-            flexDirection: 'row',
-            paddingHorizontal: Spacing.lg,
-            borderBottomWidth: 1,
-            borderBottomColor: Colors.border,
-            marginBottom: Spacing.lg,
+            ...providerUnderlineTabRow,
+            paddingHorizontal: PROVIDER_TAB_GUTTER,
+            marginBottom: 16,
           }}
         >
           {(['Ongoing', 'Pending', 'Completed'] as JobStatus[]).map((tab) => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
-              style={{
-                flex: 1,
-                paddingBottom: Spacing.md,
-                alignItems: 'center',
-                borderBottomWidth: activeTab === tab ? 2 : 0,
-                borderBottomColor: activeTab === tab ? Colors.accent : 'transparent',
-              }}
+              style={providerUnderlineTabItem(activeTab === tab)}
             >
-              <Text
-                style={{
-                  ...Fonts.bodyMedium,
-                  color: activeTab === tab ? Colors.textPrimary : Colors.textTertiary,
-                }}
-              >
+              <Text style={providerUnderlineTabLabel(activeTab === tab)}>
                 {tab}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        
         <ScrollView
+          style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: Spacing.lg,
-            paddingBottom: 100,
-          }}
+          contentContainerStyle={
+            tabJobs.length === 0
+              ? {
+                  flexGrow: 1,
+                  justifyContent: 'center',
+                  paddingHorizontal: PROVIDER_TAB_GUTTER,
+                  paddingBottom: 100,
+                }
+              : {
+                  paddingHorizontal: PROVIDER_TAB_GUTTER,
+                  paddingBottom: 100,
+                }
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -586,63 +562,16 @@ export default function ProviderJobsScreen() {
             />
           }
         >
-          {isLoading ? (
+          {showJobsSkeleton || isJobsLoadingEmpty ? (
             <>
               {[1, 2, 3].map((index) => (
-                <JobHistoryCardSkeleton key={index} />
+                <JobHistoryCardSkeleton key={`${activeTab}-skel-${index}`} />
               ))}
             </>
-          ) : getJobsForTab().length > 0 ? (
-            getJobsForTab().map((job) => renderJobCard(job))
+          ) : tabJobs.length > 0 ? (
+            tabJobs.map((job) => renderJobCard(job))
           ) : (
-            <View
-              style={{
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingVertical: 44,
-                paddingHorizontal: 22,
-                marginTop: 18,
-                backgroundColor: Colors.white,
-                borderRadius: 24,
-                borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.045)',
-                shadowColor: '#101828',
-                shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.04,
-                shadowRadius: 14,
-                elevation: 0.76,
-              }}
-            >
-              <View
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 36,
-                  backgroundColor: activeTab === 'Completed' ? '#ECFDF3' : activeTab === 'Pending' ? '#FFF7DF' : '#F2F8EA',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 16,
-                }}
-              >
-                {activeTab === 'Completed' ? (
-                  <CheckCircle2 size={34} color="#047857" />
-                ) : activeTab === 'Pending' ? (
-                  <Clock size={34} color="#92400E" />
-                ) : (
-                  <BriefcaseBusiness size={34} color={Colors.accent} />
-                )}
-              </View>
-              <Text style={{ ...Fonts.h3, color: Colors.textPrimary, textAlign: 'center', marginBottom: 8 }}>
-                No {activeTab.toLowerCase()} jobs yet
-              </Text>
-              <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, textAlign: 'center', lineHeight: 20 }}>
-                {activeTab === 'Ongoing'
-                  ? 'Accepted jobs and active work orders will appear here.'
-                  : activeTab === 'Pending'
-                    ? 'New requests waiting for your action will show here.'
-                    : 'Completed jobs and customer confirmations will appear here.'}
-              </Text>
-            </View>
+            <JobsTabEmptyState audience="provider" activeTab={activeTab} />
           )}
         </ScrollView>
       </View>

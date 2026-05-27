@@ -1,5 +1,10 @@
 import JobAcceptedModal from '@/components/JobAcceptedModal';
-import Skeleton, { JobCardSkeleton } from '@/components/LoadingSkeleton';
+import {
+  ProviderJobListSkeleton,
+  SageAmountSkeleton,
+} from '@/components/LoadingSkeleton';
+import { useProviderMonthlyEarnings } from '@/hooks/useProviderMonthlyEarnings';
+import { useSkeletonGate } from '@/hooks/useSkeletonGate';
 import LocationSearchModal from '@/components/LocationSearchModal';
 import NoInternetScreen from '@/components/NoInternetScreen';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
@@ -8,10 +13,10 @@ import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { BorderRadius, Colors, useIsTablet, useTabScrollContentPaddingTop } from '@/lib/designSystem';
-import { surfaceElevation } from '@/lib/surfaceStyles';
-import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
-import { AvailableRequest, ServiceRequest, authService, providerService, serviceRequestService, walletService } from '@/services/api';
+import { SageHeroPanel } from '@/components/provider/SageHeroPanel';
+import { BorderRadius, Colors, useTabScrollContentPaddingTop, useSageHeroPanelMetrics } from '@/lib/designSystem';
+import { PROVIDER_TAB_GUTTER } from '@/lib/tabletLayout';
+import { AvailableRequest, ServiceRequest, authService, providerService, serviceRequestService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { AuthError } from '@/utils/errors';
@@ -22,12 +27,10 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { shareReferral } from '@/utils/referral';
 import { ArrowRight, Bell, Calendar, ChevronDown, FileText, MapPin, Plus, Send, Shield, TrendingDown, TrendingUp, Users, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, Modal, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Modal, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { formatTimeAgo as formatTimeAgoUtil } from '@/utils/dateFormatting';
 
-/** Sage dashboard / profile panels (matches client profile). */
-const PROFILE_SAGE_BG = '#4F6739';
-const PROFILE_SAGE_BORDER = 'rgba(45, 65, 24, 0.75)';
+import { providerHomeActionButton, providerHomeActionLabel, providerHomeSectionTitle, providerHomeSurface, providerHomeSurfacePadding } from '@/lib/providerSurfaceStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const scale = SCREEN_WIDTH < 375 ? 0.85 : SCREEN_WIDTH < 414 ? 0.92 : 1.0;
@@ -40,53 +43,6 @@ const formatNaira = (amount: number | null | undefined): string => {
     maximumFractionDigits: 2,
   })}`;
 };
-
-function txDate(tx: { createdAt?: string; updatedAt?: string; timestamp?: string }): Date | null {
-  const ts = tx.createdAt || tx.updatedAt || tx.timestamp;
-  if (!ts) return null;
-  const d = new Date(ts);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-function isCompletedCredit(tx: any): boolean {
-  if (!tx || tx.status !== 'completed') return false;
-  const rawAmount = Number(tx.amount ?? 0);
-  return isFinite(rawAmount) && rawAmount > 0;
-}
-
-function sumCompletedCreditsInRange(transactions: any[], rangeStart: Date, rangeEndExclusive: Date): number {
-  return transactions
-    .filter((tx) => {
-      if (!isCompletedCredit(tx)) return false;
-      const d = txDate(tx);
-      if (!d) return false;
-      return d >= rangeStart && d < rangeEndExclusive;
-    })
-    .reduce((sum, tx) => sum + Number(tx.amount ?? 0), 0);
-}
-
-/** Month-over-month label + trend for the earnings card (from real wallet credits). */
-function earningsVsLastMonthFromTotals(
-  thisMonth: number,
-  lastMonth: number
-): { label: string; trend: 'up' | 'down' | 'flat' } {
-  if (lastMonth <= 0 && thisMonth <= 0) {
-    return { label: '0% vs last month', trend: 'flat' };
-  }
-  if (lastMonth <= 0 && thisMonth > 0) {
-    return { label: 'New earnings vs ₦0.00 last month', trend: 'up' };
-  }
-  const pct = ((thisMonth - lastMonth) / lastMonth) * 100;
-  const rounded = Math.round(pct * 10) / 10;
-  if (rounded === 0) {
-    return { label: '0% vs last month', trend: 'flat' };
-  }
-  const sign = rounded > 0 ? '+' : '';
-  return {
-    label: `${sign}${rounded}% vs last month`,
-    trend: rounded > 0 ? 'up' : 'down',
-  };
-}
 
 interface JobCard {
   id: string;
@@ -157,38 +113,29 @@ const mapRequestToJobCard = (request: AvailableRequest | ServiceRequest, isActiv
 
 export default function ProviderHomeScreen() {
   const router = useRouter();
-  const { isChecking } = useTokenGuard();
+  useTokenGuard();
   const { location, refreshLocation } = useUserLocation();
   const { toast, showError, showSuccess, hideToast } = useToast();
   const tabScrollTop = useTabScrollContentPaddingTop(17);
-  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
-  const isTabletLayout = useIsTablet();
-  /** Earnings card vertical padding — slightly generous for clearer hierarchy */
-  const earningsPaddingV = isTabletLayout
-    ? Math.max(24, Math.round(windowHeight * 0.026))
-    : 24;
-  const earningsPaddingH = isTabletLayout
-    ? Math.max(18, Math.round(windowWidth * 0.04))
-    : 18;
-  const earningsAmountFontSize = isTabletLayout
-    ? Math.min(40, Math.max(32, Math.round(windowHeight * 0.038)))
-    : 34;
+  const { amountFontSize: earningsAmountFontSize } = useSageHeroPanelMetrics();
   const [isOnline, setIsOnline] = useState(true);
   const [hasActiveJobs, setHasActiveJobs] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [pendingJobs, setPendingJobs] = useState<JobCard[]>([]);
   const [activeJobs, setActiveJobs] = useState<JobCard[]>([]);
-  const [isLoadingPending, setIsLoadingPending] = useState(false);
-  const [isLoadingActive, setIsLoadingActive] = useState(false);
+  const [isLoadingPending, setIsLoadingPending] = useState(true);
+  const [isLoadingActive, setIsLoadingActive] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const {
+    thisMonth: monthlyEarnings,
+    trendLabel: earningsVsLastMonthLabel,
+    trend: earningsVsLastMonthTrend,
+    isLoading: isLoadingEarnings,
+    refresh: refreshMonthlyEarnings,
+  } = useProviderMonthlyEarnings({ refreshOnFocus: true });
+  const [showNoInternet, setShowNoInternet] = useState(false);
   const [providerName, setProviderName] = useState<string>('Guest');
   const [isScreenFocused, setIsScreenFocused] = useState(true);
-  const [monthlyEarnings, setMonthlyEarnings] = useState<number | null>(null);
-  const [earningsVsLastMonth, setEarningsVsLastMonth] = useState<{
-    label: string;
-    trend: 'up' | 'down' | 'flat';
-  }>({ label: '…', trend: 'flat' });
-  const [showNoInternet, setShowNoInternet] = useState(false);
   const activeJobsRef = useRef<JobCard[]>([]);
   const [proceedJob, setProceedJob] = useState<JobCard | null>(null);
   const [isProceedingJob, setIsProceedingJob] = useState(false);
@@ -204,6 +151,7 @@ export default function ProviderHomeScreen() {
   });
   const [providerLocation, setProviderLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const rejectedRequestIdsRef = useRef<Set<string>>(new Set());
+  const initialJobsLoadDoneRef = useRef(false);
 
   const addRejectedRequestId = useCallback(async (requestId: number) => {
     const id = String(requestId);
@@ -235,7 +183,6 @@ export default function ProviderHomeScreen() {
   // Load provider/company name
   const loadProviderName = useCallback(async () => {
     try {
-      // First, try to get company name from AsyncStorage (saved during signup)
       const companyName = await AsyncStorage.getItem('@ghands:company_name');
       if (companyName) {
         setProviderName(companyName);
@@ -293,49 +240,11 @@ export default function ProviderHomeScreen() {
     }
   }, []);
 
-  // Load provider earnings for this month + automated % vs previous month (same rules as monthly total)
-  const loadMonthlyEarnings = useCallback(async () => {
-    try {
-      const now = new Date();
-      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-
-      const result = await walletService.getTransactions({ limit: 200, offset: 0 });
-      const transactions = Array.isArray(result?.transactions) ? result.transactions : [];
-
-      const thisMonthTotal = sumCompletedCreditsInRange(transactions, thisMonthStart, nextMonthStart);
-      const lastMonthTotal = sumCompletedCreditsInRange(transactions, lastMonthStart, thisMonthStart);
-
-      setMonthlyEarnings(thisMonthTotal);
-      setEarningsVsLastMonth(earningsVsLastMonthFromTotals(thisMonthTotal, lastMonthTotal));
-    } catch (error) {
-      if (error instanceof AuthError) {
-        await handleAuthErrorRedirect(router);
-        return;
-      }
-      if (isConnectivityError(error)) {
-        setShowNoInternet(true);
-      } else if (__DEV__) {
-        console.warn('Error loading monthly earnings:', error);
-      }
-      setMonthlyEarnings(0);
-      setEarningsVsLastMonth({ label: '— vs last month', trend: 'flat' });
-    }
-  }, [router]);
-
   // Load provider name on mount and when screen comes into focus
   useEffect(() => {
     loadProviderName();
     loadProviderLocation();
-    loadMonthlyEarnings();
-  }, [loadProviderName, loadProviderLocation, loadMonthlyEarnings]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadProviderName();
-    }, [loadProviderName])
-  );
+  }, [loadProviderName, loadProviderLocation]);
 
   // Load available requests (pending jobs)
   const loadAvailableRequests = useCallback(async () => {
@@ -493,18 +402,19 @@ export default function ProviderHomeScreen() {
   useFocusEffect(
     useCallback(() => {
       setIsScreenFocused(true);
-      // Load accepted requests FIRST to update the ref
-      // Then load available requests which will filter out accepted ones
-      (async () => {
-        try {
-          await loadAcceptedRequests();
-          await loadAvailableRequests();
-        } catch {
-          // Silent error - already handled in individual functions
-        }
-      })();
-      
-      // Cleanup when screen loses focus
+
+      if (!initialJobsLoadDoneRef.current) {
+        (async () => {
+          try {
+            await loadAcceptedRequests();
+            await loadAvailableRequests();
+            initialJobsLoadDoneRef.current = true;
+          } catch {
+            // Silent error - already handled in individual functions
+          }
+        })();
+      }
+
       return () => {
         setIsScreenFocused(false);
       };
@@ -523,28 +433,42 @@ export default function ProviderHomeScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     haptics.light();
-    await loadMonthlyEarnings();
+    try {
+      await refreshMonthlyEarnings({ silent: true });
+    } catch (error) {
+      if (error instanceof AuthError) {
+        await handleAuthErrorRedirect(router);
+        return;
+      }
+      if (isConnectivityError(error)) {
+        setShowNoInternet(true);
+      }
+    }
     await loadAcceptedRequests();
     await loadAvailableRequests();
     setRefreshing(false);
     haptics.success();
-  }, [loadAvailableRequests, loadAcceptedRequests, loadMonthlyEarnings]);
+  }, [loadAvailableRequests, loadAcceptedRequests, refreshMonthlyEarnings, router]);
 
   const retryConnection = useCallback(async () => {
     setShowNoInternet(false);
     setRefreshing(true);
     haptics.light();
     try {
-      await loadMonthlyEarnings();
+      await refreshMonthlyEarnings({ silent: true });
       await loadAcceptedRequests();
       await loadAvailableRequests();
       await loadProviderName();
       await loadProviderLocation();
+    } catch (error) {
+      if (isConnectivityError(error)) {
+        setShowNoInternet(true);
+      }
     } finally {
       setRefreshing(false);
     }
   }, [
-    loadMonthlyEarnings,
+    refreshMonthlyEarnings,
     loadAcceptedRequests,
     loadAvailableRequests,
     loadProviderName,
@@ -628,12 +552,9 @@ export default function ProviderHomeScreen() {
     <View
       key={job.id}
       style={{
-        backgroundColor: Colors.white,
-        borderRadius: BorderRadius.xl,
-        padding: 12,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: Colors.border,
+        ...providerHomeSurface,
+        padding: providerHomeSurfacePadding,
+        marginBottom: 12,
       }}
     >
       {job.matchedTime && (
@@ -726,16 +647,8 @@ export default function ProviderHomeScreen() {
       {isActive ? (
         <TouchableOpacity
           style={{
-            backgroundColor: Colors.white,
-            paddingVertical: 12,
-            paddingHorizontal: 16,
-            borderRadius: BorderRadius.default,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
+            ...providerHomeActionButton,
             width: '100%',
-            borderWidth: 1,
-            borderColor: Colors.border,
           }}
           onPress={() => {
             haptics.light();
@@ -754,7 +667,7 @@ export default function ProviderHomeScreen() {
             } as any);
           }}
         >
-          <Text style={{ color: Colors.textPrimary, fontFamily: 'Poppins-SemiBold', fontSize: 12, marginRight: 4 }}>
+          <Text style={{ ...providerHomeActionLabel, marginRight: 4 }}>
             Check Updates
           </Text>
           <ArrowRight size={14} color={Colors.textPrimary} />
@@ -764,34 +677,25 @@ export default function ProviderHomeScreen() {
           <TouchableOpacity
             style={{
               width: '100%',
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              borderRadius: BorderRadius.default,
+              ...providerHomeActionButton,
               backgroundColor: Colors.accent,
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'row',
+              borderColor: Colors.accent,
             }}
             onPress={() => {
               openProceedChoice(job);
             }}
           >
             <Send size={14} color={Colors.white} style={{ marginRight: 6 }} />
-            <Text style={{ color: Colors.white, fontFamily: 'Poppins-SemiBold', fontSize: 12 }}>
+            <Text style={{ ...providerHomeActionLabel, color: Colors.white }}>
               Proceed
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={{
               width: '100%',
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              borderRadius: BorderRadius.default,
-              borderWidth: 1,
+              ...providerHomeActionButton,
               borderColor: Colors.errorBorder,
               backgroundColor: Colors.errorLight,
-              alignItems: 'center',
-              justifyContent: 'center',
             }}
               onPress={async () => {
               if (!job.requestId) {
@@ -820,7 +724,7 @@ export default function ProviderHomeScreen() {
               }
             }}
           >
-            <Text style={{ color: Colors.error, fontFamily: 'Poppins-SemiBold', fontSize: 12 }}>
+            <Text style={{ ...providerHomeActionLabel, color: Colors.error }}>
               Decline
             </Text>
           </TouchableOpacity>
@@ -829,10 +733,12 @@ export default function ProviderHomeScreen() {
     </View>
   ), [router, loadAvailableRequests, showError, haptics, addRejectedRequestId, openProceedChoice]);
 
-  // If checking token, show nothing (will redirect if no token)
-  if (isChecking) {
-    return null;
-  }
+  const { showSkeleton: showEarningsSkeleton, isLoadingEmpty: isEarningsLoadingEmpty } =
+    useSkeletonGate(isLoadingEarnings, monthlyEarnings === null);
+  const { showSkeleton: showPendingSkeleton, isLoadingEmpty: isPendingLoadingEmpty } =
+    useSkeletonGate(isLoadingPending, pendingJobs.length === 0);
+  const { showSkeleton: showActiveSkeleton, isLoadingEmpty: isActiveLoadingEmpty } =
+    useSkeletonGate(isLoadingActive, activeJobs.length === 0);
 
   if (showNoInternet) {
     return (
@@ -858,7 +764,7 @@ export default function ProviderHomeScreen() {
           />
         }
       >
-        <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, paddingTop: tabScrollTop, paddingBottom: 12 }}>
+        <View style={{ paddingHorizontal: PROVIDER_TAB_GUTTER, paddingTop: tabScrollTop, paddingBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <TouchableOpacity
               style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
@@ -870,7 +776,7 @@ export default function ProviderHomeScreen() {
                   width: 32,
                   height: 32,
                   borderRadius: 16,
-                  backgroundColor: PROFILE_SAGE_BG,
+                  backgroundColor: Colors.accent,
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: 8,
@@ -928,57 +834,15 @@ export default function ProviderHomeScreen() {
           </View>
         </View>
 
-        {/* Earnings card — premium dashboard summary; amount is always real month-to-date */}
-        <View style={{ marginBottom: hasActiveJobs ? 32 : 24 }}>
-          <View
-            style={{
-              marginHorizontal: CLIENT_HOME_SCROLL_GUTTER,
-              borderRadius: 26,
-              overflow: 'hidden',
-              backgroundColor: PROFILE_SAGE_BG,
-              borderWidth: 1,
-              borderColor: PROFILE_SAGE_BORDER,
-              paddingVertical: earningsPaddingV,
-              paddingHorizontal: earningsPaddingH,
-              position: 'relative',
-              elevation: surfaceElevation(2),
-              shadowColor: '#1a2414',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 10,
-            }}
-          >
-              <View
-                pointerEvents="none"
-                style={{
-                  position: 'absolute',
-                  top: -38,
-                  right: -32,
-                  width: 128,
-                  height: 128,
-                  borderRadius: 64,
-                  backgroundColor: '#FFFFFF',
-                  opacity: 0.1,
-                }}
-              />
-              <View
-                pointerEvents="none"
-                style={{
-                  position: 'absolute',
-                  bottom: -54,
-                  left: -42,
-                  width: 132,
-                  height: 132,
-                  borderRadius: 66,
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                }}
-              />
+        {/* Earnings card */}
+        <View style={{ marginBottom: hasActiveJobs ? 26 : 20 }}>
+          <SageHeroPanel style={{ marginHorizontal: PROVIDER_TAB_GUTTER }}>
               <View
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  marginBottom: 14,
+                  marginBottom: 10,
                 }}
               >
                 <Text
@@ -1013,17 +877,21 @@ export default function ProviderHomeScreen() {
                   <ArrowRight size={12} color={Colors.white} strokeWidth={2.4} />
                 </TouchableOpacity>
               </View>
+              {(showEarningsSkeleton || isEarningsLoadingEmpty) ? (
+                <SageAmountSkeleton />
+              ) : (
+                <>
               <Text
                 style={{
                   fontSize: earningsAmountFontSize,
                   fontFamily: 'Poppins-Bold',
                   color: Colors.white,
-                  marginBottom: 14,
-                  lineHeight: earningsAmountFontSize * 1.1,
+                  marginBottom: 10,
+                  lineHeight: earningsAmountFontSize * 1.12,
                   letterSpacing: -0.8,
                 }}
               >
-                {formatNaira(monthlyEarnings)}
+                {formatNaira(monthlyEarnings ?? 0)}
               </Text>
               <View
                 style={{
@@ -1039,7 +907,7 @@ export default function ProviderHomeScreen() {
                   borderRadius: 999,
                 }}
               >
-                {earningsVsLastMonth.trend === 'down' ? (
+                {earningsVsLastMonthTrend === 'down' ? (
                   <TrendingDown size={14} color={'#FCA5A5'} style={{ marginRight: 5 }} />
                 ) : (
                   <TrendingUp size={14} color={Colors.accent} style={{ marginRight: 5 }} />
@@ -1051,19 +919,21 @@ export default function ProviderHomeScreen() {
                     color: '#F9FAFB',
                   }}
                 >
-                  {earningsVsLastMonth.label}
+                  {earningsVsLastMonthLabel}
                 </Text>
               </View>
-          </View>
+                </>
+              )}
+          </SageHeroPanel>
         </View>
 
-        <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER }}>
+        <View style={{ paddingHorizontal: PROVIDER_TAB_GUTTER }}>
 
           {!hasActiveJobs && (
             <TouchableOpacity
               style={{
                 backgroundColor: Colors.backgroundGray,
-                borderRadius: BorderRadius.xl,
+                borderRadius: BorderRadius.default,
                 padding: 12,
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -1097,26 +967,12 @@ export default function ProviderHomeScreen() {
             </TouchableOpacity>
           )}
 
-          <Text style={{ fontSize: 15, fontFamily: 'Poppins-Medium', color: Colors.textPrimary, marginBottom: 12 }}>
-            Quick Actions
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
+          <Text style={providerHomeSectionTitle}>Quick Actions</Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
             <TouchableOpacity
               style={{
                 flex: 1,
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.md,
-                padding: 16,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: Colors.border,
-                shadowColor: Colors.black,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.1,
-                shadowRadius: 2,
-                elevation: 0.76,
+                ...providerHomeActionButton,
               }}
               onPress={() => {
                 haptics.light();
@@ -1124,27 +980,13 @@ export default function ProviderHomeScreen() {
               }}
               activeOpacity={0.7}
             >
-              <Plus size={20} color={Colors.black} />
-              <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.black, marginLeft: 6 }}>
-                Add Service
-              </Text>
+              <Plus size={18} color={Colors.textPrimary} />
+              <Text style={{ ...providerHomeActionLabel, marginLeft: 6 }}>Add Service</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={{
                 flex: 1,
-                backgroundColor: Colors.white,
-                borderWidth: 1,
-                borderColor: Colors.border, 
-                borderRadius: BorderRadius.md,
-                padding: 12,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                shadowColor: Colors.black,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.1,
-                shadowRadius: 2,
-                elevation: 0.76,
+                ...providerHomeActionButton,
               }}
               onPress={() => {
                 haptics.light();
@@ -1153,28 +995,16 @@ export default function ProviderHomeScreen() {
               }}
               activeOpacity={0.7}
             >
-              <Users size={16} color={Colors.black} />
-              <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.black, marginLeft: 6 }}>
-                Invite Friends
-              </Text>
+              <Users size={16} color={Colors.textPrimary} />
+              <Text style={{ ...providerHomeActionLabel, marginLeft: 6 }}>Invite Friends</Text>
             </TouchableOpacity>
           </View>
         </View>
-        {isLoadingPending ? (
-          <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: 20 }}>
+        {(isPendingLoadingEmpty || showPendingSkeleton || pendingJobs.length > 0) ? (
+          <View style={{ paddingHorizontal: PROVIDER_TAB_GUTTER, marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <View style={{ width: 140, height: 16, backgroundColor: Colors.border, borderRadius: 8 }} />
-              <View style={{ width: 60, height: 12, backgroundColor: Colors.border, borderRadius: 6 }} />
-            </View>
-            {[1, 2, 3].map((i) => (
-              <JobCardSkeleton key={i} />
-            ))}
-          </View>
-        ) : Array.isArray(pendingJobs) && pendingJobs.length > 0 ? (
-          <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: 24 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Available Requests</Text>
-              {pendingJobs.length > 2 && (
+              <Text style={providerHomeSectionTitle}>Available Requests</Text>
+              {!showPendingSkeleton && !isPendingLoadingEmpty && pendingJobs.length > 2 && (
                 <TouchableOpacity onPress={() => router.push('/provider/jobs')}>
                   <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
                     View all <ArrowRight size={12} color={Colors.accent} />
@@ -1182,24 +1012,19 @@ export default function ProviderHomeScreen() {
                 </TouchableOpacity>
               )}
             </View>
-            {pendingJobs.slice(0, 2).map((job) => renderJobCard(job, false))}
+            {(showPendingSkeleton || isPendingLoadingEmpty) ? (
+              <ProviderJobListSkeleton count={2} />
+            ) : (
+              pendingJobs.slice(0, 2).map((job) => renderJobCard(job, false))
+            )}
           </View>
         ) : null}
 
-        {isLoadingActive ? (
-          <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: 20 }}>
+        {(isActiveLoadingEmpty || showActiveSkeleton || activeJobs.length > 0) ? (
+          <View style={{ paddingHorizontal: PROVIDER_TAB_GUTTER, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Skeleton width={100} height={16} borderRadius={8} />
-              <Skeleton width={60} height={12} borderRadius={6} />
-            </View>
-            {[1, 2].map((i) => (
-              <JobCardSkeleton key={i} />
-            ))}
-          </View>
-        ) : Array.isArray(activeJobs) && activeJobs.length > 0 ? (
-          <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>Active Jobs</Text>
+              <Text style={providerHomeSectionTitle}>Active Jobs</Text>
+              {!showActiveSkeleton && !isActiveLoadingEmpty && (
               <TouchableOpacity 
                 onPress={() => {
                   haptics.light();
@@ -1213,92 +1038,18 @@ export default function ProviderHomeScreen() {
                 </Text>
                 <ArrowRight size={14} color={Colors.accent} />
               </TouchableOpacity>
+              )}
             </View>
-            {activeJobs.slice(0, 2).map((job) => renderJobCard(job, true))}
+            {(showActiveSkeleton || isActiveLoadingEmpty) ? (
+              <ProviderJobListSkeleton count={2} />
+            ) : (
+              activeJobs.slice(0, 2).map((job) => renderJobCard(job, true))
+            )}
           </View>
         ) : !isLoadingActive && (
           // Empty state for active jobs will be shown below if no pending jobs either
           null
         )}
-
-
-        <View style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, marginBottom: 24 }}>
-          <Text style={{ fontSize: 16, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 12 }}>
-            Featured Resources
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                borderWidth: 1,
-                borderColor: Colors.border,
-                overflow: 'hidden',
-              }}
-              onPress={() => {
-                haptics.light();
-                router.push('/UserGuideScreen' as any);
-              }}
-              activeOpacity={0.7}
-            >
-              <View
-                style={{
-                  height: 100,
-                  width: '100%',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 12,
-                }}
-              >
-                <Image source={require('../../assets/images/guideimg.jpg')} style={{ width: '100%', height: '100%', borderRadius: 12 }} resizeMode='cover' />
-              </View>
-              <View style={{ padding: 10 }}>
-                <Text style={{ fontSize: 13, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 3 }}>
-                  How to get started
-                </Text>
-                <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
-                  Learn best practices and guidelines for providing services.
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                borderWidth: 1,
-                borderColor: Colors.border,
-                overflow: 'hidden',
-              }}
-              onPress={() => {
-                haptics.light();
-                router.push('/SupportScreen' as any);
-              }}
-              activeOpacity={0.7}
-            >
-              <View
-                style={{
-                  height: 100,
-                  backgroundColor: Colors.black,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Image source={require('../../assets/images/guideimg.jpg')} style={{ width: '100%', height: '100%', borderRadius: BorderRadius.xl }} resizeMode='cover' />
-              </View>
-              <View style={{ padding: 10 }}>
-                <Text style={{ fontSize: 13, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 3 }}>
-                  FAQ & Support
-                </Text>
-                <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
-                  Find answers to common questions and get support.
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
 
       </ScrollView>
 
@@ -1332,7 +1083,7 @@ export default function ProviderHomeScreen() {
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.48)',
             justifyContent: 'center',
-            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
+            paddingHorizontal: PROVIDER_TAB_GUTTER,
           }}
           onPress={closeProceedChoice}
         >
@@ -1340,7 +1091,7 @@ export default function ProviderHomeScreen() {
             onPress={(event) => event.stopPropagation()}
             style={{
               backgroundColor: Colors.white,
-              borderRadius: 26,
+              borderRadius: BorderRadius.default,
               padding: 18,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 12 },
@@ -1387,7 +1138,7 @@ export default function ProviderHomeScreen() {
                 backgroundColor: Colors.white,
                 borderWidth: 1,
                 borderColor: 'rgba(79, 103, 57, 0.28)',
-                borderRadius: 18,
+                borderRadius: BorderRadius.default,
                 padding: 15,
                 marginBottom: 10,
                 opacity: isProceedingJob ? 0.65 : 1,
@@ -1397,7 +1148,7 @@ export default function ProviderHomeScreen() {
                 style={{
                   width: 42,
                   height: 42,
-                  borderRadius: 15,
+                  borderRadius: BorderRadius.default,
                   backgroundColor: '#F2F8EA',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1427,7 +1178,7 @@ export default function ProviderHomeScreen() {
                 backgroundColor: Colors.white,
                 borderWidth: 1,
                 borderColor: '#E5E7EB',
-                borderRadius: 18,
+                borderRadius: BorderRadius.default,
                 padding: 15,
                 opacity: isProceedingJob ? 0.65 : 1,
               }}
@@ -1436,7 +1187,7 @@ export default function ProviderHomeScreen() {
                 style={{
                   width: 42,
                   height: 42,
-                  borderRadius: 15,
+                  borderRadius: BorderRadius.default,
                   backgroundColor: '#F7F8FA',
                   alignItems: 'center',
                   justifyContent: 'center',

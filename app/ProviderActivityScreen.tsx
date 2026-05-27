@@ -3,6 +3,16 @@ import FilterTransactionsModal from '@/components/FilterTransactionsModal';
 import { TransactionCardSkeleton } from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
+import { PROVIDER_TAB_GUTTER } from '@/lib/tabletLayout';
+import {
+  providerHomeActionButton,
+  providerHomeActionLabel,
+  providerHomeSurface,
+  providerHomeSurfacePadding,
+  providerUnderlineTabItem,
+  providerUnderlineTabLabel,
+  providerUnderlineTabRow,
+} from '@/lib/providerSurfaceStyles';
 import { walletService } from '@/services/api';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Bell, Check, Filter, Receipt, Search, Wrench } from 'lucide-react-native';
@@ -185,7 +195,7 @@ export default function ProviderActivityScreen() {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          paddingHorizontal: 20,
+          paddingHorizontal: PROVIDER_TAB_GUTTER,
           paddingTop: 16,
           paddingBottom: 12,
         }}
@@ -234,7 +244,7 @@ export default function ProviderActivityScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: 20,
+          paddingHorizontal: PROVIDER_TAB_GUTTER,
           paddingBottom: 100,
         }}
       >
@@ -273,78 +283,43 @@ export default function ProviderActivityScreen() {
           </View>
           <TouchableOpacity
             style={{
-              width: 48,
-              height: 48,
-              backgroundColor: Colors.black,
-              borderRadius: 12,
+              width: 44,
+              height: 44,
+              ...providerHomeSurface,
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            activeOpacity={0.7}
+            activeOpacity={0.85}
           >
-            <Search size={20} color={Colors.white} />
+            <Search size={18} color={Colors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setShowFilterModal(true)}
             style={{
-              width: 48,
-              height: 48,
-              backgroundColor: Colors.black,
-              borderRadius: 12,
+              width: 44,
+              height: 44,
+              ...providerHomeSurface,
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            activeOpacity={0.7}
+            activeOpacity={0.85}
           >
-            <Filter size={20} color={Colors.white} />
+            <Filter size={18} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
         {/* Navigation Tabs */}
-        <View
-          style={{
-            flexDirection: 'row',
-            marginBottom: 20,
-            borderBottomWidth: 1,
-            borderBottomColor: Colors.border,
-          }}
-        >
+        <View style={{ ...providerUnderlineTabRow, marginBottom: 20 }}>
           {(['all', 'pending', 'earnings', 'withdrawals'] as TabType[]).map((tab) => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
-              style={{
-                flex: 1,
-                paddingBottom: 12,
-                alignItems: 'center',
-                position: 'relative',
-              }}
+              style={providerUnderlineTabItem(activeTab === tab)}
               activeOpacity={0.7}
             >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: activeTab === tab ? 'Poppins-SemiBold' : 'Poppins-Regular',
-                  color: activeTab === tab ? Colors.textPrimary : Colors.textSecondaryDark,
-                  textTransform: 'capitalize',
-                }}
-              >
+              <Text style={providerUnderlineTabLabel(activeTab === tab)}>
                 {tab}
               </Text>
-              {activeTab === tab && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: '50%',
-                    marginLeft: -15,
-                    width: 30,
-                    height: 3,
-                    backgroundColor: Colors.accent,
-                    borderRadius: 2,
-                  }}
-                />
-              )}
             </TouchableOpacity>
           ))}
         </View>
@@ -363,11 +338,8 @@ export default function ProviderActivityScreen() {
             description={searchQuery.trim() ? 'No matching transactions' : 'Your wallet activity will appear here'}
             style={{
               flex: 0,
-              backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
-              padding: 32,
-              borderWidth: 1,
-              borderColor: Colors.border,
+              ...providerHomeSurface,
+              padding: providerHomeSurfacePadding + 18,
             }}
           />
         ) : (
@@ -375,32 +347,29 @@ export default function ProviderActivityScreen() {
           <View
             key={transaction.id}
             style={{
-              backgroundColor: Colors.white,
-              borderRadius: 12,
-              padding: 16,
+              ...providerHomeSurface,
+              padding: providerHomeSurfacePadding,
               marginBottom: 12,
-              borderWidth: 1,
-              borderColor: Colors.border,
             }}
           >
             {/* Top Row */}
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 }}>
               {/* Service Icon */}
               <View
                 style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  backgroundColor: transaction.type === 'withdrawal' ? Colors.backgroundGray : Colors.accent,
+                  width: 40,
+                  height: 40,
+                  borderRadius: BorderRadius.default,
+                  backgroundColor: transaction.type === 'withdrawal' ? Colors.backgroundGray : 'rgba(79, 103, 57, 0.14)',
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: 12,
                 }}
               >
                 {transaction.type === 'withdrawal' ? (
-                  <Check size={20} color={Colors.textSecondaryDark} />
+                  <Check size={18} color={Colors.textSecondaryDark} />
                 ) : (
-                  <Wrench size={24} color={Colors.white} />
+                  <Wrench size={18} color="#2A3B1F" />
                 )}
               </View>
 
@@ -408,65 +377,68 @@ export default function ProviderActivityScreen() {
               <View style={{ flex: 1 }}>
                 <Text
                   style={{
-                    fontSize: 15,
+                    fontSize: 13,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.textPrimary,
-                    marginBottom: 4,
+                    marginBottom: 2,
+                    lineHeight: 18,
                   }}
+                  numberOfLines={1}
                 >
                   {transaction.serviceName}
                 </Text>
                 <Text
                   style={{
-                    fontSize: 13,
-                    fontFamily: 'Poppins-Regular',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Medium',
                     color: Colors.textSecondaryDark,
-                    marginBottom: 4,
+                    marginBottom: 2,
+                    lineHeight: 17,
                   }}
+                  numberOfLines={2}
                 >
                   {transaction.serviceDescription}
                 </Text>
                 <Text
                   style={{
-                    fontSize: 12,
+                    fontSize: 11,
                     fontFamily: 'Poppins-Regular',
                     color: Colors.textSecondaryDark,
                   }}
                 >
-                  {transaction.date} • {transaction.time}
+                  {transaction.date} · {transaction.time}
                 </Text>
               </View>
 
               {/* Amount and Status Badge */}
               <View style={{ alignItems: 'flex-end' }}>
-                {/* Pending Badge */}
                 {transaction.status === 'pending' && (
                   <View
                     style={{
                       paddingHorizontal: 8,
                       paddingVertical: 4,
                       borderRadius: 12,
-                      backgroundColor: '#FEF3C7',
-                      marginBottom: 8,
+                      backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                      marginBottom: 6,
                     }}
                   >
                     <Text
                       style={{
                         fontSize: 11,
                         fontFamily: 'Poppins-SemiBold',
-                        color: '#D97706',
+                        color: '#92400E',
                       }}
                     >
                       Pending
                     </Text>
                   </View>
                 )}
-                {/* Amount */}
                 <Text
                   style={{
-                    fontSize: 16,
+                    fontSize: 15,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.textPrimary,
+                    letterSpacing: -0.3,
                   }}
                 >
                   ₦{transaction.amount.toLocaleString('en-US', {
@@ -481,54 +453,25 @@ export default function ProviderActivityScreen() {
             {transaction.status === 'pending' ? (
               <TouchableOpacity
                 style={{
-                  backgroundColor: Colors.accent,
-                  borderRadius: 8,
-                  paddingVertical: 8,
-                  paddingHorizontal: 16,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginTop: 8,
+                  ...providerHomeActionButton,
+                  width: '100%',
                 }}
-                activeOpacity={0.7}
+                activeOpacity={0.85}
                 onPress={() => handleViewDetails(transaction)}
               >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.white,
-                  }}
-                >
-                  View details
-                </Text>
+                <Text style={providerHomeActionLabel}>View details</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 style={{
-                  backgroundColor: Colors.white,
-                  borderRadius: 8,
-                  paddingVertical: 8,
-                  paddingHorizontal: 16,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexDirection: 'row',
-                  marginTop: 8,
-                  borderWidth: 1.5,
-                  borderColor: Colors.accent,
+                  ...providerHomeActionButton,
+                  width: '100%',
                 }}
-                activeOpacity={0.7}
+                activeOpacity={0.85}
                 onPress={() => handleViewReceipt(transaction)}
               >
-                <Receipt size={16} color={Colors.accent} style={{ marginRight: 6 }} />
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.accent,
-                  }}
-                >
-                  View Receipt
-                </Text>
+                <Receipt size={15} color={Colors.textPrimary} style={{ marginRight: 5 }} />
+                <Text style={providerHomeActionLabel}>View Receipt</Text>
               </TouchableOpacity>
             )}
           </View>

@@ -128,7 +128,7 @@ const serviceTips: ServiceTip[] = [
 export default function DiscoverScreen() {
   const router = useRouter();
   const tabScrollTop = useTabScrollContentPaddingTop(10);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const { location } = useUserLocation();
 

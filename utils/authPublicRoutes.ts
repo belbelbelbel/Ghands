@@ -32,6 +32,13 @@ function normalizePath(pathname: string): string {
   return p.startsWith('/') ? p : `/${p}`;
 }
 
+/** True when the app entry route is active — only these should run cold-start redirects. */
+export function isAppEntryRoute(pathname: string | null | undefined): boolean {
+  if (pathname == null || pathname === '') return true;
+  const p = normalizePath(pathname);
+  return p === '/' || p === '/index';
+}
+
 /**
  * True if user may view this path without a stored access token (login/signup/onboarding).
  */

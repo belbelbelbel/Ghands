@@ -3,6 +3,8 @@
  * Supports multiple analytics providers (can be extended)
  */
 
+import { API_BASE_URL } from '@/lib/apiConfig';
+
 interface AnalyticsEvent {
   name: string;
   properties?: Record<string, any>;
@@ -44,8 +46,7 @@ class AnalyticsService {
     // Example: Custom analytics endpoint
     this.providers.push(async (event) => {
       try {
-        const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.ghands.com';
-        await fetch(`${apiUrl}/analytics/events`, {
+        await fetch(`${API_BASE_URL}/analytics/events`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

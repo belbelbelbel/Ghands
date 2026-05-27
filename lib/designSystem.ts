@@ -22,6 +22,9 @@ export {
   useBottomTabBarHeight,
   useTabScreenScrollBottomPadding,
   useTabScreenBottomSpacerHeight,
+  useSageHeroPanelMetrics,
+  CLIENT_HOME_SCROLL_GUTTER,
+  PROVIDER_TAB_GUTTER,
 } from './tabletLayout';
 export const Spacing = DESIGN_TOKENS.spacing;
 export const Fonts = DESIGN_TOKENS.fonts;

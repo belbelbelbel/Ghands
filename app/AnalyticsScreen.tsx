@@ -1,5 +1,6 @@
+import { useWalletBalance } from '@/hooks/useWalletBalance';
+import { useProviderMonthlyEarnings } from '@/hooks/useProviderMonthlyEarnings';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { walletService, providerService } from '@/services/api';
 import { Colors, BorderRadius, Spacing, useIsTablet, useTabScrollContentPaddingTop } from '@/lib/designSystem';
 import { PHONE_LANE_MAX_WIDTH } from '@/lib/tabletLayout';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -7,6 +8,7 @@ import { ArrowLeft, ArrowUp, Bell, CheckCircle, Info, Star, ThumbsUp, Wallet } f
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View, Image, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { Button } from '@/components/ui/Button';
+import { providerService } from '@/services/api';
 
 interface Review {
   id: string;
@@ -32,8 +34,8 @@ export default function AnalyticsScreen() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [balance, setBalance] = useState<number | null>(null);
-  const [monthlyEarnings, setMonthlyEarnings] = useState<number | null>(null);
+  const { balance } = useWalletBalance({ refreshOnFocus: true });
+  const { thisMonth: monthlyEarnings } = useProviderMonthlyEarnings({ refreshOnFocus: true });
   const [totalJobs, setTotalJobs] = useState<number | null>(null);
   const [completedJobs, setCompletedJobs] = useState<number | null>(null);
   const [averageRating, setAverageRating] = useState<number | null>(null);
@@ -56,20 +58,12 @@ export default function AnalyticsScreen() {
       setIsLoading(true);
 
       // Load all analytics sources in parallel
-      const [wallet, providerAnalytics, providerReviews] = await Promise.all([
-        walletService.getWallet(),
+      const [providerAnalytics, providerReviews] = await Promise.all([
         providerService.getProviderAnalytics(),
         providerService.getProviderReviews({ limit: 10, offset: 0 }),
       ]);
 
-      const balanceValue =
-        typeof wallet.balance === 'number'
-          ? wallet.balance
-          : parseFloat(String(wallet.balance)) || 0;
-      setBalance(balanceValue);
-
-      // Primary source: /api/provider/analytics
-      setMonthlyEarnings(providerAnalytics.earningsOverview.thisMonth ?? 0);
+      // Earnings + balance come from shared hooks (provider analytics API).
       setCompletedJobs(providerAnalytics.jobsCompletedThisWeek ?? 0);
       setAverageRating(providerAnalytics.ratings.averageRating ?? 0);
       setReviewCount(providerAnalytics.ratings.totalReviews ?? 0);
@@ -105,9 +99,6 @@ export default function AnalyticsScreen() {
       if (__DEV__) {
         console.error('Error loading analytics:', error);
       }
-      // On error fall back to safe defaults
-      setBalance((prev) => prev ?? 0);
-      setMonthlyEarnings((prev) => prev ?? 0);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

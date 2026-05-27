@@ -2,7 +2,6 @@ import { crashReporting } from '@/services/crashReporting';
 import { AlertTriangle, RefreshCw } from 'lucide-react-native';
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import SafeAreaWrapper from './SafeAreaWrapper';
 
 interface Props {
   children: ReactNode;
@@ -74,7 +73,7 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <SafeAreaWrapper>
+        <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
           <ScrollView
             className="flex-1"
             contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
@@ -138,7 +137,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </SafeAreaWrapper>
+        </View>
       );
     }
 

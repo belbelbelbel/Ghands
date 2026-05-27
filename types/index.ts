@@ -20,6 +20,13 @@ export interface UserProfile {
   profileImageUri?: string;
 }
 
+/** Client profile tab — optional stats from `/api/user/profile`. */
+export interface ClientProfileView extends UserProfile {
+  referralCode?: string;
+  rating?: number;
+  reviewCount?: number;
+}
+
 export interface UpdateProfilePayload {
   name: string;
   email: string;

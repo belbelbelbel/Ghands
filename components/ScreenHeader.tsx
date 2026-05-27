@@ -1,13 +1,17 @@
 import { Colors, BorderRadius, SPACING } from '@/lib/designSystem';
+import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import React from 'react';
 import { Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { navigateBack } from '@/utils/navigation';
 
 const MIN_TOUCH_TARGET = 44;
 
 interface ScreenHeaderProps {
   title: string;
   onBack?: () => void;
+  /** Used when onBack is omitted — safe stack back with fallback route */
+  backFallback?: string;
   rightElement?: React.ReactNode;
   backgroundColor?: string;
   style?: ViewStyle;
@@ -17,7 +21,10 @@ interface ScreenHeaderProps {
  * Shared screen header for consistent layout and styling across the app.
  * Back button meets 44pt minimum touch target. Use rightElement for actions like Bell or Clear all.
  */
-export function ScreenHeader({ title, onBack, rightElement, backgroundColor = Colors.white, style }: ScreenHeaderProps) {
+export function ScreenHeader({ title, onBack, backFallback, rightElement, backgroundColor = Colors.white, style }: ScreenHeaderProps) {
+  const router = useRouter();
+
+  const handleBack = onBack ?? (backFallback ? () => navigateBack(router, backFallback) : undefined);
   return (
     <View
       style={[
@@ -34,9 +41,9 @@ export function ScreenHeader({ title, onBack, rightElement, backgroundColor = Co
       ]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>
-        {onBack ? (
+        {handleBack ? (
           <TouchableOpacity
-            onPress={onBack}
+            onPress={handleBack}
             activeOpacity={0.7}
             style={{
               width: Math.max(40, MIN_TOUCH_TARGET),

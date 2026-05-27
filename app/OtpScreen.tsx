@@ -63,7 +63,15 @@ export default function OtpScreen() {
     setIsVerifying(true);
     
     try {
-      // Simulate API call
+      if (!__DEV__) {
+        Alert.alert(
+          'Verification unavailable',
+          'Email verification is not enabled in this build. Please contact support if you need help signing in.'
+        );
+        return;
+      }
+
+      // Development-only stub until backend OTP is wired
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // For demo purposes, accept any 6-digit code

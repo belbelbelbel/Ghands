@@ -1,6 +1,5 @@
 import { authService } from '@/services/authService';
-
-const ROLE_SWITCHING_KEY = '@ghands:role_switching';
+import { isRoleSwitchInProgress } from '@/hooks/useRoleSwitching';
 
 /**
  * Handles AuthError by clearing tokens and redirecting to login
@@ -10,8 +9,7 @@ export async function handleAuthErrorRedirect(router: any): Promise<void> {
   try {
     // Get role BEFORE clearing tokens (so we know where to redirect)
     const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-    const isSwitchingRole = await AsyncStorage.getItem(ROLE_SWITCHING_KEY);
-    if (isSwitchingRole === 'true') return;
+    if (await isRoleSwitchInProgress()) return;
 
     const role = await AsyncStorage.getItem('@ghands:user_role');
     

@@ -1,8 +1,11 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import Toast from '@/components/Toast';
+import { useWalletBalance } from '@/hooks/useWalletBalance';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { BorderRadius, Colors } from '@/lib/designSystem';
+import { providerListCard } from '@/lib/providerSurfaceStyles';
+import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 import { walletService, type BankAccount } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,6 +56,12 @@ export default function PaymentMethodsScreen() {
     return Number.isFinite(rid) && rid > 0 && Number.isFinite(amt) && amt > 0;
   }, [params.requestId, params.amount]);
 
+  const { balance: walletBalanceRaw } = useWalletBalance({
+    enabled: isCheckout,
+    refreshOnFocus: isCheckout,
+  });
+  const walletBalance = walletBalanceRaw ?? 0;
+
   const [showProcessingModal, setShowProcessingModal] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [paymentStep, setPaymentStep] = useState<PaymentStep>('processing');
@@ -68,19 +77,15 @@ export default function PaymentMethodsScreen() {
   const spinAnim = useRef(new Animated.Value(0)).current;
   const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const [walletBalance, setWalletBalance] = useState(0);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [isLoadingBilling, setIsLoadingBilling] = useState(true);
 
   const loadBillingData = useCallback(async () => {
     try {
       setIsLoadingBilling(true);
-      const [w, banks] = await Promise.all([walletService.getWallet(), walletService.getBankAccounts()]);
-      const b = typeof w.balance === 'number' ? w.balance : parseFloat(String(w.balance)) || 0;
-      setWalletBalance(b);
+      const banks = await walletService.getBankAccounts();
       setBankAccounts(Array.isArray(banks) ? banks : []);
     } catch {
-      setWalletBalance(0);
       setBankAccounts([]);
     } finally {
       setIsLoadingBilling(false);
@@ -89,15 +94,7 @@ export default function PaymentMethodsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (isCheckout) {
-        walletService
-          .getWallet()
-          .then((w) => {
-            const b = typeof w.balance === 'number' ? w.balance : parseFloat(String(w.balance)) || 0;
-            setWalletBalance(b);
-          })
-          .catch(() => {});
-      } else {
+      if (!isCheckout) {
         loadBillingData();
       }
     }, [isCheckout, loadBillingData])
@@ -417,57 +414,83 @@ export default function PaymentMethodsScreen() {
               Loading billing
             </Text>
             <Text style={{ marginTop: 6, textAlign: 'center', fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, lineHeight: 19 }}>
-              Checking your wallet and linked bank accounts.
+              Loading your linked bank accounts.
             </Text>
           </View>
         ) : (
           <ScrollView
-            className="flex-1 px-4"
-            contentContainerStyle={{ paddingBottom: 40 }}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}
           >
-            <View
+            <TouchableOpacity
+              onPress={() => router.push('/WalletScreen' as any)}
+              activeOpacity={0.85}
               style={{
-                backgroundColor: '#0a0a0a',
-                borderRadius: 24,
-                padding: 20,
+                ...providerListCard,
+                flexDirection: 'row',
+                alignItems: 'center',
                 marginTop: 16,
-                marginBottom: 20,
-                overflow: 'hidden',
+                marginBottom: 10,
               }}
             >
               <View
                 style={{
-                  position: 'absolute',
-                  top: -50,
-                  right: -50,
-                  width: 150,
-                  height: 150,
-                  borderRadius: 75,
-                  backgroundColor: Colors.accent,
-                  opacity: 0.14,
-                }}
-              />
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>
-                Wallet balance
-              </Text>
-              <Text style={{ fontSize: 28, fontFamily: 'Poppins-Bold', color: Colors.white }}>
-                ₦{walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </Text>
-              <TouchableOpacity
-                onPress={() => router.push('/TopUpScreen' as any)}
-                style={{
-                  marginTop: 16,
-                  backgroundColor: Colors.accent,
-                  paddingVertical: 12,
-                  borderRadius: 14,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: '#F2F8EA',
                   alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
                 }}
-                activeOpacity={0.85}
               >
-                <Text style={{ fontFamily: 'Poppins-SemiBold', color: Colors.black }}>Top up wallet</Text>
-              </TouchableOpacity>
-            </View>
+                <Wallet size={20} color={Colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
+                  Wallet & top-up
+                </Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 2 }}>
+                  Balance, add funds, and recent activity
+                </Text>
+              </View>
+              <ChevronRight size={18} color={Colors.textSecondaryDark} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/ActivityScreen' as any)}
+              activeOpacity={0.85}
+              style={{
+                ...providerListCard,
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: '#F7F8FA',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}
+              >
+                <Receipt size={20} color={Colors.textPrimary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
+                  Transaction history
+                </Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 2 }}>
+                  View all payments and refunds
+                </Text>
+              </View>
+              <ChevronRight size={18} color={Colors.textSecondaryDark} />
+            </TouchableOpacity>
 
             <Text style={{ fontFamily: 'Poppins-SemiBold', fontSize: 16, color: Colors.textPrimary, marginBottom: 12 }}>
               Bank accounts
@@ -479,18 +502,9 @@ export default function PaymentMethodsScreen() {
             {bankAccounts.length === 0 ? (
               <View
                 style={{
-                  borderWidth: 1,
-                  borderColor: 'rgba(17,24,39,0.08)',
-                  borderRadius: 22,
-                  padding: 20,
-                  alignItems: 'center',
-                  marginBottom: 16,
-                  backgroundColor: Colors.white,
-                  shadowColor: '#101828',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.035,
-                  shadowRadius: 10,
-                  elevation: 0.76,
+              ...providerListCard,
+              alignItems: 'center',
+              marginBottom: 16,
                 }}
               >
                 <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#F2F8EA', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>

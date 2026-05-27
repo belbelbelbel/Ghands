@@ -1,7 +1,9 @@
+import { NotificationCardSkeleton } from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { haptics } from '@/hooks/useHaptics';
 import { BorderRadius, Colors } from '@/lib/designSystem';
+import { providerListCard } from '@/lib/providerSurfaceStyles';
 import { Notification, notificationService } from '@/services/api';
 import { formatTimeAgo } from '@/utils/dateFormatting';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,7 +24,6 @@ interface UINotification {
   transactionId?: number | null;
   type: string;
   description: string;
-  barColor: string;
   icon: any;
   iconBgColor: string;
   iconColor: string;
@@ -101,7 +102,6 @@ export default function NotificationsScreen() {
     let typeLabel = notification.title || 'Notification';
     const rawBackendDescription = String(notification.description || notification.message || '').trim();
     let description = rawBackendDescription.replace(/^null[\s:,-]*/i, '').trim();
-    let barColor = Colors.accent;
     let IconComponent: any = FileText;
     let iconBgColor = '#E5E7EB';
     let iconColor = Colors.textPrimary;
@@ -119,7 +119,6 @@ export default function NotificationsScreen() {
           (amountText
             ? `${amountText} has been successfully deposited to your wallet.`
             : 'Your deposit has been successfully completed and added to your wallet balance.');
-        barColor = '#16A34A';
         IconComponent = Wallet;
         iconBgColor = 'rgba(79, 103, 57, 0.14)';
         iconColor = '#15803D'; // rich green
@@ -137,7 +136,6 @@ export default function NotificationsScreen() {
           (totalText
             ? `A provider has sent you a quotation with a total amount of ${totalText}.`
             : 'A provider has sent you a new quotation. Please review and decide whether to accept or decline.');
-        barColor = Colors.accent;
         IconComponent = FileText;
         iconBgColor = '#DBEAFE';
         iconColor = '#1D4ED8'; // blue
@@ -156,7 +154,6 @@ export default function NotificationsScreen() {
           (totalText
             ? `You have accepted a quotation for ${totalText}. Proceed to payment to start the job.`
             : 'You have accepted a quotation. Proceed to payment to start the job.');
-        barColor = '#16A34A';
         IconComponent = Handshake;
         iconBgColor = 'rgba(79, 103, 57, 0.14)';
         iconColor = '#15803D'; // rich green
@@ -171,7 +168,6 @@ export default function NotificationsScreen() {
             description ||
             `${providerName} has accepted your request. They will review the details and send you a quotation shortly.`;
         }
-        barColor = '#3B82F6';
         IconComponent = Handshake;
         iconBgColor = '#FEF3C7';
         iconColor = '#92400E'; // warm brown
@@ -184,7 +180,6 @@ export default function NotificationsScreen() {
         description =
           description ||
           'You have a new job request. Review the details and decide whether to proceed.';
-        barColor = Colors.accent;
         IconComponent = FileText;
         iconBgColor = '#DBEAFE';
         iconColor = '#1D4ED8';
@@ -196,7 +191,6 @@ export default function NotificationsScreen() {
         description =
           description ||
           'A work order has been issued for this job. Check the schedule and get ready to start.';
-        barColor = Colors.accent;
         IconComponent = Calendar;
         iconBgColor = 'rgba(79, 103, 57, 0.14)';
         iconColor = '#15803D';
@@ -216,7 +210,6 @@ export default function NotificationsScreen() {
           (amountText
             ? `${amountText} has been released for this job. Funds will be available in your wallet shortly.`
             : 'Payment has been released for this job. Funds will be available in your wallet shortly.');
-        barColor = '#3B82F6';
         IconComponent = Wallet;
         iconBgColor = 'rgba(79, 103, 57, 0.14)';
         iconColor = '#15803D';
@@ -236,7 +229,6 @@ export default function NotificationsScreen() {
           (amountText
             ? `Your withdrawal request of ${amountText} has been processed successfully.`
             : 'Your withdrawal request has been processed successfully.');
-        barColor = '#3B82F6';
         IconComponent = Clock;
         iconBgColor = '#E5E7EB';
         iconColor = '#1F2937';
@@ -267,7 +259,6 @@ export default function NotificationsScreen() {
           } else {
             description = '';
           }
-          barColor = '#3B82F6';
           IconComponent = MessageCircle;
           iconBgColor = '#E5E7EB';
           iconColor = '#1F2937'; // dark gray
@@ -285,7 +276,6 @@ export default function NotificationsScreen() {
       transactionId: notification.transactionId,
       type: typeLabel,
       description,
-      barColor,
       icon: IconComponent,
       iconBgColor,
       iconColor,
@@ -755,66 +745,7 @@ export default function NotificationsScreen() {
           {isLoading && !hasNotifications && (
             <View style={{ marginBottom: 24 }}>
               {[1, 2, 3].map((i) => (
-                <View
-                  key={i}
-                  style={{
-                    flexDirection: 'row',
-                    marginBottom: i < 3 ? 10 : 0,
-                    backgroundColor: '#F8FAF7',
-                    borderRadius: 18,
-                    padding: 12,
-                    opacity: 0.6,
-                    borderWidth: 1,
-                    borderColor: 'rgba(17, 24, 39, 0.04)',
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 4,
-                      backgroundColor: '#E5E7EB',
-                      borderRadius: 2,
-                      marginRight: 12,
-                      alignSelf: 'stretch',
-                    }}
-                  />
-                  <View
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 14,
-                      backgroundColor: '#E5E7EB',
-                      marginRight: 10,
-                    }}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <View
-                      style={{
-                        width: '40%',
-                        height: 10,
-                        borderRadius: 6,
-                        backgroundColor: '#E5E7EB',
-                        marginBottom: 7,
-                      }}
-                    />
-                    <View
-                      style={{
-                        width: '90%',
-                        height: 9,
-                        borderRadius: 6,
-                        backgroundColor: '#E5E7EB',
-                        marginBottom: 5,
-                      }}
-                    />
-                    <View
-                      style={{
-                        width: '60%',
-                        height: 9,
-                        borderRadius: 6,
-                        backgroundColor: '#E5E7EB',
-                      }}
-                    />
-                  </View>
-                </View>
+                <NotificationCardSkeleton key={i} />
               ))}
             </View>
           )}
@@ -950,16 +881,9 @@ export default function NotificationsScreen() {
                       style={{
                         flexDirection: 'row',
                         marginBottom: index < sectionNotifications.length - 1 ? 10 : 0,
-                        backgroundColor: Colors.white,
-                        borderRadius: 18,
+                        ...providerListCard,
                         paddingVertical: 10,
                         paddingHorizontal: 12,
-                        borderWidth: 1,
-                        borderColor: notification.isRead ? '#EEF1E8' : 'rgba(79, 103, 57, 0.22)',
-                        elevation: 0,
-                        shadowOpacity: 0,
-                        shadowRadius: 0,
-                        shadowOffset: { width: 0, height: 0 },
                       }}
                     >
                       <View
@@ -1124,7 +1048,7 @@ export default function NotificationsScreen() {
               <View
                 style={{
                   backgroundColor: Colors.white,
-                  borderRadius: 26,
+                  borderRadius: BorderRadius.default,
                   padding: 22,
                   width: '100%',
                   maxWidth: 400,

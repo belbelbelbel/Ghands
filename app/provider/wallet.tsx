@@ -1,14 +1,26 @@
+import { SageHeroPanel } from '@/components/provider/SageHeroPanel';
+import {
+  SageAmountSkeleton,
+  TransactionCardSkeleton,
+} from '@/components/LoadingSkeleton';
+import { useWalletBalance } from '@/hooks/useWalletBalance';
+import { useSkeletonGate } from '@/hooks/useSkeletonGate';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import { BorderRadius, Colors, useTabScrollContentPaddingTop } from '@/lib/designSystem';
-import { surfaceElevation } from '@/lib/surfaceStyles';
-import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { BorderRadius, Colors, useTabScrollContentPaddingTop, useSageHeroPanelMetrics } from '@/lib/designSystem';
+import { PROVIDER_TAB_GUTTER } from '@/lib/tabletLayout';
+import {
+  providerHomeActionButton,
+  providerHomeActionLabel,
+  providerHomeSectionTitle,
+  providerHomeSurface,
+  providerHomeSurfacePadding,
+  providerHomeViewAllLabel,
+} from '@/lib/providerSurfaceStyles';
+import { useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, Bell, Check, Clock, Receipt, TrendingUp, Wallet } from 'lucide-react-native';
-import React, { useState, useEffect, useCallback } from 'react';
-import { ScrollView, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { walletService } from '@/services/api';
-
-const WALLET_CTA_BLACK = '#0A0A0A';
 
 interface ActivityItem {
   id: string;
@@ -25,11 +37,13 @@ interface ActivityItem {
 export default function ProviderWalletScreen() {
   const router = useRouter();
   const headerTopPad = useTabScrollContentPaddingTop(16);
-  const [balance, setBalance] = useState<number>(0);
-  const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
+  const { amountFontSize: sageAmountFontSize } = useSageHeroPanelMetrics();
+  const { balance, walletId, isLoading: isLoadingBalance, refresh: refreshWalletBalance } = useWalletBalance({
+    refreshOnFocus: true,
+  });
+  const activitiesReadyRef = useRef(false);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState<boolean>(true);
-  const [walletId, setWalletId] = useState<number | null>(null);
   const [pendingEarnings, setPendingEarnings] = useState<number>(0);
 
   // Helper function to format date
@@ -102,8 +116,10 @@ export default function ProviderWalletScreen() {
 
   // Load activities and calculate pending earnings
   const loadActivities = useCallback(async () => {
-    try {
+    if (!activitiesReadyRef.current) {
       setIsLoadingActivities(true);
+    }
+    try {
       const result = await walletService.getTransactions({ limit: 50, offset: 0 }); // Get more to calculate pending
       const mappedActivities = result.transactions
         .map(mapTransactionToActivity)
@@ -130,41 +146,19 @@ export default function ProviderWalletScreen() {
       setActivities([]);
       setPendingEarnings(0);
     } finally {
+      activitiesReadyRef.current = true;
       setIsLoadingActivities(false);
     }
   }, [mapTransactionToActivity]);
 
-  // Load wallet balance and ID
-  const loadWalletBalance = useCallback(async () => {
-    try {
-      setIsLoadingBalance(true);
-      const wallet = await walletService.getWallet();
-      const balanceValue = typeof wallet.balance === 'number' 
-        ? wallet.balance 
-        : parseFloat(String(wallet.balance)) || 0;
-      setBalance(balanceValue);
-      setWalletId(wallet.id || null);
-    } catch (error) {
-      console.error('Error loading wallet balance:', error);
-      // Keep current balance on error
-    } finally {
-      setIsLoadingBalance(false);
-    }
-  }, []);
-
-  // Load balance, activities on mount
   useEffect(() => {
-    loadWalletBalance();
     loadActivities();
-  }, [loadWalletBalance, loadActivities]);
+  }, [loadActivities]);
 
-  // Refresh balance and activities when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      loadWalletBalance();
-      loadActivities();
-    }, [loadWalletBalance, loadActivities])
-  );
+  const { showSkeleton: showBalanceSkeleton, isLoadingEmpty: isBalanceLoadingEmpty } =
+    useSkeletonGate(isLoadingBalance, balance === null);
+  const { showSkeleton: showActivitiesSkeleton, isLoadingEmpty: isActivitiesLoadingEmpty } =
+    useSkeletonGate(isLoadingActivities, activities.length === 0);
 
   return (
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight} tabletShellTop>
@@ -174,7 +168,7 @@ export default function ProviderWalletScreen() {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
+          paddingHorizontal: PROVIDER_TAB_GUTTER,
           paddingTop: headerTopPad,
           paddingBottom: 12,
         }}
@@ -230,227 +224,140 @@ export default function ProviderWalletScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
+          paddingHorizontal: PROVIDER_TAB_GUTTER,
           paddingBottom: 100,
         }}
       >
-        {/* Wallet balance — sage panel (client / app primary) */}
-        <View
-          style={{
-            backgroundColor: Colors.accent,
-            borderRadius: 24,
-            padding: 22,
-            marginTop: 12,
-            marginBottom: 20,
-            position: 'relative',
-            overflow: 'hidden',
-            borderWidth: 1,
-            borderColor: Colors.sagePanelBorder,
-            elevation: surfaceElevation(2),
-            shadowColor: '#1a2414',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 10,
-          }}
-        >
+        <SageHeroPanel style={{ marginTop: 12, marginBottom: 20 }}>
           <View
             style={{
-              position: 'absolute',
-              top: -54,
-              right: -54,
-              width: 170,
-              height: 170,
-              borderRadius: 85,
-              backgroundColor: '#FFFFFF',
-              opacity: 0.1,
-            }}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              bottom: -52,
-              left: -52,
-              width: 150,
-              height: 150,
-              borderRadius: 75,
-              backgroundColor: '#FFFFFF',
-              opacity: 0.07,
-            }}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              top: 20,
-              right: 20,
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: 'rgba(255,255,255,0.22)',
+              flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.28)',
+              justifyContent: 'space-between',
+              marginBottom: 10,
             }}
           >
-            <Wallet size={24} color={Colors.white} />
-          </View>
-
-          {/* Wallet ID */}
-          {walletId && (
-            <Text
-              style={{
-                fontSize: 11,
-                fontFamily: 'Poppins-Medium',
-                color: Colors.white,
-                opacity: 0.62,
-                marginBottom: 10,
-                letterSpacing: 0.8,
-                textTransform: 'uppercase',
-              }}
-            >
-              Wallet ID: GH-WLT-{String(walletId).padStart(8, '0')}
-            </Text>
-          )}
-
-          {/* Current Balance */}
-          <Text
-            style={{
-              fontSize: 13,
-              fontFamily: 'Poppins-SemiBold',
-              color: Colors.white,
-              opacity: 0.78,
-              marginBottom: 8,
-              letterSpacing: 0.7,
-              textTransform: 'uppercase',
-            }}
-          >
-            Available Balance
-          </Text>
-          {isLoadingBalance ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <ActivityIndicator size="small" color={Colors.white} style={{ marginRight: 8 }} />
+            <View style={{ flex: 1, marginRight: 8 }}>
+              {walletId != null && (
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.white,
+                    opacity: 0.55,
+                    marginBottom: 4,
+                    letterSpacing: 0.6,
+                    textTransform: 'uppercase',
+                  }}
+                  numberOfLines={1}
+                >
+                  GH-WLT-{String(walletId).padStart(8, '0')}
+                </Text>
+              )}
               <Text
                 style={{
-                  fontSize: 28,
-                  fontFamily: 'Poppins-Bold',
-                  color: Colors.white,
-                  opacity: 0.7,
+                  fontSize: 14,
+                  fontFamily: 'Poppins-Medium',
+                  color: '#E5E7EB',
                 }}
               >
-                Loading...
+                Available balance
               </Text>
             </View>
-          ) : (
-            <Text
+            <View
               style={{
-                fontSize: 34,
-                fontFamily: 'Poppins-Bold',
-                color: Colors.white,
-                marginBottom: 16,
-                letterSpacing: -0.8,
+                backgroundColor: 'rgba(255, 255, 255, 0.11)',
+                borderWidth: 1,
+                borderColor: 'rgba(255, 255, 255, 0.12)',
+                padding: 8,
+                borderRadius: 999,
               }}
             >
-              ₦{balance.toLocaleString('en-NG', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </Text>
-          )}
+              <Wallet size={14} color={Colors.white} strokeWidth={2.2} />
+            </View>
+          </View>
+
+          {(showBalanceSkeleton || isBalanceLoadingEmpty) ? (
+            <SageAmountSkeleton />
+          ) : (
+            <>
+          <Text
+            style={{
+              fontSize: sageAmountFontSize,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.white,
+              marginBottom: 10,
+              lineHeight: sageAmountFontSize * 1.12,
+              letterSpacing: -0.8,
+            }}
+          >
+            ₦{(balance ?? 0).toLocaleString('en-NG', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </Text>
 
           <View
             style={{
-              borderTopWidth: 1,
-              borderTopColor: 'rgba(255, 255, 255, 0.15)',
-              paddingTop: 14,
+              alignSelf: 'flex-start',
+              flexDirection: 'row',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              backgroundColor: 'rgba(255, 255, 255, 0.10)',
+              borderWidth: 1,
+              borderColor: 'rgba(255, 255, 255, 0.12)',
+              paddingVertical: 8,
+              paddingHorizontal: 10,
+              borderRadius: 999,
             }}
           >
+            <Clock size={14} color="#F9FAFB" style={{ marginRight: 5 }} />
             <Text
               style={{
-                fontSize: 11,
-                fontFamily: 'Poppins-Regular',
-                color: Colors.white,
-                opacity: 0.65,
-                marginBottom: 6,
+                fontSize: 12,
+                fontFamily: 'Poppins-SemiBold',
+                color: '#F9FAFB',
               }}
             >
-              Pending escrow earnings
-            </Text>
-            <Text
-              style={{
-                fontSize: 16,
-                fontFamily: 'Poppins-Bold',
-                color: Colors.white,
-              }}
-            >
-              ₦{pendingEarnings.toLocaleString('en-NG', {
+              Pending escrow · ₦{pendingEarnings.toLocaleString('en-NG', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
             </Text>
           </View>
-        </View>
+            </>
+          )}
+        </SageHeroPanel>
 
         {/* Action Buttons */}
         <View
           style={{
             flexDirection: 'row',
-            gap: 12,
-            marginBottom: 24,
+            gap: 10,
+            marginBottom: 20,
           }}
         >
           <TouchableOpacity
             style={{
               flex: 1,
-              backgroundColor: WALLET_CTA_BLACK,
-              borderRadius: 14,
-              paddingVertical: 14,
-              paddingHorizontal: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.08)',
+              ...providerHomeActionButton,
             }}
             activeOpacity={0.85}
             onPress={() => router.push('/WithdrawScreen' as any)}
           >
-            <TrendingUp size={18} color={Colors.white} style={{ marginRight: 8 }} />
-            <Text
-              style={{
-                fontSize: 14,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.white,
-              }}
-            >
-              Withdraw
-            </Text>
+            <TrendingUp size={16} color={Colors.textPrimary} style={{ marginRight: 6 }} />
+            <Text style={providerHomeActionLabel}>Withdraw</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={{
               flex: 1,
-              backgroundColor: WALLET_CTA_BLACK,
-              borderRadius: 14,
-              paddingVertical: 14,
-              paddingHorizontal: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.08)',
+              ...providerHomeActionButton,
             }}
             activeOpacity={0.85}
             onPress={() => router.push('/ProviderActivityScreen' as any)}
           >
-            <Clock size={18} color={Colors.white} style={{ marginRight: 8 }} />
-            <Text
-              style={{
-                fontSize: 14,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.white,
-              }}
-            >
-              History
-            </Text>
+            <Clock size={16} color={Colors.textPrimary} style={{ marginRight: 6 }} />
+            <Text style={providerHomeActionLabel}>History</Text>
           </TouchableOpacity>
         </View>
 
@@ -460,55 +367,34 @@ export default function ProviderWalletScreen() {
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            marginBottom: 16,
+            marginBottom: 10,
           }}
         >
-          <Text
-            style={{
-              fontSize: 18,
-              fontFamily: 'Poppins-Bold',
-              color: Colors.textPrimary,
-            }}
-          >
-            Recent Activity
-          </Text>
+          <Text style={providerHomeSectionTitle}>Recent Activity</Text>
           <TouchableOpacity
             onPress={() => router.push('/ProviderActivityScreen' as any)}
             style={{ flexDirection: 'row', alignItems: 'center' }}
             activeOpacity={0.7}
           >
-            <Text
-              style={{
-                fontSize: 14,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.accent,
-                marginRight: 4,
-              }}
-            >
-              View all
-            </Text>
-            <ArrowRight size={16} color={Colors.accent} />
+            <Text style={{ ...providerHomeViewAllLabel, marginRight: 4 }}>View all</Text>
+            <ArrowRight size={14} color={Colors.accent} />
           </TouchableOpacity>
         </View>
 
         {/* Activity Cards */}
-        {isLoadingActivities ? (
-          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
-            <ActivityIndicator size="large" color={Colors.accent} />
-            <Text style={{ marginTop: 16, fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
-              Loading wallet activity...
-            </Text>
-          </View>
+        {(showActivitiesSkeleton || isActivitiesLoadingEmpty) ? (
+          <>
+            <TransactionCardSkeleton />
+            <TransactionCardSkeleton />
+            <TransactionCardSkeleton />
+          </>
         ) : activities.length === 0 ? (
           <View
             style={{
-              backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
-              padding: 32,
+              ...providerHomeSurface,
+              padding: providerHomeSurfacePadding + 18,
               alignItems: 'center',
               justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: 'rgba(17, 24, 39, 0.045)',
             }}
           >
             <Receipt size={48} color={Colors.textSecondaryDark} style={{ marginBottom: 16 }} />
@@ -538,17 +424,9 @@ export default function ProviderWalletScreen() {
             <View
             key={activity.id}
             style={{
-              backgroundColor: Colors.white,
-              borderRadius: 18,
-              padding: 15,
+              ...providerHomeSurface,
+              padding: providerHomeSurfacePadding,
               marginBottom: 12,
-              borderWidth: 1,
-              borderColor: 'rgba(17, 24, 39, 0.045)',
-              shadowColor: '#101828',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.035,
-              shadowRadius: 10,
-              elevation: 0.76,
             }}
           >
             {/* Top Row */}
@@ -558,7 +436,7 @@ export default function ProviderWalletScreen() {
                 style={{
                   width: 40,
                   height: 40,
-                  borderRadius: 20,
+                  borderRadius: BorderRadius.default,
                   backgroundColor: activity.status === 'pending' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(79, 103, 57, 0.14)',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -572,11 +450,11 @@ export default function ProviderWalletScreen() {
               <View style={{ flex: 1 }}>
                 <Text
                   style={{
-                    fontSize: 14,
+                    fontSize: 13,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.textPrimary,
                     marginBottom: 4,
-                    lineHeight: 19,
+                    lineHeight: 18,
                   }}
                   numberOfLines={1}
                 >
@@ -629,7 +507,7 @@ export default function ProviderWalletScreen() {
             {/* Amount */}
             <Text
               style={{
-                fontSize: 17,
+                fontSize: 15,
                 fontFamily: 'Poppins-Bold',
                 color: Colors.textPrimary,
                 marginBottom: 12,
@@ -643,36 +521,19 @@ export default function ProviderWalletScreen() {
             {activity.status === 'pending' ? (
               <TouchableOpacity
                 style={{
-                  backgroundColor: WALLET_CTA_BLACK,
-                borderRadius: 12,
-                  paddingVertical: 12,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  ...providerHomeActionButton,
+                  width: '100%',
                 }}
                 activeOpacity={0.85}
                 onPress={() => router.push('/PaymentPendingScreen' as any)}
               >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.white,
-                  }}
-                >
-                  View details
-                </Text>
+                <Text style={providerHomeActionLabel}>View details</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 style={{
-                  backgroundColor: Colors.white,
-                  borderRadius: 12,
-                  paddingVertical: 12,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 1,
-                  borderColor: WALLET_CTA_BLACK,
-                  flexDirection: 'row',
+                  ...providerHomeActionButton,
+                  width: '100%',
                 }}
                 activeOpacity={0.85}
                 onPress={() => router.push({
@@ -689,16 +550,8 @@ export default function ProviderWalletScreen() {
                   },
                 } as any)}
               >
-                <Receipt size={16} color={WALLET_CTA_BLACK} style={{ marginRight: 6 }} />
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: WALLET_CTA_BLACK,
-                  }}
-                >
-                  View Receipt
-                </Text>
+                <Receipt size={15} color={Colors.textPrimary} style={{ marginRight: 5 }} />
+                <Text style={providerHomeActionLabel}>View Receipt</Text>
               </TouchableOpacity>
             )}
           </View>

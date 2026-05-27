@@ -10,6 +10,7 @@ import { useUserLocation } from '@/hooks/useUserLocation';
 import { serviceRequestService, locationService, authService } from '@/services/api';
 import { haptics } from '@/hooks/useHaptics';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { navigateBack, NAV_FALLBACK } from '@/utils/navigation';
 
 const MAX_DESCRIPTION_LENGTH = 500;
 const MIN_DESCRIPTION_LENGTH = 10;
@@ -95,11 +96,7 @@ export default function JobDetailsScreen() {
 
   const handleBack = useCallback(() => {
     haptics.light();
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-    router.replace('/(tabs)/categories' as any);
+    navigateBack(router, NAV_FALLBACK.clientRequest);
   }, [router]);
 
   const handleChangeLocation = useCallback(() => {

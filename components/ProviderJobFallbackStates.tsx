@@ -1,19 +1,11 @@
+import { JobDetailsScreenSkeleton } from '@/components/LoadingSkeleton';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import React from 'react';
-import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 
 export function ProviderJobLoadingState() {
-  return (
-    <SafeAreaWrapper backgroundColor={Colors.white}>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={Colors.accent} />
-        <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginTop: 16 }}>
-          Loading job details...
-        </Text>
-      </View>
-    </SafeAreaWrapper>
-  );
+  return <JobDetailsScreenSkeleton />;
 }
 
 interface ProviderJobNotFoundStateProps {

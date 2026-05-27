@@ -3,7 +3,7 @@ import AnimatedModal from '@/components/AnimatedModal';
 import { BorderRadius, Colors, Fonts, Spacing } from '@/lib/designSystem';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { ArrowLeft, ChevronRight, Lock, Wallet } from 'lucide-react-native';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, Linking, AppState, Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
@@ -17,11 +17,11 @@ import { AuthError } from '@/utils/errors';
 import Toast from '@/components/Toast';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const PRESET_AMOUNTS = [5000, 10000, 20000, 50000]; // More realistic amounts in Naira
+import { getBankTransferAccount } from '@/lib/apiConfig';
+
+const PRESET_AMOUNTS = [5000, 10000, 20000, 50000];
 const DEPOSIT_REFERENCE_KEY = '@ghands:pending_deposit_reference';
 const TOPUP_RETURN_CTX_KEY = '@ghands:topup_return_context';
-// TODO: Replace with API-fetched bank details when backend provides them. Currently placeholder.
-const BANK_TRANSFER_ACCOUNT = { number: '2219300511', name: 'BAMCHURCH LTD' };
 
 export default function TopUpScreen() {
   const router = useRouter();
@@ -30,6 +30,7 @@ export default function TopUpScreen() {
     returnParams?: string; // JSON string of params to pass back
   }>();
   const { toast, showError, showSuccess, hideToast } = useToast();
+  const bankTransferAccount = useMemo(() => getBankTransferAccount(), []);
   
   const [selectedAmount, setSelectedAmount] = useState<number>(5000);
   const [customAmount, setCustomAmount] = useState<string>('5000');
@@ -714,6 +715,10 @@ export default function TopUpScreen() {
           {/* Bank Transfer Option */}
           <TouchableOpacity
             onPress={() => {
+              if (!bankTransferAccount) {
+                showError('Bank transfer is unavailable. Please use card payment or contact support.');
+                return;
+              }
               setShowBankTransferModal(true);
             }}
             style={{
@@ -956,7 +961,7 @@ export default function TopUpScreen() {
                   color: Colors.textPrimary,
                 }}
               >
-                {BANK_TRANSFER_ACCOUNT.number}
+                {bankTransferAccount?.number ?? '—'}
               </Text>
             </View>
           </View>
@@ -1027,7 +1032,7 @@ export default function TopUpScreen() {
                   color: Colors.textPrimary,
                 }}
               >
-                {BANK_TRANSFER_ACCOUNT.name}
+                {bankTransferAccount?.name ?? '—'}
               </Text>
             </View>
           </View>

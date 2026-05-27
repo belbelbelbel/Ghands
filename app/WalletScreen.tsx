@@ -1,18 +1,28 @@
 import { EmptyState } from '@/components/EmptyState';
-import { TransactionCardSkeleton } from '@/components/LoadingSkeleton';
+import {
+  SageAmountSkeleton,
+  TransactionCardSkeleton,
+} from '@/components/LoadingSkeleton';
+import { useWalletBalance } from '@/hooks/useWalletBalance';
+import { useSkeletonGate } from '@/hooks/useSkeletonGate';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { BorderRadius, Colors } from '@/lib/designSystem';
-import { surfaceElevation } from '@/lib/surfaceStyles';
 import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
+import {
+  providerHomeActionButton,
+  providerHomeActionLabel,
+  providerHomeSectionTitle,
+  providerHomeSurface,
+  providerHomeSurfacePadding,
+  providerHomeViewAllLabel,
+} from '@/lib/providerSurfaceStyles';
 import { walletService } from '@/services/api';
 
-/** Primary wallet actions — black CTAs for strong contrast on the sage panel. */
-const WALLET_CTA_BLACK = '#0A0A0A';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, Bell, CheckCircle, Clock, Plus, Receipt, Wallet } from 'lucide-react-native';
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 interface Transaction {
   id: string;
@@ -26,11 +36,12 @@ interface Transaction {
 
 export default function WalletScreen() {
   const router = useRouter();
-  const [balance, setBalance] = useState<number>(0);
-  const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
+  const { balance, walletId, isLoading: isLoadingBalance, refresh: refreshWalletBalance } = useWalletBalance({
+    refreshOnFocus: true,
+  });
+  const transactionsReadyRef = useRef(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState<boolean>(true);
-  const [walletId, setWalletId] = useState<number | null>(null);
 
   // Helper function to format date
   const formatDate = useCallback((dateString: string): { date: string; time: string } => {
@@ -93,8 +104,10 @@ export default function WalletScreen() {
 
   // Load transactions
   const loadTransactions = useCallback(async () => {
-    try {
+    if (!transactionsReadyRef.current) {
       setIsLoadingTransactions(true);
+    }
+    try {
       const result = await walletService.getTransactions({ limit: 15, offset: 0 });
       const mappedTransactions = result.transactions
         .map(mapTransactionToUI)
@@ -109,40 +122,22 @@ export default function WalletScreen() {
       }
       setTransactions([]);
     } finally {
+      transactionsReadyRef.current = true;
       setIsLoadingTransactions(false);
     }
   }, [mapTransactionToUI]);
 
-  // Load wallet balance and ID
-  const loadWalletBalance = useCallback(async () => {
-    try {
-      setIsLoadingBalance(true);
-      const wallet = await walletService.getWallet();
-      const balanceValue = typeof wallet.balance === 'number' 
-        ? wallet.balance 
-        : parseFloat(String(wallet.balance)) || 0;
-      setBalance(balanceValue);
-      setWalletId(wallet.id || null);
-    } catch (error) {
-      console.error('Error loading wallet balance:', error);
-      // Keep current balance on error
-    } finally {
-      setIsLoadingBalance(false);
-    }
-  }, []);
-
-  // Load balance and transactions on mount
+  // Load transactions on mount
   useEffect(() => {
-    loadWalletBalance();
     loadTransactions();
-  }, [loadWalletBalance, loadTransactions]);
+  }, [loadTransactions]);
 
-  // Refresh balance and transactions when screen comes into focus
+  // Refresh transactions when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      loadWalletBalance();
       loadTransactions();
-    }, [loadWalletBalance, loadTransactions])
+      void refreshWalletBalance({ silent: true });
+    }, [loadTransactions, refreshWalletBalance])
   );
 
   const handleAddFunds = useCallback(() => {
@@ -189,6 +184,11 @@ export default function WalletScreen() {
     }).format(value);
   }, []);
 
+  const { showSkeleton: showBalanceSkeleton, isLoadingEmpty: isBalanceLoadingEmpty } =
+    useSkeletonGate(isLoadingBalance, balance === null);
+  const { showSkeleton: showTransactionsSkeleton, isLoadingEmpty: isTransactionsLoadingEmpty } =
+    useSkeletonGate(isLoadingTransactions, transactions.length === 0);
+
   return (
     <SafeAreaWrapper backgroundColor={Colors.backgroundLight}>
       <ScreenHeader
@@ -226,359 +226,248 @@ export default function WalletScreen() {
           paddingBottom: 100,
         }}
       >
-        {/* Current Balance Card */}
-        {/* Balance — sage panel (matches profile / app primary) */}
+        {/* Balance — sage panel (matches provider wallet) */}
         <View
           style={{
+            borderRadius: 16,
             backgroundColor: Colors.accent,
-            borderRadius: 24,
+            borderWidth: 1,
+            borderColor: Colors.sagePanelBorder,
+            paddingVertical: 17,
+            paddingHorizontal: 15,
             marginTop: 12,
             marginBottom: 20,
             position: 'relative',
             overflow: 'hidden',
-            borderWidth: 1,
-            borderColor: Colors.sagePanelBorder,
-            elevation: surfaceElevation(2),
-            shadowColor: '#1a2414',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 10,
           }}
         >
           <View
+            pointerEvents="none"
             style={{
               position: 'absolute',
-              top: -60,
-              right: -60,
-              width: 180,
-              height: 180,
-              borderRadius: 90,
+              top: -38,
+              right: -32,
+              width: 128,
+              height: 128,
+              borderRadius: 64,
               backgroundColor: '#FFFFFF',
               opacity: 0.1,
             }}
           />
           <View
+            pointerEvents="none"
             style={{
               position: 'absolute',
-              bottom: -50,
-              left: -50,
-              width: 160,
-              height: 160,
-              borderRadius: 80,
-              backgroundColor: '#FFFFFF',
-              opacity: 0.08,
-            }}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              top: 80,
-              right: 40,
-              width: 100,
-              height: 100,
-              borderRadius: 50,
-              backgroundColor: '#FFFFFF',
-              opacity: 0.06,
+              bottom: -54,
+              left: -42,
+              width: 132,
+              height: 132,
+              borderRadius: 66,
+              backgroundColor: 'rgba(255, 255, 255, 0.06)',
             }}
           />
 
           <View
             style={{
-              position: 'absolute',
-              top: 20,
-              right: 20,
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: 'rgba(255,255,255,0.22)',
+              flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.28)',
+              justifyContent: 'space-between',
+              marginBottom: 10,
             }}
           >
-            <Wallet size={24} color={Colors.white} />
-          </View>
-
-          <View style={{ padding: 22 }}>
-            {/* Wallet ID - only show when available from API */}
-            {walletId != null && (
+            <View style={{ flex: 1, marginRight: 8 }}>
+              {walletId != null && (
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.white,
+                    opacity: 0.55,
+                    marginBottom: 4,
+                    letterSpacing: 0.6,
+                    textTransform: 'uppercase',
+                  }}
+                  numberOfLines={1}
+                >
+                  GH-WLT-{String(walletId).padStart(8, '0')}
+                </Text>
+              )}
               <Text
                 style={{
-                fontSize: 11,
+                  fontSize: 14,
                   fontFamily: 'Poppins-Medium',
-                  color: Colors.white,
-                opacity: 0.62,
-                  marginBottom: 10,
-                letterSpacing: 0.8,
+                  color: '#E5E7EB',
                 }}
               >
-                WALLET ID: GH-WLT-{String(walletId).padStart(8, '0')}
+                Available balance
               </Text>
-            )}
-
-            {/* Current Balance Label - Enhanced */}
-            <Text
-              style={{
-                fontSize: 12,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.white,
-                opacity: 0.78,
-                marginBottom: 8,
-                letterSpacing: 0.7,
-                textTransform: 'uppercase',
-              }}
-            >
-              Available Balance
-            </Text>
-
-            {/* Balance Amount - Extra Large and Ultra Prominent */}
-            <View style={{ marginBottom: 16 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                <Text
-                  style={{
-                    fontSize: 20,
-                    fontFamily: 'Poppins-Bold',
-                    color: Colors.white,
-                    opacity: 0.9,
-                    marginTop: 8,
-                    marginRight: 4,
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  ₦
-                </Text>
-                {isLoadingBalance ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                    <ActivityIndicator size="small" color={Colors.white} style={{ marginRight: 12 }} />
-                    <Text
-                      style={{
-                        fontSize: 24,
-                        fontFamily: 'Poppins-Bold',
-                        color: Colors.white,
-                        opacity: 0.7,
-                      }}
-                    >
-                      Loading...
-                    </Text>
-                  </View>
-                ) : (
-                  <Text
-                    style={{
-                    fontSize: 40,
-                      fontFamily: 'Poppins-Bold',
-                      color: Colors.white,
-                      letterSpacing: -1.6,
-                      lineHeight: 50,
-                    }}
-                  >
-                    {balance.toLocaleString('en-NG', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    }).replace('₦', '')}
-                  </Text>
-                )}
-              </View>
             </View>
-
-            {/* Quick Stats Row - Enhanced */}
             <View
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingTop: 16,
-                borderTopWidth: 1,
-                borderTopColor: 'rgba(255, 255, 255, 0.15)',
+                backgroundColor: 'rgba(255, 255, 255, 0.11)',
+                borderWidth: 1,
+                borderColor: 'rgba(255, 255, 255, 0.12)',
+                padding: 8,
+                borderRadius: 999,
               }}
             >
-              <View style={{ flex: 1 }}>
-                <Text
+              <Wallet size={14} color={Colors.white} strokeWidth={2.2} />
+            </View>
+          </View>
+
+          {(showBalanceSkeleton || isBalanceLoadingEmpty) ? (
+            <SageAmountSkeleton />
+          ) : (
+            <>
+            <Text
+              style={{
+                fontSize: 27,
+                fontFamily: 'Poppins-Bold',
+                color: Colors.white,
+                marginBottom: 10,
+                lineHeight: 30,
+                letterSpacing: -0.8,
+              }}
+            >
+              ₦{(balance ?? 0).toLocaleString('en-NG', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </Text>
+
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingTop: 10,
+              borderTopWidth: 1,
+              borderTopColor: 'rgba(255, 255, 255, 0.15)',
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.white,
+                  opacity: 0.65,
+                  marginBottom: 4,
+                }}
+              >
+                Total transactions
+              </Text>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontFamily: 'Poppins-Bold',
+                  color: Colors.white,
+                }}
+              >
+                {showTransactionsSkeleton || isTransactionsLoadingEmpty ? '…' : transactions.length}
+              </Text>
+            </View>
+            <View
+              style={{
+                width: 1,
+                height: 28,
+                backgroundColor: 'rgba(255, 255, 255, 0.18)',
+                marginHorizontal: 14,
+              }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.white,
+                  opacity: 0.65,
+                  marginBottom: 4,
+                }}
+              >
+                Wallet status
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View
                   style={{
-                    fontSize: 11,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.white,
-                    opacity: 0.65,
-                    marginBottom: 6,
-                    letterSpacing: 0.3,
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: 'rgba(255,255,255,0.45)',
+                    marginRight: 6,
                   }}
-                >
-                  Total Transactions
-                </Text>
+                />
                 <Text
                   style={{
-                    fontSize: 18,
+                    fontSize: 15,
                     fontFamily: 'Poppins-Bold',
                     color: Colors.white,
                   }}
                 >
-                  {isLoadingTransactions ? '...' : transactions.length}
+                  Active
                 </Text>
-              </View>
-              <View
-                style={{
-                  width: 1,
-                  height: 36,
-                  backgroundColor: 'rgba(255, 255, 255, 0.18)',
-                  marginHorizontal: 20,
-                }}
-              />
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontFamily: 'Poppins-Regular',
-                    color: Colors.white,
-                    opacity: 0.65,
-                    marginBottom: 6,
-                    letterSpacing: 0.3,
-                  }}
-                >
-                  Wallet status
-                </Text>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: 'rgba(255,255,255,0.35)',
-                      marginRight: 8,
-                    }}
-                  />
-                  <Text
-                    style={{
-                    fontSize: 16,
-                      fontFamily: 'Poppins-Bold',
-                      color: Colors.white,
-                    }}
-                  >
-                    Active
-                  </Text>
-                </View>
               </View>
             </View>
           </View>
+            </>
+          )}
         </View>
 
         {/* Action Buttons */}
         <View
           style={{
             flexDirection: 'row',
-            gap: 12,
+            gap: 10,
             marginBottom: 20,
           }}
         >
-          {/* Add Funds - Enhanced Premium Button */}
           <TouchableOpacity
             onPress={handleAddFunds}
             style={{
               flex: 1,
-              backgroundColor: WALLET_CTA_BLACK,
-              borderRadius: 14,
-              paddingVertical: 14,
-              paddingHorizontal: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.08)',
+              ...providerHomeActionButton,
             }}
             activeOpacity={0.85}
           >
-            <Plus size={18} color={Colors.white} />
-            <Text
-              style={{
-                fontSize: 14.5,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.white,
-                marginLeft: 8,
-                letterSpacing: 0.2,
-              }}
-            >
-              Add Funds
-            </Text>
+            <Plus size={16} color={Colors.textPrimary} />
+            <Text style={{ ...providerHomeActionLabel, marginLeft: 6 }}>Add Funds</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={handlePay}
             style={{
               flex: 1,
-              backgroundColor: WALLET_CTA_BLACK,
-              borderRadius: 14,
-              paddingVertical: 14,
-              paddingHorizontal: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.08)',
+              ...providerHomeActionButton,
             }}
             activeOpacity={0.85}
           >
-            <Text
-              style={{
-                fontSize: 14.5,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.white,
-                marginRight: 8,
-                letterSpacing: 0.2,
-              }}
-            >
-              Pay
-            </Text>
-            <ArrowRight size={18} color={Colors.white} />
+            <Text style={{ ...providerHomeActionLabel, marginRight: 6 }}>Pay</Text>
+            <ArrowRight size={16} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
         {/* Recent Activity Section */}
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 4 }}>
           <View
             style={{
               flexDirection: 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: 12,
+              marginBottom: 10,
             }}
           >
-            <Text
-              style={{
-                fontSize: 17,
-                fontFamily: 'Poppins-Bold',
-                color: Colors.textPrimary,
-                letterSpacing: -0.2,
-              }}
-            >
-              Recent Activity
-            </Text>
+            <Text style={providerHomeSectionTitle}>Recent Activity</Text>
             <TouchableOpacity
               onPress={handleViewAll}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-              }}
+              style={{ flexDirection: 'row', alignItems: 'center' }}
               activeOpacity={0.7}
             >
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontFamily: 'Poppins-Medium',
-                  color: Colors.accent,
-                  marginRight: 4,
-                }}
-              >
-                View all
-              </Text>
+              <Text style={{ ...providerHomeViewAllLabel, marginRight: 4 }}>View all</Text>
               <ArrowRight size={14} color={Colors.accent} />
             </TouchableOpacity>
           </View>
 
           {/* Transaction Cards */}
-          {isLoadingTransactions ? (
+          {(showTransactionsSkeleton || isTransactionsLoadingEmpty) ? (
             <>
               <TransactionCardSkeleton />
               <TransactionCardSkeleton />
@@ -591,11 +480,8 @@ export default function WalletScreen() {
               description="Completed payments, top-ups, and refunds will appear here once they settle."
               style={{
                 flex: 0,
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.xl,
-                padding: 32,
-                borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.045)',
+                ...providerHomeSurface,
+                padding: providerHomeSurfacePadding + 18,
               }}
             />
           ) : (
@@ -603,17 +489,9 @@ export default function WalletScreen() {
             <View
               key={transaction.id}
               style={{
-                backgroundColor: Colors.white,
-                borderRadius: 18,
-                padding: 15,
+                ...providerHomeSurface,
+                padding: providerHomeSurfacePadding,
                 marginBottom: 12,
-                borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.045)',
-                shadowColor: '#101828',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.035,
-                shadowRadius: 10,
-                elevation: 0.76,
               }}
             >
               <View
@@ -628,7 +506,7 @@ export default function WalletScreen() {
                   style={{
                     width: 40,
                     height: 40,
-                    borderRadius: 20,
+                    borderRadius: BorderRadius.default,
                     backgroundColor: Colors.backgroundGray,
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -646,11 +524,11 @@ export default function WalletScreen() {
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      fontSize: 14,
+                      fontSize: 13,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.textPrimary,
                       marginBottom: 2,
-                      lineHeight: 19,
+                      lineHeight: 18,
                     }}
                     numberOfLines={1}
                   >
@@ -702,7 +580,7 @@ export default function WalletScreen() {
                   </View>
                   <Text
                     style={{
-                    fontSize: 16,
+                      fontSize: 15,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.textPrimary,
                       letterSpacing: -0.3,
@@ -718,51 +596,24 @@ export default function WalletScreen() {
                 <TouchableOpacity
                   onPress={() => handleViewDetails(transaction)}
                   style={{
-                    backgroundColor: WALLET_CTA_BLACK,
-                    borderRadius: 10,
-                    paddingVertical: 10,
-                    paddingHorizontal: 16,
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    ...providerHomeActionButton,
+                    width: '100%',
                   }}
-                  activeOpacity={0.7}
+                  activeOpacity={0.85}
                 >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'Poppins-SemiBold',
-                      color: Colors.white,
-                    }}
-                  >
-                    View details
-                  </Text>
+                  <Text style={providerHomeActionLabel}>View details</Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
                   onPress={() => handleViewReceipt(transaction)}
                   style={{
-                    backgroundColor: Colors.white,
-                    borderRadius: 8,
-                    paddingVertical: 8,
-                    paddingHorizontal: 16,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: 1.5,
-                    borderColor: WALLET_CTA_BLACK,
+                    ...providerHomeActionButton,
+                    width: '100%',
                   }}
-                  activeOpacity={0.7}
+                  activeOpacity={0.85}
                 >
-                  <Receipt size={16} color={WALLET_CTA_BLACK} style={{ marginRight: 6 }} />
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'Poppins-SemiBold',
-                      color: WALLET_CTA_BLACK,
-                    }}
-                  >
-                    View Receipt
-                  </Text>
+                  <Receipt size={15} color={Colors.textPrimary} style={{ marginRight: 5 }} />
+                  <Text style={providerHomeActionLabel}>View Receipt</Text>
                 </TouchableOpacity>
               )}
             </View>

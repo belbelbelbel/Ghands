@@ -395,7 +395,7 @@ export default function WithdrawScreen() {
       {/* PIN modal */}
       <Modal visible={showPinModal} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-          <View style={{ backgroundColor: Colors.white, borderRadius: BorderRadius.xl, padding: 24, width: '100%', maxWidth: 320 }}>
+          <View style={{ backgroundColor: Colors.white, borderRadius: BorderRadius.default, padding: 24, width: '100%', maxWidth: 320, borderWidth: 1, borderColor: Colors.border }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <Lock size={24} color={Colors.accent} style={{ marginRight: 10 }} />
               <Text style={{ fontSize: 18, fontFamily: 'Poppins-Bold' }}>Enter PIN</Text>

@@ -1,6 +1,7 @@
 import { CoachMarkTarget } from '@/components/CoachMarkTarget';
 import LiveSupportScreen from '@/components/LiveSupportScreen';
-import { JobCardSkeleton } from '@/components/LoadingSkeleton';
+import { CategoryChipSkeleton, JobCardSkeleton } from '@/components/LoadingSkeleton';
+import { useSkeletonGate } from '@/hooks/useSkeletonGate';
 import LocationSearchModal from '@/components/LocationSearchModal';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import type { JobActivity } from '@/components/home/JobActivityCard';
@@ -12,8 +13,9 @@ import useCoachMarks from '@/hooks/useCoachMarks';
 import { haptics } from '@/hooks/useHaptics';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { Colors, useTabScrollContentPaddingTop, useTabScreenBottomSpacerHeight } from '@/lib/designSystem';
+import { BorderRadius, Colors, useTabScrollContentPaddingTop, useTabScreenBottomSpacerHeight } from '@/lib/designSystem';
 import { SURFACE_STYLES, surfaceElevation } from '@/lib/surfaceStyles';
+import { providerListCard } from '@/lib/providerSurfaceStyles';
 import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 import { ServiceRequest, authService, serviceRequestService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
@@ -124,19 +126,22 @@ const formatNaira = (amount: number): string =>
 
 const HomeScreen = React.memo(() => {
   const router = useRouter();
-  const { isChecking } = useTokenGuard();
+  useTokenGuard();
   const [searchQuery, setSearchQuery] = useState('');
   const [apiCategories, setApiCategories] = useState<ServiceCategory[]>([]); // API categories
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const categoriesReadyRef = useRef(false);
+  const jobsReadyRef = useRef(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const { location, isLoading, refreshLocation } = useUserLocation();
   const [jobActivities, setJobActivities] = useState<JobActivity[]>([]);
-  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Tour disabled - keep hook to avoid runtime errors, use empty steps so tour never shows
   useCoachMarks([]);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const categoriesFadeAnim = useRef(new Animated.Value(1)).current; // Start visible for dummy data
 
@@ -254,7 +259,9 @@ const HomeScreen = React.memo(() => {
 
   // Load job activities – after mapRequestToJobActivity
   const loadJobActivities = useCallback(async () => {
-    setIsLoadingJobs(true);
+    if (!jobsReadyRef.current) {
+      setIsLoadingJobs(true);
+    }
     try {
       const requests = await serviceRequestService.getUserRequests();
       if (!Array.isArray(requests) || requests.length === 0) {
@@ -337,6 +344,7 @@ const HomeScreen = React.memo(() => {
       if (__DEV__) console.error('Error loading job activities:', error?.message || error);
       setJobActivities([]);
     } finally {
+      jobsReadyRef.current = true;
       setIsLoadingJobs(false);
     }
   }, [mapRequestToJobActivity, router]);
@@ -391,6 +399,9 @@ const HomeScreen = React.memo(() => {
   }, []);
 
   const loadCategoriesFromAPI = async () => {
+    if (!categoriesReadyRef.current) {
+      setIsLoadingCategories(true);
+    }
     try {
       const categories = await serviceRequestService.getCategories();
 
@@ -434,6 +445,9 @@ const HomeScreen = React.memo(() => {
       if (__DEV__) {
         console.error('Error loading categories from API:', error);
       }
+    } finally {
+      categoriesReadyRef.current = true;
+      setIsLoadingCategories(false);
     }
   };
 
@@ -503,10 +517,10 @@ const HomeScreen = React.memo(() => {
   const bottomSpacerHeight = useTabScreenBottomSpacerHeight(16);
   const tabScrollTop = useTabScrollContentPaddingTop(10);
 
-  // If checking token, show nothing (will redirect if no token)
-  if (isChecking) {
-    return null;
-  }
+  const { showSkeleton: showCategoriesSkeleton, isLoadingEmpty: isCategoriesLoadingEmpty } =
+    useSkeletonGate(isLoadingCategories, filteredCategories.length === 0);
+  const { showSkeleton: showJobsSkeleton, isLoadingEmpty: isJobsLoadingEmpty } =
+    useSkeletonGate(isLoadingJobs, jobActivities.length === 0);
 
   return (
     <SafeAreaWrapper tabletShellTop>
@@ -657,52 +671,14 @@ const HomeScreen = React.memo(() => {
               </View>
 
               <Animated.View style={{ opacity: categoriesFadeAnim, overflow: 'visible' }}>
-                {filteredCategories.length === 0 ? (
+                {(showCategoriesSkeleton || isCategoriesLoadingEmpty) ? (
                   // Skeleton line for categories when nothing is loaded yet - matches actual CategoryItem size
                   <View style={{ flexDirection: 'row', marginTop: 0, marginBottom: 0, paddingVertical: 6, overflow: 'visible' }}>
                     {[1, 2, 3, 4].map((i) => (
-                      <View key={i} style={{ width: 98, marginRight: 12 }}>
-                        <View
-                          style={{
-                            borderRadius: 16,
-                            backgroundColor: Colors.white,
-                            paddingVertical: 12,
-                            paddingHorizontal: 10,
-                            alignItems: 'center',
-                            borderWidth: 1,
-                            borderColor: 'rgba(17, 24, 39, 0.055)',
-                            zIndex: 2,
-                            elevation: 0,
-                            shadowColor: 'transparent',
-                            shadowOffset: { width: 0, height: 0 },
-                            shadowOpacity: 0,
-                            shadowRadius: 0,
-                          }}
-                        >
-                          {/* Icon skeleton */}
-                          <View
-                            style={{
-                              width: 48,
-                              height: 48,
-                              borderRadius: 14,
-                              backgroundColor: HOME_CATEGORY_ICON_WELL,
-                              marginBottom: 8,
-                            }}
-                          />
-                          {/* Text skeleton */}
-                          <View
-                            style={{
-                              width: 56,
-                              height: 11,
-                              borderRadius: 5,
-                              backgroundColor: '#E5E7EB',
-                            }}
-                          />
-                        </View>
-                      </View>
+                      <CategoryChipSkeleton key={i} />
                     ))}
                   </View>
-                ) : (
+                ) : filteredCategories.length === 0 ? null : (
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -738,7 +714,7 @@ const HomeScreen = React.memo(() => {
                 style={{
                   borderWidth: 1,
                   borderColor: HOME_QUICK_ACTIONS_PANEL_BORDER,
-                  borderRadius: 22,
+                  borderRadius: BorderRadius.default,
                   backgroundColor: HOME_QUICK_ACTIONS_PANEL_BG,
                   paddingHorizontal: 16,
                   paddingTop: 20,
@@ -791,7 +767,7 @@ const HomeScreen = React.memo(() => {
                       style={{
                         flex: 1,
                         backgroundColor: HOME_QUICK_ACTION_TILE_BG,
-                        borderRadius: 18,
+                        borderRadius: BorderRadius.default,
                         paddingVertical: 13,
                         paddingHorizontal: 6,
                         alignItems: 'center',
@@ -975,7 +951,7 @@ const HomeScreen = React.memo(() => {
                   <Ionicons name="chevron-forward" size={14} color={HOME_QUICK_ACTIONS_PANEL_BG} />
                 </TouchableOpacity>
               </View>
-              {isLoadingJobs ? (
+              {(showJobsSkeleton || isJobsLoadingEmpty) ? (
                 <>
                   <JobCardSkeleton />
                   <JobCardSkeleton />
@@ -989,12 +965,10 @@ const HomeScreen = React.memo(() => {
               ) : (
                 <View
                   style={{
-                    backgroundColor: Colors.white,
-                    borderRadius: 20,
-                    padding: 32,
+                    ...providerListCard,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    ...SURFACE_STYLES.homeCard,
+                    paddingVertical: 32,
                   }}
                 >
                   <View

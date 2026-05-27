@@ -1,6 +1,9 @@
+import { SageHeroPanel } from '@/components/provider/SageHeroPanel';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
-import { ProviderJobLoadingState, ProviderJobNotFoundState } from '@/components/ProviderJobFallbackStates';
+import { ProviderJobUpdatesTabSkeleton, QuotationListSkeleton } from '@/components/LoadingSkeleton';
+import { ProviderJobNotFoundState } from '@/components/ProviderJobFallbackStates';
+import { useSkeletonGate } from '@/hooks/useSkeletonGate';
 import ProviderNoQuotationState from '@/components/ProviderNoQuotationState';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
@@ -8,6 +11,7 @@ import { useToast } from '@/hooks/useToast';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { JOB_TIMELINE, timelineChipText } from '@/lib/jobTimelineTheme';
 import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
+import { providerListCard } from '@/lib/providerSurfaceStyles';
 import { surfaceElevation } from '@/lib/surfaceStyles';
 import { Quotation, QuotationWithProvider, ServiceRequest, authService, providerService, serviceRequestService } from '@/services/api';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
@@ -16,6 +20,7 @@ import { formatDateLong, formatDateShort, formatTimeAgo } from '@/utils/dateForm
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { AuthError } from '@/utils/errors';
 import { calculateDistance, estimateTravelTime, formatDistance, formatTravelTime, openMaps, openNavigation } from '@/utils/navigationUtils';
+import { navigateBack, NAV_FALLBACK } from '@/utils/navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Activity, ArrowLeft, ArrowRight, Calendar, CheckCircle, CheckCircle2, ChevronDown, ChevronUp, Circle, Clock, Edit, ExternalLink, FileText, MapPin, MapPinned, MessageCircle, MessageSquare, Navigation, Phone, Receipt, Send, Wallet, Wrench, X } from 'lucide-react-native';
@@ -69,6 +74,18 @@ export default function ProviderJobDetailsScreen() {
   const [isStartingJob, setIsStartingJob] = useState(false);
   const [isMarkingComplete, setIsMarkingComplete] = useState(false);
   const [statusDetailsExpanded, setStatusDetailsExpanded] = useState(false);
+
+  const isInitialLoadPending = isLoading || !hasAttemptedLoad;
+  const { showSkeleton: showUpdatesSkeleton } = useSkeletonGate(
+    isInitialLoadPending,
+    !request,
+    { delayMs: 100, minVisibleMs: 280 }
+  );
+
+  const handleBack = useCallback(() => {
+    haptics.light();
+    navigateBack(router, NAV_FALLBACK.providerJobs);
+  }, [router]);
 
   // Update work order status based on request status
   // CRITICAL: Request status is the source of truth - if 'in_progress' or 'completed', work order is active
@@ -652,7 +669,7 @@ export default function ProviderJobDetailsScreen() {
       status: formatTimeAgo(request.createdAt || request.updatedAt),
       accent: JOB_TIMELINE.completeSoft,
       dotColor: JOB_TIMELINE.sage,
-      lineColor: '#4F6739',
+      lineColor: JOB_TIMELINE.sage,
       isActive: false,
       isCompleted: true,
       icon: CheckCircle2,
@@ -671,7 +688,7 @@ export default function ProviderJobDetailsScreen() {
           status: formatTimeAgo(request.updatedAt || request.selectedAt || ''),
           accent: JOB_TIMELINE.completeSoft,
           dotColor: JOB_TIMELINE.sage,
-          lineColor: '#4F6739',
+          lineColor: JOB_TIMELINE.sage,
           isActive: false,
           isCompleted: true,
           icon: CheckCircle2,
@@ -685,8 +702,8 @@ export default function ProviderJobDetailsScreen() {
           description: `Accept within ${mins}:${secs.toString().padStart(2, '0')}`,
           status: 'Waiting',
           accent: '#FEF9C3',
-          dotColor: '#F59E0B',
-          lineColor: '#F59E0B',
+          dotColor: JOB_TIMELINE.activeDot,
+          lineColor: JOB_TIMELINE.activeDot,
           isActive: true,
           isCompleted: false,
           icon: Clock,
@@ -698,8 +715,8 @@ export default function ProviderJobDetailsScreen() {
           description: 'Client is waiting for your response.',
           status: 'Waiting',
           accent: '#FEF9C3',
-          dotColor: '#F59E0B',
-          lineColor: '#F59E0B',
+          dotColor: JOB_TIMELINE.activeDot,
+          lineColor: JOB_TIMELINE.activeDot,
           isActive: true,
           isCompleted: false,
           icon: Clock,
@@ -712,6 +729,10 @@ export default function ProviderJobDetailsScreen() {
                                                request.status === 'in_progress' ||
                                                request.status === 'reviewing' ||
                                                request.status === 'completed';
+    const isQuotationAccepted =
+      (quotationWithProvider && quotationWithProvider.status === 'accepted') ||
+      (quotation && quotation.status === 'accepted') ||
+      requestIndicatesQuotationAccepted;
     const quotationSent =
       recordShowsSentQuotation(quotation) || recordShowsSentQuotation(quotationWithProvider);
     // A sent quotation / post-quote status means the provider already engaged — keep steps linear.
@@ -742,7 +763,7 @@ export default function ProviderJobDetailsScreen() {
           status: 'Done',
           accent: JOB_TIMELINE.completeSoft,
           dotColor: JOB_TIMELINE.sage,
-          lineColor: '#4F6739',
+          lineColor: JOB_TIMELINE.sage,
           isActive: false,
           isCompleted: true,
           icon: MapPinned,
@@ -755,8 +776,8 @@ export default function ProviderJobDetailsScreen() {
           description: 'Client declined the visit.',
           status: 'Active',
           accent: '#FEF9C3',
-          dotColor: '#F59E0B',
-          lineColor: '#F59E0B',
+          dotColor: JOB_TIMELINE.activeDot,
+          lineColor: JOB_TIMELINE.activeDot,
           isActive: true,
           isCompleted: false,
           icon: MapPinned,
@@ -771,8 +792,8 @@ export default function ProviderJobDetailsScreen() {
             : `Visit requested for ${visitScheduleText}.`,
           status: visitPaid ? 'Done' : 'Waiting',
           accent: visitPaid ? 'rgba(79, 103, 57, 0.14)' : '#FEF9C3',
-          dotColor: visitPaid ? '#4F6739' : '#F59E0B',
-          lineColor: visitPaid ? '#4F6739' : '#F59E0B',
+          dotColor: visitPaid ? JOB_TIMELINE.sage : JOB_TIMELINE.activeDot,
+          lineColor: visitPaid ? JOB_TIMELINE.sage : JOB_TIMELINE.activeDot,
           isActive: !visitPaid,
           isCompleted: visitPaid,
           icon: MapPinned,
@@ -785,8 +806,8 @@ export default function ProviderJobDetailsScreen() {
           description: 'Request a visit or quote directly.',
           status: 'Active',
           accent: '#FEF9C3',
-          dotColor: '#F59E0B',
-          lineColor: '#F59E0B',
+          dotColor: JOB_TIMELINE.activeDot,
+          lineColor: JOB_TIMELINE.activeDot,
           isActive: true,
           isCompleted: false,
           icon: MapPinned,
@@ -800,8 +821,8 @@ export default function ProviderJobDetailsScreen() {
         description: 'Accept before taking action.',
         status: 'Pending',
         accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
-        lineColor: '#9CA3AF',
+        dotColor: JOB_TIMELINE.pendingDot,
+        lineColor: JOB_TIMELINE.railMuted,
         isActive: false,
         isCompleted: false,
         icon: MapPinned,
@@ -812,18 +833,28 @@ export default function ProviderJobDetailsScreen() {
     // Step 2b: Quotation
     if (providerHasAccepted) {
       if (quotationSent) {
+        const jobComplete = request.status === 'completed';
+        const quotationDescription = jobComplete
+          ? 'Accepted and paid.'
+          : isQuotationAccepted
+            ? 'Quotation accepted.'
+            : 'Waiting for client review.';
+        const quotationStatus = jobComplete
+          ? 'Done'
+          : formatTimeAgo(quotationWithProvider?.sentAt || quotation?.sentAt || request.updatedAt || '');
+
         timeline.push({
           id: 'step-2b',
           title: 'Quotation',
-          description: 'Waiting for client review.',
-          status: formatTimeAgo(quotationWithProvider?.sentAt || quotation?.sentAt || request.updatedAt || ''),
+          description: quotationDescription,
+          status: quotationStatus,
           accent: JOB_TIMELINE.completeSoft,
           dotColor: JOB_TIMELINE.sage,
-          lineColor: '#4F6739',
+          lineColor: JOB_TIMELINE.sage,
           isActive: false,
           isCompleted: true,
           icon: FileText,
-          canEdit: true,
+          canEdit: !jobComplete && !isQuotationAccepted,
         });
       } else {
         timeline.push({
@@ -834,8 +865,8 @@ export default function ProviderJobDetailsScreen() {
             : 'Prepare the quote.',
           status: hasVisitRequested && !visitPaid ? 'Pending' : 'Active',
           accent: hasVisitRequested && !visitPaid ? '#F3F4F6' : '#FEF9C3',
-          dotColor: hasVisitRequested && !visitPaid ? '#9CA3AF' : '#F59E0B',
-          lineColor: hasVisitRequested && !visitPaid ? '#9CA3AF' : '#F59E0B',
+          dotColor: hasVisitRequested && !visitPaid ? JOB_TIMELINE.pendingDot : JOB_TIMELINE.activeDot,
+          lineColor: hasVisitRequested && !visitPaid ? JOB_TIMELINE.pendingDot : JOB_TIMELINE.activeDot,
           isActive: !(hasVisitRequested && !visitPaid),
           isCompleted: false,
           icon: FileText,
@@ -849,8 +880,8 @@ export default function ProviderJobDetailsScreen() {
         description: 'Send quote after accepting.',
         status: 'Pending',
         accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
-        lineColor: '#9CA3AF',
+        dotColor: JOB_TIMELINE.pendingDot,
+        lineColor: JOB_TIMELINE.railMuted,
         isActive: false,
         isCompleted: false,
         icon: FileText,
@@ -859,20 +890,17 @@ export default function ProviderJobDetailsScreen() {
     }
 
     // Step 3: Quotation Accepted
-    // Check if quotation is accepted
-    const isQuotationAccepted = (quotationWithProvider && quotationWithProvider.status === 'accepted') ||
-                                (quotation && quotation.status === 'accepted') ||
-                                requestIndicatesQuotationAccepted; // If scheduled/in_progress/completed, quotation was accepted
-    
     if (isQuotationAccepted) {
       timeline.push({
         id: 'step-3',
         title: 'Quote accepted',
-        description: 'Waiting for payment.',
-        status: formatTimeAgo(quotationWithProvider?.sentAt || quotation?.sentAt || request.updatedAt || ''),
+        description: request.status === 'completed' ? 'Paid and confirmed.' : 'Waiting for payment.',
+        status: request.status === 'completed'
+          ? 'Done'
+          : formatTimeAgo(quotationWithProvider?.sentAt || quotation?.sentAt || request.updatedAt || ''),
         accent: JOB_TIMELINE.completeSoft,
         dotColor: JOB_TIMELINE.sage,
-        lineColor: '#4F6739',
+        lineColor: JOB_TIMELINE.sage,
         isActive: false,
         isCompleted: true,
         icon: CheckCircle,
@@ -885,8 +913,8 @@ export default function ProviderJobDetailsScreen() {
         description: 'Waiting for acceptance.',
         status: 'Waiting',
         accent: '#FEF9C3',
-        dotColor: '#F59E0B',
-        lineColor: '#F59E0B',
+        dotColor: JOB_TIMELINE.activeDot,
+        lineColor: JOB_TIMELINE.activeDot,
         isActive: true,
         isCompleted: false,
         icon: Clock,
@@ -899,8 +927,8 @@ export default function ProviderJobDetailsScreen() {
         description: 'Send quote first.',
         status: 'Pending',
         accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
-        lineColor: '#9CA3AF',
+        dotColor: JOB_TIMELINE.pendingDot,
+        lineColor: JOB_TIMELINE.railMuted,
         isActive: false,
         isCompleted: false,
         icon: FileText,
@@ -929,7 +957,7 @@ export default function ProviderJobDetailsScreen() {
         status: formatTimeAgo(request.updatedAt || ''),
         accent: JOB_TIMELINE.completeSoft,
         dotColor: JOB_TIMELINE.sage,
-        lineColor: '#4F6739',
+        lineColor: JOB_TIMELINE.sage,
         isActive: false,
         isCompleted: true,
         icon: CheckCircle2,
@@ -943,8 +971,8 @@ export default function ProviderJobDetailsScreen() {
         description: 'Payment received.',
         status: 'Pending',
         accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
-        lineColor: '#9CA3AF',
+        dotColor: JOB_TIMELINE.pendingDot,
+        lineColor: JOB_TIMELINE.railMuted,
         isActive: false,
         isCompleted: false,
         icon: Wallet,
@@ -959,8 +987,8 @@ export default function ProviderJobDetailsScreen() {
         description: 'Waiting for payment.',
         status: 'Waiting',
         accent: '#FEF9C3',
-        dotColor: '#F59E0B',
-        lineColor: '#F59E0B',
+        dotColor: JOB_TIMELINE.activeDot,
+        lineColor: JOB_TIMELINE.activeDot,
         isActive: true,
         isCompleted: false,
         icon: Clock,
@@ -975,8 +1003,8 @@ export default function ProviderJobDetailsScreen() {
         description: 'Waiting for quote acceptance.',
         status: 'Pending',
         accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
-        lineColor: '#9CA3AF',
+        dotColor: JOB_TIMELINE.pendingDot,
+        lineColor: JOB_TIMELINE.railMuted,
         isActive: false,
         isCompleted: false,
         icon: Clock,
@@ -992,11 +1020,11 @@ export default function ProviderJobDetailsScreen() {
       timeline.push({
         id: 'step-5',
         title: 'Work started',
-        description: 'Client will review when done.',
+        description: 'Work finished.',
         status: 'Done',
         accent: JOB_TIMELINE.completeSoft,
         dotColor: JOB_TIMELINE.sage,
-        lineColor: '#4F6739',
+        lineColor: JOB_TIMELINE.sage,
         isActive: false,
         isCompleted: true,
         icon: Wrench,
@@ -1009,7 +1037,7 @@ export default function ProviderJobDetailsScreen() {
         status: 'Review',
         accent: JOB_TIMELINE.completeSoft,
         dotColor: JOB_TIMELINE.sage,
-        lineColor: '#4F6739',
+        lineColor: JOB_TIMELINE.sage,
         isActive: false,
         isCompleted: true,
         icon: Wrench,
@@ -1021,8 +1049,8 @@ export default function ProviderJobDetailsScreen() {
         description: 'Keep the client updated.',
         status: 'Active',
         accent: '#FEF9C3',
-        dotColor: '#F59E0B',
-        lineColor: '#F59E0B',
+        dotColor: JOB_TIMELINE.activeDot,
+        lineColor: JOB_TIMELINE.activeDot,
         isActive: true,
         isCompleted: false,
         icon: Wrench,
@@ -1034,8 +1062,8 @@ export default function ProviderJobDetailsScreen() {
         description: 'Start after payment.',
         status: 'Pending',
         accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
-        lineColor: '#9CA3AF',
+        dotColor: JOB_TIMELINE.pendingDot,
+        lineColor: JOB_TIMELINE.railMuted,
         isActive: false,
         isCompleted: false,
         icon: Wrench,
@@ -1051,7 +1079,7 @@ export default function ProviderJobDetailsScreen() {
         status: formatTimeAgo(request.updatedAt || request.createdAt),
         accent: JOB_TIMELINE.completeSoft,
         dotColor: JOB_TIMELINE.sage,
-        lineColor: '#4F6739',
+        lineColor: JOB_TIMELINE.sage,
         isActive: false,
         isCompleted: true,
         icon: CheckCircle,
@@ -1063,8 +1091,8 @@ export default function ProviderJobDetailsScreen() {
         description: 'Waiting for client confirmation.',
         status: 'Review',
         accent: '#FEF9C3',
-        dotColor: '#F59E0B',
-        lineColor: '#F59E0B',
+        dotColor: JOB_TIMELINE.activeDot,
+        lineColor: JOB_TIMELINE.activeDot,
         isActive: true,
         isCompleted: false,
         icon: Clock,
@@ -1076,8 +1104,8 @@ export default function ProviderJobDetailsScreen() {
         description: 'Final step after client approval.',
         status: 'Pending',
         accent: '#F3F4F6',
-        dotColor: '#9CA3AF',
-        lineColor: '#9CA3AF',
+        dotColor: JOB_TIMELINE.pendingDot,
+        lineColor: JOB_TIMELINE.railMuted,
         isActive: false,
         isCompleted: false,
         icon: CheckCircle,
@@ -1160,34 +1188,13 @@ export default function ProviderJobDetailsScreen() {
     }
   }, [params.requestId]);
 
-  // Animate timeline only on first load – avoid re-animating on every refresh (causes glitching)
+  // Show timeline immediately — staggered entrance caused jank after skeleton dismisses.
   useEffect(() => {
     if (timelineSteps.length === 0) return;
     if (hasAnimatedTimelineRef.current) return;
     hasAnimatedTimelineRef.current = true;
-
-    const timelineSequence = timelineAnimations.slice(0, timelineSteps.length).map((anim, index) =>
-      Animated.spring(anim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 80,
-        friction: 8,
-        delay: index * 120,
-      })
-    );
-    Animated.stagger(100, timelineSequence).start(() => {
-      haptics.light();
-    });
-
-    const lineSequence = lineAnimations.slice(0, Math.max(0, timelineSteps.length - 1)).map((anim, index) =>
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 400,
-        delay: (index + 1) * 120 + 200,
-        useNativeDriver: false,
-      })
-    );
-    Animated.stagger(100, lineSequence).start();
+    timelineAnimations.slice(0, timelineSteps.length).forEach((anim) => anim.setValue(1));
+    lineAnimations.slice(0, Math.max(0, timelineSteps.length - 1)).forEach((anim) => anim.setValue(1));
   }, [timelineSteps, timelineAnimations, lineAnimations]);
 
   // Get user info from request
@@ -1293,15 +1300,9 @@ export default function ProviderJobDetailsScreen() {
     return { title: 'Request received', message: 'Processing your request', showDetails: true, variant: 'neutral' as const };
   }, [request, quotationWithProvider, clientName, isFromAcceptedRequests, selectionCountdown, quotation, workOrderStatus]);
 
-  // While the first load is still in progress (or hasn't been triggered yet),
-  // show only the loading state – don't flash the fallback "Job not found" UI.
-  if (isLoading || !hasAttemptedLoad) {
-    return <ProviderJobLoadingState />;
-  }
-
-  if (!request) {
+  if (hasAttemptedLoad && !isLoading && !request) {
     return (
-      <ProviderJobNotFoundState onGoBack={() => router.replace('/provider/home' as any)} />
+      <ProviderJobNotFoundState onGoBack={handleBack} />
     );
   }
 
@@ -1320,9 +1321,7 @@ export default function ProviderJobDetailsScreen() {
           }}
         >
           <TouchableOpacity
-            onPress={() => {
-              router.replace('/provider/home' as any);
-            }}
+            onPress={handleBack}
             style={{
               width: 40,
               height: 40,
@@ -1454,6 +1453,9 @@ export default function ProviderJobDetailsScreen() {
           }
         >
           {activeTab === 'Updates' ? (
+            showUpdatesSkeleton ? (
+              <ProviderJobUpdatesTabSkeleton />
+            ) : (
             <>
           {/* Sync hint – when quotation accepted but status still shows waiting for payment */}
           {(() => {
@@ -1782,17 +1784,9 @@ export default function ProviderJobDetailsScreen() {
           {request && timelineSteps.length > 0 && (
             <View
               style={{
-                backgroundColor: Colors.white,
-                borderRadius: 22,
+                ...providerListCard,
                 padding: 16,
                 marginBottom: 16,
-                borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.045)',
-                shadowColor: '#101828',
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0,
-                shadowRadius: 0,
-                elevation: 0,
               }}
             >
               <Text
@@ -1895,20 +1889,15 @@ export default function ProviderJobDetailsScreen() {
                           inputRange: [0, 1],
                           outputRange: [0, 1],
                         }),
-                        backgroundColor: '#FFFFFF',
-                        borderRadius: 16,
+                        backgroundColor: Colors.white,
+                        borderRadius: BorderRadius.default,
                         borderWidth: 1,
                         borderColor: step.isActive
-                          ? '#EADFC2'
+                          ? JOB_TIMELINE.activeSoft
                           : step.isCompleted
-                            ? '#E3ECD9'
-                            : '#EDF0F2',
-                        padding: 12,
-                        shadowColor: '#101828',
-                        shadowOffset: { width: 0, height: 0 },
-                        shadowOpacity: 0,
-                        shadowRadius: 0,
-                        elevation: 0,
+                            ? JOB_TIMELINE.completeSoft
+                            : JOB_TIMELINE.rowBorder,
+                        padding: 14,
                       }}
                     >
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -1928,7 +1917,7 @@ export default function ProviderJobDetailsScreen() {
                         {(step.isActive || step.isCompleted) && (
                           <View
                             style={{
-                              backgroundColor: step.isCompleted ? 'rgba(79, 103, 57, 0.14)' : '#FEF9C3',
+                              backgroundColor: step.isCompleted ? JOB_TIMELINE.completeSoft : JOB_TIMELINE.activeSoft,
                               paddingHorizontal: 9,
                               paddingVertical: 4,
                               borderRadius: 12,
@@ -1938,7 +1927,7 @@ export default function ProviderJobDetailsScreen() {
                               style={{
                                 fontSize: 10,
                                 fontFamily: 'Poppins-SemiBold',
-                                color: step.isCompleted ? '#166534' : '#92400E',
+                                color: timelineChipText(step),
                               }}
                             >
                               {step.isCompleted ? 'Done' : 'Active'}
@@ -2007,26 +1996,24 @@ export default function ProviderJobDetailsScreen() {
                                 flexDirection: 'row',
                                 alignItems: 'center',
                                 paddingVertical: 8,
-                                paddingHorizontal: 10,
-                                borderRadius: 12,
-                                backgroundColor: '#F7F8FA',
+                                paddingHorizontal: 12,
+                                borderRadius: BorderRadius.default,
+                                backgroundColor: '#F2F8EA',
+                                borderWidth: 1,
+                                borderColor: 'rgba(79, 103, 57, 0.16)',
                               }}
                               activeOpacity={0.7}
                             >
+                              <Edit size={14} color={Colors.accent} style={{ marginRight: 4 }} />
                               <Text
                                 style={{
                                   fontSize: 12,
                                   fontFamily: 'Poppins-SemiBold',
-                                  color: (step as any).isCompleted ? '#3B82F6' : Colors.textSecondaryDark,
-                                  marginRight: 4,
+                                  color: Colors.accent,
                                 }}
                               >
                                 Edit
                               </Text>
-                              <Edit
-                                size={14}
-                                color={(step as any).isCompleted ? '#3B82F6' : Colors.textSecondaryDark}
-                              />
                             </TouchableOpacity>
                           )}
                           {(step as any).showStartButton && step.id === 'step-4' && (
@@ -2600,6 +2587,9 @@ export default function ProviderJobDetailsScreen() {
             </View>
           </View>
           </>
+            )
+          ) : showUpdatesSkeleton ? (
+            <QuotationListSkeleton count={2} />
           ) : (
             /* Quotations Tab Content */
             <>
@@ -3728,7 +3718,7 @@ export default function ProviderJobDetailsScreen() {
         <View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(17, 24, 39, 0.62)',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
             justifyContent: 'center',
             paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
           }}
@@ -3742,46 +3732,36 @@ export default function ProviderJobDetailsScreen() {
           <View
             style={{
               backgroundColor: Colors.white,
-              borderRadius: 30,
-              padding: 18,
+              borderRadius: BorderRadius.xl,
+              padding: 14,
               borderWidth: 1,
-              borderColor: '#D1D5DB',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 18 },
-              shadowOpacity: 0.28,
-              shadowRadius: 30,
-              elevation: 0.76,
+              borderColor: Colors.border,
             }}
           >
-            <View
-              style={{
-                backgroundColor: '#111827',
-                borderRadius: 24,
-                padding: 16,
-                marginBottom: 14,
-              }}
-            >
+            <SageHeroPanel style={{ marginBottom: 12 }} useMetricsPadding>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1, paddingRight: 12 }}>
                   <View
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 22,
-                      backgroundColor: '#FFFFFF',
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: 'rgba(255, 255, 255, 0.14)',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginBottom: 12,
+                      marginBottom: 10,
+                      borderWidth: 1,
+                      borderColor: 'rgba(255, 255, 255, 0.12)',
                     }}
                   >
-                    <CheckCircle2 size={24} color={Colors.accent} strokeWidth={2.6} />
+                    <CheckCircle2 size={22} color={Colors.white} strokeWidth={2.4} />
                   </View>
                   <Text
                     style={{
-                      fontSize: 19,
+                      fontSize: 18,
                       fontFamily: 'Poppins-Bold',
                       color: Colors.white,
-                      marginBottom: 5,
+                      marginBottom: 4,
                     }}
                   >
                     Job completed
@@ -3790,7 +3770,7 @@ export default function ProviderJobDetailsScreen() {
                     style={{
                       fontSize: 12,
                       fontFamily: 'Poppins-Regular',
-                      color: '#D1D5DB',
+                      color: '#E5E7EB',
                       lineHeight: 18,
                     }}
                   >
@@ -3801,38 +3781,29 @@ export default function ProviderJobDetailsScreen() {
                   onPress={() => setShowCompletedActionsModal(false)}
                   activeOpacity={0.8}
                   style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 17,
-                    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: 'rgba(255, 255, 255, 0.11)',
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderWidth: 1,
-                    borderColor: 'rgba(255, 255, 255, 0.16)',
+                    borderColor: 'rgba(255, 255, 255, 0.12)',
                   }}
                 >
-                  <X size={18} color={Colors.white} strokeWidth={2.4} />
+                  <X size={16} color={Colors.white} strokeWidth={2.4} />
                 </TouchableOpacity>
               </View>
-            </View>
+            </SageHeroPanel>
 
             <View style={{ gap: 10 }}>
               <TouchableOpacity
                 style={{
-                  backgroundColor: Colors.white,
-                  borderWidth: 1,
-                  borderColor: '#D1D5DB',
-                  borderRadius: 18,
-                  paddingVertical: 14,
-                  paddingHorizontal: 14,
+                  ...providerListCard,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  shadowColor: '#111827',
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.07,
-                  shadowRadius: 14,
-                  elevation: 0.76,
+                  marginBottom: 0,
                 }}
                 activeOpacity={0.85}
                 onPress={() => {
@@ -3847,16 +3818,16 @@ export default function ProviderJobDetailsScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <View
                     style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
-                      backgroundColor: '#111827',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: Colors.accent,
                       alignItems: 'center',
                       justifyContent: 'center',
                       marginRight: 12,
                     }}
                   >
-                    <Receipt size={19} color={Colors.white} strokeWidth={2.4} />
+                    <Receipt size={18} color={Colors.white} strokeWidth={2.4} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
@@ -3867,31 +3838,16 @@ export default function ProviderJobDetailsScreen() {
                     </Text>
                   </View>
                 </View>
-                <View
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
-                    backgroundColor: '#F3F4F6',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <ArrowRight size={15} color={Colors.textPrimary} strokeWidth={2.4} />
-                </View>
+                <ArrowRight size={16} color={Colors.textSecondaryDark} strokeWidth={2.4} />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={{
-                  backgroundColor: Colors.white,
-                  borderWidth: 1,
-                  borderColor: '#E5E7EB',
-                  borderRadius: 18,
-                  paddingVertical: 14,
-                  paddingHorizontal: 14,
+                  ...providerListCard,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  marginBottom: 0,
                 }}
                 activeOpacity={0.85}
                 onPress={() => {
@@ -3914,18 +3870,18 @@ export default function ProviderJobDetailsScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <View
                     style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
-                      backgroundColor: '#FEF2F2',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: Colors.errorLight,
                       alignItems: 'center',
                       justifyContent: 'center',
                       marginRight: 12,
                       borderWidth: 1,
-                      borderColor: '#FECACA',
+                      borderColor: Colors.errorBorder,
                     }}
                   >
-                    <Activity size={19} color={Colors.error} strokeWidth={2.3} />
+                    <Activity size={18} color={Colors.error} strokeWidth={2.3} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
@@ -3936,30 +3892,16 @@ export default function ProviderJobDetailsScreen() {
                     </Text>
                   </View>
                 </View>
-                <View
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
-                    backgroundColor: '#FEF2F2',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <ExternalLink size={14} color={Colors.error} strokeWidth={2.3} />
-                </View>
+                <ExternalLink size={15} color={Colors.error} strokeWidth={2.3} />
               </TouchableOpacity>
 
-                <View
-                  style={{
-                  backgroundColor: '#F9FAFB',
-                  borderRadius: 16,
-                  paddingVertical: 12,
-                  paddingHorizontal: 13,
+              <View
+                style={{
+                  ...providerListCard,
                   flexDirection: 'row',
                   alignItems: 'flex-start',
-                  borderWidth: 1,
-                  borderColor: '#EEF2F7',
+                  backgroundColor: Colors.backgroundGray,
+                  marginBottom: 0,
                 }}
               >
                 <CheckCircle2 size={16} color={Colors.accent} style={{ marginRight: 8, marginTop: 1 }} strokeWidth={2.4} />

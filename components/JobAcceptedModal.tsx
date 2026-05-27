@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   },
   content: {
     backgroundColor: Colors.white,
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius.default,
     padding: 24,
     width: '100%',
     maxWidth: 400,

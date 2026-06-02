@@ -15,25 +15,29 @@ interface ToastProps {
 
 const TOAST_CONFIG = {
   success: {
-    bgColor: 'rgba(79, 103, 57, 0.14)',
+    bgColor: '#FFFFFF',
+    borderColor: '#BBF7D0',
     textColor: '#166534',
     icon: 'checkmark-circle' as const,
     iconColor: '#22C55E',
   },
   error: {
-    bgColor: '#FEE2E2',
+    bgColor: '#FFFFFF',
+    borderColor: '#FECACA',
     textColor: '#991B1B',
     icon: 'close-circle' as const,
     iconColor: '#EF4444',
   },
   info: {
-    bgColor: '#DBEAFE',
+    bgColor: '#FFFFFF',
+    borderColor: '#BFDBFE',
     textColor: '#1E40AF',
     icon: 'information-circle' as const,
     iconColor: '#3B82F6',
   },
   warning: {
-    bgColor: '#FEF3C7',
+    bgColor: '#FFFFFF',
+    borderColor: '#FDE68A',
     textColor: '#92400E',
     icon: 'warning' as const,
     iconColor: '#F59E0B',
@@ -113,9 +117,16 @@ export default function Toast({ message, type = 'info', duration = 3000, onClose
           className="rounded-2xl px-4 py-4 flex-row items-center shadow-lg"
           style={{
             backgroundColor: config.bgColor,
+            borderWidth: 1,
+            borderColor: config.borderColor,
             maxWidth: toastMaxWidth,
             alignSelf: 'center',
             width: '100%',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.12,
+            shadowRadius: 8,
+            elevation: 6,
           }}
         >
           <Ionicons name={config.icon} size={24} color={config.iconColor} />

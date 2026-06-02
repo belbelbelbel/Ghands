@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isTerminalVisitStatus } from './visitStatus';
 
 const VISIT_REQUEST_CACHE_KEY = '@ghands:visit_request_cache';
 
@@ -90,6 +91,13 @@ export const mergeCachedVisitRequest = async <T extends { visitRequest?: any }>(
     Number.isFinite(currentVisit.logisticsCost) &&
     currentVisit.logisticsCost > 0;
 
+  const mergedStatus =
+    isTerminalVisitStatus(String(currentVisit.logisticsStatus ?? ''))
+      ? currentVisit.logisticsStatus
+      : isTerminalVisitStatus(String(cachedVisit.logisticsStatus ?? ''))
+        ? cachedVisit.logisticsStatus
+        : cachedVisit.logisticsStatus ?? currentVisit.logisticsStatus;
+
   const merged = {
     ...request,
     visitRequest: {
@@ -101,9 +109,7 @@ export const mergeCachedVisitRequest = async <T extends { visitRequest?: any }>(
         ? currentVisit.scheduledTime ?? cachedVisit.scheduledTime
         : cachedVisit.scheduledTime ?? currentVisit.scheduledTime,
       logisticsCost: hasCurrentCost ? currentVisit.logisticsCost : cachedVisit.logisticsCost,
-      logisticsStatus: hasCurrentCost
-        ? currentVisit.logisticsStatus ?? cachedVisit.logisticsStatus
-        : cachedVisit.logisticsStatus ?? currentVisit.logisticsStatus,
+      logisticsStatus: mergedStatus,
       requestedAt: hasCurrentCost
         ? currentVisit.requestedAt ?? cachedVisit.requestedAt
         : cachedVisit.requestedAt ?? currentVisit.requestedAt,

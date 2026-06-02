@@ -18,6 +18,7 @@ import { serviceRequestService, profileService, authService } from '@/services/a
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { formatTimeAgo } from '@/utils/dateFormatting';
+import { BorderRadius, Colors } from '@/lib/designSystem';
 import { JOB_TIMELINE } from '@/lib/jobTimelineTheme';
 
 type ProgressStepStatus = 'completed' | 'in-progress' | 'pending';
@@ -226,7 +227,7 @@ export default function BookingConfirmationScreen() {
   const handleContinue = () => {
     haptics.selection();
     if (params.requestId) {
-      router.replace({
+      router.push({
         pathname: '/OngoingJobDetails',
         params: { requestId: params.requestId, fromBooking: '1' },
       } as any);
@@ -308,16 +309,11 @@ export default function BookingConfirmationScreen() {
           <View style={{ paddingHorizontal: 20 }}>
             <View
               style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: 24,
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.default,
                 borderWidth: 1,
-                borderColor: 'rgba(17, 24, 39, 0.045)',
+                borderColor: Colors.border,
                 padding: 18,
-                shadowColor: '#111827',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.04,
-                shadowRadius: 18,
-                elevation: 0.76,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -354,13 +350,13 @@ export default function BookingConfirmationScreen() {
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAF5', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 }}>
+                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAF5', borderRadius: BorderRadius.sm, paddingHorizontal: 12, paddingVertical: 11 }}>
                     <CalendarDays size={16} color="#4F6739" />
                     <Text style={{ marginLeft: 8, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 12 }}>
                       {displayDate}
                     </Text>
                   </View>
-                  <View style={{ flex: 1.35, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAF5', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 }}>
+                  <View style={{ flex: 1.35, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAF5', borderRadius: BorderRadius.sm, paddingHorizontal: 12, paddingVertical: 11 }}>
                     <Clock3 size={16} color="#4F6739" />
                     <Text style={{ marginLeft: 8, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 12 }} numberOfLines={1}>
                       {providerSummary}
@@ -382,7 +378,7 @@ export default function BookingConfirmationScreen() {
             <View
               style={{
                 backgroundColor: JOB_TIMELINE.rowBg,
-                borderRadius: 22,
+                borderRadius: BorderRadius.default,
                 borderWidth: 1,
                 borderColor: JOB_TIMELINE.rowBorder,
                 overflow: 'hidden',
@@ -416,11 +412,6 @@ export default function BookingConfirmationScreen() {
                             opacity: isAnimated ? 1 : 0.72,
                             borderWidth: isAnimated && step.status !== 'pending' ? 2.5 : 0,
                             borderColor: '#FFFFFF',
-                            shadowColor: JOB_TIMELINE.dotShadow,
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: isAnimated ? 0.14 : 0,
-                            shadowRadius: 4,
-                            elevation: isAnimated ? 2 : 0,
                           }}
                         >
                           <IconComponent
@@ -486,7 +477,7 @@ export default function BookingConfirmationScreen() {
             activeOpacity={0.85}
             style={{
               backgroundColor: '#050505',
-              borderRadius: 16,
+              borderRadius: BorderRadius.default,
               paddingVertical: 16,
               alignItems: 'center',
               justifyContent: 'center',

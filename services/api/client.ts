@@ -1,6 +1,7 @@
 import { AuthError } from '../../utils/errors';
 import { authService as authServiceInstance } from '../authService';
 import { notifySessionExpired } from '../../utils/sessionExpiredEvents';
+import { isAccessTokenExpired } from '../../utils/jwtExpiry';
 import { API_BASE_URL } from '../../lib/apiConfig';
 
 interface RequestConfig extends RequestInit {
@@ -37,6 +38,11 @@ class ApiClient {
       if (!config.skipAuth) {
         const token = await authServiceInstance.getAuthToken();
         if (!token) {
+          notifySessionExpired();
+          throw new AuthError('Your session has expired. Please sign in again.');
+        }
+        if (isAccessTokenExpired(token)) {
+          await authServiceInstance.clearAuthTokens();
           notifySessionExpired();
           throw new AuthError('Your session has expired. Please sign in again.');
         }

@@ -21,3 +21,24 @@ export const NAV_FALLBACK = {
   providerHome: '/provider/home',
   providerJobs: '/provider/jobs',
 } as const;
+
+type RouterWithReplace = RouterLike & Pick<Router, 'replace'>;
+
+/** Job details opened right after booking — return to confirmation, not the jobs tab. */
+export function navigateBackFromBookingJob(
+  router: RouterWithReplace,
+  requestId?: string
+): void {
+  if (router.canGoBack()) {
+    router.back();
+    return;
+  }
+  if (requestId) {
+    router.replace({
+      pathname: '/BookingConfirmationScreen',
+      params: { requestId },
+    } as never);
+    return;
+  }
+  router.replace(NAV_FALLBACK.clientJobs as never);
+}

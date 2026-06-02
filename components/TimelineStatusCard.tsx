@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 
 import { haptics } from '@/hooks/useHaptics';
-import { Colors } from '@/lib/designSystem';
+import { Colors, BorderRadius } from '@/lib/designSystem';
 import type { QuotationWithProvider, ServiceRequest } from '@/services/api';
 
 type TimelineHeaderData = {
@@ -447,10 +447,10 @@ const TimelineStatusCardComponent = ({
             <View
               style={{
                 marginTop: 12,
-                borderRadius: 12,
+                borderRadius: BorderRadius.default,
                 borderWidth: 1,
-                borderColor: '#FDE68A',
-                backgroundColor: '#FFFBEB',
+                borderColor: 'rgba(79, 103, 57, 0.2)',
+                backgroundColor: '#F2F8EA',
                 paddingHorizontal: 12,
                 paddingVertical: 10,
               }}
@@ -460,21 +460,21 @@ const TimelineStatusCardComponent = ({
                   fontSize: 12,
                   lineHeight: 18,
                   fontFamily: 'Poppins-SemiBold',
-                  color: '#92400E',
+                  color: Colors.accent,
                 }}
               >
-                Visit fee not available yet
+                Visit fee coming soon
               </Text>
               <Text
                 style={{
-                  marginTop: 2,
+                  marginTop: 4,
                   fontSize: 11,
                   lineHeight: 16,
                   fontFamily: 'Poppins-Regular',
-                  color: '#A16207',
+                  color: Colors.textSecondaryDark,
                 }}
               >
-                Pull down to refresh this page. If it still shows, the server has not returned the provider&apos;s visit fee.
+                Your provider scheduled a visit. The inspection fee will appear here shortly — swipe down to refresh if you don&apos;t see it yet.
               </Text>
             </View>
           )}

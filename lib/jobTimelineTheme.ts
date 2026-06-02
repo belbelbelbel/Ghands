@@ -17,6 +17,10 @@ export const JOB_TIMELINE = {
   pendingSoft: 'rgba(148, 163, 184, 0.18)',
   pendingChipText: '#5C6674',
 
+  declinedDot: '#DC2626',
+  declinedSoft: '#FEE2E2',
+  declinedChipText: '#991B1B',
+
   railIdle: 'rgba(79, 103, 57, 0.12)',
   railMuted: 'rgba(148, 163, 184, 0.32)',
 
@@ -27,26 +31,31 @@ export const JOB_TIMELINE = {
   dotInactiveFill: '#E6EBE7',
 } as const;
 
-export function timelineChipText(step: { isCompleted?: boolean; isActive?: boolean }): string {
+export function timelineChipText(step: { isCompleted?: boolean; isActive?: boolean; isDeclined?: boolean; isSkipped?: boolean }): string {
   if (step.isCompleted) return JOB_TIMELINE.sageChipText;
+  if (step.isDeclined) return JOB_TIMELINE.declinedChipText;
+  if (step.isSkipped) return JOB_TIMELINE.pendingChipText;
   if (step.isActive) return JOB_TIMELINE.activeChipText;
   return JOB_TIMELINE.pendingChipText;
 }
 
-export function timelineDotColor(step: { isCompleted?: boolean; isActive?: boolean; isPending?: boolean }) {
+export function timelineDotColor(step: { isCompleted?: boolean; isActive?: boolean; isPending?: boolean; isDeclined?: boolean }) {
   if (step.isCompleted) return JOB_TIMELINE.sage;
+  if (step.isDeclined) return JOB_TIMELINE.declinedDot;
   if (step.isActive) return JOB_TIMELINE.activeDot;
   return JOB_TIMELINE.pendingDot;
 }
 
-export function timelineLineColor(step: { isCompleted?: boolean; isActive?: boolean; isPending?: boolean }) {
+export function timelineLineColor(step: { isCompleted?: boolean; isActive?: boolean; isPending?: boolean; isDeclined?: boolean }) {
   if (step.isCompleted) return JOB_TIMELINE.sage;
+  if (step.isDeclined) return JOB_TIMELINE.declinedDot;
   if (step.isActive) return JOB_TIMELINE.activeDot;
   return JOB_TIMELINE.railMuted;
 }
 
-export function timelineAccentBg(step: { isCompleted?: boolean; isActive?: boolean; isPending?: boolean }) {
+export function timelineAccentBg(step: { isCompleted?: boolean; isActive?: boolean; isPending?: boolean; isDeclined?: boolean }) {
   if (step.isCompleted) return JOB_TIMELINE.completeSoft;
+  if (step.isDeclined) return JOB_TIMELINE.declinedSoft;
   if (step.isActive) return JOB_TIMELINE.activeSoft;
   return JOB_TIMELINE.pendingSoft;
 }

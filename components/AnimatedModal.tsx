@@ -8,6 +8,10 @@ interface AnimatedModalProps {
   children: React.ReactNode;
   animationType?: 'slide' | 'fade';
   dismissible?: boolean;
+  /** Backdrop darkness — default 0.38 */
+  backdropOpacity?: number;
+  /** Minimum sheet height as % of screen — default 75 */
+  minHeightPercent?: number;
 }
 
 /**
@@ -20,6 +24,8 @@ export default function AnimatedModal({
   children,
   animationType = 'slide',
   dismissible = true,
+  backdropOpacity = 0.38,
+  minHeightPercent = 75,
 }: AnimatedModalProps) {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -92,6 +98,7 @@ export default function AnimatedModal({
             styles.backdrop,
             {
               opacity: backdropAnim,
+              backgroundColor: `rgba(0, 0, 0, ${backdropOpacity})`,
             },
           ]}
         >
@@ -103,6 +110,7 @@ export default function AnimatedModal({
         <Animated.View
           style={[
             styles.content,
+            { minHeight: `${minHeightPercent}%` },
             animationType === 'slide'
               ? {
                   transform: [{ translateY }, { scale }],
@@ -127,7 +135,6 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   content: {
     backgroundColor: Colors.backgroundLight,
@@ -137,15 +144,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xl,
     paddingHorizontal: Spacing.lg,
     maxHeight: '95%',
-    minHeight: '75%',
-    shadowColor: Colors.shadow,
-    shadowOffset: {
-      width: 0,
-      height: -4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 0.76,
+    borderTopWidth: 1,
+    borderColor: Colors.border,
   },
 });
 

@@ -4,6 +4,7 @@ import { haptics } from '@/hooks/useHaptics';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 import { providerService, serviceRequestService } from '@/services/api';
+import { openProviderReceipt } from '@/utils/receiptNavigation';
 import { formatDateShort } from '@/utils/dateFormatting';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ArrowRight, Calendar, Clock, MapPin, MessageCircle, Phone, CheckCircle2, FileText, Wrench, CheckCircle, CreditCard, Circle } from 'lucide-react-native';
@@ -441,7 +442,11 @@ export default function ProviderCompletedJobScreen() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
-              onPress={() => router.push({ pathname: '/ProviderReceiptScreen' as any, params: { requestId: params.requestId ?? String(request?.id ?? '') } } as any)}
+              onPress={() =>
+                openProviderReceipt(router, {
+                  requestId: params.requestId ?? String(request?.id ?? ''),
+                })
+              }
               activeOpacity={0.8}
             >
               <Text

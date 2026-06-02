@@ -17,7 +17,7 @@ const CLIENT_COPY: Record<ClientTab, { variant: JobsEmptyVariant; title: string;
   Completed: {
     variant: 'completed',
     title: 'No completed jobs yet',
-    description: 'Completed jobs and receipts will appear here once work is finished.',
+    description: 'Finished jobs will show up here.',
   },
   Cancelled: {
     variant: 'cancelled',
@@ -40,7 +40,7 @@ const PROVIDER_COPY: Record<ProviderTab, { variant: JobsEmptyVariant; title: str
   Completed: {
     variant: 'completed',
     title: 'No completed jobs yet',
-    description: 'Completed jobs and customer confirmations will appear here.',
+    description: 'Finished jobs will show up here.',
   },
 };
 

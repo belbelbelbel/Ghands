@@ -3,11 +3,13 @@ import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { providerService } from '@/services/api';
+import { logDevAuthTokens } from '@/utils/devAuthTokens';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { isDuplicateActionError } from '@/utils/idempotentSubmit';
 import { saveCachedVisitRequest } from '@/utils/visitRequestCache';
 import { BorderRadius, Colors, Spacing } from '@/lib/designSystem';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, Wallet } from 'lucide-react-native';
+import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, FileText, Wallet } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -60,6 +62,7 @@ export default function RequestVisitScreen() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [logisticsCost, setLogisticsCost] = useState<string>('10');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -235,6 +238,7 @@ export default function RequestVisitScreen() {
   };
 
   const handleConfirmAppointment = async () => {
+    if (submitLockRef.current || isSubmitting) return;
     if (!requestId || !selectedDate || !selectedTime) return;
 
     // Validate full date+time is not in the past
@@ -243,6 +247,7 @@ export default function RequestVisitScreen() {
       return;
     }
 
+    submitLockRef.current = true;
     setIsSubmitting(true);
     try {
       const rid = Number(requestId);
@@ -260,6 +265,7 @@ export default function RequestVisitScreen() {
           logisticsCost: parseFloat(logisticsCost) || 0,
         };
         if (__DEV__) {
+          void logDevAuthTokens('RequestVisit');
           console.log('[RequestVisit] submitting visit request', {
             requestId: rid,
             payload: visitPayload,
@@ -292,7 +298,11 @@ export default function RequestVisitScreen() {
           });
         }
         const msg = (visitErr?.message || visitErr?.details?.data?.message || '').toLowerCase();
-        if (msg.includes('visit has already been requested') || msg.includes('already been requested')) {
+        if (
+          isDuplicateActionError(visitErr, ['visit']) ||
+          msg.includes('visit has already been requested') ||
+          msg.includes('already been requested')
+        ) {
           await saveCachedVisitRequest(rid, {
             scheduledDate: formattedDate,
             scheduledTime: timeFormatted,
@@ -315,9 +325,9 @@ export default function RequestVisitScreen() {
       setTimeout(() => router.back(), 1500);
     } catch (error: any) {
       haptics.error();
+      submitLockRef.current = false;
       const errorMessage = getSpecificErrorMessage(error, 'request_visit');
       showError(errorMessage);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -421,6 +431,38 @@ export default function RequestVisitScreen() {
             </Text>
           </View>
         </View>
+
+        <TouchableOpacity
+          onPress={() => {
+            if (!requestId) return;
+            haptics.light();
+            router.replace({
+              pathname: '/SendQuotationScreen' as any,
+              params: {
+                requestId,
+                jobTitle: params.jobTitle,
+                returnToTab: 'Quotations',
+              },
+            } as any);
+          }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            alignSelf: 'flex-end',
+            marginRight: Spacing.lg,
+            marginBottom: 8,
+            paddingVertical: 6,
+            paddingHorizontal: 10,
+            borderRadius: BorderRadius.sm,
+            backgroundColor: '#F2F8EA',
+          }}
+          activeOpacity={0.85}
+        >
+          <FileText size={14} color={Colors.accent} style={{ marginRight: 6 }} />
+          <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
+            Send quotation instead
+          </Text>
+        </TouchableOpacity>
 
         <Animated.View style={[{ flex: 1 }, animatedStyles]}>
           <ScrollView

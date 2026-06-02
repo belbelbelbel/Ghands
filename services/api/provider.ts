@@ -1,5 +1,7 @@
+import { cacheDevAuthTokenForRole } from '../../utils/devAuthTokens';
 import { AuthError } from '../../utils/errors';
 import { saveCachedVisitRequest } from '../../utils/visitRequestCache';
+import { isDuplicateActionError } from '../../utils/idempotentSubmit';
 import { extractUserIdFromToken } from '../../utils/tokenUtils';
 import { authService as authServiceInstance } from '../authService';
 import { apiClient, extractResponseData } from './client';
@@ -114,6 +116,8 @@ function normalizeProviderRequestRecord(requestData: ServiceRequest): ServiceReq
       logisticsCost: parseMoneyValue(rawVisitCost),
       logisticsStatus: mappedVisitStatus,
       requestedAt,
+      declinedBy: firstPresent(vr?.declinedBy, vr?.declined_by, raw.visitDeclinedBy, raw.visit_declined_by),
+      cancelledBy: firstPresent(vr?.cancelledBy, vr?.cancelled_by, raw.visitCancelledBy, raw.visit_cancelled_by),
     };
   }
   return requestData;
@@ -136,7 +140,10 @@ const providerService = {
     const token = response?.data?.data?.token || response?.data?.token || response?.token;
     const providerData = response?.data?.data || response?.data || response;
     const providerId = providerData?.id || (response as any)?.id || response?.data?.id;
-    if (token) await authServiceInstance.setAuthToken(token);
+    if (token) {
+      await authServiceInstance.setAuthToken(token);
+      await cacheDevAuthTokenForRole('provider', token);
+    }
     if (providerId) await authServiceInstance.setUserId(providerId);
     else if (token) {
       const id = extractUserIdFromToken(token);
@@ -165,6 +172,7 @@ const providerService = {
     const providerId = providerData?.id || providerData?.companyId || (response as any)?.id || response?.data?.id;
     if (!token) throw new Error('Login failed: No token received from server.');
     await authServiceInstance.setAuthToken(token);
+    await cacheDevAuthTokenForRole('provider', token);
     let finalProviderId: number | undefined = undefined;
     if (providerId) {
       finalProviderId = typeof providerId === 'number' ? providerId : parseInt(providerId.toString(), 10);
@@ -471,8 +479,21 @@ const providerService = {
     user: { id: number; firstName: string; lastName: string; phoneNumber: string; email: string };
     message: string;
   }> => {
-    const response = await apiClient.post<any>(`/api/provider/requests/${requestId}/accept`);
-    return (response as any).data;
+    try {
+      const response = await apiClient.post<any>(`/api/provider/requests/${requestId}/accept`);
+      return (response as any).data;
+    } catch (error: any) {
+      if (isDuplicateActionError(error, ['accept', 'already accepted'])) {
+        return {
+          requestId,
+          status: 'accepted',
+          provider: { id: 0, name: '', phoneNumber: '' },
+          user: { id: 0, firstName: '', lastName: '', phoneNumber: '', email: '' },
+          message: 'Request was already accepted.',
+        };
+      }
+      throw error;
+    }
   },
 
   getAcceptedRequests: async (): Promise<ServiceRequest[]> => {

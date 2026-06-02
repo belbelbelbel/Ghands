@@ -18,6 +18,7 @@ import {
   providerHomeViewAllLabel,
 } from '@/lib/providerSurfaceStyles';
 import { walletService } from '@/services/api';
+import { openClientReceipt } from '@/utils/receiptNavigation';
 
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight, Bell, CheckCircle, Clock, Plus, Receipt, Wallet } from 'lucide-react-native';
@@ -32,6 +33,8 @@ interface Transaction {
   time: string;
   amount: number;
   status: 'pending' | 'completed';
+  requestId?: string;
+  reference?: string;
 }
 
 export default function WalletScreen() {
@@ -93,6 +96,8 @@ export default function WalletScreen() {
         time,
         amount: Math.abs(apiTransaction.amount || 0), // Use absolute value for display
         status: apiTransaction.status === 'completed' ? 'completed' : 'pending',
+        requestId: apiTransaction.requestId != null ? String(apiTransaction.requestId) : undefined,
+        reference: apiTransaction.reference ? String(apiTransaction.reference) : undefined,
       };
     } catch (error) {
       if (__DEV__) {
@@ -166,15 +171,14 @@ export default function WalletScreen() {
   }, [router]);
 
   const handleViewReceipt = useCallback((transaction: Transaction) => {
-    router.push({
-      pathname: '/PaymentSuccessfulScreen',
-      params: {
-        transactionId: transaction.id,
-        providerName: transaction.serviceName,
-        serviceName: transaction.serviceDescription,
-        amount: transaction.amount.toString(),
-      },
-    } as any);
+    openClientReceipt(router, {
+      transactionId: transaction.id,
+      requestId: transaction.requestId,
+      reference: transaction.reference,
+      providerName: transaction.serviceName,
+      serviceName: transaction.serviceDescription,
+      amount: transaction.amount.toString(),
+    });
   }, [router]);
 
   const formatCurrency = useCallback((value: number) => {

@@ -15,7 +15,8 @@ import {
 import { ProviderQuotationListItem, providerService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ArrowRight, CheckCircle2, Clock, FileText, XCircle } from 'lucide-react-native';
+import { QuotationsEmptyIllustration } from '@/components/JobsEmptyIllustrations';
+import { ArrowRight, CheckCircle2, Clock, XCircle } from 'lucide-react-native';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   RefreshControl,
@@ -49,23 +50,23 @@ const getStatusConfig = (status: string) => {
   switch (status) {
     case 'accepted':
       return {
-        color: '#16A34A',
-        bgColor: 'rgba(79, 103, 57, 0.14)',
+        color: Colors.accent,
+        bgColor: Colors.successLight,
         icon: CheckCircle2,
         label: 'Accepted',
       };
     case 'rejected':
       return {
-        color: '#DC2626',
-        bgColor: '#FEE2E2',
+        color: Colors.error,
+        bgColor: Colors.errorLight,
         icon: XCircle,
         label: 'Rejected',
       };
     case 'pending':
     default:
       return {
-        color: '#F59E0B',
-        bgColor: '#FEF3C7',
+        color: Colors.warning,
+        bgColor: Colors.warningLight,
         icon: Clock,
         label: 'Pending',
       };
@@ -75,7 +76,7 @@ const getStatusConfig = (status: string) => {
 export default function ProviderQuotationsScreen() {
   const router = useRouter();
   const headerTopPad = useTabScrollContentPaddingTop(16);
-  const { toast, showError, hideToast } = useToast();
+  const { toast, hideToast } = useToast();
   const [quotations, setQuotations] = useState<ProviderQuotationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const quotationsReadyRef = useRef(false);
@@ -90,14 +91,15 @@ export default function ProviderQuotationsScreen() {
       const data = await providerService.getProviderQuotations();
       setQuotations(data);
     } catch (error: any) {
-      const errorMessage = getSpecificErrorMessage(error, 'get_provider_quotations');
-      showError(errorMessage);
+      if (__DEV__) {
+        console.warn('Failed to load quotations:', getSpecificErrorMessage(error, 'get_provider_quotations'));
+      }
       setQuotations([]);
     } finally {
       quotationsReadyRef.current = true;
       setIsLoading(false);
     }
-  }, [showError]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -263,12 +265,12 @@ export default function ProviderQuotationsScreen() {
               borderTopColor: Colors.border,
             }}
           >
-            <CheckCircle2 size={14} color="#16A34A" style={{ marginRight: 6 }} />
+            <CheckCircle2 size={14} color={Colors.accent} style={{ marginRight: 6 }} />
             <Text
               style={{
                 fontSize: 11,
                 fontFamily: 'Poppins-Medium',
-                color: '#16A34A',
+                color: Colors.accent,
               }}
             >
               Accepted on {formatDate(quotation.acceptedAt)}
@@ -287,12 +289,12 @@ export default function ProviderQuotationsScreen() {
               borderTopColor: Colors.border,
             }}
           >
-            <XCircle size={14} color="#DC2626" style={{ marginRight: 6 }} />
+            <XCircle size={14} color={Colors.error} style={{ marginRight: 6 }} />
             <Text
               style={{
                 fontSize: 11,
                 fontFamily: 'Poppins-Medium',
-                color: '#DC2626',
+                color: Colors.error,
               }}
             >
               Rejected on {formatDate(quotation.rejectedAt)}
@@ -411,36 +413,40 @@ export default function ProviderQuotationsScreen() {
           ) : filteredQuotations.length === 0 ? (
             <View
               style={{
-                ...providerListCard,
                 alignItems: 'center',
-                paddingVertical: 32,
-                marginTop: 20,
+                justifyContent: 'center',
+                paddingVertical: 48,
+                paddingHorizontal: 32,
+                marginTop: 12,
               }}
             >
-              <FileText size={48} color={Colors.textTertiary} style={{ marginBottom: 16 }} />
+              <QuotationsEmptyIllustration size={140} />
               <Text
                 style={{
-                  fontSize: 16,
-                  fontFamily: 'Poppins-Bold',
+                  marginTop: 20,
+                  fontSize: 18,
+                  fontFamily: 'Poppins-SemiBold',
                   color: Colors.textPrimary,
-                  marginBottom: 8,
-                }}
-              >
-                No quotations found
-              </Text>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
                   textAlign: 'center',
-                  maxWidth: 280,
                 }}
               >
                 {activeFilter === 'all'
-                  ? "You haven't sent any quotations yet. Start accepting requests and send quotations to get started."
-                  : `No ${activeFilter} quotations found.`}
+                  ? 'No quotations yet'
+                  : `No ${activeFilter} quotations`}
               </Text>
+              {activeFilter === 'all' ? (
+                <Text
+                  style={{
+                    marginTop: 8,
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textSecondaryDark,
+                    textAlign: 'center',
+                  }}
+                >
+                  Sent quotes will show up here.
+                </Text>
+              ) : null}
             </View>
           ) : (
             <>

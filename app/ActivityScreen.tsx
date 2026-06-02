@@ -11,6 +11,7 @@ import {
   providerHomeSurfacePadding,
 } from '@/lib/providerSurfaceStyles';
 import { walletService } from '@/services/api';
+import { openClientReceipt } from '@/utils/receiptNavigation';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, CheckCircle, Clock, Filter, Receipt, Search, XCircle } from 'lucide-react-native';
 import React, { useState, useCallback, useEffect } from 'react';
@@ -24,6 +25,8 @@ interface Transaction {
   time: string;
   amount: number;
   status: 'completed' | 'pending' | 'failed';
+  requestId?: string;
+  reference?: string;
 }
 
 export default function ActivityScreen() {
@@ -95,6 +98,8 @@ export default function ActivityScreen() {
         time,
         amount: Math.abs(apiTransaction.amount || 0), // Use absolute value for display
         status,
+        requestId: apiTransaction.requestId != null ? String(apiTransaction.requestId) : undefined,
+        reference: apiTransaction.reference ? String(apiTransaction.reference) : undefined,
       };
     } catch (error) {
       if (__DEV__) {
@@ -159,16 +164,7 @@ export default function ActivityScreen() {
   });
 
   const handleViewDetails = (transaction: Transaction) => {
-    if (transaction.status === 'completed') {
-      router.push({
-        pathname: '/PaymentSuccessfulScreen',
-        params: {
-          transactionId: transaction.id,
-          providerName: transaction.serviceName,
-          serviceName: transaction.serviceDescription,
-        },
-      } as any);
-    } else if (transaction.status === 'pending') {
+    if (transaction.status === 'pending') {
       router.push({
         pathname: '/PaymentPendingScreen',
         params: {
@@ -190,6 +186,17 @@ export default function ActivityScreen() {
         },
       } as any);
     }
+  };
+
+  const handleViewReceipt = (transaction: Transaction) => {
+    openClientReceipt(router, {
+      transactionId: transaction.id,
+      requestId: transaction.requestId,
+      reference: transaction.reference,
+      providerName: transaction.serviceName,
+      serviceName: transaction.serviceDescription,
+      amount: transaction.amount.toString(),
+    });
   };
 
   return (
@@ -602,7 +609,7 @@ export default function ActivityScreen() {
               {/* Action Buttons */}
               {transaction.status === 'completed' ? (
                 <TouchableOpacity
-                  onPress={() => handleViewDetails(transaction)}
+                  onPress={() => handleViewReceipt(transaction)}
                   style={{
                     ...providerHomeActionButton,
                     width: '100%',

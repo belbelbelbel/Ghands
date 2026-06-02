@@ -116,7 +116,13 @@ export default function ProfileCompletionModal({
   };
 
   return (
-    <AnimatedModal visible={visible} onClose={handleClose} dismissible={!isSubmitting}>
+    <AnimatedModal
+      visible={visible}
+      onClose={handleClose}
+      dismissible={!isSubmitting}
+      minHeightPercent={92}
+      backdropOpacity={0.32}
+    >
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -134,6 +140,7 @@ export default function ProfileCompletionModal({
         </View>
 
         <ScrollView
+          style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
@@ -233,22 +240,24 @@ export default function ProfileCompletionModal({
 
 const styles = StyleSheet.create({
   container: {
-    maxHeight: '85%',
+    flex: 1,
     backgroundColor: Colors.white,
     borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.sm,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.accent + '15',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.successLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -261,22 +270,23 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundGray,
   },
   scrollContent: {
-    paddingBottom: Spacing.sm,
+    flexGrow: 1,
+    paddingBottom: Spacing.xs,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: 'Poppins-Bold',
     color: Colors.textPrimary,
-    marginBottom: 6,
+    marginBottom: 4,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: 'Poppins-Regular',
     color: Colors.textSecondaryDark,
     textAlign: 'center',
     marginBottom: Spacing.md,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   inlineErrorBanner: {
     backgroundColor: '#FEF2F2',
@@ -305,22 +315,22 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'Poppins-SemiBold',
     color: Colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   genderContainer: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    marginTop: 8,
+    marginTop: 4,
   },
   genderOption: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.md,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.white,
     alignItems: 'center',
@@ -340,8 +350,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
   },
   actions: {
-    marginTop: Spacing.lg,
-    paddingTop: Spacing.md,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },

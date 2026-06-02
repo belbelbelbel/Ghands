@@ -1,7 +1,6 @@
 import React, { Component, ReactNode } from 'react';
 import { AuthError } from '../utils/errors';
 import { handleTokenExpiration } from '../utils/tokenExpirationHandler';
-import { authService } from '../services/authService';
 import Toast from './Toast';
 
 interface Props {
@@ -48,19 +47,9 @@ export class AuthErrorBoundary extends Component<Props, State> {
     }
   }
 
-  handleAuthError = async (error: AuthError) => {
-    // Clear auth tokens immediately
-    await authService.clearAuthTokens();
-
-    // Get appropriate login route and navigate immediately (no delay, no toast)
+  handleAuthError = async (_error: AuthError) => {
     const route = await handleTokenExpiration();
-    if (route) {
-      // Navigate immediately - no error message, no delay
-      this.props.router.replace(route as any);
-    } else {
-      // Fallback to account selection if no route found
-      this.props.router.replace('/SelectAccountTypeScreen' as any);
-    }
+    this.props.router.replace(route as never);
   };
 
   render() {

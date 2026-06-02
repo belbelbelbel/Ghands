@@ -201,7 +201,7 @@ export default function ProviderReceiptScreen() {
 
       if (!request) {
         throw new Error(
-          'Could not load this receipt. Your session is fine — the server had trouble returning job details. Pull to refresh or try again shortly.'
+          'Could not load this receipt right now. Swipe down to refresh or try again in a moment.'
         );
       }
 

@@ -43,26 +43,42 @@ export function PendingJobsIllustration({ size = 148 }: IllustrationProps) {
   );
 }
 
-/** Finished work — badge with checkmark */
+/** Finished work — checklist (matches pending/ongoing style) */
 export function CompletedJobsIllustration({ size = 148 }: IllustrationProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 160 160" fill="none">
-      <Circle cx="80" cy="82" r="58" fill="#ECFDF3" />
-      <Ellipse cx="80" cy="118" rx="34" ry="8" fill="#BBF7D0" opacity={0.45} />
-      <Path
-        d="M80 38 L104 52 V78 C104 96 94 110 80 118 C66 110 56 96 56 78 V52 L80 38Z"
-        fill="#047857"
-      />
-      <Path
-        d="M68 78 L76 86 L94 66"
-        stroke="#FFFFFF"
-        strokeWidth="5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Circle cx="118" cy="48" r="6" fill="#34D399" opacity={0.8} />
-      <Circle cx="42" cy="56" r="4" fill="#6EE7B7" opacity={0.7} />
-      <Circle cx="126" cy="72" r="3" fill="#A7F3D0" />
+      <Circle cx="80" cy="82" r="58" fill="#F2F8EA" />
+      <Rect x="48" y="44" width="64" height="84" rx="12" fill="#FFFFFF" stroke="#C8D9B4" strokeWidth="2" />
+      <Rect x="68" y="36" width="24" height="16" rx="6" fill="#4F6739" />
+      <Circle cx="62" cy="68" r="9" fill="#16A34A" />
+      <Path d="M57 68 L60.5 71.5 L67 64" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <Rect x="76" y="64" width="28" height="5" rx="2.5" fill="#E8F0E0" />
+      <Circle cx="62" cy="88" r="9" fill="#16A34A" />
+      <Path d="M57 88 L60.5 91.5 L67 84" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <Rect x="76" y="84" width="32" height="5" rx="2.5" fill="#E8F0E0" />
+      <Circle cx="62" cy="108" r="9" fill="#16A34A" />
+      <Path d="M57 108 L60.5 111.5 L67 104" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <Rect x="76" y="104" width="24" height="5" rx="2.5" fill="#E8F0E0" />
+      <Circle cx="108" cy="108" r="22" fill="#4F6739" />
+      <Path d="M100 108 L106 114 L118 100" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+/** No quotations — document with price tag */
+export function QuotationsEmptyIllustration({ size = 148 }: IllustrationProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 160 160" fill="none">
+      <Circle cx="80" cy="82" r="58" fill="#F2F8EA" />
+      <G transform="rotate(-6, 80, 82)">
+        <Rect x="46" y="48" width="68" height="88" rx="12" fill="#FFFFFF" stroke="#C8D9B4" strokeWidth="2" />
+        <Rect x="58" y="66" width="44" height="5" rx="2.5" fill="#E8F0E0" />
+        <Rect x="58" y="78" width="36" height="5" rx="2.5" fill="#E8F0E0" />
+        <Rect x="58" y="90" width="40" height="5" rx="2.5" fill="#E8F0E0" />
+        <Rect x="58" y="108" width="28" height="5" rx="2.5" fill="#E8F0E0" />
+      </G>
+      <Circle cx="110" cy="106" r="22" fill="#4F6739" />
+      <Path d="M102 106 H118 M110 98 V114" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" />
     </Svg>
   );
 }

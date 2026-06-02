@@ -14,9 +14,11 @@ import { useToast } from '@/hooks/useToast';
 import { useTokenGuard } from '@/hooks/useTokenGuard';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { SageHeroPanel } from '@/components/provider/SageHeroPanel';
+import ProviderProceedModal, { ProviderProceedType } from '@/components/provider/ProviderProceedModal';
 import { BorderRadius, Colors, useTabScrollContentPaddingTop, useSageHeroPanelMetrics } from '@/lib/designSystem';
 import { PROVIDER_TAB_GUTTER } from '@/lib/tabletLayout';
 import { AvailableRequest, ServiceRequest, authService, providerService, serviceRequestService } from '@/services/api';
+import { logDevAuthTokens } from '@/utils/devAuthTokens';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
 import { AuthError } from '@/utils/errors';
@@ -25,9 +27,9 @@ import { calculateDistance, estimateTravelTime } from '@/utils/navigationUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { shareReferral } from '@/utils/referral';
-import { ArrowRight, Bell, Calendar, ChevronDown, FileText, MapPin, Plus, Send, Shield, TrendingDown, TrendingUp, Users, X } from 'lucide-react-native';
+import { ArrowRight, Bell, Calendar, ChevronDown, MapPin, Plus, Send, Shield, TrendingDown, TrendingUp, Users } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, Modal, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { formatTimeAgo as formatTimeAgoUtil } from '@/utils/dateFormatting';
 
 import { providerHomeActionButton, providerHomeActionLabel, providerHomeSectionTitle, providerHomeSurface, providerHomeSurfacePadding } from '@/lib/providerSurfaceStyles';
@@ -51,13 +53,35 @@ interface JobCard {
   date: string;
   time: string;
   location: string;
-  status: 'in-progress' | 'pending';
+  status: 'in-progress' | 'pending' | 'completed' | 'reviewing';
   matchedTime?: string;
   images: any[];
   requestId?: number;
   distanceKm?: number;
   minutesAway?: number;
+  sortAt?: number;
 }
+
+const providerHomeStatusTheme: Record<
+  JobCard['status'],
+  { label: string; bg: string; text: string }
+> = {
+  'in-progress': { label: 'In Progress', bg: Colors.successLight, text: Colors.success },
+  pending: { label: 'Pending', bg: '#FFF4E0', text: '#9E6B1F' },
+  completed: { label: 'Completed', bg: 'rgba(79, 103, 57, 0.14)', text: '#2A3B1F' },
+  reviewing: { label: 'Reviewing', bg: '#E4ECFF', text: '#2750B8' },
+};
+
+const resolveProviderHomeJobStatus = (
+  request: AvailableRequest | ServiceRequest,
+  isActive: boolean,
+): JobCard['status'] => {
+  const apiStatus = ((request as any).status ?? '').toString().toLowerCase();
+  if (apiStatus === 'completed') return 'completed';
+  if (apiStatus === 'reviewing') return 'reviewing';
+  if (!isActive) return 'pending';
+  return 'in-progress';
+};
 
 // Helper function to format date
 const formatDate = (dateString: string): string => {
@@ -98,8 +122,9 @@ const mapRequestToJobCard = (request: AvailableRequest | ServiceRequest, isActiv
     date,
     time,
     location,
-    status: isActive ? 'in-progress' : 'pending',
+    status: resolveProviderHomeJobStatus(request, isActive),
     matchedTime: isActive ? undefined : formatTimeAgoSafe(request.createdAt as any),
+    sortAt: new Date((request as any).updatedAt || request.createdAt || 0).getTime(),
     images: [
       require('../../assets/images/jobcardimg.png'),
       require('../../assets/images/jobcardimg.png'),
@@ -117,7 +142,7 @@ export default function ProviderHomeScreen() {
   const { location, refreshLocation } = useUserLocation();
   const { toast, showError, showSuccess, hideToast } = useToast();
   const tabScrollTop = useTabScrollContentPaddingTop(17);
-  const { amountFontSize: earningsAmountFontSize } = useSageHeroPanelMetrics();
+  const { amountFontSize: earningsAmountFontSize, paddingV: earningsPanelPaddingV } = useSageHeroPanelMetrics();
   const [isOnline, setIsOnline] = useState(true);
   const [hasActiveJobs, setHasActiveJobs] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -138,7 +163,7 @@ export default function ProviderHomeScreen() {
   const [isScreenFocused, setIsScreenFocused] = useState(true);
   const activeJobsRef = useRef<JobCard[]>([]);
   const [proceedJob, setProceedJob] = useState<JobCard | null>(null);
-  const [isProceedingJob, setIsProceedingJob] = useState(false);
+  const [proceedingType, setProceedingType] = useState<ProviderProceedType | null>(null);
   const [acceptedJobModal, setAcceptedJobModal] = useState<{
     visible: boolean;
     jobLocation: { address: string; city?: string; latitude: number; longitude: number };
@@ -152,6 +177,11 @@ export default function ProviderHomeScreen() {
   const [providerLocation, setProviderLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const rejectedRequestIdsRef = useRef<Set<string>>(new Set());
   const initialJobsLoadDoneRef = useRef(false);
+  const rejectingRequestIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    void logDevAuthTokens('ProviderHome');
+  }, []);
 
   const addRejectedRequestId = useCallback(async (requestId: number) => {
     const id = String(requestId);
@@ -345,7 +375,8 @@ export default function ProviderHomeScreen() {
       
       // Map to job cards and calculate distance if provider location is available
       const jobCards = requestsArray.length > 0
-        ? requestsArray.map((req) => {
+        ? requestsArray
+            .map((req) => {
             const jobCard = mapRequestToJobCard(req, true);
             
             // Calculate distance if we have provider location and job location
@@ -366,6 +397,7 @@ export default function ProviderHomeScreen() {
             
             return jobCard;
           })
+            .sort((a, b) => (b.sortAt ?? 0) - (a.sortAt ?? 0))
         : [];
       
       setActiveJobs(jobCards);
@@ -485,61 +517,49 @@ export default function ProviderHomeScreen() {
   }, [showError, haptics]);
 
   const closeProceedChoice = useCallback(() => {
-    if (isProceedingJob) return;
+    if (proceedingType) return;
     setProceedJob(null);
-  }, [isProceedingJob]);
+  }, [proceedingType]);
 
-  const handleProceedChoice = useCallback(async (type: 'visit' | 'quote') => {
-    if (!proceedJob?.requestId || isProceedingJob) return;
+  const handleProceedChoice = useCallback(async (type: ProviderProceedType) => {
+    if (!proceedJob?.requestId || proceedingType) return;
 
-    setIsProceedingJob(true);
+    const jobSnapshot = proceedJob;
+    setProceedingType(type);
     haptics.light();
 
+    const destination =
+      type === 'visit'
+        ? {
+            pathname: '/RequestVisitScreen' as any,
+            params: { requestId: String(jobSnapshot.requestId), jobTitle: jobSnapshot.service },
+          }
+        : {
+            pathname: '/SendQuotationScreen' as any,
+            params: {
+              requestId: String(jobSnapshot.requestId),
+              jobTitle: jobSnapshot.service,
+              returnToTab: 'Quotations',
+            },
+          };
+
     try {
-      try {
-        await providerService.acceptRequest(proceedJob.requestId);
-      } catch (acceptErr: any) {
-        const msg = (acceptErr?.message || acceptErr?.details?.data?.message || '').toLowerCase();
-        const alreadyAccepted =
-          msg.includes('already accepted') ||
-          msg.includes('not available for acceptance') ||
-          msg.includes('already accepted by');
-        if (!alreadyAccepted) {
-          throw acceptErr;
-        }
-      }
-
+      await providerService.acceptRequest(jobSnapshot.requestId!);
       haptics.success();
-      setPendingJobs((prev) => prev.filter((job) => job.requestId !== proceedJob.requestId));
-      await Promise.all([loadAvailableRequests(), loadAcceptedRequests()]);
-
-      const destination =
-        type === 'visit'
-          ? {
-              pathname: '/RequestVisitScreen' as any,
-              params: { requestId: String(proceedJob.requestId), jobTitle: proceedJob.service },
-            }
-          : {
-              pathname: '/SendQuotationScreen' as any,
-              params: {
-                requestId: String(proceedJob.requestId),
-                jobTitle: proceedJob.service,
-                returnToTab: 'Quotations',
-              },
-            };
-
+      setPendingJobs((prev) => prev.filter((job) => job.requestId !== jobSnapshot.requestId));
       setProceedJob(null);
+      setProceedingType(null);
       showSuccess(type === 'visit' ? 'Request accepted. Schedule a visit next.' : 'Request accepted. Send your quotation next.');
-      router.push(destination as any);
+      router.replace(destination as any);
+      void Promise.all([loadAvailableRequests(), loadAcceptedRequests()]);
     } catch (error: any) {
+      setProceedingType(null);
       haptics.error();
       showError(getSpecificErrorMessage(error, 'accept_request'));
-    } finally {
-      setIsProceedingJob(false);
     }
   }, [
     proceedJob,
-    isProceedingJob,
+    proceedingType,
     haptics,
     loadAvailableRequests,
     loadAcceptedRequests,
@@ -548,7 +568,146 @@ export default function ProviderHomeScreen() {
     showSuccess,
   ]);
 
-  const renderJobCard = useCallback((job: JobCard, isActive: boolean) => (
+  const renderJobCard = useCallback((job: JobCard, isActive: boolean) => {
+    if (isActive) {
+      const scheduleLabel = [job.date, job.time].filter(Boolean).join(' · ');
+      const distanceLabel =
+        job.distanceKm !== undefined && job.distanceKm > 0
+          ? job.distanceKm < 1
+            ? `${Math.round(job.distanceKm * 1000)}m`
+            : `${job.distanceKm.toFixed(1)}km`
+          : null;
+
+      return (
+        <View
+          key={job.id}
+          style={{
+            ...providerHomeSurface,
+            padding: 12,
+            marginBottom: 10,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 8,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 8 }}>
+              <Image
+                source={require('../../assets/images/userimg.jpg')}
+                style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }}
+                resizeMode="cover"
+              />
+              <View style={{ flex: 1 }}>
+                <Text
+                  numberOfLines={1}
+                  style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}
+                >
+                  {job.clientName}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 11,
+                    fontFamily: 'Poppins-Medium',
+                    color: Colors.textSecondaryDark,
+                    marginTop: 1,
+                  }}
+                >
+                  {job.service}
+                </Text>
+              </View>
+            </View>
+            <View
+              style={{
+                backgroundColor: providerHomeStatusTheme[job.status].bg,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: BorderRadius.full,
+              }}
+            >
+              <Text style={{ fontSize: 10, color: providerHomeStatusTheme[job.status].text, fontFamily: 'Poppins-SemiBold' }}>
+                {providerHomeStatusTheme[job.status].label}
+              </Text>
+            </View>
+          </View>
+
+          {scheduleLabel ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Calendar size={11} color={Colors.textTertiary} />
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 11,
+                  color: Colors.textSecondaryDark,
+                  fontFamily: 'Poppins-Medium',
+                  marginLeft: 5,
+                  flex: 1,
+                }}
+              >
+                {scheduleLabel}
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+            <MapPin size={11} color={Colors.textTertiary} />
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={{
+                fontSize: 11,
+                color: Colors.textSecondaryDark,
+                fontFamily: 'Poppins-Medium',
+                marginLeft: 5,
+                flex: 1,
+              }}
+            >
+              {job.location}
+            </Text>
+            {distanceLabel ? (
+              <Text
+                style={{
+                  fontSize: 10,
+                  color: Colors.textTertiary,
+                  fontFamily: 'Poppins-Medium',
+                  marginLeft: 6,
+                }}
+              >
+                {distanceLabel}
+              </Text>
+            ) : null}
+          </View>
+
+          <TouchableOpacity
+            style={{
+              ...providerHomeActionButton,
+              width: '100%',
+              paddingVertical: 8,
+            }}
+            onPress={() => {
+              haptics.light();
+              if (!job.requestId) {
+                showError('Invalid job ID');
+                return;
+              }
+              router.push({
+                pathname: '/ProviderJobDetailsScreen',
+                params: { requestId: job.requestId.toString() },
+              } as any);
+            }}
+          >
+            <Text style={{ ...providerHomeActionLabel, marginRight: 4 }}>Check Updates</Text>
+            <ArrowRight size={14} color={Colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
     <View
       key={job.id}
       style={{
@@ -561,20 +720,6 @@ export default function ProviderHomeScreen() {
         <Text style={{ fontSize: 11, color: Colors.textTertiary, fontFamily: 'Poppins-Regular', marginBottom: 6 }}>
           matched {job.matchedTime}
         </Text>
-      )}
-      {isActive && (
-        <View
-          style={{
-            backgroundColor: Colors.successLight,
-            alignSelf: 'flex-start',
-            paddingHorizontal: 8,
-            paddingVertical: 4,
-            borderRadius: BorderRadius.default,
-            marginBottom: 6,
-          }}
-        >
-          <Text style={{ fontSize: 11, color: Colors.success, fontFamily: 'Poppins-SemiBold' }}>In Progress</Text>
-        </View>
       )}
 
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -598,26 +743,21 @@ export default function ProviderHomeScreen() {
             </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
             <MapPin size={12} color={Colors.textSecondaryDark} />
-            <Text style={{ fontSize: 12, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Regular', marginLeft: 6, flex: 1 }}>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={{
+                fontSize: 12,
+                color: Colors.textSecondaryDark,
+                fontFamily: 'Poppins-Regular',
+                marginLeft: 6,
+                flex: 1,
+              }}
+            >
               {job.location}
             </Text>
-            {isActive && job.distanceKm !== undefined && job.distanceKm > 0 && (
-              <View
-                style={{
-                  backgroundColor: Colors.backgroundGray,
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: BorderRadius.sm,
-                  marginLeft: 8,
-                }}
-              >
-                <Text style={{ fontSize: 11, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium' }}>
-                  {job.distanceKm < 1 ? `${Math.round(job.distanceKm * 1000)}m` : `${job.distanceKm.toFixed(1)}km`}
-                </Text>
-              </View>
-            )}
           </View>
         </View>
 
@@ -644,36 +784,7 @@ export default function ProviderHomeScreen() {
       </View>
 
       {/* Buttons - Full Width */}
-      {isActive ? (
-        <TouchableOpacity
-          style={{
-            ...providerHomeActionButton,
-            width: '100%',
-          }}
-          onPress={() => {
-            haptics.light();
-            
-            // Validate requestId before navigating
-            if (!job.requestId) {
-              showError('Invalid job ID');
-              return;
-            }
-            
-            router.push({
-              pathname: '/ProviderJobDetailsScreen',
-              params: {
-                requestId: job.requestId.toString(),
-              },
-            } as any);
-          }}
-        >
-          <Text style={{ ...providerHomeActionLabel, marginRight: 4 }}>
-            Check Updates
-          </Text>
-          <ArrowRight size={14} color={Colors.textPrimary} />
-        </TouchableOpacity>
-      ) : (
-        <View style={{ flexDirection: 'column', gap: 8, width: '100%' }}>
+      <View style={{ flexDirection: 'column', gap: 8, width: '100%' }}>
           <TouchableOpacity
             style={{
               width: '100%',
@@ -702,7 +813,9 @@ export default function ProviderHomeScreen() {
                 showError('Invalid request ID');
                 return;
               }
-              
+              if (rejectingRequestIdRef.current === job.requestId) return;
+
+              rejectingRequestIdRef.current = job.requestId;
               haptics.warning();
               try {
                 await providerService.rejectRequest(job.requestId);
@@ -712,13 +825,7 @@ export default function ProviderHomeScreen() {
                 setPendingJobs(prev => prev.filter(j => j.requestId !== job.requestId));
                 await loadAvailableRequests();
               } catch (error: any) {
-                const msg = (error?.message || '').toLowerCase();
-                if (msg.includes('already rejected')) {
-                  await addRejectedRequestId(job.requestId);
-                  setPendingJobs(prev => prev.filter(j => j.requestId !== job.requestId));
-                  await loadAvailableRequests();
-                  return;
-                }
+                rejectingRequestIdRef.current = null;
                 haptics.error();
                 showError(getSpecificErrorMessage(error, 'reject_request'));
               }
@@ -729,9 +836,9 @@ export default function ProviderHomeScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-      )}
     </View>
-  ), [router, loadAvailableRequests, showError, haptics, addRejectedRequestId, openProceedChoice]);
+    );
+  }, [router, loadAvailableRequests, showError, showSuccess, haptics, addRejectedRequestId, openProceedChoice]);
 
   const { showSkeleton: showEarningsSkeleton, isLoadingEmpty: isEarningsLoadingEmpty } =
     useSkeletonGate(isLoadingEarnings, monthlyEarnings === null);
@@ -836,7 +943,12 @@ export default function ProviderHomeScreen() {
 
         {/* Earnings card */}
         <View style={{ marginBottom: hasActiveJobs ? 26 : 20 }}>
-          <SageHeroPanel style={{ marginHorizontal: PROVIDER_TAB_GUTTER }}>
+          <SageHeroPanel
+            style={{
+              marginHorizontal: PROVIDER_TAB_GUTTER,
+              paddingVertical: earningsPanelPaddingV + 8,
+            }}
+          >
               <View
                 style={{
                   flexDirection: 'row',
@@ -1023,7 +1135,7 @@ export default function ProviderHomeScreen() {
         {(isActiveLoadingEmpty || showActiveSkeleton || activeJobs.length > 0) ? (
           <View style={{ paddingHorizontal: PROVIDER_TAB_GUTTER, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={providerHomeSectionTitle}>Active Jobs</Text>
+              <Text style={providerHomeSectionTitle}>Recent Jobs</Text>
               {!showActiveSkeleton && !isActiveLoadingEmpty && (
               <TouchableOpacity 
                 onPress={() => {
@@ -1072,143 +1184,13 @@ export default function ProviderHomeScreen() {
         onClose={hideToast}
       />
 
-      <Modal
+      <ProviderProceedModal
         visible={!!proceedJob}
-        transparent
-        animationType="fade"
-        onRequestClose={closeProceedChoice}
-      >
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.48)',
-            justifyContent: 'center',
-            paddingHorizontal: PROVIDER_TAB_GUTTER,
-          }}
-          onPress={closeProceedChoice}
-        >
-          <Pressable
-            onPress={(event) => event.stopPropagation()}
-            style={{
-              backgroundColor: Colors.white,
-              borderRadius: BorderRadius.default,
-              padding: 18,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 12 },
-              shadowOpacity: 0.14,
-              shadowRadius: 22,
-              elevation: 0.76,
-            }}
-          >
-            <TouchableOpacity
-              onPress={closeProceedChoice}
-              disabled={isProceedingJob}
-              style={{
-                position: 'absolute',
-                top: 14,
-                right: 14,
-                width: 34,
-                height: 34,
-                borderRadius: 17,
-                backgroundColor: '#F7F8FA',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 2,
-              }}
-            >
-              <X size={18} color={Colors.textSecondaryDark} />
-            </TouchableOpacity>
-
-            <View style={{ paddingRight: 34, marginBottom: 16 }}>
-              <Text style={{ fontSize: 20, lineHeight: 26, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginBottom: 6 }}>
-                Choose next step
-              </Text>
-              <Text style={{ fontSize: 13, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, lineHeight: 20 }}>
-                Accept the request, then continue with a visit or a quotation.
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => handleProceedChoice('visit')}
-              disabled={isProceedingJob}
-              activeOpacity={0.85}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: Colors.white,
-                borderWidth: 1,
-                borderColor: 'rgba(79, 103, 57, 0.28)',
-                borderRadius: BorderRadius.default,
-                padding: 15,
-                marginBottom: 10,
-                opacity: isProceedingJob ? 0.65 : 1,
-              }}
-            >
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: BorderRadius.default,
-                  backgroundColor: '#F2F8EA',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 12,
-                }}
-              >
-                <MapPin size={20} color={Colors.accent} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, lineHeight: 20 }}>
-                  Request visit
-                </Text>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 3, lineHeight: 17 }}>
-                  Visit the client before pricing.
-                </Text>
-              </View>
-              {isProceedingJob ? <ActivityIndicator size="small" color={Colors.accent} /> : <ArrowRight size={18} color={Colors.accent} />}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => handleProceedChoice('quote')}
-              disabled={isProceedingJob}
-              activeOpacity={0.85}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: Colors.white,
-                borderWidth: 1,
-                borderColor: '#E5E7EB',
-                borderRadius: BorderRadius.default,
-                padding: 15,
-                opacity: isProceedingJob ? 0.65 : 1,
-              }}
-            >
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: BorderRadius.default,
-                  backgroundColor: '#F7F8FA',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 12,
-                }}
-              >
-                <FileText size={20} color={Colors.textPrimary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, lineHeight: 20 }}>
-                  Send quotation
-                </Text>
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 3, lineHeight: 17 }}>
-                  Send price now if details are clear.
-                </Text>
-              </View>
-              {isProceedingJob ? <ActivityIndicator size="small" color={Colors.accent} /> : <ArrowRight size={18} color={Colors.textSecondaryDark} />}
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        jobTitle={proceedJob?.service}
+        loadingType={proceedingType}
+        onClose={closeProceedChoice}
+        onSelect={handleProceedChoice}
+      />
 
       {/* Job Accepted Modal */}
       <JobAcceptedModal

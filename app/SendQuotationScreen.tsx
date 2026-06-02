@@ -3,12 +3,13 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
-import { BorderRadius, Colors, SHADOWS, SPACING } from '@/lib/designSystem';
+import { BorderRadius, Colors, SPACING } from '@/lib/designSystem';
 import { providerService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { isDuplicateActionError } from '@/utils/idempotentSubmit';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Calculator, ChevronDown, ChevronUp, FileText, Minus, Plus, ReceiptText, X } from 'lucide-react-native';
-import React, { useEffect, useMemo, useState } from 'react';
+import { Calculator, ChevronDown, ChevronUp, FileText, MapPin, Minus, Plus, ReceiptText, X } from 'lucide-react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface MaterialItem {
@@ -20,6 +21,24 @@ interface MaterialItem {
 
 const MATERIAL_OPTIONS = ['Pipe Connector', "Plumber's Tape", 'Pipe Fitting', 'Sealant', 'Other'];
 const PLATFORM_FEE_PERCENTAGE = 5;
+
+const sectionCard = {
+  backgroundColor: Colors.white,
+  borderRadius: BorderRadius.default,
+  borderWidth: 1,
+  borderColor: Colors.border,
+  padding: 14,
+  marginBottom: SPACING.md,
+};
+
+const fieldInput = {
+  borderRadius: BorderRadius.sm,
+  borderWidth: 1,
+  borderColor: Colors.border,
+  backgroundColor: Colors.white,
+  paddingHorizontal: 12,
+  height: 44,
+};
 
 export default function SendQuotationScreen() {
   const router = useRouter();
@@ -45,10 +64,8 @@ export default function SendQuotationScreen() {
   const [logisticsCost, setLogisticsCost] = useState('10');
   const [findings, setFindings] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [materials, setMaterials] = useState<MaterialItem[]>([
-    { id: '1', name: 'Pipe Connector', quantity: 1, price: '100000' },
-    { id: '2', name: "Plumber's Tape", quantity: 3, price: '100000' },
-  ]);
+  const submitLockRef = useRef(false);
+  const [materials, setMaterials] = useState<MaterialItem[]>([]);
   const [selectedMaterialIndex, setSelectedMaterialIndex] = useState<number | null>(null);
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
 
@@ -90,9 +107,7 @@ export default function SendQuotationScreen() {
   };
 
   const handleRemoveMaterial = (id: string) => {
-    if (materials.length > 1) {
-      setMaterials(materials.filter((mat) => mat.id !== id));
-    }
+    setMaterials(materials.filter((mat) => mat.id !== id));
   };
 
   const handleUpdateMaterial = (id: string, field: keyof MaterialItem, value: string | number) => {
@@ -116,6 +131,8 @@ export default function SendQuotationScreen() {
   };
 
   const handleSubmit = async () => {
+    if (submitLockRef.current || isSubmitting) return;
+
     if (!params.requestId) {
       showError('Request ID is missing. Please try again.');
       return;
@@ -139,6 +156,7 @@ export default function SendQuotationScreen() {
       return;
     }
 
+    submitLockRef.current = true;
     setIsSubmitting(true);
     haptics.light();
 
@@ -171,33 +189,33 @@ export default function SendQuotationScreen() {
         tax: 10, // Fixed tax of ₦10
       };
 
-      // Always accept first — choosing "Send quotation" means provider accepts the request
       try {
         await providerService.acceptRequest(requestId);
       } catch (acceptErr: any) {
         const msg = (acceptErr?.message || acceptErr?.details?.data?.message || '').toLowerCase();
-        if (!msg.includes('already accepted')) throw acceptErr;
+        if (!msg.includes('already accepted') && !isDuplicateActionError(acceptErr)) throw acceptErr;
       }
 
       await providerService.sendQuotation(requestId, payload);
 
       haptics.success();
       showSuccess('Quotation sent successfully! Waiting for client response.');
-      
-      // Navigate back and optionally switch to Quotations tab
+
       setTimeout(() => {
-        if (params.returnToTab === 'Quotations') {
-          // Navigate back and the parent screen should handle tab switching
-          router.back();
-        } else {
-          router.back();
-        }
-      }, 1500);
+        router.back();
+      }, 800);
     } catch (error: any) {
+      if (isDuplicateActionError(error, ['quotation'])) {
+        haptics.success();
+        showSuccess('Quotation was already sent.');
+        setTimeout(() => router.back(), 800);
+        return;
+      }
+
       console.error('Error sending quotation:', error);
       haptics.error();
+      submitLockRef.current = false;
 
-      // Prefer specific backend validation messages (e.g. `"serviceCharge" must be a positive number`)
       const rawMsg =
         (error?.details?.data?.error ||
           error?.details?.error ||
@@ -210,7 +228,6 @@ export default function SendQuotationScreen() {
         getSpecificErrorMessage(error, 'send_quotation') ||
         'Failed to send quotation. Please try again.';
 
-      // If backend gives a clear validation message, surface it directly
       if (
         rawMsg &&
         !normalized.includes('request failed with status') &&
@@ -221,7 +238,6 @@ export default function SendQuotationScreen() {
       }
 
       showError(errorMessage);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -239,6 +255,34 @@ export default function SendQuotationScreen() {
       <View style={{ flex: 1, backgroundColor: Colors.backgroundLight }}>
         <ScreenHeader title="Send Quotation" onBack={() => router.back()} />
 
+        <TouchableOpacity
+          onPress={() => {
+            if (!params.requestId) return;
+            haptics.light();
+            router.replace({
+              pathname: '/RequestVisitScreen' as any,
+              params: { requestId: params.requestId, jobTitle: params.jobTitle || jobTitle || undefined },
+            } as any);
+          }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            alignSelf: 'flex-end',
+            marginRight: SPACING.xl,
+            marginBottom: 4,
+            paddingVertical: 6,
+            paddingHorizontal: 10,
+            borderRadius: BorderRadius.sm,
+            backgroundColor: '#F2F8EA',
+          }}
+          activeOpacity={0.85}
+        >
+          <MapPin size={14} color={Colors.accent} style={{ marginRight: 6 }} />
+          <Text style={{ fontSize: 12, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
+            Request visit instead
+          </Text>
+        </TouchableOpacity>
+
         {/* Content */}
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -249,133 +293,39 @@ export default function SendQuotationScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{
                 paddingHorizontal: SPACING.xl,
-                paddingTop: SPACING.lg,
-                paddingBottom: 120,
+                paddingTop: SPACING.sm,
+                paddingBottom: 100,
               }}
               style={{ flex: 1 }}
               keyboardDismissMode="on-drag"
               keyboardShouldPersistTaps="handled"
             >
-              <View
-                style={{
-                  backgroundColor: '#0a0a0a',
-                  borderRadius: 24,
-                  padding: 18,
-                  marginBottom: SPACING.lg,
-                  overflow: 'hidden',
-                }}
-              >
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: -50,
-                    right: -50,
-                    width: 150,
-                    height: 150,
-                    borderRadius: 75,
-                    backgroundColor: Colors.accent,
-                    opacity: 0.14,
-                  }}
-                />
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: 'rgba(255,255,255,0.65)',
-                    letterSpacing: 0.7,
-                    textTransform: 'uppercase',
-                    marginBottom: 8,
-                  }}
-                >
-                  New quotation
+              <View style={{ marginBottom: SPACING.md }}>
+                <Text style={{ fontSize: 11, fontFamily: 'Poppins-SemiBold', color: Colors.accent, letterSpacing: 0.4, textTransform: 'uppercase' }}>
+                  Quotation for
                 </Text>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    lineHeight: 25,
-                    fontFamily: 'Poppins-Bold',
-                    color: Colors.white,
-                    marginBottom: 8,
-                  }}
-                  numberOfLines={2}
-                >
+                <Text style={{ fontSize: 18, lineHeight: 24, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, marginTop: 4 }} numberOfLines={2}>
                   {jobTitle || params.jobTitle || 'Service request'}
                 </Text>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    lineHeight: 18,
-                    fontFamily: 'Poppins-Regular',
-                    color: 'rgba(255,255,255,0.7)',
-                  }}
-                >
-                  Make the cost breakdown clear. The client will review this before paying.
+                <Text style={{ fontSize: 12, lineHeight: 18, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 4 }}>
+                  Break down costs clearly. The client reviews this before paying.
                 </Text>
               </View>
 
-              <View
-                style={{
-                  backgroundColor: Colors.white,
-                  borderRadius: 20,
-                  padding: 16,
-                  marginBottom: SPACING.lg,
-                  borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.045)',
-                  shadowColor: '#101828',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.035,
-                  shadowRadius: 10,
-                  elevation: 0.76,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-                  <View
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 17,
-                      backgroundColor: '#F2F8EA',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 10,
-                    }}
-                  >
-                    <Calculator size={17} color={Colors.accent} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
-                      Core costs
-                    </Text>
-                    <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
-                      Labor and logistics must be clear before submission.
-                    </Text>
-                  </View>
+              <View style={sectionCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <Calculator size={16} color={Colors.accent} style={{ marginRight: 8 }} />
+                  <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
+                    Core costs
+                  </Text>
                 </View>
 
               {/* Labor Cost */}
-              <View style={{ marginBottom: SPACING.md }}>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontFamily: 'Poppins-Medium',
-                    color: Colors.textPrimary,
-                    marginBottom: SPACING.sm,
-                  }}
-                >
-                  Labor Cost
+              <View style={{ marginBottom: 10 }}>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 6 }}>
+                  Labor
                 </Text>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: Colors.white,
-                    borderRadius: 14,
-                    borderWidth: 1,
-                    borderColor: 'rgba(17, 24, 39, 0.045)',
-                    paddingHorizontal: SPACING.md,
-                    height: 48,
-                  }}
-                >
+                <View style={{ ...fieldInput, flexDirection: 'row', alignItems: 'center' }}>
                   <Text
                     style={{
                       fontSize: 14,
@@ -404,28 +354,10 @@ export default function SendQuotationScreen() {
 
               {/* Logistics Cost */}
               <View>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontFamily: 'Poppins-Medium',
-                    color: Colors.textPrimary,
-                    marginBottom: SPACING.sm,
-                  }}
-                >
-                  Logistics Cost
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, marginBottom: 6 }}>
+                  Logistics
                 </Text>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: Colors.white,
-                    borderRadius: 14,
-                    borderWidth: 1,
-                    borderColor: 'rgba(17, 24, 39, 0.045)',
-                    paddingHorizontal: SPACING.md,
-                    height: 48,
-                  }}
-                >
+                <View style={{ ...fieldInput, flexDirection: 'row', alignItems: 'center' }}>
                   <Text
                     style={{
                       fontSize: 14,
@@ -454,76 +386,38 @@ export default function SendQuotationScreen() {
               </View>
 
               {/* Material List */}
-              <View
-                style={{
-                  backgroundColor: Colors.white,
-                  borderRadius: 20,
-                  padding: 16,
-                  marginBottom: SPACING.lg,
-                  borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.045)',
-                  shadowColor: '#101828',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.035,
-                  shadowRadius: 10,
-                  elevation: 0.76,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    marginBottom: SPACING.md,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 17,
-                      backgroundColor: '#F7F8FA',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 10,
-                    }}
-                  >
-                    <ReceiptText size={17} color={Colors.textPrimary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontFamily: 'Poppins-Bold',
-                        color: Colors.textPrimary,
-                      }}
-                    >
+              <View style={sectionCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: materials.length ? 10 : 0 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <ReceiptText size={16} color={Colors.textPrimary} style={{ marginRight: 8 }} />
+                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
                       Materials
                     </Text>
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontFamily: 'Poppins-Regular',
-                        color: Colors.textSecondaryDark,
-                      }}
-                    >
-                      Optional items used for this job.
-                    </Text>
                   </View>
+                  <Text style={{ fontSize: 11, fontFamily: 'Poppins-Regular', color: Colors.textTertiary }}>
+                    Optional
+                  </Text>
                 </View>
+
+                {materials.length === 0 ? (
+                  <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginBottom: 8 }}>
+                    Add parts or supplies if needed.
+                  </Text>
+                ) : null}
 
                 {materials.map((material, index) => (
                   <View
                     key={material.id}
                     style={{
-                      backgroundColor: '#F7F8FA',
-                      borderRadius: 16,
-                      padding: 10,
-                      marginBottom: 12,
+                      backgroundColor: Colors.backgroundLight,
+                      borderRadius: BorderRadius.sm,
+                      padding: 8,
+                      marginBottom: 8,
                       borderWidth: 1,
-                      borderColor: 'rgba(17, 24, 39, 0.06)',
+                      borderColor: Colors.border,
                     }}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     {/* Material Dropdown */}
                     <TouchableOpacity
                       onPress={() => {
@@ -532,15 +426,11 @@ export default function SendQuotationScreen() {
                       }}
                       style={{
                         flex: 2,
-                        backgroundColor: Colors.white,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: 'rgba(17, 24, 39, 0.045)',
-                        paddingHorizontal: SPACING.md,
-                        height: 48,
+                        ...fieldInput,
                         flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'space-between',
+                        height: 40,
                       }}
                       activeOpacity={0.7}
                     >
@@ -560,16 +450,13 @@ export default function SendQuotationScreen() {
                     {/* Quantity Selector */}
                     <View
                       style={{
-                        width: 60,
-                        backgroundColor: Colors.white,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: 'rgba(17, 24, 39, 0.045)',
-                        height: 48,
+                        width: 56,
+                        ...fieldInput,
+                        height: 40,
                         flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        paddingHorizontal: 8,
+                        paddingHorizontal: 6,
                       }}
                     >
                       <TouchableOpacity
@@ -600,15 +487,11 @@ export default function SendQuotationScreen() {
                     {/* Price Input */}
                     <View
                       style={{
-                        flex: 1.5,
+                        flex: 1.4,
+                        ...fieldInput,
                         flexDirection: 'row',
                         alignItems: 'center',
-                        backgroundColor: Colors.white,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: 'rgba(17, 24, 39, 0.045)',
-                        paddingHorizontal: SPACING.md,
-                        height: 48,
+                        height: 40,
                       }}
                     >
                       <Text
@@ -639,20 +522,18 @@ export default function SendQuotationScreen() {
                     </View>
 
                     {/* Remove Button */}
-                    {materials.length > 1 && (
-                      <TouchableOpacity
-                        onPress={() => handleRemoveMaterial(material.id)}
-                        style={{
-                          width: 48,
-                          height: 48,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Minus size={20} color={Colors.error} />
-                      </TouchableOpacity>
-                    )}
+                    <TouchableOpacity
+                      onPress={() => handleRemoveMaterial(material.id)}
+                      style={{
+                        width: 36,
+                        height: 40,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Minus size={18} color={Colors.error} />
+                    </TouchableOpacity>
                     </View>
                   </View>
                 ))}
@@ -664,136 +545,71 @@ export default function SendQuotationScreen() {
                     flexDirection: 'row',
                     alignItems: 'center',
                     alignSelf: 'flex-start',
-                    marginTop: 8,
-                    paddingVertical: 8,
-                    paddingHorizontal: 10,
-                    borderRadius: 12,
-                    backgroundColor: '#F2F8EA',
+                    marginTop: 4,
+                    paddingVertical: 6,
+                    paddingHorizontal: 8,
                   }}
                   activeOpacity={0.7}
                 >
-                  <Plus size={16} color={Colors.accent} style={{ marginRight: 6 }} />
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'Poppins-SemiBold',
-                      color: Colors.accent,
-                    }}
-                  >
-                    Add Item
+                  <Plus size={14} color={Colors.accent} style={{ marginRight: 4 }} />
+                  <Text style={{ fontSize: 13, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
+                    Add item
                   </Text>
                 </TouchableOpacity>
               </View>
 
               {/* Findings & Work Required */}
-              <View
-                style={{
-                  backgroundColor: Colors.white,
-                  borderRadius: 20,
-                  padding: 16,
-                  marginBottom: SPACING.lg,
-                  borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.045)',
-                  shadowColor: '#101828',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.035,
-                  shadowRadius: 10,
-                  elevation: 0.76,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
-                  <View
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 17,
-                      backgroundColor: '#FFF7DF',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 10,
-                    }}
-                  >
-                    <FileText size={17} color="#92400E" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
-                      Findings & work required
-                    </Text>
-                    <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark }}>
-                      Explain what you inspected and what needs to be done.
-                    </Text>
-                  </View>
-                </View>
-                <View
+              <View style={sectionCard}>
+                <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, marginBottom: 4 }}>
+                  Findings & work required
+                </Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginBottom: 10 }}>
+                  What you found and what needs to be done.
+                </Text>
+                <TextInput
+                  placeholder="e.g. Stain on curtain — dry clean section, treat fabric, re-hang."
+                  value={findings}
+                  onChangeText={setFindings}
+                  multiline
+                  textAlignVertical="top"
                   style={{
-                    backgroundColor: '#F7F8FA',
-                    borderRadius: 14,
-                    borderWidth: 1,
-                    borderColor: 'rgba(17, 24, 39, 0.045)',
-                    paddingHorizontal: SPACING.md,
-                    paddingVertical: SPACING.md,
-                    minHeight: 100,
+                    ...fieldInput,
+                    height: undefined,
+                    minHeight: 88,
+                    paddingVertical: 10,
+                    fontSize: 14,
+                    fontFamily: 'Poppins-Regular',
+                    color: Colors.textPrimary,
+                    lineHeight: 20,
                   }}
-                >
-                  <TextInput
-                    placeholder="Example: Leak source found under sink. Replace connector, seal pipe joint, and test water pressure."
-                    value={findings}
-                    onChangeText={setFindings}
-                    multiline
-                    textAlignVertical="top"
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'Poppins-Regular',
-                      color: Colors.textPrimary,
-                      minHeight: 100,
-                    }}
-                    placeholderTextColor={Colors.textSecondaryDark}
-                  />
-                </View>
+                  placeholderTextColor={Colors.textTertiary}
+                />
               </View>
 
               {/* Quotation Summary */}
               <View
                 style={{
-                  borderRadius: 22,
+                  ...sectionCard,
+                  marginBottom: SPACING.sm,
+                  padding: 0,
                   overflow: 'hidden',
-                  marginBottom: SPACING.xxl,
-                  borderWidth: 1,
-                  borderColor: 'rgba(17, 24, 39, 0.045)',
-                  shadowColor: '#101828',
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 16,
-                  elevation: 0.76,
                 }}
               >
-                {/* Green Header */}
                 <View
                   style={{
-                    backgroundColor: '#0a0a0a',
-                    paddingVertical: SPACING.lg,
-                    paddingHorizontal: SPACING.xl,
-                    alignItems: 'center',
+                    backgroundColor: '#F2F8EA',
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
+                    borderBottomWidth: 1,
+                    borderBottomColor: Colors.border,
                   }}
                 >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontFamily: 'Poppins-Bold',
-                      color: Colors.white,
-                    }}
-                  >
-                    Quotation Summary
+                  <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.accent }}>
+                    Summary
                   </Text>
                 </View>
 
-                {/* White Content Area */}
-                <View
-                  style={{
-                    backgroundColor: Colors.white,
-                    padding: SPACING.xl,
-                  }}
-                >
+                <View style={{ padding: 14 }}>
                   <View
                     style={{
                       flexDirection: 'row',
@@ -979,16 +795,11 @@ export default function SendQuotationScreen() {
             left: 0,
             right: 0,
             paddingHorizontal: SPACING.xl,
-            paddingTop: SPACING.lg,
-            paddingBottom: 36,
+            paddingTop: 10,
+            paddingBottom: 22,
             backgroundColor: Colors.white,
             borderTopWidth: 1,
             borderTopColor: Colors.border,
-            shadowColor: '#101828',
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.06,
-            shadowRadius: 14,
-            elevation: 0.76,
           }}
         >
           <TouchableOpacity
@@ -999,11 +810,10 @@ export default function SendQuotationScreen() {
             disabled={!canSubmit || isSubmitting}
             style={{
               backgroundColor: canSubmit && !isSubmitting ? Colors.accent : Colors.backgroundGray,
-              borderRadius: 16,
-              paddingVertical: 14,
+              borderRadius: BorderRadius.default,
+              paddingVertical: 12,
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: SPACING.md,
             }}
             activeOpacity={0.8}
           >
@@ -1012,8 +822,8 @@ export default function SendQuotationScreen() {
             ) : (
               <Text
                 style={{
-                  fontSize: 15,
-                  fontFamily: 'Poppins-Bold',
+                  fontSize: 14,
+                  fontFamily: 'Poppins-SemiBold',
                   color: canSubmit && !isSubmitting ? Colors.white : Colors.textTertiary,
                 }}
               >
@@ -1025,23 +835,14 @@ export default function SendQuotationScreen() {
           <TouchableOpacity
             onPress={() => router.back()}
             style={{
-              backgroundColor: Colors.white,
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: Colors.error,
-              paddingVertical: 14,
+              paddingVertical: 10,
               alignItems: 'center',
               justifyContent: 'center',
+              marginTop: 4,
             }}
             activeOpacity={0.8}
           >
-            <Text
-              style={{
-                fontSize: 15,
-                fontFamily: 'Poppins-SemiBold',
-                color: Colors.error,
-              }}
-            >
+            <Text style={{ fontSize: 13, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark }}>
               Cancel
             </Text>
           </TouchableOpacity>

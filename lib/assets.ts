@@ -84,7 +84,12 @@ export const DESIGN_TOKENS = {
     
     // Status colors
     success: '#166534',
-    successLight: '#FEF3C7',
+    /** Light sage tint for success / in-progress badges */
+    successLight: 'rgba(79, 103, 57, 0.14)',
+    /** Readable green on successLight backgrounds */
+    successForeground: '#2A3B1F',
+    warning: '#F59E0B',
+    warningLight: '#FEF3C7',
     error: '#DC2626',
     errorLight: '#FEF2F2',
     errorBorder: '#FEE2E2',

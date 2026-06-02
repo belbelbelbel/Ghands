@@ -1,4 +1,5 @@
 import { SageHeroPanel } from '@/components/provider/SageHeroPanel';
+import ProviderProceedModal, { ProviderProceedType } from '@/components/provider/ProviderProceedModal';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import { ProviderJobUpdatesTabSkeleton, QuotationListSkeleton } from '@/components/LoadingSkeleton';
@@ -9,7 +10,7 @@ import Toast from '@/components/Toast';
 import { haptics } from '@/hooks/useHaptics';
 import { useToast } from '@/hooks/useToast';
 import { BorderRadius, Colors } from '@/lib/designSystem';
-import { JOB_TIMELINE, timelineChipText } from '@/lib/jobTimelineTheme';
+import { JOB_TIMELINE } from '@/lib/jobTimelineTheme';
 import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
 import { providerListCard } from '@/lib/providerSurfaceStyles';
 import { surfaceElevation } from '@/lib/surfaceStyles';
@@ -18,9 +19,18 @@ import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { makeCall } from '@/utils/callUtils';
 import { formatDateLong, formatDateShort, formatTimeAgo } from '@/utils/dateFormatting';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { isDuplicateActionError } from '@/utils/idempotentSubmit';
 import { AuthError } from '@/utils/errors';
 import { calculateDistance, estimateTravelTime, formatDistance, formatTravelTime, openMaps, openNavigation } from '@/utils/navigationUtils';
 import { navigateBack, NAV_FALLBACK } from '@/utils/navigation';
+import { openProviderReceipt } from '@/utils/receiptNavigation';
+import { getVisitDeclinedDescription, getVisitLogisticsStatus, isVisitDeclined } from '@/utils/visitStatus';
+import {
+  getInspectionNegotiationStep,
+  getQuotationNegotiationStep,
+  timelineStepBadgeLabel,
+  timelineStepBadgeTextColor,
+} from '@/utils/timelineNegotiationSteps';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Activity, ArrowLeft, ArrowRight, Calendar, CheckCircle, CheckCircle2, ChevronDown, ChevronUp, Circle, Clock, Edit, ExternalLink, FileText, MapPin, MapPinned, MessageCircle, MessageSquare, Navigation, Phone, Receipt, Send, Wallet, Wrench, X } from 'lucide-react-native';
@@ -68,6 +78,7 @@ export default function ProviderJobDetailsScreen() {
   const [quotationWithProvider, setQuotationWithProvider] = useState<QuotationWithProvider | null>(null);
   const [activeTab, setActiveTab] = useState<'Updates' | 'Quotations'>('Updates');
   const [showProceedModal, setShowProceedModal] = useState(false);
+  const [proceedingType, setProceedingType] = useState<ProviderProceedType | null>(null);
   const [showCompletedActionsModal, setShowCompletedActionsModal] = useState(false);
   const [workOrderStatus, setWorkOrderStatus] = useState<'pending' | 'in_progress' | 'active'>('pending');
   const [refreshing, setRefreshing] = useState(false);
@@ -283,15 +294,19 @@ export default function ProviderJobDetailsScreen() {
   const hasInitialLoadRef = useRef<boolean>(false);
   const actionCooldownUntilRef = useRef<number>(0); // Skip refresh for 2.5s after Start/Mark complete
   const locallyStartedRequestIdRef = useRef<number | null>(null);
+  const locallyMarkedCompleteRef = useRef<number | null>(null);
+  const acceptActionLockRef = useRef(false);
+  const rejectActionLockRef = useRef(false);
 
-  const loadRequestDetails = useCallback(async (options?: { silent?: boolean }) => {
+  const loadRequestDetails = useCallback(async (options?: { silent?: boolean; force?: boolean }) => {
     if (!params.requestId) return;
     
     const silent = options?.silent;
+    const force = options?.force;
     
     // Prevent rapid double-calls - 1.5s throttle to avoid glitching after actions
     const now = Date.now();
-    if (isLoadingRef.current || (now - lastLoadTimeRef.current < 1500)) {
+    if (!force && (isLoadingRef.current || (now - lastLoadTimeRef.current < 1500))) {
       return;
     }
     
@@ -416,12 +431,28 @@ export default function ProviderJobDetailsScreen() {
       }
       
       const backendStatus = (requestDetails.status || '').toString().toLowerCase();
+      if (backendStatus === 'reviewing' || backendStatus === 'completed') {
+        if (locallyMarkedCompleteRef.current === requestId) {
+          locallyMarkedCompleteRef.current = null;
+        }
+      }
+      if (backendStatus === 'in_progress') {
+        if (locallyStartedRequestIdRef.current === requestId) {
+          locallyStartedRequestIdRef.current = null;
+        }
+      }
+
       const shouldKeepLocalStart =
         locallyStartedRequestIdRef.current === requestId &&
         (backendStatus === 'scheduled' || backendStatus === 'accepted');
+      const shouldKeepLocalReviewing =
+        locallyMarkedCompleteRef.current === requestId &&
+        (backendStatus === 'in_progress' || backendStatus === 'scheduled');
       const stableRequestDetails = shouldKeepLocalStart
         ? { ...requestDetails, status: 'in_progress' as any }
-        : requestDetails;
+        : shouldKeepLocalReviewing
+          ? { ...requestDetails, status: 'reviewing' as any }
+          : requestDetails;
       setRequest(stableRequestDetails);
       
       // Distance calculation will happen in useEffect when both locations are available
@@ -532,98 +563,58 @@ export default function ProviderJobDetailsScreen() {
     setShowProceedModal(true);
   };
 
-  const handleAcceptRequest = async (proceedType: 'visit' | 'quote') => {
-    if (!params.requestId || isAccepting || isRejecting) return;
+  const handleAcceptRequest = async (proceedType: ProviderProceedType) => {
+    if (!params.requestId || acceptActionLockRef.current || isAccepting || isRejecting || proceedingType) return;
 
+    acceptActionLockRef.current = true;
+    setProceedingType(proceedType);
     setIsAccepting(true);
     setShowProceedModal(false);
     haptics.light();
 
-    try {
-      const requestId = parseInt(params.requestId, 10);
-      try {
-        await providerService.acceptRequest(requestId);
-      } catch (acceptErr: any) {
-        const msg = (acceptErr?.message || acceptErr?.details?.data?.message || '').toLowerCase();
-        const alreadyAccepted =
-          msg.includes('already accepted') ||
-          msg.includes('not available for acceptance') ||
-          msg.includes('already accepted by');
-        if (alreadyAccepted) {
-          haptics.success();
-          showSuccess('Request already accepted. Proceeding...');
-          if (proceedType === 'visit') {
-            setTimeout(() => {
-              router.push({
-                pathname: '/RequestVisitScreen' as any,
-                params: { requestId: params.requestId, jobTitle: request?.jobTitle },
-              } as any);
-            }, 500);
-          } else {
-            setTimeout(() => {
-              router.push({
-                pathname: '/SendQuotationScreen' as any,
-                params: {
-                  requestId: params.requestId,
-                  jobTitle: request?.jobTitle,
-                  returnToTab: 'Quotations',
-                },
-              } as any);
-            }, 500);
-          }
-          loadRequestDetails();
-          setIsAccepting(false);
-          return;
-        }
-        throw acceptErr;
-      }
-
-      haptics.success();
-      
-      if (proceedType === 'visit') {
-        showSuccess('Request accepted! You can now schedule a visit for inspection.');
-        // Navigate to Request Visit screen
-      setTimeout(() => {
-          router.push({
+    const destination =
+      proceedType === 'visit'
+        ? {
             pathname: '/RequestVisitScreen' as any,
-            params: {
-              requestId: params.requestId,
-              jobTitle: request?.jobTitle,
-            },
-          } as any);
-        }, 1000);
-      } else {
-        showSuccess('Request accepted! You can now send a quotation.');
-        // Navigate to send quotation screen
-        setTimeout(() => {
-          router.push({
+            params: { requestId: params.requestId, jobTitle: request?.jobTitle },
+          }
+        : {
             pathname: '/SendQuotationScreen' as any,
             params: {
               requestId: params.requestId,
               jobTitle: request?.jobTitle,
               returnToTab: 'Quotations',
             },
-          } as any);
-        }, 1000);
-      }
-      
-      // Reload request data
-      loadRequestDetails();
+          };
+
+    try {
+      const requestId = parseInt(params.requestId, 10);
+      await providerService.acceptRequest(requestId);
+      haptics.success();
+      showSuccess(
+        proceedType === 'visit'
+          ? 'Request accepted! Schedule your visit next.'
+          : 'Request accepted! Send your quotation next.'
+      );
+      setProceedingType(null);
+      router.replace(destination as any);
+      void loadRequestDetails({ force: true });
     } catch (error: any) {
+      acceptActionLockRef.current = false;
+      setProceedingType(null);
+      setIsAccepting(false);
       if (__DEV__) {
-      console.error('Error accepting request:', error);
+        console.error('Error accepting request:', error);
       }
       haptics.error();
-      
-      const errorMessage = getSpecificErrorMessage(error, 'accept_request');
-      showError(errorMessage);
-      setIsAccepting(false);
+      showError(getSpecificErrorMessage(error, 'accept_request'));
     }
   };
 
   const handleRejectRequest = async () => {
-    if (!params.requestId || isAccepting || isRejecting) return;
+    if (!params.requestId || rejectActionLockRef.current || isAccepting || isRejecting) return;
 
+    rejectActionLockRef.current = true;
     setIsRejecting(true);
     haptics.light();
 
@@ -642,16 +633,16 @@ export default function ProviderJobDetailsScreen() {
         // ignore
       }
       haptics.success();
-      showSuccess('Request rejected successfully');
+      showSuccess('Request declined. The client has been notified.');
       router.back();
     } catch (error: any) {
+      rejectActionLockRef.current = false;
+      setIsRejecting(false);
       if (__DEV__) {
         console.error('Error rejecting request:', error);
       }
       haptics.error();
       showError(getSpecificErrorMessage(error, 'reject_request'));
-    } finally {
-      setIsRejecting(false);
     }
   };
 
@@ -742,8 +733,8 @@ export default function ProviderJobDetailsScreen() {
       requestIndicatesQuotationAccepted ||
       quotationSent;
     const visitRequest = (request as any).visitRequest;
-    const visitStatus = (visitRequest?.logisticsStatus || '').toString().toLowerCase();
-    const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
+    const visitStatus = getVisitLogisticsStatus(visitRequest);
+    const visitDeclined = isVisitDeclined(visitRequest);
     const hasVisitRequested = !!(visitRequest && (
       visitRequest.scheduledDate ||
       visitRequest.scheduledTime ||
@@ -753,82 +744,24 @@ export default function ProviderJobDetailsScreen() {
     ));
     const visitPaid = visitRequest?.logisticsStatus === 'paid';
     const visitScheduleText = formatVisitSchedule(visitRequest?.scheduledDate, visitRequest?.scheduledTime);
+    const visitBlocksQuote = hasVisitRequested && !visitPaid && !visitDeclined;
 
-    if (providerHasAccepted) {
-      if (quotationSent) {
-        timeline.push({
-          id: 'step-2',
-          title: 'Inspection',
-          description: hasVisitRequested ? 'Visit handled.' : 'Quoted directly.',
-          status: 'Done',
-          accent: JOB_TIMELINE.completeSoft,
-          dotColor: JOB_TIMELINE.sage,
-          lineColor: JOB_TIMELINE.sage,
-          isActive: false,
-          isCompleted: true,
-          icon: MapPinned,
-          showRequestVisit: false,
-        });
-      } else if (visitDeclined) {
-        timeline.push({
-          id: 'step-2',
-          title: 'Inspection',
-          description: 'Client declined the visit.',
-          status: 'Active',
-          accent: '#FEF9C3',
-          dotColor: JOB_TIMELINE.activeDot,
-          lineColor: JOB_TIMELINE.activeDot,
-          isActive: true,
-          isCompleted: false,
-          icon: MapPinned,
-          showRequestVisit: false,
-        });
-      } else if (hasVisitRequested) {
-        timeline.push({
-          id: 'step-2',
-          title: 'Inspection',
-          description: visitPaid
-            ? `Visit confirmed for ${visitScheduleText}.`
-            : `Visit requested for ${visitScheduleText}.`,
-          status: visitPaid ? 'Done' : 'Waiting',
-          accent: visitPaid ? 'rgba(79, 103, 57, 0.14)' : '#FEF9C3',
-          dotColor: visitPaid ? JOB_TIMELINE.sage : JOB_TIMELINE.activeDot,
-          lineColor: visitPaid ? JOB_TIMELINE.sage : JOB_TIMELINE.activeDot,
-          isActive: !visitPaid,
-          isCompleted: visitPaid,
-          icon: MapPinned,
-          showRequestVisit: false, // Visit already requested - don't show button again
-        });
-      } else {
-        timeline.push({
-          id: 'step-2',
-          title: 'Inspection',
-          description: 'Request a visit or quote directly.',
-          status: 'Active',
-          accent: '#FEF9C3',
-          dotColor: JOB_TIMELINE.activeDot,
-          lineColor: JOB_TIMELINE.activeDot,
-          isActive: true,
-          isCompleted: false,
-          icon: MapPinned,
-          showRequestVisit: true,
-        });
-      }
-    } else {
-      timeline.push({
-        id: 'step-2',
-        title: 'Inspection',
-        description: 'Accept before taking action.',
-        status: 'Pending',
-        accent: '#F3F4F6',
-        dotColor: JOB_TIMELINE.pendingDot,
-        lineColor: JOB_TIMELINE.railMuted,
-        isActive: false,
-        isCompleted: false,
-        icon: MapPinned,
-        showRequestVisit: false,
-      });
-    }
+    const inspectionVisual = getInspectionNegotiationStep({
+      audience: 'provider',
+      providerHasAccepted,
+      quotationSent,
+      hasVisitRequested,
+      visitDeclined,
+      visitPaid,
+      visitScheduleText,
+      visitRequest,
+    });
+    timeline.push({
+      id: 'step-2',
+      title: 'Inspection',
+      icon: MapPinned,
+      ...inspectionVisual,
+    });
 
     // Step 2b: Quotation
     if (providerHasAccepted) {
@@ -857,35 +790,38 @@ export default function ProviderJobDetailsScreen() {
           canEdit: !jobComplete && !isQuotationAccepted,
         });
       } else {
+        const quotationVisual = getQuotationNegotiationStep({
+          audience: 'provider',
+          providerHasAccepted,
+          quotationSent,
+          hasVisitRequested,
+          visitDeclined,
+          visitPaid,
+          visitBlocksQuote,
+        });
         timeline.push({
           id: 'step-2b',
           title: 'Quotation',
-          description: hasVisitRequested && !visitPaid
-            ? 'Visit payment comes first.'
-            : 'Prepare the quote.',
-          status: hasVisitRequested && !visitPaid ? 'Pending' : 'Active',
-          accent: hasVisitRequested && !visitPaid ? '#F3F4F6' : '#FEF9C3',
-          dotColor: hasVisitRequested && !visitPaid ? JOB_TIMELINE.pendingDot : JOB_TIMELINE.activeDot,
-          lineColor: hasVisitRequested && !visitPaid ? JOB_TIMELINE.pendingDot : JOB_TIMELINE.activeDot,
-          isActive: !(hasVisitRequested && !visitPaid),
-          isCompleted: false,
           icon: FileText,
-          canEdit: !(hasVisitRequested && !visitPaid),
+          ...quotationVisual,
+          canEdit: quotationVisual.isActive,
         });
       }
     } else {
+      const quotationVisual = getQuotationNegotiationStep({
+        audience: 'provider',
+        providerHasAccepted: false,
+        quotationSent: false,
+        hasVisitRequested: false,
+        visitDeclined: false,
+        visitPaid: false,
+        visitBlocksQuote: false,
+      });
       timeline.push({
         id: 'step-2b',
         title: 'Quotation',
-        description: 'Send quote after accepting.',
-        status: 'Pending',
-        accent: '#F3F4F6',
-        dotColor: JOB_TIMELINE.pendingDot,
-        lineColor: JOB_TIMELINE.railMuted,
-        isActive: false,
-        isCompleted: false,
         icon: FileText,
-        canEdit: false,
+        ...quotationVisual,
       });
     }
 
@@ -1136,8 +1072,8 @@ export default function ProviderJobDetailsScreen() {
   const hasSentQuotation =
     recordShowsSentQuotation(quotation) || recordShowsSentQuotation(quotationWithProvider);
   const currentVisitRequest = (request as any)?.visitRequest;
-  const currentVisitStatus = (currentVisitRequest?.logisticsStatus || '').toString().toLowerCase();
-  const currentVisitDeclined = ['cancelled', 'declined', 'rejected'].includes(currentVisitStatus);
+  const currentVisitStatus = getVisitLogisticsStatus(currentVisitRequest);
+  const currentVisitDeclined = isVisitDeclined(currentVisitRequest);
   const currentVisitRequested = !!(currentVisitRequest && (
     currentVisitRequest.scheduledDate ||
     currentVisitRequest.scheduledTime ||
@@ -1147,6 +1083,7 @@ export default function ProviderJobDetailsScreen() {
   ));
   const currentVisitPaid = currentVisitStatus === 'paid';
   const visitRequestWaitingForClient = currentVisitRequested && !currentVisitPaid && !currentVisitDeclined;
+  const canMessageClient = hasSentQuotation || currentVisitRequested;
   const showTopProviderActions =
     !!request &&
     providerBottomBarEngaged &&
@@ -1264,8 +1201,8 @@ export default function ProviderJobDetailsScreen() {
     }
 
     const statusVisitRequest = (request as any)?.visitRequest;
-    const statusVisitStatus = (statusVisitRequest?.logisticsStatus || '').toString().toLowerCase();
-    const statusVisitDeclined = ['cancelled', 'declined', 'rejected'].includes(statusVisitStatus);
+    const statusVisitStatus = getVisitLogisticsStatus(statusVisitRequest);
+    const statusVisitDeclined = isVisitDeclined(statusVisitRequest);
     const statusVisitRequested = !!(statusVisitRequest && (
       statusVisitRequest.scheduledDate ||
       statusVisitRequest.scheduledTime ||
@@ -1274,6 +1211,16 @@ export default function ProviderJobDetailsScreen() {
       statusVisitRequest.logisticsCost != null
     ));
     const statusVisitPaid = statusVisitStatus === 'paid';
+
+    if (statusVisitDeclined && !quotationWithProvider) {
+      return {
+        title: 'Visit declined',
+        message: `${getVisitDeclinedDescription(statusVisitRequest, 'provider')} Request a new visit or send a quotation.`,
+        showDetails: true,
+        variant: 'action' as const,
+      };
+    }
+
     if (statusVisitRequested && !statusVisitDeclined && !quotationWithProvider) {
       return {
         title: statusVisitPaid ? 'Visit confirmed' : 'Visit request sent',
@@ -1441,7 +1388,13 @@ export default function ProviderJobDetailsScreen() {
               ? 28
               : activeTab === 'Quotations' && quotation && quotation.status === 'accepted'
                 ? 200
-                : 120,
+                : activeTab === 'Updates' && request?.status !== 'completed' && !showTopProviderActions
+                  ? canMessageClient
+                    ? 150
+                    : hasSentQuotation
+                      ? 120
+                      : 170
+                  : 120,
           }}
           refreshControl={
             <RefreshControl
@@ -1803,7 +1756,7 @@ export default function ProviderJobDetailsScreen() {
               {timelineSteps.map((step, index) => {
                 const isLast = index === timelineSteps.length - 1;
                 const IconComponent = step.icon || Circle;
-                const iconSize = step.isCompleted || step.isActive ? 14 : 12;
+                const iconSize = step.isCompleted || step.isActive || (step as any).isDeclined || (step as any).isSkipped ? 14 : 12;
                 const animation = timelineAnimations[index];
                 const lineAnim = !isLast ? lineAnimations[index] : null;
 
@@ -1831,12 +1784,17 @@ export default function ProviderJobDetailsScreen() {
                           width: 30,
                           height: 30,
                           borderRadius: 15,
-                          backgroundColor: step.isCompleted ? step.dotColor : step.isActive ? step.dotColor : '#F3F4F6',
+                          backgroundColor:
+                            step.isCompleted || step.isActive || (step as any).isDeclined
+                              ? step.dotColor
+                              : (step as any).isSkipped
+                                ? JOB_TIMELINE.pendingDot
+                                : '#F3F4F6',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          borderWidth: step.isCompleted || step.isActive ? 0 : 2,
+                          borderWidth: step.isCompleted || step.isActive || (step as any).isDeclined || (step as any).isSkipped ? 0 : 2,
                           borderColor: '#E5E7EB',
-                          shadowColor: step.isCompleted || step.isActive ? step.dotColor : '#000',
+                          shadowColor: step.isCompleted || step.isActive || (step as any).isDeclined ? step.dotColor : '#000',
                           shadowOffset: { width: 0, height: 0 },
                           shadowOpacity: 0,
                           shadowRadius: 0,
@@ -1851,7 +1809,11 @@ export default function ProviderJobDetailsScreen() {
                       >
                         <IconComponent
                           size={iconSize}
-                          color={step.isCompleted || step.isActive ? Colors.white : '#9CA3AF'}
+                          color={
+                            step.isCompleted || step.isActive || (step as any).isDeclined
+                              ? Colors.white
+                              : '#9CA3AF'
+                          }
                         />
                       </Animated.View>
                       {!isLast && (
@@ -1861,7 +1823,7 @@ export default function ProviderJobDetailsScreen() {
                             flex: 1,
                             backgroundColor: step.isCompleted
                               ? step.lineColor
-                              : step.isActive
+                              : step.isActive || (step as any).isDeclined
                                 ? step.lineColor
                                 : '#E5E7EB',
                             marginTop: 6,
@@ -1892,11 +1854,15 @@ export default function ProviderJobDetailsScreen() {
                         backgroundColor: Colors.white,
                         borderRadius: BorderRadius.default,
                         borderWidth: 1,
-                        borderColor: step.isActive
-                          ? JOB_TIMELINE.activeSoft
-                          : step.isCompleted
-                            ? JOB_TIMELINE.completeSoft
-                            : JOB_TIMELINE.rowBorder,
+                        borderColor: (step as any).isDeclined
+                          ? JOB_TIMELINE.declinedSoft
+                          : (step as any).isSkipped
+                            ? JOB_TIMELINE.rowBorder
+                            : step.isActive
+                              ? JOB_TIMELINE.activeSoft
+                              : step.isCompleted
+                                ? JOB_TIMELINE.completeSoft
+                                : JOB_TIMELINE.rowBorder,
                         padding: 14,
                       }}
                     >
@@ -1914,10 +1880,16 @@ export default function ProviderJobDetailsScreen() {
                         >
                           {step.title}
                         </Text>
-                        {(step.isActive || step.isCompleted) && (
+                        {(step.isActive || step.isCompleted || (step as any).isDeclined || (step as any).isSkipped) && (
                           <View
                             style={{
-                              backgroundColor: step.isCompleted ? JOB_TIMELINE.completeSoft : JOB_TIMELINE.activeSoft,
+                              backgroundColor: step.isCompleted
+                                ? JOB_TIMELINE.completeSoft
+                                : (step as any).isDeclined
+                                  ? JOB_TIMELINE.declinedSoft
+                                  : (step as any).isSkipped
+                                    ? JOB_TIMELINE.pendingSoft
+                                    : JOB_TIMELINE.activeSoft,
                               paddingHorizontal: 9,
                               paddingVertical: 4,
                               borderRadius: 12,
@@ -1927,10 +1899,10 @@ export default function ProviderJobDetailsScreen() {
                               style={{
                                 fontSize: 10,
                                 fontFamily: 'Poppins-SemiBold',
-                                color: timelineChipText(step),
+                                color: timelineStepBadgeTextColor(step),
                               }}
                             >
-                              {step.isCompleted ? 'Done' : 'Active'}
+                              {timelineStepBadgeLabel(step)}
                             </Text>
                           </View>
                         )}
@@ -2037,7 +2009,7 @@ export default function ProviderJobDetailsScreen() {
                                     setRequest((prev) => (prev ? { ...prev, status: 'in_progress' as any } : prev));
                                     lastLoadTimeRef.current = Date.now();
                                     setTimeout(() => {
-                                      loadRequestDetails({ silent: true });
+                                      loadRequestDetails({ silent: true, force: true });
                                     }, 1500);
                                   }
                                 } catch (error: any) {
@@ -2093,7 +2065,15 @@ export default function ProviderJobDetailsScreen() {
                           style={{
                             fontSize: 12,
                             fontFamily: 'Poppins-Regular',
-                            color: step.isCompleted ? Colors.accent : step.isActive ? '#F59E0B' : Colors.textTertiary,
+                            color: step.isCompleted
+                              ? Colors.accent
+                              : (step as any).isDeclined
+                                ? JOB_TIMELINE.declinedChipText
+                                : (step as any).isSkipped
+                                  ? JOB_TIMELINE.pendingChipText
+                                  : step.isActive
+                                    ? '#F59E0B'
+                                    : Colors.textTertiary,
                             marginTop: 8,
                             lineHeight: 17,
                           }}
@@ -2118,15 +2098,26 @@ export default function ProviderJobDetailsScreen() {
                       try {
                         const reqId = parseInt(params.requestId, 10);
                         await providerService.markWorkComplete(reqId);
+                        locallyMarkedCompleteRef.current = reqId;
+                        setRequest((prev) => (prev ? { ...prev, status: 'reviewing' as any } : prev));
                         showSuccess('Work marked complete! Client will confirm to release payment.');
-                        lastLoadTimeRef.current = Date.now();
-                        await loadRequestDetails();
+                        setTimeout(() => {
+                          loadRequestDetails({ silent: true, force: true });
+                        }, 1500);
                       } catch (error: any) {
                         haptics.error();
                         const msg = (error?.message || '').toLowerCase();
-                        if (msg.includes('404') || msg.includes('not found')) {
-                          showSuccess('Work marked complete! (Sync pending – client can confirm when ready.)');
-                          await loadRequestDetails();
+                        if (
+                          isDuplicateActionError(error, ['complete', 'reviewing']) ||
+                          msg.includes('404') ||
+                          msg.includes('not found')
+                        ) {
+                          locallyMarkedCompleteRef.current = parseInt(params.requestId, 10);
+                          setRequest((prev) => (prev ? { ...prev, status: 'reviewing' as any } : prev));
+                          showSuccess('Work already marked complete. Waiting for client confirmation.');
+                          setTimeout(() => {
+                            loadRequestDetails({ silent: true, force: true });
+                          }, 500);
                         } else {
                           showError(getSpecificErrorMessage(error, 'provider_mark_complete'));
                         }
@@ -3329,8 +3320,7 @@ export default function ProviderJobDetailsScreen() {
                 <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
                   {(() => {
                     const vr = (request as any)?.visitRequest;
-                    const visitStatus = (vr?.logisticsStatus || '').toString().toLowerCase();
-                    const visitDeclined = ['cancelled', 'declined', 'rejected'].includes(visitStatus);
+                    const visitDeclined = isVisitDeclined(vr);
                     const visitAlreadyRequested = !!(vr && (
                       vr.scheduledDate ||
                       vr.scheduledTime ||
@@ -3338,7 +3328,7 @@ export default function ProviderJobDetailsScreen() {
                       vr.logisticsStatus ||
                       vr.logisticsCost != null
                     ));
-                    if (visitAlreadyRequested || visitDeclined) return null;
+                    if (visitAlreadyRequested && !visitDeclined) return null;
                     return (
                   <TouchableOpacity
                     style={{
@@ -3396,7 +3386,7 @@ export default function ProviderJobDetailsScreen() {
                   )}
                 </View>
               )}
-              {/* Message Client Button */}
+              {canMessageClient && (
               <TouchableOpacity
                 style={{
                   backgroundColor: Colors.accent,
@@ -3429,6 +3419,7 @@ export default function ProviderJobDetailsScreen() {
                   Message Client
                 </Text>
               </TouchableOpacity>
+              )}
             </>
           ) : request &&
             request.status === 'pending' &&
@@ -3561,152 +3552,16 @@ export default function ProviderJobDetailsScreen() {
         onClose={hideToast}
       />
 
-      {/* Proceed Modal */}
-      <Modal
+      <ProviderProceedModal
         visible={showProceedModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowProceedModal(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: Colors.white,
-              borderRadius: BorderRadius.xl,
-              padding: 24,
-              width: '100%',
-              maxWidth: 400,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 18,
-                fontFamily: 'Poppins-Bold',
-                color: Colors.textPrimary,
-                marginBottom: 24,
-                textAlign: 'center',
-              }}
-            >
-              How do you want to proceed?
-            </Text>
-
-            {/* Option 1: Request Visit */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 16,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
-                  flex: 1,
-                }}
-              >
-                I need to visit first
-              </Text>
-              <TouchableOpacity
-                onPress={() => handleAcceptRequest('visit')}
-                style={{
-                  backgroundColor: Colors.backgroundGray,
-                  paddingVertical: 10,
-                  paddingHorizontal: 20,
-                  borderRadius: BorderRadius.default,
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                }}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.textPrimary,
-                  }}
-                >
-                  Request visit
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Option 2: Send Quote */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 24,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
-                  flex: 1,
-                }}
-              >
-                I&apos;m ready to give a price
-              </Text>
-              <TouchableOpacity
-                onPress={() => handleAcceptRequest('quote')}
-                style={{
-                  backgroundColor: Colors.black,
-                  paddingVertical: 10,
-                  paddingHorizontal: 20,
-                  borderRadius: BorderRadius.default,
-                }}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Poppins-SemiBold',
-                    color: Colors.accent,
-                  }}
-                >
-                  Send Quote
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Cancel Button */}
-            <TouchableOpacity
-              onPress={() => {
-                haptics.light();
-                setShowProceedModal(false);
-              }}
-              style={{
-                paddingVertical: 12,
-                alignItems: 'center',
-              }}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Poppins-Regular',
-                  color: Colors.textSecondaryDark,
-                }}
-              >
-                Cancel
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        jobTitle={request?.jobTitle}
+        loadingType={proceedingType}
+        onClose={() => {
+          if (proceedingType) return;
+          setShowProceedModal(false);
+        }}
+        onSelect={handleAcceptRequest}
+      />
 
       {/* Completed Actions Modal */}
       <Modal
@@ -3809,10 +3664,9 @@ export default function ProviderJobDetailsScreen() {
                 onPress={() => {
                   haptics.light();
                   setShowCompletedActionsModal(false);
-                  router.push({
-                    pathname: '/ProviderReceiptScreen' as any,
-                    params: { requestId: params.requestId },
-                  } as any);
+                  openProviderReceipt(router, {
+                    requestId: params.requestId,
+                  });
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>

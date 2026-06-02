@@ -272,6 +272,7 @@ export default function ProviderJobsScreen() {
   }, [showError, getRejectedRequestIds]);
 
   const jobsReadyRef = useRef(false);
+  const rejectingRequestIdRef = useRef<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -326,37 +327,41 @@ export default function ProviderJobsScreen() {
             backgroundColor: Colors.successLight,
             alignSelf: 'flex-start',
             paddingHorizontal: 8,
-            paddingVertical: 4,
-            borderRadius: BorderRadius.default,
+            paddingVertical: 3,
+            borderRadius: BorderRadius.full,
             marginBottom: 8,
           }}
         >
-          <Text style={{ fontSize: 11, fontFamily: 'Poppins-SemiBold', color: Colors.success }}>In Progress</Text>
+          <Text style={{ fontSize: 10, fontFamily: 'Poppins-SemiBold', color: Colors.success }}>In Progress</Text>
         </View>
       )}
 
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingRight: 50 }}>
-        <Image source={require('../../assets/images/userimg.jpg')} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} resizeMode='cover' />
+        <Image source={require('../../assets/images/userimg.jpg')} style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} resizeMode='cover' />
         <View style={{ flex: 1 }}>
-          <Text style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
+          <Text numberOfLines={1} style={{ ...Fonts.bodyMedium, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary }}>
             {job.clientName}
           </Text>
-          <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, marginTop: 2 }}>
+          <Text numberOfLines={1} style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, marginTop: 1 }}>
             {job.service}
           </Text>
         </View>
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-        <Calendar size={12} color={Colors.textSecondaryDark} />
-        <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium', marginLeft: 6 }}>
-          {job.date} - {job.time}
+        <Calendar size={11} color={Colors.textTertiary} />
+        <Text numberOfLines={1} style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium', marginLeft: 5, flex: 1 }}>
+          {job.date} · {job.time}
         </Text>
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <MapPin size={12} color={Colors.textSecondaryDark} />
-        <Text style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium', marginLeft: 6 }}>
+        <MapPin size={11} color={Colors.textTertiary} />
+        <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={{ ...Fonts.bodySmall, color: Colors.textSecondaryDark, fontFamily: 'Poppins-Medium', marginLeft: 5, flex: 1 }}
+        >
           {job.location}
         </Text>
       </View>
@@ -367,6 +372,7 @@ export default function ProviderJobsScreen() {
           style={{
             ...providerHomeActionButton,
             width: '100%',
+            paddingVertical: 8,
           }}
           onPress={() => {
             haptics.light();
@@ -430,19 +436,18 @@ export default function ProviderJobsScreen() {
                 showError('Invalid job ID');
                 return;
               }
+              const rid = Number(requestId);
+              if (rejectingRequestIdRef.current === rid) return;
+
+              rejectingRequestIdRef.current = rid;
               try {
-                await providerService.rejectRequest(Number(requestId));
-                await addRejectedRequestId(Number(requestId));
+                await providerService.rejectRequest(rid);
+                await addRejectedRequestId(rid);
                 haptics.success();
                 showSuccess('Request declined. The client has been notified.');
                 setAllJobs((prev) => prev.filter((j) => String(j.requestId ?? j.id) !== String(requestId)));
               } catch (error: any) {
-                const msg = (error?.message || '').toLowerCase();
-                if (msg.includes('already rejected')) {
-                  await addRejectedRequestId(Number(requestId));
-                  setAllJobs((prev) => prev.filter((j) => String(j.requestId ?? j.id) !== String(requestId)));
-                  return;
-                }
+                rejectingRequestIdRef.current = null;
                 haptics.error();
                 showError(getSpecificErrorMessage(error, 'reject_request'));
               }

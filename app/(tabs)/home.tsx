@@ -17,7 +17,8 @@ import { BorderRadius, Colors, useTabScrollContentPaddingTop, useTabScreenBottom
 import { SURFACE_STYLES, surfaceElevation } from '@/lib/surfaceStyles';
 import { providerListCard } from '@/lib/providerSurfaceStyles';
 import { CLIENT_HOME_SCROLL_GUTTER } from '@/lib/tabletLayout';
-import { ServiceRequest, authService, serviceRequestService } from '@/services/api';
+import { ServiceRequest, serviceRequestService } from '@/services/api';
+import { logDevAuthTokens } from '@/utils/devAuthTokens';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { getCategoryIcon, resolveCategoryImageSource } from '@/utils/categoryIcons';
 import { AuthError } from '@/utils/errors';
@@ -145,18 +146,9 @@ const HomeScreen = React.memo(() => {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const categoriesFadeAnim = useRef(new Animated.Value(1)).current; // Start visible for dummy data
 
-  // Dev-only: short client token snippet to help backend debug auth issues
+  // Dev-only: log client + provider tokens (cached on each login)
   useEffect(() => {
-    if (!__DEV__) return;
-    (async () => {
-      try {
-        const token = await authService.getAuthToken();
-        console.log('[ClientTokenSnippet:Home]', token )
-
-      } catch {
-        console.log('[ClientTokenSnippet:Home]', null);
-      }
-    })();
+    void logDevAuthTokens('ClientHome');
   }, []);
 
   // Refresh location when modal closes
@@ -221,13 +213,20 @@ const HomeScreen = React.memo(() => {
       ? request.categoryName.charAt(0).toUpperCase() + request.categoryName.slice(1).replace(/([A-Z])/g, ' $1')
       : 'Service';
 
-    // Map status: scheduled = paid; reviewing = provider marked complete
-    let status: 'Completed' | 'In Progress' | 'Pending' = 'Pending';
-    if (request.status === 'completed') {
+    // Map status — show the real job state, not only in-progress
+    let status: JobActivity['status'] = 'Pending';
+    const apiStatus = ((request as any).status ?? '').toString().toLowerCase();
+    if (apiStatus === 'completed') {
       status = 'Completed';
-    } else if (request.status === 'accepted' || request.status === 'in_progress' ||
-               request.status === 'scheduled' || request.status === 'reviewing' ||
-               (request.status as any) === 'inspecting') {
+    } else if (apiStatus === 'cancelled' || apiStatus === 'rejected' || apiStatus === 'no_providers') {
+      status = 'Rejected';
+    } else if (
+      apiStatus === 'accepted' ||
+      apiStatus === 'in_progress' ||
+      apiStatus === 'scheduled' ||
+      apiStatus === 'reviewing' ||
+      apiStatus === 'inspecting'
+    ) {
       status = 'In Progress';
     } else if (acceptedProvidersCount > 0) {
       status = 'In Progress';
@@ -269,13 +268,9 @@ const HomeScreen = React.memo(() => {
         return;
       }
       const confirmedRequests = requests.filter((request) => {
-        if (request.status === 'cancelled') return false;
         const hasJobTitle = request.jobTitle && request.jobTitle.trim().length > 0;
         const hasDescription = request.description && request.description.trim().length > 0;
-        if (!hasJobTitle || !hasDescription) return false;
-        const status = ((request as any).status ?? '').toString().toLowerCase();
-        if (status === 'rejected' || status === 'no_providers') return false;
-        return true;
+        return hasJobTitle && hasDescription;
       });
       const activityEntries = await Promise.all(
         confirmedRequests.map(async (request) => {
@@ -312,12 +307,8 @@ const HomeScreen = React.memo(() => {
           return { activity, createdAtMs };
         })
       );
-      const statusPriority: Record<JobActivity['status'], number> = { 'In Progress': 0, Pending: 1, Completed: 2 };
       const sortedActivities = activityEntries
-        .sort((a, b) => {
-          const statusDiff = statusPriority[a.activity.status] - statusPriority[b.activity.status];
-          return statusDiff !== 0 ? statusDiff : b.createdAtMs - a.createdAtMs;
-        })
+        .sort((a, b) => b.createdAtMs - a.createdAtMs)
         .slice(0, 2)
         .map((entry) => entry.activity);
       setJobActivities(sortedActivities);
@@ -927,7 +918,7 @@ const HomeScreen = React.memo(() => {
                       lineHeight: 18,
                     }}
                   >
-                    Track recent requests and quotations.
+                    Track your latest requests — in progress, completed, or declined.
                   </Text>
                 </View>
                 <TouchableOpacity

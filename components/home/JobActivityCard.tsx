@@ -5,7 +5,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { SURFACE_STYLES } from '@/lib/surfaceStyles';
 import { Colors } from '@/lib/designSystem';
 
-export type JobActivityStatus = 'Completed' | 'In Progress' | 'Pending';
+export type JobActivityStatus = 'Completed' | 'In Progress' | 'Pending' | 'Rejected';
 
 export type JobActivity = {
   id: string;
@@ -29,7 +29,11 @@ const jobStatusTheme: Record<JobActivityStatus, { badgeBg: string; badgeText: st
   Pending: {
     badgeBg: '#FFF4E0',
     badgeText: '#9E6B1F'
-  }
+  },
+  Rejected: {
+    badgeBg: '#FEE2E2',
+    badgeText: '#991B1B',
+  },
 };
 
 type JobActivityCardProps = {

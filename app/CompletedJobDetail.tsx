@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, TextInput, View } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { openClientReceipt } from '@/utils/receiptNavigation';
 import { analytics } from '@/services/analytics';
 import { CheckCircle2, FileText, Wrench, CheckCircle } from 'lucide-react-native';
 import { BorderRadius, Colors } from '@/lib/designSystem';
@@ -96,7 +97,7 @@ export default function CompletedJobDetail() {
       setRequest(requestDetails);
       if (usedListFallback) {
         showWarning(
-          'The server returned an error for full job details. Showing a summary from your jobs list until that is fixed.'
+          'We could not load the full job summary right now. Showing what we have from your jobs list.'
         );
       }
 
@@ -762,7 +763,11 @@ export default function CompletedJobDetail() {
                 onPress={() => {
                   haptics.selection();
                   analytics.track('view_receipt', { job_id: 'completed_job' });
-                  router.push('/WalletScreen' as any);
+                  openClientReceipt(router, {
+                    requestId: params.requestId ?? String(request?.id ?? ''),
+                    serviceName: request?.jobTitle || request?.categoryName || 'Service',
+                    providerName: selectedProvider?.name || 'Provider',
+                  });
                 }}
               >
                 <Text

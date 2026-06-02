@@ -1,76 +1,48 @@
-import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
+import { useRouter, usePathname } from 'expo-router';
 import { authService } from '@/services/api';
 import { isAccessTokenExpired } from '@/utils/jwtExpiry';
-import { handleTokenExpiration } from '@/utils/tokenExpirationHandler';
-import { isPublicUnauthenticatedRoute, getLoginRouteForStoredRole } from '@/utils/authPublicRoutes';
+import { isPublicUnauthenticatedRoute } from '@/utils/authPublicRoutes';
 import { isRoleSwitchInProgress } from '@/hooks/useRoleSwitching';
-import { usePathname } from 'expo-router';
+import { logoutExpiredSession, redirectUnauthenticated } from '@/utils/tokenExpirationHandler';
 
 /**
- * Hook that checks for token on mount and redirects if missing
- * Prevents unauthorized access to protected screens
+ * On protected screens: missing token or expired JWT → role login (client or provider).
  */
 export function useTokenGuard() {
   const router = useRouter();
   const pathname = usePathname();
-  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
-    const finish = () => {
-      if (isMounted) setIsChecking(false);
-    };
-
-    const checkTokenAndRedirect = async () => {
+    const enforce = async () => {
       try {
-        if (isPublicUnauthenticatedRoute(pathname)) {
-          finish();
-          return;
-        }
-
-        if (await isRoleSwitchInProgress()) {
-          finish();
-          return;
-        }
+        if (isPublicUnauthenticatedRoute(pathname)) return;
+        if (await isRoleSwitchInProgress()) return;
+        if (!isMounted) return;
 
         const token = await authService.getAuthToken();
-        const validToken = await authService.getAuthToken();
 
-        if (!token || !validToken) {
-          if (!isMounted) return;
-
-          const route = await getLoginRouteForStoredRole();
-          router.replace(route as never);
-          finish();
+        if (!token) {
+          await redirectUnauthenticated(router);
           return;
         }
 
-        if (validToken && isAccessTokenExpired(validToken)) {
-          if (!isMounted) return;
-          const route = await handleTokenExpiration();
-          if (route) router.replace(route as never);
-          else router.replace('/SelectAccountTypeScreen' as never);
-          finish();
-          return;
+        if (isAccessTokenExpired(token)) {
+          await logoutExpiredSession(router);
         }
-
-        finish();
       } catch {
         if (isMounted) {
-          router.replace('/SelectAccountTypeScreen');
-          finish();
+          await logoutExpiredSession(router);
         }
       }
     };
 
-    checkTokenAndRedirect();
+    void enforce();
 
     return () => {
       isMounted = false;
     };
   }, [router, pathname]);
-
-  return { isChecking };
 }

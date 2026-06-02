@@ -106,7 +106,12 @@ export default function BookingSummaryModal({
   };
 
   return (
-    <AnimatedModal visible={visible} onClose={onClose} dismissible={true}>
+    <AnimatedModal
+      visible={visible}
+      onClose={onClose}
+      dismissible={true}
+      backdropOpacity={showProfileModal ? 0 : 0.38}
+    >
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>

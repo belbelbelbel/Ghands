@@ -100,6 +100,8 @@ function normalizeServiceRequestRecord(requestData: ServiceRequest | null | unde
       logisticsCost: visitCost,
       logisticsStatus: mappedVisitStatus,
       requestedAt: vr?.requestedAt ?? vr?.requested_at ?? raw.visitRequestedAt ?? raw.visit_requested_at,
+      declinedBy: vr?.declinedBy ?? vr?.declined_by ?? raw.visitDeclinedBy ?? raw.visit_declined_by,
+      cancelledBy: vr?.cancelledBy ?? vr?.cancelled_by ?? raw.visitCancelledBy ?? raw.visit_cancelled_by,
     };
     if (__DEV__) {
       console.log('[VisitRequestNormalize]', {

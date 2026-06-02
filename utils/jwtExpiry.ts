@@ -1,8 +1,11 @@
+/** Treat token as expired slightly before `exp` so users are not mid-request when it dies. */
+const JWT_EXPIRY_SKEW_MS = 60_000;
+
 /**
  * Client-side JWT expiration check (access token `exp` claim).
  * Non-JWT tokens (e.g. opaque UUID) return false — rely on API 401 for those.
  */
-export function isAccessTokenExpired(token: string, skewMs = 0): boolean {
+export function isAccessTokenExpired(token: string, skewMs = JWT_EXPIRY_SKEW_MS): boolean {
   if (!token || typeof token !== 'string') return false;
   const parts = token.split('.');
   if (parts.length !== 3) return false;
@@ -18,3 +21,5 @@ export function isAccessTokenExpired(token: string, skewMs = 0): boolean {
     return false;
   }
 }
+
+export { JWT_EXPIRY_SKEW_MS };

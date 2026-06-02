@@ -72,7 +72,7 @@ export const getErrorMessage = (error: ApiError | Error | any, defaultMessage: s
     }
     // 500+ – server error, avoid exposing technical details
     if (status >= 500) {
-      return 'The server is having trouble right now. Please try again in a moment.';
+      return 'We could not complete that just now. Please try again in a moment.';
     }
     // 4xx – use status-specific messages
     if (status >= 400 && status < 500) {
@@ -84,7 +84,7 @@ export const getErrorMessage = (error: ApiError | Error | any, defaultMessage: s
   // 3. Technical backend errors (e.g. DB schema) – treat as server error
   const rawMsg = (error?.message || error?.details?.data?.error || error?.details?.error || '').toLowerCase();
   if (rawMsg.includes('column') && (rawMsg.includes('does not exist') || rawMsg.includes('do not exist'))) {
-    return 'The server is having trouble right now. Please try again in a moment.';
+    return 'We could not complete that just now. Please try again in a moment.';
   }
 
   // Check nested error structure (API format)
@@ -196,7 +196,7 @@ const formatApiErrorMessage = (message: string): string => {
   }
 
   if (message.includes('500') || message.includes('Internal Server Error')) {
-    return 'The server encountered an error. Please try again in a moment.';
+    return 'We could not complete that just now. Please try again in a moment.';
   }
 
   if (message.includes('400') || message.includes('Bad Request')) {
@@ -241,8 +241,8 @@ const getStatusErrorMessage = (status: number): string => {
     409: 'This action conflicts with existing data. Please check and try again.',
     422: 'Invalid information provided. Please check your input and try again.',
     429: 'Too many requests. Please wait a moment and try again.',
-    500: 'The server encountered an error. Please try again in a moment.',
-    502: 'The server is temporarily unavailable. Please try again later.',
+    500: 'Something went wrong. Please try again in a moment.',
+    502: 'We are temporarily unavailable. Please try again later.',
     503: 'The service is temporarily unavailable. Please try again later.',
     504: 'The request took too long. Please try again.',
   };

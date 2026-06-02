@@ -102,7 +102,7 @@ export default function RootLayout() {
         if (isPublicUnauthenticatedRoute(currentPath)) return;
 
         const route = await handleTokenExpiration();
-        router.replace((route || '/SelectAccountTypeScreen') as any);
+        router.replace(route as never);
       } finally {
         redirecting = false;
       }
@@ -128,19 +128,11 @@ export default function RootLayout() {
         if (error instanceof AuthError || error.name === 'AuthError') {
           if (await isRoleSwitchInProgress()) return;
 
-          await authService.clearAuthTokens();
-
           const currentPath = pathname || '';
           if (isPublicUnauthenticatedRoute(currentPath)) return;
 
-          // Navigate to login immediately (no error message, no delay)
           const route = await handleTokenExpiration();
-          if (route) {
-            router.replace(route as any);
-          } else {
-            router.replace('/SelectAccountTypeScreen' as any);
-          }
-          // Don't call original handler - we've handled it
+          router.replace(route as never);
           return;
         }
         
@@ -166,12 +158,10 @@ export default function RootLayout() {
         (async () => {
           if (await isRoleSwitchInProgress()) return;
 
-          await authService.clearAuthTokens();
           const currentPath = pathname || '';
           if (isPublicUnauthenticatedRoute(currentPath)) return;
           const route = await handleTokenExpiration();
-          if (route) router.replace(route as any);
-          else router.replace('/SelectAccountTypeScreen' as any);
+          router.replace(route as never);
         })();
       }
     };

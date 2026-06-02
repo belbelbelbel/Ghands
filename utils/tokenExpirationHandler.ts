@@ -1,36 +1,50 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '@/services/authService';
+import { getLoginRouteForStoredRole } from '@/utils/authPublicRoutes';
 
 const AUTH_ROLE_KEY = '@ghands:user_role';
 
-/**
- * Handles token expiration by clearing auth data and returning the appropriate login route
- * Users with expired tokens should be redirected to login, not signup, since they already have accounts
- * @returns The route to navigate to based on user role, or null if no role found
- */
-export async function handleTokenExpiration(): Promise<string | null> {
-  try {
-    // Get user role before clearing tokens (needed to determine redirect)
-    const role = await AsyncStorage.getItem(AUTH_ROLE_KEY);
-    
-    await authService.clearAuthTokens();
-    // Keep AUTH_ROLE_KEY so entry routing and the next login screen match the user's account type
-    // (same as manual logout in useAuth — never send returning users to role selection by mistake).
+/** Login route for the stored role (does not clear tokens). */
+export async function getRoleLoginRoute(): Promise<string> {
+  const role = await AsyncStorage.getItem(AUTH_ROLE_KEY);
+  if (role === 'provider') return '/ProviderSignInScreen';
+  if (role === 'client') return '/LoginScreen';
+  return '/SelectAccountTypeScreen';
+}
 
-    // Return appropriate login route based on role
-    // Users with expired tokens should login again, not signup
-    if (role === 'provider') {
-      return '/ProviderSignInScreen';
-    } else if (role === 'client') {
-      return '/LoginScreen';
-    }
-    
-    // No role found - go to account type selection
-    return '/SelectAccountTypeScreen';
-  } catch (error) {
-    // Silent error - fallback to account type selection
+/**
+ * Clears auth tokens and returns the login route for the user's last role.
+ * Keeps `@ghands:user_role` so expired sessions land on the correct login — not role selection.
+ */
+export async function handleTokenExpiration(): Promise<string> {
+  try {
+    const route = await getRoleLoginRoute();
+    await authService.clearAuthTokens();
+    return route;
+  } catch {
     return '/SelectAccountTypeScreen';
   }
+}
+
+type RouterLike = { replace: (href: any) => void };
+
+/** Clear session and navigate to client or provider login based on stored role. */
+export async function logoutExpiredSession(router: RouterLike): Promise<void> {
+  const route = await handleTokenExpiration();
+  router.replace(route as never);
+}
+
+/**
+ * Missing or expired token on a protected screen → role login (or account picker if unknown).
+ */
+export async function redirectUnauthenticated(router: RouterLike): Promise<void> {
+  const token = await authService.getAuthToken();
+  if (token) {
+    await logoutExpiredSession(router);
+    return;
+  }
+  const route = await getLoginRouteForStoredRole();
+  router.replace(route as never);
 }
 
 /**
@@ -39,7 +53,7 @@ export async function handleTokenExpiration(): Promise<string | null> {
 export function isTokenExpirationError(error: any): boolean {
   const status = error?.status || error?.response?.status;
   const message = (error?.message || error?.details?.data?.error || '').toLowerCase();
-  
+
   return (
     status === 401 ||
     message.includes('unauthorized') ||

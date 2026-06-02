@@ -1,3 +1,4 @@
+import { cacheDevAuthTokenForRole } from '../../utils/devAuthTokens';
 import { extractUserIdFromToken } from '../../utils/tokenUtils';
 import { authService as authServiceInstance } from '../authService';
 import { apiClient } from './client';
@@ -26,6 +27,7 @@ export const authService = {
         throw new Error('Signup failed: No user data or token received from server.');
       }
       await authServiceInstance.setAuthToken(token);
+      await cacheDevAuthTokenForRole('client', token);
       if (!userId && token.split('.').length === 3) {
         const extracted = extractUserIdFromToken(token);
         if (extracted) await authServiceInstance.setUserId(extracted);
@@ -90,6 +92,7 @@ export const authService = {
         throw new Error('Login failed: No user data or token received from server.');
       }
       await authServiceInstance.setAuthToken(token);
+      await cacheDevAuthTokenForRole('client', token);
       if (!id) {
         const extracted = extractUserIdFromToken(token);
         if (extracted) await authServiceInstance.setUserId(extracted);

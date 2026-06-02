@@ -21,6 +21,7 @@ import { ArrowLeft, ArrowRight, Bell, Check, Clock, Receipt, TrendingUp, Wallet 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { walletService } from '@/services/api';
+import { openProviderReceipt } from '@/utils/receiptNavigation';
 
 interface ActivityItem {
   id: string;
@@ -536,19 +537,18 @@ export default function ProviderWalletScreen() {
                   width: '100%',
                 }}
                 activeOpacity={0.85}
-                onPress={() => router.push({
-                  pathname: '/ProviderReceiptScreen' as any,
-                  params: {
+                onPress={() =>
+                  openProviderReceipt(router, {
                     transactionId: activity.id,
-                    ...(activity.requestId ? { requestId: String(activity.requestId) } : {}),
+                    requestId: activity.requestId ? String(activity.requestId) : undefined,
                     amount: activity.amount.replace(/[₦,\s]/g, ''),
-                    ...(activity.balanceAfter != null ? { balanceAfter: String(activity.balanceAfter) } : {}),
+                    balanceAfter: activity.balanceAfter != null ? String(activity.balanceAfter) : undefined,
                     providerName: activity.serviceName,
                     serviceName: activity.serviceType,
                     serviceDate: activity.date,
                     serviceTime: activity.time,
-                  },
-                } as any)}
+                  })
+                }
               >
                 <Receipt size={15} color={Colors.textPrimary} style={{ marginRight: 5 }} />
                 <Text style={providerHomeActionLabel}>View Receipt</Text>

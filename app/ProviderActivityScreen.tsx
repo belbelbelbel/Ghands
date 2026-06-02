@@ -14,6 +14,7 @@ import {
   providerUnderlineTabRow,
 } from '@/lib/providerSurfaceStyles';
 import { walletService } from '@/services/api';
+import { openProviderReceipt } from '@/utils/receiptNavigation';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Bell, Check, Filter, Receipt, Search, Wrench } from 'lucide-react-native';
 import React, { useState, useCallback, useEffect } from 'react';
@@ -171,20 +172,17 @@ export default function ProviderActivityScreen() {
   };
 
   const handleViewReceipt = (transaction: Transaction) => {
-    router.push({
-      pathname: '/ProviderReceiptScreen',
-      params: {
-        transactionId: transaction.id,
-        ...(transaction.requestId ? { requestId: String(transaction.requestId) } : {}),
-        amount: String(transaction.amount),
-        ...(transaction.balanceAfter != null ? { balanceAfter: String(transaction.balanceAfter) } : {}),
-        providerName: transaction.serviceName,
-        serviceName: transaction.serviceDescription,
-        serviceDate: transaction.date,
-        serviceTime: transaction.time,
-        reference: transaction.reference,
-      },
-    } as any);
+    openProviderReceipt(router, {
+      transactionId: transaction.id,
+      requestId: transaction.requestId ? String(transaction.requestId) : undefined,
+      amount: String(transaction.amount),
+      balanceAfter: transaction.balanceAfter != null ? String(transaction.balanceAfter) : undefined,
+      providerName: transaction.serviceName,
+      serviceName: transaction.serviceDescription,
+      serviceDate: transaction.date,
+      serviceTime: transaction.time,
+      reference: transaction.reference,
+    });
   };
 
   return (

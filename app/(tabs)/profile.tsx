@@ -72,7 +72,7 @@ const ProfileScreen = () => {
   const scrollBodyTopPad = useTabScrollContentPaddingTop(20);
   const scrollBottomPad = useTabScreenScrollBottomPadding(16);
   const router = useRouter();
-  const { logout, switchRole } = useAuthRole();
+  const { logout } = useAuthRole();
   const { location } = useUserLocation();
   const profileReadyRef = useRef(false);
 
@@ -221,21 +221,6 @@ const ProfileScreen = () => {
     );
   }, []);
 
-  const handleBecomeProvider = useCallback(() => {
-    Alert.alert('Switch to Provider', 'Switch to provider mode for demo and testing?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Switch',
-        onPress: async () => {
-          try {
-            await switchRole('provider');
-          } catch {
-            Alert.alert('Error', 'Failed to switch role. Please try again.');
-          }
-        },
-      },
-    ]);
-  }, [switchRole]);
 
   const openEditProfile = useCallback(() => {
     router.push('/EditProfileScreen' as never);
@@ -565,32 +550,6 @@ const ProfileScreen = () => {
         </View>
 
         <View style={{ marginBottom: 24 }}>
-          {__DEV__ ? (
-            <TouchableOpacity
-              onPress={handleBecomeProvider}
-              style={{
-                backgroundColor: Colors.accent,
-                borderRadius: BorderRadius.lg,
-                padding: 16,
-                marginBottom: 12,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontFamily: 'Poppins-SemiBold',
-                  color: Colors.white,
-                }}
-              >
-                Switch to provider mode (dev)
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-
           <View style={{ ...providerListCard, padding: 0, overflow: 'hidden' }}>
             <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10 }}>
               <Text

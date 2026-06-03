@@ -1,6 +1,7 @@
 const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-export default {
+/** GHands — client app (homeowners / service requesters) */
+module.exports = {
   expo: {
     name: 'GHands',
     slug: 'GHands',
@@ -9,32 +10,33 @@ export default {
     icon: './assets/images/icon.png',
     scheme: 'ghands',
     userInterfaceStyle: 'automatic',
-    backgroundColor: '#4F6739', 
+    backgroundColor: '#4F6739',
     newArchEnabled: true,
     extra: {
+      appRole: 'client',
       eas: {
-        projectId: "82fb8167-b26b-4fcf-84c2-fb858f717a03"
-      }
+        projectId: '82fb8167-b26b-4fcf-84c2-fb858f717a03',
+      },
     },
     ios: {
       icon: './assets/images/icon.png',
       supportsTablet: true,
       bundleIdentifier: 'com.bendee.GHands',
-      config: {
-        googleMapsApiKey,
-      },
+      config: { googleMapsApiKey },
       infoPlist: {
-        NSCameraUsageDescription: 'This app needs access to camera to take profile photos.',
-        NSPhotoLibraryUsageDescription: 'This app needs access to photo library to select profile photos.',
+        NSCameraUsageDescription:
+          'This app needs access to camera to take profile photos.',
+        NSPhotoLibraryUsageDescription:
+          'This app needs access to photo library to select profile photos.',
         NSMicrophoneUsageDescription:
-          'GHands uses the microphone for in-app voice calls with your service provider or client.',
+          'GHands uses the microphone for in-app voice calls with your service provider.',
       },
       usesAppleSignIn: false,
     },
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/images/icon.png',
-        backgroundColor: '#4F6739', // Normal green color
+        backgroundColor: '#4F6739',
       },
       edgeToEdgeEnabled: false,
       predictiveBackGestureEnabled: false,
@@ -49,11 +51,7 @@ export default {
         'android.permission.RECORD_AUDIO',
         'android.permission.MODIFY_AUDIO_SETTINGS',
       ],
-      config: {
-        googleMaps: {
-          apiKey: googleMapsApiKey,
-        },
-      },
+      config: { googleMaps: { apiKey: googleMapsApiKey } },
     },
     androidStatusBar: {
       backgroundColor: '#4F6739',
@@ -65,9 +63,7 @@ export default {
       barStyle: 'light-content',
       backgroundColor: '#4F6739',
     },
-    web: {
-      bundler: 'metro',
-    },
+    web: { bundler: 'metro' },
     plugins: [
       'expo-router',
       'expo-font',
@@ -86,19 +82,17 @@ export default {
           position: 'relative',
           visibility: 'visible',
           behavior: 'inset-swipe',
-          backgroundColor: '#4F6739', // Normal green color
+          backgroundColor: '#4F6739',
         },
       ],
       [
         'expo-splash-screen',
         {
           image: './assets/images/icon.png',
-          imageWidth: 140, // 70% of 200px icon container
+          imageWidth: 140,
           resizeMode: 'contain',
-          backgroundColor: '#4F6739', // Normal green color
-          dark: {
-            backgroundColor: '#4F6739', // Keep green in dark mode too
-          },
+          backgroundColor: '#4F6739',
+          dark: { backgroundColor: '#4F6739' },
         },
       ],
       'expo-asset',

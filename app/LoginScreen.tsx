@@ -104,10 +104,6 @@ export default function LoginScreen() {
     router.replace('/SignupScreen');
   };
 
-  const handleProviderLogin = () => {
-    router.replace('/ProviderSignInScreen');
-  };
-
   const handleGoogleLogin = () => {
     // Handle Google login
   };
@@ -194,15 +190,6 @@ export default function LoginScreen() {
             loading={isLoading}
             disabled={isLoading}
           />
-        </View>
-
-        {/* Provider login link */}
-        <View style={{ alignItems: 'center', marginBottom: 8 }}>
-          <TouchableOpacity onPress={handleProviderLogin} activeOpacity={0.7}>
-            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Medium', color: '#6B7280' }}>
-              Provider? <Text style={{ fontFamily: 'Poppins-SemiBold', color: '#4F6739' }}>Sign in here</Text>
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {/* Signup Link */}

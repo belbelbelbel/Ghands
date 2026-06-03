@@ -8,7 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import TabletRootFrame from '@/components/TabletRootFrame';
 import '@/lib/nativewindSetup';
 import '../global.css';
-import { QueryProvider } from '../providers/QueryProvider';
+import { QueryProvider } from '@/providers/QueryProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AuthErrorBoundary } from '@/components/AuthErrorBoundary';
 import { analytics } from '@/services/analytics';
@@ -239,9 +239,7 @@ export default function RootLayout() {
         typeNorm === 'work_order_issued' ||
         typeNorm === 'work_order_created'
       ) {
-        const isProviderNotification =
-          typeNorm === 'quotation_sent' || typeNorm === 'work_order_issued';
-        const screen = isProviderNotification ? '/ProviderJobDetailsScreen' : '/OngoingJobDetails';
+        const screen = '/OngoingJobDetails';
 
         router.push({
           pathname: screen as any,
@@ -269,91 +267,7 @@ export default function RootLayout() {
             <AuthErrorBoundary router={router}>
               <StatusBar barStyle="dark-content" backgroundColor="white" translucent={false} />
               <TabletRootFrame>
-                <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-        <Stack.Screen name="provider-onboarding" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderSplashScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ClientTypeSelectionScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="SelectAccountTypeScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderTypeSelectionScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="IndividualProviderComingSoonScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="SignupScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="LoginScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ResetPassword" options={{ headerShown: false }} />
-        <Stack.Screen name="OtpScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="request-service" options={{ headerShown: false }} />
-        {/* <Stack.Screen name='chat' options={{headerShown: false}}/> */}
-        <Stack.Screen name="PasswordConfirmation" options={{ headerShown: false }} />
-        <Stack.Screen name="LocationPermissionScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="LocationSearchScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProfileSetupScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ServicesGridScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="AccountInformationScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="AddressBookScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="EditProfileScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="PaymentHistoryScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="NotificationsScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="JobDetailsScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="DateTimeScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="AddPhotosScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ServiceMapScreen" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="BookingConfirmationScreen"
-          options={{ headerShown: false, gestureEnabled: false }}
-        />
-        <Stack.Screen name="CancelRequestScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="CompletedJobDetail" options={{ headerShown: false }} />
-        <Stack.Screen name="OngoingJobDetails" options={{ headerShown: false }} />
-        <Stack.Screen name="ChatScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderDetailScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderJobDetailsScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderUpdatesScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderCompletedJobScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="SendQuotationScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="RequestVisitScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderReceiptScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ReportIssueScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="PhotosGalleryScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="HelpSupportScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="SupportScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="LiveChatScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="UserGuideScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="PaymentMethodsScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ConfirmWalletPaymentScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="WalletScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="TopUpScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="WithdrawScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="BankTransferScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="PaymentPendingScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="PaymentSuccessfulScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="TransactionFailedScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="CallScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ActivityScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="AddCardDetailsScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="main" options={{ headerShown: false }} />
-        <Stack.Screen name="provider" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderSignInScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderSignUpScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderOtpScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderResetPasswordScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderProfileSetupScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderUploadDocumentsScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderLinkBankAccountScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderVerifyIdentityScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="SettingsScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="LegalAboutScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="TermsOfServiceScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="PrivacyPolicyScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="AboutGHandsScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="AnalyticsScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="SecurityScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="CreatePINScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ProviderActivityScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="YourServicesScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="AddCustomServiceScreen" options={{ headerShown: false }} />
-                </Stack>
+                <Stack screenOptions={{ headerShown: false }} />
               </TabletRootFrame>
             </AuthErrorBoundary>
             </UserLocationProvider>

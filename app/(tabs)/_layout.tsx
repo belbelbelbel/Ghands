@@ -1,11 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import { Redirect, Tabs, useRouter } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Platform, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthRole } from '@/hooks/useAuth';
-import { ScreenBootLoader } from '@/components/ScreenBootLoader';
 import {
   CLIENT_TAB_BAR_BASE_HEIGHT,
 } from '@/lib/tabletLayout';
@@ -110,7 +108,6 @@ const CentralTabButton = ({ children, onPress }: BottomTabBarButtonProps) => {
 export default function TabLayout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { role, isLoading } = useAuthRole();
 
   const tabBarStyle = useMemo(
     () => ({
@@ -133,13 +130,6 @@ export default function TabLayout() {
     }),
     [insets.bottom]
   );
-  if (isLoading) {
-    return <ScreenBootLoader />;
-  }
-
-  if (role === 'provider') {
-    return <Redirect href="/provider/home" />;
-  }
 
   return (
     <Tabs

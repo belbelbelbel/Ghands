@@ -1,6 +1,6 @@
 import { useRouter, usePathname } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import useOnboarding from '../hooks/useOnboarding';
+import useOnboarding from '@/hooks/useOnboarding';
 import { authService } from '@/services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isAppEntryRoute } from '@/utils/authPublicRoutes';
@@ -8,7 +8,7 @@ import { ScreenBootLoader } from '@/components/ScreenBootLoader';
 
 const AUTH_ROLE_KEY = '@ghands:user_role';
 
-export default function EntryPoint() {
+export default function ClientEntryPoint() {
   const router = useRouter();
   const pathname = usePathname();
   const { isLoading: onboardingLoading } = useOnboarding();
@@ -17,36 +17,26 @@ export default function EntryPoint() {
   useEffect(() => {
     const checkAuthAndRoute = async () => {
       try {
-        // Get current route - normalize it
         const currentRoute = pathname || '/';
         const normalizedRoute = currentRoute.startsWith('/') ? currentRoute : `/${currentRoute}`;
 
-        // Only run entry routing from `/` — never hijack stack/deep-link screens.
         if (!isAppEntryRoute(normalizedRoute)) {
           return;
         }
 
-        // Check if user is authenticated
-        const token = await authService.getAuthToken();
-        const role = await AsyncStorage.getItem(AUTH_ROLE_KEY);
-        
-        if (token && role) {
-          hasRedirectedRef.current = true;
-          const targetRoute = role === 'provider' ? '/provider/home' : '/(tabs)/home';
-          router.replace(targetRoute);
-          return;
-        }
+        await AsyncStorage.setItem(AUTH_ROLE_KEY, 'client');
 
-        if (!token && (role === 'client' || role === 'provider')) {
+        const token = await authService.getAuthToken();
+
+        if (token) {
           hasRedirectedRef.current = true;
-          const loginRoute = role === 'provider' ? '/ProviderSignInScreen' : '/LoginScreen';
-          router.replace(loginRoute as never);
+          router.replace('/(tabs)/home' as never);
           return;
         }
 
         if (!onboardingLoading) {
           hasRedirectedRef.current = true;
-          router.replace('/SelectAccountTypeScreen');
+          router.replace('/LoginScreen' as never);
           return;
         }
       } catch {
@@ -58,15 +48,14 @@ export default function EntryPoint() {
         }
 
         hasRedirectedRef.current = true;
-        router.replace('/SelectAccountTypeScreen');
+        router.replace('/LoginScreen' as never);
       }
     };
 
-    // Small delay to ensure pathname is set
     const timer = setTimeout(() => {
       checkAuthAndRoute();
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, [onboardingLoading, router, pathname]);
 

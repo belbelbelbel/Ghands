@@ -4,7 +4,7 @@ import { authService } from '@/services/authService';
 import { isAccessTokenExpired } from '@/utils/jwtExpiry';
 import { isPublicUnauthenticatedRoute } from '@/utils/authPublicRoutes';
 import { isRoleSwitchInProgress } from '@/hooks/useRoleSwitching';
-import { logoutExpiredSession, redirectUnauthenticated } from '@/utils/tokenExpirationHandler';
+import { redirectToAuthScreen } from '@/utils/authNavigationGuard';
 
 /** How often to re-check JWT expiry while the app is open */
 const SESSION_POLL_MS = 60_000;
@@ -17,14 +17,12 @@ const SESSION_BOOT_DELAY_MS = 1500;
  * Runs on an interval, when the route changes, and when the app returns to foreground.
  */
 export function useSessionTimeout(router: any, pathname?: string | null) {
-  const routing = useRef(false);
   const pathnameRef = useRef(pathname);
   const isColdStartRef = useRef(true);
   pathnameRef.current = pathname;
 
   useEffect(() => {
     const enforceAuth = async () => {
-      if (routing.current) return;
       try {
         if (await isRoleSwitchInProgress()) return;
 
@@ -34,19 +32,15 @@ export function useSessionTimeout(router: any, pathname?: string | null) {
         const token = await authService.getAuthToken();
 
         if (!token) {
-          routing.current = true;
-          await redirectUnauthenticated(router);
+          await redirectToAuthScreen(router, { pathname: path, clearSession: false });
           return;
         }
 
         if (!isAccessTokenExpired(token)) return;
 
-        routing.current = true;
-        await logoutExpiredSession(router);
+        await redirectToAuthScreen(router, { pathname: path, clearSession: true });
       } catch {
         /* ignore */
-      } finally {
-        routing.current = false;
       }
     };
 

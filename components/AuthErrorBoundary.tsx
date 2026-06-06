@@ -1,6 +1,6 @@
 import React, { Component, ReactNode } from 'react';
 import { AuthError } from '../utils/errors';
-import { handleTokenExpiration } from '../utils/tokenExpirationHandler';
+import { redirectToAuthScreen } from '../utils/authNavigationGuard';
 import Toast from './Toast';
 
 interface Props {
@@ -48,8 +48,7 @@ export class AuthErrorBoundary extends Component<Props, State> {
   }
 
   handleAuthError = async (_error: AuthError) => {
-    const route = await handleTokenExpiration();
-    this.props.router.replace(route as never);
+    await redirectToAuthScreen(this.props.router, { clearSession: true });
   };
 
   render() {

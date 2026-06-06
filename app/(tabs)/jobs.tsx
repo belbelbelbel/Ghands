@@ -17,6 +17,7 @@ import { BorderRadius, Colors, useTabScrollContentPaddingTop, useTabScreenScroll
 import { providerListCard } from '@/lib/providerSurfaceStyles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { extractMyRatingFromRequest, reviewRatingStorageKey } from '@/utils/reviewSync';
+import { navigateToJob } from '@/utils/navigation';
 
 type JobStatus = 'Ongoing' | 'Completed' | 'Cancelled';
 
@@ -244,13 +245,7 @@ export default function JobsScreen() {
   const handlePrimaryAction = (status: JobStatus, job?: JobItem) => {
     haptics.selection();
     if (status === 'Ongoing' && job) {
-      // Pass requestId to OngoingJobDetails
-      router.push({
-        pathname: '/OngoingJobDetails',
-        params: {
-          requestId: job.id.toString(),
-        },
-      } as any);
+      navigateToJob(router, { requestId: job.id, tab: 'updates' });
     } else if (status === 'Completed' && job) {
       // Pass requestId to CompletedJobDetail
       router.push({
@@ -260,10 +255,7 @@ export default function JobsScreen() {
         },
       } as any);
     } else if (status === 'Cancelled' && job) {
-      router.push({
-        pathname: '/OngoingJobDetails',
-        params: { requestId: job.id.toString() },
-      } as any);
+      navigateToJob(router, { requestId: job.id, tab: 'updates' });
     } else {
       router.push('/JobDetailsScreen');
     }

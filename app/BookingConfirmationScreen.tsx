@@ -1,25 +1,25 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
-import AnimatedStatusChip from '@/components/AnimatedStatusChip';
 import { haptics } from '@/hooks/useHaptics';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { ArrowRight, CalendarDays, CheckCircle, CheckCircle2, Circle, Clock3, FileText, Wrench } from 'lucide-react-native';
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import {
-  Animated,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-  RefreshControl,
-  ActivityIndicator,
-  BackHandler,
-} from 'react-native';
+import { BorderRadius, Colors } from '@/lib/designSystem';
+import { JOB_TIMELINE } from '@/lib/jobTimelineTheme';
 import { serviceRequestService, profileService, authService } from '@/services/api';
 import { AuthError } from '@/utils/errors';
 import { handleAuthErrorRedirect } from '@/utils/authRedirect';
 import { formatTimeAgo } from '@/utils/dateFormatting';
-import { BorderRadius, Colors } from '@/lib/designSystem';
-import { JOB_TIMELINE } from '@/lib/jobTimelineTheme';
+import { formatSkillLabel } from '@/utils/formatSkillLabel';
+import { navigateToJob } from '@/utils/navigation';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowRight, CalendarDays, CheckCircle2, Clock3, FileText, Wrench, X } from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  BackHandler,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 type ProgressStepStatus = 'completed' | 'in-progress' | 'pending';
 
@@ -28,9 +28,7 @@ interface ProgressStep {
   title: string;
   description: string;
   status: ProgressStepStatus;
-  statusText: string;
-  statusColor: string;
-  icon?: any;
+  statusLabel: string;
 }
 
 export default function BookingConfirmationScreen() {
@@ -42,18 +40,17 @@ export default function BookingConfirmationScreen() {
     selectedTime?: string;
     providerCount?: string;
   }>();
-  const [animatedSteps, setAnimatedSteps] = useState<number[]>([]);
   const [request, setRequest] = useState<any>(null);
   const [quotations, setQuotations] = useState<any[]>([]);
   const [acceptedProviders, setAcceptedProviders] = useState<any[]>([]);
-  const [userName, setUserName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const exitToJobs = useCallback(() => {
+    haptics.light();
+    router.replace('/(tabs)/jobs' as any);
+  }, [router]);
 
-  // Dev-only: short client token snippet for backend debugging (never log full token)
   useEffect(() => {
     if (!__DEV__) return;
     (async () => {
@@ -99,30 +96,16 @@ export default function BookingConfirmationScreen() {
     loadData();
   }, [loadData]);
 
-  // After booking, do not pop back through map / photos / date — go to Jobs tab
   useFocusEffect(
     useCallback(() => {
       const onHardwareBack = () => {
-        router.replace('/(tabs)/jobs' as any);
+        exitToJobs();
         return true;
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
       return () => sub.remove();
-    }, [router])
+    }, [exitToJobs])
   );
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const profile = await profileService.getCurrentUserProfile();
-        const fn = profile?.firstName || profile?.data?.firstName || '';
-        const ln = profile?.lastName || profile?.data?.lastName || '';
-        setUserName(`${fn} ${ln}`.trim() || 'there');
-      } catch {
-        setUserName('there');
-      }
-    })();
-  }, []);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -130,138 +113,87 @@ export default function BookingConfirmationScreen() {
   }, [loadData]);
 
   const progressSteps = useMemo((): ProgressStep[] => {
-    const providerCount = params.providerCount ? parseInt(params.providerCount, 10) : (request?.nearbyProviders?.length ?? acceptedProviders.length ?? 0);
-    const totalSent = providerCount > 0 ? providerCount : (acceptedProviders.length || 0);
-    const sentText = totalSent > 0
-      ? `Sent to ${totalSent} nearby ${totalSent === 1 ? 'provider' : 'providers'}. They will respond shortly.`
-      : 'Submitted. Nearby providers will be notified and can respond.';
+    const providerCount = params.providerCount
+      ? parseInt(params.providerCount, 10)
+      : (request?.nearbyProviders?.length ?? acceptedProviders.length ?? 0);
+    const totalSent = providerCount > 0 ? providerCount : acceptedProviders.length || 0;
+    const sentText =
+      totalSent > 0
+        ? `Sent to ${totalSent} nearby ${totalSent === 1 ? 'provider' : 'providers'}.`
+        : 'Nearby providers will be notified shortly.';
 
-    const hasAccepted = acceptedProviders.length > 0 || (request?.status && !['pending'].includes(request.status));
-    const quotationCount = quotations.filter(q => q.sentAt || (q.status && q.status !== null)).length;
+    const hasAccepted =
+      acceptedProviders.length > 0 || (request?.status && !['pending'].includes(request.status));
+    const quotationCount = quotations.filter((q) => q.sentAt || (q.status && q.status !== null)).length;
     const hasQuotationSent = quotationCount > 0;
-    const quotationAccepted = quotations.some(q => q.status === 'accepted');
+    const quotationAccepted = quotations.some((q) => q.status === 'accepted');
     const status = request?.status || 'pending';
 
     return [
       {
         id: 'step-1',
-        title: 'Job Request Submitted',
+        title: 'Request submitted',
         description: sentText,
         status: 'completed',
-        statusText: `Completed - ${formatTimeAgo(request?.createdAt || new Date().toISOString())}`,
-        statusColor: JOB_TIMELINE.completeSoft,
-        icon: CheckCircle2,
+        statusLabel: formatTimeAgo(request?.createdAt || new Date().toISOString()),
       },
       {
         id: 'step-2',
-        title: 'Inspection & Quotation',
+        title: 'Inspection & quote',
         description: hasAccepted
           ? hasQuotationSent
-            ? quotationCount > 0
-              ? `${quotationCount} quotation${quotationCount === 1 ? '' : 's'} received. Review and accept to proceed.`
-              : 'Provider sent a quotation. Review cost and details, then accept.'
-            : 'Provider will inspect and send a quotation. You will receive it shortly.'
-          : 'Waiting for providers to review and accept your request.',
-        status: (hasAccepted && !quotationAccepted) ? 'in-progress' : quotationAccepted ? 'completed' : 'pending',
-        statusText: quotationAccepted
-          ? `Completed - ${formatTimeAgo(request?.updatedAt || '')}`
+            ? `${quotationCount} quote${quotationCount === 1 ? '' : 's'} received — review when ready.`
+            : 'Provider will inspect and send a quote.'
+          : 'Waiting for a provider to accept your request.',
+        status: quotationAccepted ? 'completed' : hasAccepted || hasQuotationSent ? 'in-progress' : 'pending',
+        statusLabel: quotationAccepted
+          ? formatTimeAgo(request?.updatedAt || '')
           : hasQuotationSent
-            ? `In Progress - ${quotationCount} quotation${quotationCount === 1 ? '' : 's'} received`
+            ? `${quotationCount} received`
             : hasAccepted
-              ? 'In Progress'
-              : 'Pending',
-        statusColor: quotationAccepted ? JOB_TIMELINE.completeSoft : (hasAccepted || hasQuotationSent) ? JOB_TIMELINE.infoSoft : JOB_TIMELINE.pendingSoft,
-        icon: FileText,
+              ? 'In progress'
+              : 'Up next',
       },
       {
         id: 'step-3',
-        title: 'Work In Progress',
-        description: status === 'in_progress' || status === 'reviewing'
-          ? 'Provider is on site. You can track progress and chat.'
-          : status === 'scheduled' || quotationAccepted
-            ? 'Complete payment to authorize the provider to start.'
-            : 'Provider will start after you accept quotation and complete payment.',
-        status: ['in_progress', 'reviewing'].includes(status) ? 'in-progress' : ['scheduled', 'completed'].includes(status) ? 'completed' : 'pending',
-        statusText: status === 'in_progress' || status === 'reviewing' ? 'In Progress' : status === 'completed' ? 'Completed' : 'Pending',
-        statusColor: ['in_progress', 'reviewing', 'scheduled', 'completed'].includes(status) ? JOB_TIMELINE.completeSoft : JOB_TIMELINE.infoSoft,
-        icon: Wrench,
-      },
-      {
-        id: 'step-4',
-        title: 'Job Completed',
-        description: status === 'completed'
-          ? 'Job completed. Payment released to provider. Thank you!'
-          : status === 'reviewing'
-            ? 'Provider finished. Confirm when satisfied to release payment.'
-            : 'Provider will complete the work. You will confirm to release payment.',
-        status: status === 'completed' ? 'completed' : status === 'reviewing' ? 'in-progress' : 'pending',
-        statusText: status === 'completed' ? `Completed - ${formatTimeAgo(request?.updatedAt || '')}` : status === 'reviewing' ? 'Awaiting your confirmation' : 'Pending',
-        statusColor: status === 'completed' ? JOB_TIMELINE.completeSoft : status === 'reviewing' ? JOB_TIMELINE.infoSoft : JOB_TIMELINE.pendingSoft,
-        icon: CheckCircle,
+        title: 'Work begins',
+        description:
+          status === 'in_progress' || status === 'reviewing'
+            ? 'Provider is on site. Track progress from job details.'
+            : 'Starts after you accept a quote and pay.',
+        status: ['in_progress', 'reviewing', 'scheduled', 'completed'].includes(status)
+          ? status === 'completed'
+            ? 'completed'
+            : 'in-progress'
+          : 'pending',
+        statusLabel:
+          status === 'in_progress' || status === 'reviewing'
+            ? 'In progress'
+            : status === 'completed'
+              ? 'Done'
+              : 'Later',
       },
     ];
   }, [request, quotations, acceptedProviders, params.providerCount]);
 
-  useEffect(() => {
-    haptics.success();
-    Animated.parallel([
-      Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 7 }),
-      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 50, friction: 7 }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
-
-  useEffect(() => {
-    setAnimatedSteps([]);
-    const timers = Array.from({ length: progressSteps.length }, (_, index) =>
-      setTimeout(() => {
-        setAnimatedSteps(prev => prev.includes(index) ? prev : [...prev, index]);
-        if (index > 0) haptics.light();
-      }, 300 + index * 150)
-    );
-
-    return () => {
-      timers.forEach(clearTimeout);
-    };
-  }, [progressSteps.length]);
-
   const handleContinue = () => {
     haptics.selection();
     if (params.requestId) {
-      router.push({
-        pathname: '/OngoingJobDetails',
-        params: { requestId: params.requestId, fromBooking: '1' },
-      } as any);
+      navigateToJob(router, { requestId: params.requestId, fromBooking: true, replace: true });
     } else {
-      router.push('/(tabs)/jobs' as any);
+      exitToJobs();
     }
   };
 
-  const getStepColor = (status: ProgressStepStatus) => {
-    switch (status) {
-      case 'completed': return JOB_TIMELINE.sage;
-      case 'in-progress': return JOB_TIMELINE.activeDot;
-      default: return JOB_TIMELINE.pendingDot;
-    }
-  };
-
-  const getStepTextColor = (step: ProgressStep) => {
-    switch (step.status) {
-      case 'completed':
-        return JOB_TIMELINE.sageChipText;
-      case 'in-progress':
-        return step.statusColor === JOB_TIMELINE.infoSoft ? JOB_TIMELINE.infoChipText : JOB_TIMELINE.activeChipText;
-      default:
-        return JOB_TIMELINE.pendingChipText;
-    }
-  };
-
-  const displayService = params.serviceType || request?.categoryName || request?.jobTitle || 'plumbing service';
+  const rawService = params.serviceType || request?.categoryName || request?.jobTitle || '';
+  const displayService = formatSkillLabel(rawService) || 'Your service';
   const displayProviderCount = params.providerCount
     ? parseInt(params.providerCount, 10)
     : (request?.nearbyProviders?.length ?? acceptedProviders.length ?? 0);
-  const providerSummary = displayProviderCount > 0
-    ? `${displayProviderCount} ${displayProviderCount === 1 ? 'provider' : 'providers'} notified`
-    : 'Providers being matched';
+  const providerSummary =
+    displayProviderCount > 0
+      ? `${displayProviderCount} ${displayProviderCount === 1 ? 'provider' : 'providers'} notified`
+      : 'Matching providers';
   const displayDate = params.selectedDate
     ? (() => {
         try {
@@ -272,22 +204,38 @@ export default function BookingConfirmationScreen() {
           return params.selectedDate;
         }
       })()
-    : (request?.scheduledDate ? (() => {
-        try {
-          const d = new Date(request.scheduledDate);
-          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          return `${months[d.getMonth()]} ${d.getDate()}`;
-        } catch {
-          return request.scheduledDate;
-        }
-      })() : 'Dec 12');
+    : request?.scheduledDate
+      ? (() => {
+          try {
+            const d = new Date(request.scheduledDate);
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${months[d.getMonth()]} ${d.getDate()}`;
+          } catch {
+            return request.scheduledDate;
+          }
+        })()
+      : null;
+
+  const stepDotColor = (status: ProgressStepStatus) => {
+    if (status === 'completed') return JOB_TIMELINE.sage;
+    if (status === 'in-progress') return JOB_TIMELINE.activeDot;
+    return JOB_TIMELINE.pendingDot;
+  };
+
+  const stepIcon = (index: number) => {
+    if (index === 0) return CheckCircle2;
+    if (index === 1) return FileText;
+    return Wrench;
+  };
 
   if (params.requestId && isLoading) {
     return (
       <SafeAreaWrapper className="flex-1 bg-white">
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#4F6739" />
-          <Text className="text-gray-500 mt-4" style={{ fontFamily: 'Poppins-Medium' }}>Loading timeline...</Text>
+          <ActivityIndicator size="large" color={Colors.accent} />
+          <Text className="text-gray-500 mt-4" style={{ fontFamily: 'Poppins-Medium' }}>
+            Loading…
+          </Text>
         </View>
       </SafeAreaWrapper>
     );
@@ -295,202 +243,191 @@ export default function BookingConfirmationScreen() {
 
   return (
     <SafeAreaWrapper className="flex-1 bg-white">
-      <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-        <ScrollView
-          className="flex-1"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 116, paddingTop: 20 }}
-          refreshControl={
-            params.requestId ? (
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4F6739']} />
-            ) : undefined
-          }
+      <Stack.Screen options={{ gestureEnabled: false }} />
+
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 20, paddingTop: 8 }}>
+        <TouchableOpacity
+          onPress={exitToJobs}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
+          activeOpacity={0.7}
         >
-          <View style={{ paddingHorizontal: 20 }}>
-            <View
-              style={{
-                backgroundColor: Colors.white,
-                borderRadius: BorderRadius.default,
-                borderWidth: 1,
-                borderColor: Colors.border,
-                padding: 18,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View
-                  style={{
-                    width: 54,
-                    height: 54,
-                    borderRadius: 27,
-                    backgroundColor: '#F2F8EA',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 14,
-                  }}
-                >
-                  <CheckCircle2 size={30} color="#4F6739" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 24, lineHeight: 30, fontFamily: 'Poppins-Bold', color: '#111827', letterSpacing: -0.6 }}>
-                    Booking confirmed
-                  </Text>
-                  <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 20, fontFamily: 'Poppins-Regular', color: '#667085' }}>
-                    We&apos;ll notify you as providers respond.
-                  </Text>
-                </View>
-              </View>
+          <X size={22} color={Colors.textSecondaryDark} />
+        </TouchableOpacity>
+      </View>
 
-              <View style={{ height: 1, backgroundColor: '#EEF1E8', marginVertical: 16 }} />
-
-              <View style={{ gap: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Wrench size={17} color="#4F6739" />
-                  <Text style={{ marginLeft: 9, flex: 1, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 14 }} numberOfLines={1}>
-                    {displayService}
-                  </Text>
-                </View>
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAF5', borderRadius: BorderRadius.sm, paddingHorizontal: 12, paddingVertical: 11 }}>
-                    <CalendarDays size={16} color="#4F6739" />
-                    <Text style={{ marginLeft: 8, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 12 }}>
-                      {displayDate}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1.35, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAF5', borderRadius: BorderRadius.sm, paddingHorizontal: 12, paddingVertical: 11 }}>
-                    <Clock3 size={16} color="#4F6739" />
-                    <Text style={{ marginLeft: 8, fontFamily: 'Poppins-SemiBold', color: '#111827', fontSize: 12 }} numberOfLines={1}>
-                      {providerSummary}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={{ paddingHorizontal: 20, marginTop: 26 }}>
-            <Text style={{ fontFamily: 'Poppins-Bold', color: '#111827', fontSize: 20, letterSpacing: -0.3 }}>
-              Next steps
-            </Text>
-            <Text style={{ fontFamily: 'Poppins-Regular', color: '#667085', fontSize: 13, marginTop: 3, marginBottom: 16 }}>
-              Track provider responses and continue from the job details screen.
-            </Text>
-
-            <View
-              style={{
-                backgroundColor: JOB_TIMELINE.rowBg,
-                borderRadius: BorderRadius.default,
-                borderWidth: 1,
-                borderColor: JOB_TIMELINE.rowBorder,
-                overflow: 'hidden',
-              }}
-            >
-              {progressSteps.map((step, index) => {
-                const isAnimated = animatedSteps.includes(index);
-                const stepColor = getStepColor(step.status);
-                const textColor = getStepTextColor(step);
-                const isLast = index === progressSteps.length - 1;
-                const IconComponent = step.icon || Circle;
-
-                return (
-                  <View key={step.id}>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        paddingHorizontal: 15,
-                        paddingVertical: 15,
-                      }}
-                    >
-                      <View style={{ alignItems: 'center', marginRight: 14 }}>
-                        <Animated.View
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            backgroundColor: isAnimated ? stepColor : JOB_TIMELINE.dotInactiveFill,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            opacity: isAnimated ? 1 : 0.72,
-                            borderWidth: isAnimated && step.status !== 'pending' ? 2.5 : 0,
-                            borderColor: '#FFFFFF',
-                          }}
-                        >
-                          <IconComponent
-                            size={17}
-                            color={step.status === 'pending' ? JOB_TIMELINE.pendingChipText : '#FFFFFF'}
-                          />
-                        </Animated.View>
-                        {!isLast && (
-                          <View
-                            style={{
-                              width: 3,
-                              flex: 1,
-                              minHeight: 22,
-                              backgroundColor: step.status === 'pending' ? JOB_TIMELINE.railMuted : stepColor,
-                              marginTop: 8,
-                              borderRadius: 2,
-                              opacity: step.status === 'pending' ? 0.45 : 0.55,
-                            }}
-                          />
-                        )}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontFamily: 'Poppins-SemiBold', color: '#1A1F16', fontSize: 15, letterSpacing: -0.3 }}>
-                          {step.title}
-                        </Text>
-                        <Text style={{ fontFamily: 'Poppins-Regular', color: 'rgba(71, 85, 75, 0.9)', fontSize: 13, lineHeight: 20, marginTop: 5, marginBottom: 10 }}>
-                          {step.description}
-                        </Text>
-                        <AnimatedStatusChip
-                          status={step.statusText}
-                          statusColor={step.statusColor}
-                          textColor={textColor}
-                          size="small"
-                          animated={isAnimated}
-                          pill
-                        />
-                      </View>
-                    </View>
-                    {!isLast && <View style={{ height: 1, backgroundColor: 'rgba(79, 103, 57, 0.08)', marginLeft: 69 }} />}
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        </ScrollView>
-
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            paddingHorizontal: 20,
-            paddingTop: 12,
-            paddingBottom: 24,
-            backgroundColor: 'rgba(255,255,255,0.96)',
-            borderTopWidth: 1,
-            borderTopColor: '#EEF1E8',
-          }}
-        >
-          <TouchableOpacity
-            onPress={handleContinue}
-            activeOpacity={0.85}
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 20 }}
+        refreshControl={
+          params.requestId ? (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.accent]} />
+          ) : undefined
+        }
+      >
+        <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 28 }}>
+          <View
             style={{
-              backgroundColor: '#050505',
-              borderRadius: BorderRadius.default,
-              paddingVertical: 16,
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: JOB_TIMELINE.completeSoft,
               alignItems: 'center',
               justifyContent: 'center',
-              flexDirection: 'row',
+              marginBottom: 20,
             }}
           >
-            <Text style={{ color: '#FFFFFF', fontSize: 15, marginRight: 8, fontFamily: 'Poppins-SemiBold' }}>
-              {params.requestId ? 'View job details' : 'Continue'}
-            </Text>
-            <ArrowRight size={18} color="#FFFFFF" />
-          </TouchableOpacity>
+            <CheckCircle2 size={36} color={Colors.accent} strokeWidth={2.2} />
+          </View>
+          <Text
+            style={{
+              fontSize: 26,
+              lineHeight: 32,
+              fontFamily: 'Poppins-Bold',
+              color: Colors.textPrimary,
+              letterSpacing: -0.5,
+              textAlign: 'center',
+            }}
+          >
+            Booking confirmed
+          </Text>
+          <Text
+            style={{
+              marginTop: 8,
+              fontSize: 15,
+              lineHeight: 22,
+              fontFamily: 'Poppins-Regular',
+              color: Colors.textSecondaryDark,
+              textAlign: 'center',
+              maxWidth: 300,
+            }}
+          >
+            We&apos;ll notify you when providers respond.
+          </Text>
         </View>
-      </Animated.View>
+
+        <View style={{ borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: 20, gap: 14 }}>
+          <Text style={{ fontFamily: 'Poppins-SemiBold', fontSize: 16, color: Colors.textPrimary }}>
+            {displayService}
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+            {displayDate ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <CalendarDays size={16} color={Colors.accent} />
+                <Text style={{ marginLeft: 8, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, fontSize: 14 }}>
+                  {displayDate}
+                </Text>
+              </View>
+            ) : null}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Clock3 size={16} color={Colors.accent} />
+              <Text style={{ marginLeft: 8, fontFamily: 'Poppins-Medium', color: Colors.textSecondaryDark, fontSize: 14 }}>
+                {providerSummary}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={{ marginTop: 32 }}>
+          <Text style={{ fontFamily: 'Poppins-Bold', color: Colors.textPrimary, fontSize: 17, marginBottom: 4 }}>
+            What happens next
+          </Text>
+          <Text style={{ fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, fontSize: 14, marginBottom: 20 }}>
+            You can track everything from job details.
+          </Text>
+
+          {progressSteps.map((step, index) => {
+            const isLast = index === progressSteps.length - 1;
+            const dotColor = stepDotColor(step.status);
+            const Icon = stepIcon(index);
+            const lineColor = step.status === 'pending' ? JOB_TIMELINE.railMuted : dotColor;
+
+            return (
+              <View key={step.id} style={{ flexDirection: 'row', marginBottom: isLast ? 0 : 4 }}>
+                <View style={{ alignItems: 'center', width: 32, marginRight: 14 }}>
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: step.status === 'pending' ? JOB_TIMELINE.dotInactiveFill : dotColor,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon size={15} color={step.status === 'pending' ? JOB_TIMELINE.pendingChipText : '#FFFFFF'} />
+                  </View>
+                  {!isLast ? (
+                    <View
+                      style={{
+                        width: 2,
+                        flex: 1,
+                        minHeight: 28,
+                        backgroundColor: lineColor,
+                        marginTop: 6,
+                        opacity: step.status === 'pending' ? 0.35 : 0.5,
+                      }}
+                    />
+                  ) : null}
+                </View>
+                <View style={{ flex: 1, paddingBottom: isLast ? 0 : 22 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                    <Text style={{ flex: 1, fontFamily: 'Poppins-SemiBold', color: Colors.textPrimary, fontSize: 15 }}>
+                      {step.title}
+                    </Text>
+                    <Text style={{ fontFamily: 'Poppins-Medium', color: Colors.textTertiary, fontSize: 12 }}>
+                      {step.statusLabel}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      fontFamily: 'Poppins-Regular',
+                      color: Colors.textSecondaryDark,
+                      fontSize: 13,
+                      lineHeight: 19,
+                      marginTop: 4,
+                    }}
+                  >
+                    {step.description}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          paddingHorizontal: 20,
+          paddingTop: 12,
+          paddingBottom: 24,
+          backgroundColor: Colors.white,
+        }}
+      >
+        <TouchableOpacity
+          onPress={handleContinue}
+          activeOpacity={0.85}
+          style={{
+            backgroundColor: Colors.black,
+            borderRadius: BorderRadius.default,
+            paddingVertical: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+          }}
+        >
+          <Text style={{ color: Colors.white, fontSize: 15, marginRight: 8, fontFamily: 'Poppins-SemiBold' }}>
+            {params.requestId ? 'View job details' : 'Go to jobs'}
+          </Text>
+          <ArrowRight size={18} color={Colors.white} />
+        </TouchableOpacity>
+      </View>
     </SafeAreaWrapper>
   );
 }

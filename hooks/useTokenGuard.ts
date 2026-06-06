@@ -4,7 +4,7 @@ import { authService } from '@/services/api';
 import { isAccessTokenExpired } from '@/utils/jwtExpiry';
 import { isPublicUnauthenticatedRoute } from '@/utils/authPublicRoutes';
 import { isRoleSwitchInProgress } from '@/hooks/useRoleSwitching';
-import { logoutExpiredSession, redirectUnauthenticated } from '@/utils/tokenExpirationHandler';
+import { redirectToAuthScreen } from '@/utils/authNavigationGuard';
 
 /**
  * On protected screens: missing token or expired JWT → role login (client or provider).
@@ -25,16 +25,16 @@ export function useTokenGuard() {
         const token = await authService.getAuthToken();
 
         if (!token) {
-          await redirectUnauthenticated(router);
+          await redirectToAuthScreen(router, { pathname, clearSession: false });
           return;
         }
 
         if (isAccessTokenExpired(token)) {
-          await logoutExpiredSession(router);
+          await redirectToAuthScreen(router, { pathname, clearSession: true });
         }
       } catch {
         if (isMounted) {
-          await logoutExpiredSession(router);
+          await redirectToAuthScreen(router, { pathname, clearSession: true });
         }
       }
     };

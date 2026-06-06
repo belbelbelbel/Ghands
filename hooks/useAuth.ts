@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ONBOARDING_STORAGE_KEY } from './useOnboarding';
 import { authService } from '@/services/api';
 import { beginRoleSwitch, endRoleSwitch } from '@/hooks/useRoleSwitching';
+import { markAuthSessionEnded } from '@/utils/authNavigationGuard';
 
 export type UserRole = 'client' | 'provider' | null;
 
@@ -69,6 +70,7 @@ export function useAuthRole(): UseAuthRoleReturn {
       }
 
       await beginRoleSwitch();
+      markAuthSessionEnded();
 
       const providerKeys = [
         '@ghands:business_name',
@@ -105,7 +107,9 @@ export function useAuthRole(): UseAuthRoleReturn {
     try {
       // Get role BEFORE clearing it so we know where to redirect
       const currentRole = await AsyncStorage.getItem(AUTH_ROLE_KEY);
-      
+
+      markAuthSessionEnded();
+
       // Clear all auth data using authService (includes token, refresh token, and user ID)
       await authService.clearAuthTokens();
       

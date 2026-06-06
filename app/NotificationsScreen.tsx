@@ -505,15 +505,22 @@ export default function NotificationsScreen() {
         }
         break;
       case 'request_accepted':
-      case 'quotation_sent':
-      case 'quotation_accepted':
       case 'work_order_issued':
       case 'work_order_created':
-        // Navigate to job details timeline for client
         if (rawNotification.requestId) {
           router.push({
             pathname: '/OngoingJobDetails' as any,
-            params: { requestId: String(rawNotification.requestId) },
+            params: { requestId: String(rawNotification.requestId), tab: 'updates' },
+          } as any);
+          return;
+        }
+        break;
+      case 'quotation_sent':
+      case 'quotation_accepted':
+        if (rawNotification.requestId) {
+          router.push({
+            pathname: '/OngoingJobDetails' as any,
+            params: { requestId: String(rawNotification.requestId), tab: 'quotations' },
           } as any);
           return;
         }

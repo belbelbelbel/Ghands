@@ -1,6 +1,7 @@
 import type { Router } from 'expo-router';
 
 type RouterLike = Pick<Router, 'back' | 'replace' | 'canGoBack'>;
+type RouterWithNav = RouterLike & Pick<Router, 'push' | 'replace'>;
 
 /**
  * Prefer stack back; only use fallback when there is no history (deep link / replace entry).
@@ -22,23 +23,50 @@ export const NAV_FALLBACK = {
   providerJobs: '/provider/jobs',
 } as const;
 
-type RouterWithReplace = RouterLike & Pick<Router, 'replace'>;
+export type JobDetailsTab = 'updates' | 'quotations';
 
-/** Job details opened right after booking — return to confirmation, not the jobs tab. */
-export function navigateBackFromBookingJob(
-  router: RouterWithReplace,
-  requestId?: string
+export function buildJobDetailsParams(opts: {
+  requestId: string | number;
+  tab?: JobDetailsTab;
+  fromBooking?: boolean;
+  paymentStatus?: 'success';
+}): Record<string, string> {
+  const params: Record<string, string> = { requestId: String(opts.requestId) };
+  if (opts.tab) params.tab = opts.tab;
+  if (opts.fromBooking) params.fromBooking = '1';
+  if (opts.paymentStatus) params.paymentStatus = opts.paymentStatus;
+  return params;
+}
+
+/** Open active job hub — single entry point for job details navigation. */
+export function navigateToJob(
+  router: RouterWithNav,
+  opts: {
+    requestId: string | number;
+    tab?: JobDetailsTab;
+    fromBooking?: boolean;
+    paymentStatus?: 'success';
+    replace?: boolean;
+  }
 ): void {
-  if (router.canGoBack()) {
-    router.back();
+  const route = {
+    pathname: '/OngoingJobDetails',
+    params: buildJobDetailsParams(opts),
+  } as const;
+
+  if (opts.replace) {
+    router.replace(route as never);
     return;
   }
-  if (requestId) {
-    router.replace({
-      pathname: '/BookingConfirmationScreen',
-      params: { requestId },
-    } as never);
-    return;
-  }
+  router.push(route as never);
+}
+
+/** Job details opened right after booking — land on Jobs, not back through the booking stack. */
+export function navigateBackFromBookingJob(router: RouterLike & Pick<Router, 'replace'>): void {
   router.replace(NAV_FALLBACK.clientJobs as never);
+}
+
+/** After in-flow payment — replace receipt stack with job details. */
+export function exitPaymentToJob(router: RouterWithNav, requestId: string | number): void {
+  navigateToJob(router, { requestId, tab: 'updates', replace: true });
 }

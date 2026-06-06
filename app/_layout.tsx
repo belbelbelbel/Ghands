@@ -15,7 +15,7 @@ import { analytics } from '@/services/analytics';
 import { performance } from '@/services/performance';
 import { crashReporting } from '@/services/crashReporting';
 import { AuthError } from '@/utils/errors';
-import { handleTokenExpiration } from '@/utils/tokenExpirationHandler';
+import { redirectToAuthScreen } from '@/utils/authNavigationGuard';
 import { subscribeToSessionExpired } from '@/utils/sessionExpiredEvents';
 import { authService } from '@/services/authService';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -23,7 +23,6 @@ import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { UserLocationProvider } from '@/hooks/useUserLocation';
 import { Platform, StatusBar } from 'react-native';
 import { ScreenBootLoader } from '@/components/ScreenBootLoader';
-import { isPublicUnauthenticatedRoute } from '@/utils/authPublicRoutes';
 import { isRoleSwitchInProgress } from '@/hooks/useRoleSwitching';
 
 if (Platform.OS === 'ios' || Platform.OS === 'android') {
@@ -89,23 +88,9 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    let redirecting = false;
-
     return subscribeToSessionExpired(async () => {
-      if (redirecting) return;
-      redirecting = true;
-      try {
-        const isSwitchingRole = await isRoleSwitchInProgress();
-        if (isSwitchingRole) return;
-
-        const currentPath = pathname || '';
-        if (isPublicUnauthenticatedRoute(currentPath)) return;
-
-        const route = await handleTokenExpiration();
-        router.replace(route as never);
-      } finally {
-        redirecting = false;
-      }
+      if (await isRoleSwitchInProgress()) return;
+      await redirectToAuthScreen(router, { pathname: pathname || '', clearSession: true });
     });
   }, [router, pathname]);
 
@@ -128,11 +113,7 @@ export default function RootLayout() {
         if (error instanceof AuthError || error.name === 'AuthError') {
           if (await isRoleSwitchInProgress()) return;
 
-          const currentPath = pathname || '';
-          if (isPublicUnauthenticatedRoute(currentPath)) return;
-
-          const route = await handleTokenExpiration();
-          router.replace(route as never);
+          await redirectToAuthScreen(router, { pathname: pathname || '', clearSession: true });
           return;
         }
         
@@ -158,10 +139,7 @@ export default function RootLayout() {
         (async () => {
           if (await isRoleSwitchInProgress()) return;
 
-          const currentPath = pathname || '';
-          if (isPublicUnauthenticatedRoute(currentPath)) return;
-          const route = await handleTokenExpiration();
-          router.replace(route as never);
+          await redirectToAuthScreen(router, { pathname: pathname || '', clearSession: true });
         })();
       }
     };
@@ -241,9 +219,11 @@ export default function RootLayout() {
       ) {
         const screen = '/OngoingJobDetails';
 
+        const quoteTab =
+          typeNorm === 'quotation_sent' || typeNorm === 'quotation_accepted' ? 'quotations' : 'updates';
         router.push({
           pathname: screen as any,
-          params: { requestId: String(data.requestId) },
+          params: { requestId: String(data.requestId), tab: quoteTab },
         } as any);
       }
     } else if (typeNorm === 'deposit_success') {

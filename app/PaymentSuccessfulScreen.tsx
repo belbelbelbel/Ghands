@@ -1,7 +1,8 @@
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, CheckCircle, Download, Lock, Share2, User } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, CheckCircle, Download, Lock, Share2, User } from 'lucide-react-native';
+import { exitPaymentToJob, navigateBack, NAV_FALLBACK } from '@/utils/navigation';
 import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, Text, TouchableOpacity, View, Share, Alert, Image, ActivityIndicator } from 'react-native';
 import { Button } from '@/components/ui/Button';
@@ -77,6 +78,14 @@ export default function PaymentSuccessfulScreen() {
   
   const [transactionData, setTransactionData] = useState<TransactionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const handleExit = useCallback(() => {
+    if (params.requestId) {
+      exitPaymentToJob(router, params.requestId);
+      return;
+    }
+    navigateBack(router, NAV_FALLBACK.clientJobs);
+  }, [params.requestId, router]);
 
   // Load transaction data from API
   const loadTransactionData = useCallback(async () => {
@@ -269,7 +278,7 @@ export default function PaymentSuccessfulScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={handleExit}
           style={{
             width: 40,
             height: 40,
@@ -763,6 +772,35 @@ export default function PaymentSuccessfulScreen() {
             </View>
           </View>
         </View>
+
+        {params.requestId ? (
+          <TouchableOpacity
+            onPress={handleExit}
+            style={{
+              backgroundColor: Colors.black,
+              borderRadius: BorderRadius.default,
+              paddingVertical: 14,
+              paddingHorizontal: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 16,
+            }}
+            activeOpacity={0.85}
+          >
+            <Text
+              style={{
+                fontSize: 15,
+                fontFamily: 'Poppins-SemiBold',
+                color: Colors.white,
+                marginRight: 8,
+              }}
+            >
+              View job
+            </Text>
+            <ArrowRight size={18} color={Colors.white} />
+          </TouchableOpacity>
+        ) : null}
 
         {/* Action Buttons */}
         <View

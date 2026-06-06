@@ -1,18 +1,17 @@
 import { isRoleSwitchInProgress } from '@/hooks/useRoleSwitching';
-import { logoutExpiredSession } from '@/utils/tokenExpirationHandler';
+import { redirectToAuthScreen } from '@/utils/authNavigationGuard';
 
 /**
  * Auth failure (401 / expired JWT) → clear tokens and send user to their role login screen.
  */
-export async function handleAuthErrorRedirect(router: { replace: (href: any) => void }): Promise<void> {
+export async function handleAuthErrorRedirect(
+  router: { replace: (href: any) => void },
+  pathname?: string | null
+): Promise<void> {
   try {
     if (await isRoleSwitchInProgress()) return;
-    await logoutExpiredSession(router);
+    await redirectToAuthScreen(router, { pathname, clearSession: true });
   } catch {
-    try {
-      router.replace('/SelectAccountTypeScreen' as never);
-    } catch {
-      /* navigation unavailable */
-    }
+    /* redirectToAuthScreen already falls back */
   }
 }

@@ -28,7 +28,7 @@ import {
 } from '@/utils/timelineNegotiationSteps';
 import { navigateBack, navigateBackFromBookingJob, NAV_FALLBACK } from '@/utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { CheckCircle, CheckCircle2, Circle, Clock, FileText, MapPinned, Wrench } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -175,7 +175,12 @@ interface ExtendedQuotation extends Quotation {
 
 export default function OngoingJobDetails() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ requestId?: string; paymentStatus?: string; fromBooking?: string }>();
+  const params = useLocalSearchParams<{
+    requestId?: string;
+    paymentStatus?: string;
+    fromBooking?: string;
+    tab?: string;
+  }>();
   const { toast, showError, showSuccess, showWarning, hideToast } = useToast();
   const { data: currentUserProfile } = useCurrentUserProfile();
   const clientIdentity = useMemo(
@@ -203,7 +208,9 @@ export default function OngoingJobDetails() {
       setIsLoading(false);
     }
   }, [params.requestId]);
-  const [activeTab, setActiveTab] = useState<'Updates' | 'Quotations'>('Updates');
+  const [activeTab, setActiveTab] = useState<'Updates' | 'Quotations'>(() =>
+    params.tab === 'quotations' ? 'Quotations' : 'Updates'
+  );
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const [expandedQuoteProviderId, setExpandedQuoteProviderId] = useState<string | number | null>(null);
   const quoteCardAnim = useRef(new Animated.Value(1)).current;
@@ -215,10 +222,21 @@ export default function OngoingJobDetails() {
   const cameFromBooking = params.fromBooking === '1';
   const insets = useSafeAreaInsets();
 
+  useEffect(() => {
+    if (params.tab === 'quotations') {
+      setActiveTab('Quotations');
+    }
+  }, [params.tab]);
+
+  const openQuotationsTab = useCallback(() => {
+    haptics.light();
+    setActiveTab('Quotations');
+  }, []);
+
   const handleJobDetailsBack = useCallback(() => {
     haptics.light();
     if (cameFromBooking) {
-      navigateBackFromBookingJob(router, params.requestId);
+      navigateBackFromBookingJob(router);
       return;
     }
     navigateBack(router, NAV_FALLBACK.clientJobs);
@@ -228,7 +246,7 @@ export default function OngoingJobDetails() {
     useCallback(() => {
       if (!cameFromBooking) return;
       const onHardwareBack = () => {
-        navigateBackFromBookingJob(router, params.requestId);
+        navigateBackFromBookingJob(router);
         return true;
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
@@ -1191,25 +1209,11 @@ export default function OngoingJobDetails() {
       const response = await serviceRequestService.acceptQuotation(quotationId);
 
       haptics.success();
-      showSuccess(response.message || 'Quotation accepted! You can now proceed to payment.');
-
+      showSuccess(response.message || 'Quotation accepted. Tap Pay when you are ready.');
 
       await loadRequestData();
       await loadQuotations();
-
-      const acceptedQuotation = quotations.find(q => q.id === quotationId);
-      if (acceptedQuotation) {
-        router.push({
-          pathname: '/ConfirmWalletPaymentScreen',
-          params: {
-            requestId: params.requestId,
-            amount: acceptedQuotation.total.toString(),
-            quotationId: quotationId.toString(),
-            providerName: acceptedQuotation.provider?.name,
-            serviceName: request?.jobTitle || 'Service Request',
-          },
-        } as any);
-      }
+      setActiveTab('Quotations');
         } catch (error: any) {
           if (error instanceof AuthError) {
             await handleAuthErrorRedirect(router);
@@ -1882,6 +1886,7 @@ export default function OngoingJobDetails() {
 
   return (
     <SafeAreaWrapper edges={['bottom']}>
+      {cameFromBooking ? <Stack.Screen options={{ gestureEnabled: false }} /> : null}
       <View className="flex-1" style={{ paddingHorizontal: CLIENT_HOME_SCROLL_GUTTER, paddingTop: insets.top + 20 }}>
         <View className="flex-row items-center mb-6">
           <TouchableOpacity
@@ -2006,6 +2011,7 @@ export default function OngoingJobDetails() {
                       request={request}
                       requestId={params.requestId}
                       clientIdentity={clientIdentity}
+                      onViewQuotations={openQuotationsTab}
                     />
                   </View>
                 )}

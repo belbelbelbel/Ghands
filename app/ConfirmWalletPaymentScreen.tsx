@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/useToast';
 import { BorderRadius, Colors } from '@/lib/designSystem';
 import { walletService } from '@/services/api';
 import { getSpecificErrorMessage } from '@/utils/errorMessages';
+import { navigateBack, NAV_FALLBACK } from '@/utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { CheckCircle, Lock, RefreshCw, Wallet, X } from 'lucide-react-native';
@@ -12,7 +13,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -79,7 +84,7 @@ export default function ConfirmWalletPaymentScreen() {
     setPaymentError(null);
     setShowPinModal(true);
     setPin(['', '', '', '']);
-    setTimeout(() => pinInputRefs.current[0]?.focus(), 100);
+    setTimeout(() => pinInputRefs.current[0]?.focus(), 300);
   };
 
   const handlePinChange = (value: string, index: number) => {
@@ -115,6 +120,7 @@ export default function ConfirmWalletPaymentScreen() {
       return;
     }
 
+    Keyboard.dismiss();
     setIsProcessingPayment(true);
     setShowPinModal(false);
     setShowProcessingModal(true);
@@ -158,7 +164,7 @@ export default function ConfirmWalletPaymentScreen() {
         setTimeout(() => {
           router.replace({
             pathname: '/OngoingJobDetails' as any,
-            params: { requestId: params.requestId, paymentStatus: 'success' },
+            params: { requestId: params.requestId, tab: 'updates', paymentStatus: 'success' },
           } as any);
         }, 1500);
         return;
@@ -199,6 +205,7 @@ export default function ConfirmWalletPaymentScreen() {
   };
 
   const handleCancelPin = () => {
+    Keyboard.dismiss();
     setShowPinModal(false);
     setPin(['', '', '', '']);
     setPaymentError(null);
@@ -264,7 +271,13 @@ export default function ConfirmWalletPaymentScreen() {
   return (
     <SafeAreaWrapper>
       <View className="flex-row items-center px-4 py-3 border-b border-gray-100" style={{ paddingTop: 20 }}>
-        <TouchableOpacity onPress={() => { haptics.light(); router.back(); }} activeOpacity={0.85}>
+        <TouchableOpacity
+          onPress={() => {
+            haptics.light();
+            navigateBack(router, NAV_FALLBACK.clientJobs);
+          }}
+          activeOpacity={0.85}
+        >
           <Ionicons name="arrow-back" size={24} color="#000000" />
         </TouchableOpacity>
         <Text className="text-lg font-bold text-black flex-1 text-center" style={{ fontFamily: 'Poppins-Bold' }}>
@@ -493,65 +506,155 @@ export default function ConfirmWalletPaymentScreen() {
         </View>
       </Modal>
 
-      {/* PIN Modal */}
-      <Modal visible={showPinModal} transparent animationType="slide" onRequestClose={handleCancelPin}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: Colors.white, borderTopLeftRadius: BorderRadius.default, borderTopRightRadius: BorderRadius.default, paddingTop: 24, paddingBottom: 40, paddingHorizontal: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-              <Text style={{ fontSize: 18, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>Enter Wallet PIN</Text>
-              <TouchableOpacity onPress={handleCancelPin} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
-                <X size={20} color={Colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-            <Text style={{ fontSize: 13, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginBottom: 24, textAlign: 'center' }}>
-              Enter your 4-digit wallet PIN to authorize this payment.
-            </Text>
-            <View style={{ backgroundColor: Colors.backgroundGray, borderRadius: BorderRadius.default, padding: 16, marginBottom: 24, alignItems: 'center' }}>
-              <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginBottom: 4 }}>Payment Amount</Text>
-              <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
-                ₦{amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
-              {[0, 1, 2, 3].map((index) => (
-                <TextInput
-                  key={index}
-                  ref={(ref) => { if (ref) pinInputRefs.current[index] = ref; }}
-                  value={pin[index]}
-                  onChangeText={(v) => handlePinChange(v, index)}
-                  onKeyPress={({ nativeEvent }) => handlePinKeyPress(nativeEvent.key, index)}
-                  keyboardType="number-pad"
-                  maxLength={1}
-                  secureTextEntry
-                  style={{
-                    flex: 1,
-                    height: 56,
-                    borderWidth: 2,
-                    borderColor: pin[index] ? Colors.accent : Colors.border,
-                    borderRadius: BorderRadius.default,
-                    textAlign: 'center',
-                    fontSize: 24,
-                    fontFamily: 'Poppins-Bold',
-                    color: Colors.textPrimary,
-                  }}
-                  textContentType="none"
-                  autoComplete="off"
-                />
-              ))}
-            </View>
-            <TouchableOpacity onPress={goToCreateOrChangePin} activeOpacity={0.7} style={{ marginBottom: 20, alignSelf: 'center', paddingVertical: 6 }}>
-              <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.accent, textDecorationLine: 'underline' }}>
-                Forgot PIN? Create or change wallet PIN
-              </Text>
-            </TouchableOpacity>
-            {isProcessingPayment && (
-              <View style={{ alignItems: 'center', marginTop: 16 }}>
-                <ActivityIndicator size="small" color={Colors.accent} />
-                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 8 }}>Processing payment...</Text>
+      {/* PIN Modal — centered so keyboard does not cover inputs */}
+      <Modal
+        visible={showPinModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelPin}
+        statusBarTranslucent
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+        >
+          <Pressable
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.55)',
+              justifyContent: 'center',
+              paddingHorizontal: 24,
+              paddingVertical: 32,
+            }}
+            onPress={handleCancelPin}
+          >
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.default,
+                paddingTop: 24,
+                paddingBottom: 28,
+                paddingHorizontal: 20,
+                width: '100%',
+                maxWidth: 400,
+                alignSelf: 'center',
+                borderWidth: 1,
+                borderColor: Colors.border,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      backgroundColor: Colors.successLight,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 12,
+                    }}
+                  >
+                    <Lock size={22} color={Colors.accent} />
+                  </View>
+                  <Text style={{ fontSize: 18, fontFamily: 'Poppins-Bold', color: Colors.textPrimary, flex: 1 }}>
+                    Enter Wallet PIN
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={handleCancelPin}
+                  style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <X size={20} color={Colors.textPrimary} />
+                </TouchableOpacity>
               </View>
-            )}
-          </View>
-        </View>
+
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Poppins-Regular',
+                  color: Colors.textSecondaryDark,
+                  marginBottom: 20,
+                  textAlign: 'center',
+                  lineHeight: 20,
+                }}
+              >
+                Enter your 4-digit wallet PIN to authorize this payment.
+              </Text>
+
+              <View
+                style={{
+                  backgroundColor: Colors.backgroundGray,
+                  borderRadius: BorderRadius.default,
+                  padding: 14,
+                  marginBottom: 22,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginBottom: 4 }}>
+                  Payment Amount
+                </Text>
+                <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: Colors.textPrimary }}>
+                  ₦{amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 18, gap: 10 }}>
+                {[0, 1, 2, 3].map((index) => (
+                  <TextInput
+                    key={index}
+                    ref={(ref) => {
+                      if (ref) pinInputRefs.current[index] = ref;
+                    }}
+                    value={pin[index]}
+                    onChangeText={(v) => handlePinChange(v, index)}
+                    onKeyPress={({ nativeEvent }) => handlePinKeyPress(nativeEvent.key, index)}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    secureTextEntry
+                    style={{
+                      flex: 1,
+                      height: 56,
+                      borderWidth: 2,
+                      borderColor: pin[index] ? Colors.accent : Colors.border,
+                      borderRadius: BorderRadius.default,
+                      textAlign: 'center',
+                      fontSize: 24,
+                      fontFamily: 'Poppins-Bold',
+                      color: Colors.textPrimary,
+                      backgroundColor: Colors.white,
+                    }}
+                    textContentType="oneTimeCode"
+                    autoComplete={Platform.OS === 'android' ? 'sms-otp' : 'one-time-code'}
+                    importantForAutofill="no"
+                  />
+                ))}
+              </View>
+
+              <TouchableOpacity
+                onPress={goToCreateOrChangePin}
+                activeOpacity={0.7}
+                style={{ marginBottom: 8, alignSelf: 'center', paddingVertical: 6 }}
+              >
+                <Text style={{ fontSize: 14, fontFamily: 'Poppins-SemiBold', color: Colors.accent, textDecorationLine: 'underline' }}>
+                  Forgot PIN? Create or change wallet PIN
+                </Text>
+              </TouchableOpacity>
+
+              {isProcessingPayment ? (
+                <View style={{ alignItems: 'center', marginTop: 12 }}>
+                  <ActivityIndicator size="small" color={Colors.accent} />
+                  <Text style={{ fontSize: 12, fontFamily: 'Poppins-Regular', color: Colors.textSecondaryDark, marginTop: 8 }}>
+                    Processing payment...
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onClose={hideToast} />

@@ -46,6 +46,8 @@ type TimelineStatusCardProps = {
   requestId?: string | string[];
   /** Logged-in client — used for avatar row when `header.provider` is missing. */
   clientIdentity?: ClientIdentity | null;
+  /** Switch to Quotations tab from Updates when a quote is ready. */
+  onViewQuotations?: () => void;
 };
 
 const TimelineStatusCardComponent = ({
@@ -56,11 +58,12 @@ const TimelineStatusCardComponent = ({
   request,
   requestId,
   clientIdentity,
+  onViewQuotations,
 }: TimelineStatusCardProps) => {
   const router = useRouter();
   const [detailsExpanded, setDetailsExpanded] = useState(false);
 
-  const { shouldHide, isQuotationPending } = useMemo(() => {
+  const { isQuotationReceived, isQuotationPending } = useMemo(() => {
     const qList = Array.isArray(quotations) ? quotations : [];
     const hasQ = qList.some((q: any) => {
       if (!q || typeof q !== 'object') return false;
@@ -72,16 +75,13 @@ const TimelineStatusCardComponent = ({
 
     const isQuotationPendingValue = (acceptedProviders?.length || 0) > 0 && !hasQ;
 
-    const isQuotationReceivedHeader =
-      (header as any).title === 'Quotation received' && hasQ;
-
     return {
-      shouldHide: isQuotationReceivedHeader,
+      isQuotationReceived: (header as any).title === 'Quotation received' && hasQ,
       isQuotationPending: isQuotationPendingValue,
     };
   }, [quotations, acceptedProviders, header]);
 
-  if (!header || shouldHide) {
+  if (!header) {
     return null;
   }
 
@@ -382,6 +382,34 @@ const TimelineStatusCardComponent = ({
                 {(header as any).timestamp}
               </Text>
             ) : null}
+
+          {isQuotationReceived && onViewQuotations ? (
+            <View style={{ marginTop: 12 }}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={onViewQuotations}
+                style={{
+                  backgroundColor: Colors.accent,
+                  paddingVertical: 11,
+                  paddingHorizontal: 14,
+                  borderRadius: 12,
+                  alignSelf: 'stretch',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 18,
+                    fontFamily: 'Poppins-SemiBold',
+                    color: Colors.white,
+                    textAlign: 'center',
+                  }}
+                >
+                  Review quotation
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {(header as any).showVisitPayButton && hasVisitFee && (
             <View style={{ marginTop: 12 }}>

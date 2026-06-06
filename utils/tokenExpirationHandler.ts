@@ -29,22 +29,27 @@ export async function handleTokenExpiration(): Promise<string> {
 type RouterLike = { replace: (href: any) => void };
 
 /** Clear session and navigate to client or provider login based on stored role. */
-export async function logoutExpiredSession(router: RouterLike): Promise<void> {
-  const route = await handleTokenExpiration();
-  router.replace(route as never);
+export async function logoutExpiredSession(
+  router: RouterLike,
+  pathname?: string | null
+): Promise<void> {
+  const { redirectToAuthScreen } = await import('@/utils/authNavigationGuard');
+  await redirectToAuthScreen(router, { pathname, clearSession: true });
 }
 
 /**
  * Missing or expired token on a protected screen → role login (or account picker if unknown).
  */
-export async function redirectUnauthenticated(router: RouterLike): Promise<void> {
+export async function redirectUnauthenticated(
+  router: RouterLike,
+  pathname?: string | null
+): Promise<void> {
+  const { redirectToAuthScreen } = await import('@/utils/authNavigationGuard');
   const token = await authService.getAuthToken();
-  if (token) {
-    await logoutExpiredSession(router);
-    return;
-  }
-  const route = await getLoginRouteForStoredRole();
-  router.replace(route as never);
+  await redirectToAuthScreen(router, {
+    pathname,
+    clearSession: Boolean(token),
+  });
 }
 
 /**

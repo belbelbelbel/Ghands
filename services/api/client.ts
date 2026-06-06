@@ -1,5 +1,6 @@
 import { AuthError } from '../../utils/errors';
 import { authService as authServiceInstance } from '../authService';
+import { isInAuthTransition } from '../../utils/authNavigationGuard';
 import { notifySessionExpired } from '../../utils/sessionExpiredEvents';
 import { isAccessTokenExpired } from '../../utils/jwtExpiry';
 import { API_BASE_URL } from '../../lib/apiConfig';
@@ -38,12 +39,12 @@ class ApiClient {
       if (!config.skipAuth) {
         const token = await authServiceInstance.getAuthToken();
         if (!token) {
-          notifySessionExpired();
+          if (!isInAuthTransition()) notifySessionExpired();
           throw new AuthError('Your session has expired. Please sign in again.');
         }
         if (isAccessTokenExpired(token)) {
           await authServiceInstance.clearAuthTokens();
-          notifySessionExpired();
+          if (!isInAuthTransition()) notifySessionExpired();
           throw new AuthError('Your session has expired. Please sign in again.');
         }
         const existingHeaders = config.headers || {};
@@ -161,7 +162,7 @@ class ApiClient {
             return this.retryRequest<T>(url, config, retries, retryDelay, true);
           }
           await authServiceInstance.clearAuthTokens();
-          notifySessionExpired();
+          if (!isInAuthTransition()) notifySessionExpired();
           throw new AuthError('Your session has expired. Please sign in again.');
         }
 
@@ -235,7 +236,7 @@ class ApiClient {
             ((statusCode === 401 && retriedAfterRefresh) || statusCode === 403)
           ) {
             await authServiceInstance.clearAuthTokens();
-            notifySessionExpired();
+            if (!isInAuthTransition()) notifySessionExpired();
             throw new AuthError('Your session has expired. Please sign in again.');
           }
           const isExpected500 = statusCode === 500;
